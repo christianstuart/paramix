@@ -955,7 +955,8 @@ PROPERTY_IMPL_GETTER(kStemsGroup,
         stemFileFormat,
         QStringLiteral("flac"));
 
-void QmlConfigProxy::set_stemFileFormat(QString value) {
+void QmlConfigProxy::set_stemFileFormat(
+        std::conditional_t<(sizeof(QString) <= 16), QString, const QString&> value) {
     // Normalize to the names written by mixxx::stems::writeStemExportSettings()
     // and fall back to FLAC for unknown values.
     const QString sanitizedValue = mixxx::stems::stemFileFormatName(
