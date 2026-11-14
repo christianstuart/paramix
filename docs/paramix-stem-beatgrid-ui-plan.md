@@ -265,6 +265,16 @@ Current market patterns: Traktor Pro 4 uses right-click offline separation with 
 
 **Recommendation:** Option 1, staged S→M: first a tinted composite + 4-row stem strip (lowest risk, immediate value), then collapsible stacked lanes and per-stem FX sends. Define a color-blind-safe stem palette plus text labels (never color alone): drums `#E85D4A`, bass `#7A5AF8`, vocals `#2BB673`, other `#F2C94C`; validate contrast; add `qsTr()` and `Accessible.*` from day one.
 
+**Implementation status (2026-11-13, `feature/ui-overhaul`).** Option 1 is being built in
+`res/qml` (the QML skin source), not `res/skins/Paramix`: QML skins are discovered from
+`res/qml` when the app runs in developer mode, and `res/skins/Paramix` would not be found. The
+token layer and flat base controls are in `res/qml/Theme/Theme.qml` and the root QML controls,
+documented in `docs/paramix-ui-design-system.md`. The deck stem strip, mixer/library
+modernization and Settings → Stems page are landing on the same branch. The library stem-status
+column is deferred until a C++ track-list column exists; the Standard Bar vs. Rekordbox Phrase
+toggle is deferred until beatgrid phrase storage (ADR-003) is implemented; native engine stem
+solo is deferred, so the strip currently orchestrates mute at the QML level.
+
 ### 5.9 Model hosting and distribution (decided: download-only via GitHub Releases)
 
 **What ships:** no model weights in git or in any installer. The app carries ONNX Runtime (the inference library) and a small **model manifest** (JSON) listing model id, version, URL, SHA-256, byte size, license, stem layout, sample rate and required ORT opset. The actual `htdemucs_ft` assets (~630 MB fp16) live as GitHub Releases assets on the dedicated **`paramix-models`** repository (decision 9).

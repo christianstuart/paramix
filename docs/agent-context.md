@@ -4,7 +4,7 @@
 file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 `docs/old-context.md` (raw transcript of the original planning session).
 
-**Last updated:** 2026-11-11, during Phase −1 (baseline).
+**Last updated:** 2026-11-13, during the UI overhaul (`feature/ui-overhaul`).
 **Update rule:** every agent that changes repo state must append to §9 (Work log) and correct
 §3 (Current state) before finishing.
 
@@ -139,7 +139,7 @@ The baseline is closed and feature work is landing. Current state:
 | BeatGrid `BarInfo` | Not started (ADR-003 design only) |
 | Stem cache / schema 41 | Not started (ADR-002 design only) |
 | ONNX runtime + model backend | Not started |
-| Paramix QML skin overhaul | Not started |
+| Paramix QML skin overhaul | **In progress** (`feature/ui-overhaul`): design tokens, flat base controls, shell, Stems settings page; deck/mixer/library work landing |
 | Packaging/installers | Not started |
 
 Build status: the Windows x64 local build (`mixxx`, `mixxx-test`) is green. CI is green on
@@ -431,3 +431,21 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   (`rbxport-analysis:0`) and exposed in Preferences → Beat Detection. Ported tempo tests plus
   synthetic end-to-end grid/plugin tests; 10 rbxport tests green. The PR was rebased onto current
   `main` so it carries only the rbxport change.
+- **2026-11-13** — **UI overhaul started** on `feature/ui-overhaul` from `main` (`0b0a97e`).
+  `res/qml/Theme/Theme.qml` is now a token layer: named schemes (`Paramix Dark`,
+  `Paramix Midnight`, `Paramix High Contrast`), semantic surfaces/text/accents, a stem and phrase
+  palette, type, spacing, radius, motion and layout metrics. Every legacy Mixxx property is kept
+  as an alias so un-migrated components still work. `res/qml/skin.ini` is renamed to Paramix with
+  a 1280×720 minimum. The flat base controls (`Button`, `ActionButton`, `FormButton`, `ComboBox`,
+  `TextField`, `SectionBackground`, `SectionText`, `EmbeddedBackground`) are token-driven and keep
+  their old public properties. Documented in `docs/paramix-ui-design-system.md`.
+- **2026-11-13** — **Main window shell modernized.** Brand header, flat toolbar with accent active
+  states, tokenized splitter and waveform edge fades. All toolbar buttons gained `Accessible.name`;
+  no control bindings changed.
+- **2026-11-13** — **Settings → Stems page added.** `res/qml/Settings/Stems.qml` selects the stem
+  export format (FLAC/ALAC/AAC) and AAC bitrate (32–512 kbps), shows a read-only storage location,
+  and a disabled model-quality section with an explanation instead of a dead control. Two new
+  `Mixxx.Config` properties back it: `stemFileFormat` (`[Stems],FileFormat`, normalized through
+  `mixxx::stems::parseStemFileFormat`) and `stemAacBitrate` (`[Stems],AacBitrate`, clamped). Phrase
+  display was intentionally not added because beatgrid phrase storage is not implemented.
+

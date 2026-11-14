@@ -10,8 +10,9 @@ import QtQuick 2.12
 /// legacy Mixxx names (`darkGray`, `white`, `buttonNormalColor`, ...) are kept
 /// as aliases so existing components keep working while they are migrated.
 ///
-/// The palette is selected by `scheme`. The values are plain colors so a skin
-/// can override individual tokens at runtime by assigning them.
+/// The palette is selected by `scheme`; switch it at runtime to change every
+/// semantic color token at once. Individual tokens are read-only so components
+/// cannot drift from the palette.
 QtObject {
     id: theme
 
