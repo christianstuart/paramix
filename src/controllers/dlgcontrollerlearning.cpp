@@ -29,8 +29,8 @@ DlgControllerLearning::DlgControllerLearning(QWidget* parent,
     labelDescription->setWordWrap(true);
     labelMappedTo->setText("");
 
-    QString helpTitle(tr("Click anywhere in Mixxx or choose a control to learn"));
-    QString helpBody(tr("You can click on any button, slider, or knob in Mixxx "
+    QString helpTitle(tr("Click anywhere in Paramix or choose a control to learn"));
+    QString helpBody(tr("You can click on any button, slider, or knob in Paramix "
                         "to teach it that control.  You can also type in the "
                         "box to search for a control by name, or click the "
                         "Choose Control button to select from a list."));
@@ -43,7 +43,7 @@ DlgControllerLearning::DlgControllerLearning(QWidget* parent,
 
     QString nextTitle(tr("Now test it out!"));
     QString nextInstructionBody(tr(
-            "If you manipulate the control, you should see the Mixxx user interface "
+            "If you manipulate the control, you should see the Paramix user interface "
             "respond the way you expect."));
     QString nextTroubleshootTitle(tr("Not quite right?"));
     QString nextTroubleshootBody(tr(
@@ -522,7 +522,7 @@ void DlgControllerLearning::controlClicked(const ConfigKey& controlKey) {
         QMessageBox::warning(
                 this,
                 VersionStore::applicationName(),
-                tr("The control you clicked in Mixxx is not learnable.\n"
+                tr("The control you clicked in Paramix is not learnable.\n"
                    "This could be because you are either using an old skin"
                    " and this control is no longer supported, "
                    "or you clicked a control that provides visual feedback"

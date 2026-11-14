@@ -81,7 +81,7 @@ bool MixxxDb::initDatabaseSchema(
             tr("Unable to upgrade your database schema to version %1")
                     .arg(QString::number(schemaVersion));
     QString helpContact = tr("For help with database issues consult:") + "\n" +
-            "https://www.mixxx.org/support";
+            "https://github.com/christianstuart/paramix/issues";
 
     switch (SchemaManager(database).upgradeToSchemaVersion(schemaVersion, schemaFile)) {
     case SchemaManager::Result::CurrentVersion:
@@ -93,7 +93,7 @@ bool MixxxDb::initDatabaseSchema(
                 upgradeFailed,
                 upgradeToVersionFailed + "\n" +
                         tr("Your mixxxdb.sqlite file may be corrupt.") +
-                        "\n" + tr("Try renaming it and restarting Mixxx.") +
+                        "\n" + tr("Try renaming it and restarting Paramix.") +
                         "\n" + helpContact + "\n\n" + okToExit,
                 QMessageBox::Ok);
         return false; // abort
@@ -102,7 +102,7 @@ bool MixxxDb::initDatabaseSchema(
                 upgradeFailed,
                 upgradeToVersionFailed + "\n" +
                         tr("Your mixxxdb.sqlite file was created by a newer "
-                           "version of Mixxx and is incompatible.") +
+                           "version of Paramix and is incompatible.") +
                         "\n\n" + okToExit,
                 QMessageBox::Ok);
         return false; // abort

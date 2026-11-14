@@ -289,7 +289,7 @@ void DlgPrefInterface::slotUpdateSkins() {
     QIcon systemSkinIcon;
     if (ComboBoxSkinconf->count() > 0) {
         ComboBoxSkinconf->insertSeparator(index);
-        systemSkinIcon = QIcon(iconsPath.filePath("ic_mixxx_symbolic.svg"));
+        systemSkinIcon = QIcon(iconsPath.filePath("ic_paramix_symbolic.svg"));
         index++;
     }
 
@@ -444,14 +444,14 @@ void DlgPrefInterface::notifyRebootNecessary() {
     // make the fact that you have to restart mixxx more obvious
     QMessageBox::information(this,
             tr("Information"),
-            tr("Mixxx must be restarted before the new locale, scaling or multi-sampling "
+            tr("Paramix must be restarted before the new locale, scaling or multi-sampling "
                "settings will take effect."));
 }
 
 void DlgPrefInterface::notifyExperimentalQmlSkinRestartNecessary() {
     QMessageBox::information(this,
             tr("Information"),
-            tr("Mixxx must be restarted with the --developer command line option "
+            tr("Paramix must be restarted with the --developer command line option "
                "to use the experimental LateNight QML skin."));
 }
 

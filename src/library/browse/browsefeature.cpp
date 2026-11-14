@@ -520,7 +520,7 @@ QString BrowseFeature::getRootViewHtml() const {
             " from folders on your hard disk and external devices.");
     const QString browseDetails = tr(
                                           "It shows the data from the file tags, not track data"
-                                          " from your Mixxx library like other track views.") +
+                                          " from your Paramix library like other track views.") +
             "<br><br>" +
             tr("If you load a track file from here, it will be added to your library.");
 

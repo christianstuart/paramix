@@ -219,7 +219,7 @@ void WSearchLineEdit::setupToolTip(const QString& searchInCurrentViewShortcut,
     setBaseTooltip(tr("Search", "noun") + "\n" +
             tr("Enter a string to search for.") + " " +
             tr("Use operators like bpm:115-128, artist:BooFar, -year:1990.") +
-            "\n" + tr("See User Manual > Mixxx Library for more information.") +
+            "\n" + tr("See User Manual > Paramix Library for more information.") +
             "\n\n" + searchInCurrentViewShortcut + ": " +
             tr("Focus/Select All (Search in current view)",
                     "Give search bar input focus") +

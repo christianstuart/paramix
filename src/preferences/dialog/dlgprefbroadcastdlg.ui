@@ -506,7 +506,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Mixxx Icecast Testing</string>
+              <string>Paramix Icecast Testing</string>
              </property>
             </widget>
            </item>
@@ -551,7 +551,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>http://www.mixxx.org</string>
+              <string>https://example.com</string>
              </property>
             </widget>
            </item>

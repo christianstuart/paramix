@@ -244,9 +244,9 @@ DlgPrefController::DlgPrefController(
             "may not work correctly. "
             "Please select another mapping or disable the "
             "controller.</b></font><br><br>"
-            "This mapping was designed for a newer Mixxx Controller Engine "
-            "and cannot be used on your current Mixxx installation.<br>"
-            "Your Mixxx installation has Controller Engine version %1. "
+            "This mapping was designed for a newer Paramix Controller Engine "
+            "and cannot be used on your current Paramix installation.<br>"
+            "Your Paramix installation has Controller Engine version %1. "
             "This mapping requires a Controller Engine version >= %2.<br><br>"
             "For more information visit the wiki page on "
             "<a "
@@ -502,7 +502,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!forumLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Forums",
+                "Controller&nbsp;Forums",
                 forumLink);
     }
 
@@ -510,7 +510,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!wikiLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Wiki",
+                "Wiki",
                 wikiLink);
     }
 
@@ -518,7 +518,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!manualLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Manual",
+                "Manual",
                 manualLink);
     }
 
@@ -597,7 +597,7 @@ void DlgPrefController::enumerateMappings(const QString& selectedMappingPath) {
     m_ui.comboBoxMapping->insertSeparator(m_ui.comboBoxMapping->count());
 
     // Enumerate system mappings
-    QIcon systemMappingIcon(iconsPath.filePath("ic_mixxx_symbolic.svg"));
+    QIcon systemMappingIcon(iconsPath.filePath("ic_paramix_symbolic.svg"));
     MappingInfo systemMappingsMatch = enumerateMappingsFromEnumerator(
             m_pControllerManager->getMainThreadSystemMappingEnumerator(),
             systemMappingIcon);

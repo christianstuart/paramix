@@ -580,7 +580,7 @@ void Tooltips::addStandardTooltips() {
     QString whilePreviewing = tr("(while previewing)");
     QString cueSet = tr("Places a cue point at the current position on the waveform.");
     QString cueWhilePlaying = tr("Stops track at cue point, OR go to cue point and play after release (CUP mode).");
-    QString cueWhileStopped = tr("Set cue point (Pioneer/Mixxx/Numark mode), set cue point and play after release (CUP mode) "
+    QString cueWhileStopped = tr("Set cue point (Pioneer/Paramix/Numark mode), set cue point and play after release (CUP mode) "
             "OR preview from it (Denon mode).");
     QString cueHint = tr("Hint: Change the default cue mode in Preferences -> Decks.");
     QString latchingPlay = tr("Is latching the playing state.");
@@ -791,7 +791,7 @@ void Tooltips::addStandardTooltips() {
              << tr("Red for when needle skip has been detected.");
     QStringList vcEnabled;
     vcEnabled << tr("Enable Vinyl Control")
-              << tr("When disabled, the track is controlled by Mixxx playback "
+              << tr("When disabled, the track is controlled by Paramix playback "
                     "controls.")
               << tr("When enabled, the track responds to external vinyl "
                     "control.");
@@ -1181,7 +1181,7 @@ void Tooltips::addStandardTooltips() {
             << tr("Effect Focus Button")
             << QString("%1: %2").arg(leftClick, tr("Focuses this effect."))
             << QString("%1: %2").arg(rightClick, tr("Unfocuses this effect."))
-            << tr("Refer to the web page on the Mixxx wiki for your controller for more information.");
+            << tr("Refer to your controller's wiki page for more information.");
 
     add("EffectSlot_parameter")
             << tr("Effect Parameter")

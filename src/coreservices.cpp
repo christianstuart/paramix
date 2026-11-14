@@ -421,12 +421,12 @@ void CoreServices::initializeSettings() {
             // folder remains unwritable. Show a clear error and exit.
             QMessageBox::critical(nullptr,
                     tr("Cannot access settings folder"),
-                    tr("Mixxx cannot access the settings folder:"
+                    tr("Paramix cannot access the settings folder:"
                        "\n\n%1\n\n"
                        "You can either:\n\n"
                        "\u2022 Remove the --settings-path argument to use the "
                        "default location\n"
-                       "\u2022 Re-run Mixxx and select a valid folder when prompted\n\n"
+                       "\u2022 Re-run Paramix and select a valid folder when prompted\n\n"
                        "Click OK to exit.")
                             .arg(settingsPath),
                     QMessageBox::Ok);
@@ -826,13 +826,13 @@ bool CoreServices::initializeDatabase() {
                     "This may be caused by macOS sandbox restrictions "
                     "if you are using a custom --settings-path outside "
                     "the app container.\n\n"
-                    "Try running Mixxx without --settings-path, or "
-                    "grant Mixxx access to the folder when prompted.")
+                    "Try running Paramix without --settings-path, or "
+                    "grant Paramix access to the folder when prompted.")
                                   .arg(settingsPath);
         } else {
             errorDetail = tr(
                     "Unable to establish a database connection.\n"
-                    "Mixxx requires Qt with SQLite support. Please read "
+                    "Paramix requires Qt with SQLite support. Please read "
                     "the Qt SQL driver documentation for information on how "
                     "to build it.");
         }

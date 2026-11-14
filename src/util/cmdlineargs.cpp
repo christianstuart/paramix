@@ -70,7 +70,8 @@ CmdlineArgs::CmdlineArgs()
           m_logLevel(mixxx::kLogLevelDefault),
           m_logFlushLevel(mixxx::kLogFlushLevelDefault),
           m_logMaxFileSize(mixxx::kLogMaxFileSizeDefault),
-// We are not ready to switch to XDG folders under Linux, so keeping $HOME/.mixxx as preferences folder. see #8090
+// Keep the settings folder next to the home directory rather than moving to XDG
+// folders; Paramix uses $HOME/.paramix.
 #if defined(__LINUX__) || defined(__BSD__)
 #ifdef MIXXX_SETTINGS_PATH
           m_settingsPath(QDir::homePath().append("/").append(MIXXX_SETTINGS_PATH))
@@ -82,17 +83,17 @@ CmdlineArgs::CmdlineArgs()
           // documents directory rather than the default app data directory. Specifically
           // we use
           //
-          //     <sandbox home>/Documents/Library/Application Support/Mixxx
+          //     <sandbox home>/Documents/Library/Application Support/Paramix
           //
           // instead of the default (and hidden)
           //
-          //     <sandbox home>/Library/Application Support/Mixxx
+          //     <sandbox home>/Library/Application Support/Paramix
           //
           // This lets the user back up their mixxxdb, add custom controller mappings,
           // potentially diagnose issues by accessing logs etc. via the native iOS files app.
           m_settingsPath(
                   QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
-                          .append("/Library/Application Support/Mixxx"))
+                          .append("/Library/Application Support/Paramix"))
 #else
 
           // TODO(XXX) Trailing slash not needed anymore as we switches from String::append
@@ -493,13 +494,13 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     if (parser.isSet(logLevel)) {
         if (!parseLogLevel(parser.value(logLevel), &m_logLevel)) {
             fputs("\nlog-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only print warnings and critical messages to the console.\n",
+                  "Paramix will only print warnings and critical messages to the console.\n",
                     stdout);
         }
     } else if (parser.isSet(logLevelDeprecated)) {
         if (!parseLogLevel(parser.value(logLevelDeprecated), &m_logLevel)) {
             fputs("\nlogLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only print warnings and critical messages to the console.\n",
+                  "Paramix will only print warnings and critical messages to the console.\n",
                     stdout);
         }
     } else {

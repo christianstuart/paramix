@@ -251,7 +251,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
         newFilePath = newLocation.filePath("MixxxMIDIBindings.xml");
         oldFile = new QFile(oldFilePath);
         if (oldFile->exists()) {
-            qWarning() << "The MIDI mapping file format has changed in this version of Mixxx. You will need to reconfigure your MIDI controller. See the Wiki for full details on the new format.";
+            qWarning() << "The MIDI mapping file format has changed in this version of Paramix. You will need to reconfigure your MIDI controller. See the Wiki for full details on the new format.";
             if (oldFile->copy(newFilePath)) {
                 oldFile->remove();
             } else {
@@ -657,8 +657,8 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
 bool Upgrade::askReScanLibrary() {
     QMessageBox msgBox;
     msgBox.setIconPixmap(QPixmap(MIXXX_ICON_PATH));
-    msgBox.setWindowTitle(QMessageBox::tr("Upgrading Mixxx"));
-    msgBox.setText(QMessageBox::tr("Mixxx now supports displaying cover art.\n"
+    msgBox.setWindowTitle(QMessageBox::tr("Upgrading Paramix"));
+    msgBox.setText(QMessageBox::tr("Paramix now supports displaying cover art.\n"
                       "Do you want to scan your library for cover files now?"));
     QPushButton* rescanButton = msgBox.addButton(
         QMessageBox::tr("Scan"), QMessageBox::AcceptRole);
@@ -671,17 +671,17 @@ bool Upgrade::askReScanLibrary() {
 
 bool Upgrade::askReanalyzeBeats() {
     QString windowTitle =
-            QMessageBox::tr("Upgrading Mixxx from v1.9.x/1.10.x.");
+            QMessageBox::tr("Upgrading Paramix from v1.9.x/1.10.x.");
     QString mainHeading =
-            QMessageBox::tr("Mixxx has a new and improved beat detector.");
+            QMessageBox::tr("Paramix has a new and improved beat detector.");
     QString paragraph1 = QMessageBox::tr(
-        "When you load tracks, Mixxx can re-analyze them "
+        "When you load tracks, Paramix can re-analyze them "
         "and generate new, more accurate beatgrids. This will make "
         "automatic beatsync and looping more reliable.");
     QString paragraph2 = QMessageBox::tr(
         "This does not affect saved cues, hotcues, playlists, or crates.");
     QString paragraph3 = QMessageBox::tr(
-        "If you do not want Mixxx to re-analyze your tracks, choose "
+        "If you do not want Paramix to re-analyze your tracks, choose "
         "\"Keep Current Beatgrids\". You can change this setting at any time "
         "from the \"Beat Detection\" section of the Preferences.");
     QString keepCurrent = QMessageBox::tr("Keep Current Beatgrids");

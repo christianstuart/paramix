@@ -24,7 +24,7 @@ LaunchImage::LaunchImage(QWidget* pParent, const QString& styleSheet)
         setStyleSheet(
                 "LaunchImage { background-color: #202020; }"
                 "QLabel { "
-                "image: url(:/images/mixxx-icon-logo-christmas.svg);"
+                "image: url(:/images/paramix-icon-logo-symbolic.svg);"
                 "padding:0;"
                 "margin:0;"
                 "border:none;"
@@ -46,7 +46,7 @@ LaunchImage::LaunchImage(QWidget* pParent, const QString& styleSheet)
         setStyleSheet(
                 "LaunchImage { background-color: #202020; }"
                 "QLabel { "
-                "image: url(:/images/mixxx-icon-logo-symbolic.svg);"
+                "image: url(:/images/paramix-icon-logo-symbolic.svg);"
                 "padding:0;"
                 "margin:0;"
                 "border:none;"

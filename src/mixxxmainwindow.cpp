@@ -473,14 +473,14 @@ void MixxxMainWindow::setupStemStatusBar() {
                         "QProgressBar { border: 1px solid #3a3a3a; border-radius: 2px; "
                         "background-color: transparent; text-align: center; "
                         "color: white; max-height: 12px; } "
-                        "QProgressBar::chunk { background-color: #4a90d9; } "
+                        "QProgressBar::chunk { background-color: #4C8DFF; } "
                         "QPushButton { border: none; padding: 2px 8px; color: white; } "
                         "QPushButton:hover { background-color: #3a3a3a; }"));
 
         auto* pLayout = new QHBoxLayout(m_pStemStatusBar);
         pLayout->setContentsMargins(6, 2, 6, 2);
         pLayout->setSpacing(8);
-        m_pStemStatusLabel = new QLabel(tr("Stems"), m_pStemStatusBar);
+        m_pStemStatusLabel = new QLabel(tr("Paramix stems"), m_pStemStatusBar);
         m_pStemProgress = new QProgressBar(m_pStemStatusBar);
         m_pStemProgress->setRange(0, 100);
         m_pStemProgress->setTextVisible(false);
@@ -501,7 +501,7 @@ void MixxxMainWindow::setupStemStatusBar() {
         m_pStemStatusBar->show();
 
         connect(m_pStemStatusTimer, &QTimer::timeout, this, [this] {
-            m_pStemStatusLabel->setText(tr("Stems"));
+            m_pStemStatusLabel->setText(tr("Paramix stems"));
             m_pStemProgress->hide();
             m_pStemCancelButton->hide();
         });
@@ -706,17 +706,17 @@ void MixxxMainWindow::alwaysHideMenuBarDlg() {
                 kMenuBarHintConfigKey, true)) {
         return;
     }
-    QString title = tr("Allow Mixxx to hide the menu bar?");
+    QString title = tr("Allow Paramix to hide the menu bar?");
     //: Always show the menu bar?
     QString hideBtnLabel = tr("Hide");
     QString showBtnLabel = tr("Always show");
     //: Keep formatting tags <b> (bold text) and <br> (linebreak).
     //: %1 is the placeholder for the 'Always show' button label
     QString desc = tr(
-            "The Mixxx menu bar is hidden and can be toggled with a single press "
+            "The Paramix menu bar is hidden and can be toggled with a single press "
             "of the <b>Alt</b> key.<br><br>"
             "Click <b>%1</b> to agree.<br><br>"
-            "Click <b>%2</b> to disable that, for example if you don't use Mixxx "
+            "Click <b>%2</b> to disable that, for example if you don't use Paramix "
             "with a keyboard.<br><br>"
             "You can change this setting any time in Preferences -> Interface."
             "<br>") // line break for some extra margin to the checkbox
@@ -795,7 +795,7 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceBusyDlg(bool* retryClicked) {
     QString title(tr("Sound Device Busy"));
     QString text(
             "<html> <p>" %
-                    tr("Mixxx was unable to open all the configured sound devices.") +
+                    tr("Paramix was unable to open all the configured sound devices.") +
             "</p> <p>" %
                     m_pCoreServices->getSoundManager()->getErrorDeviceName() %
                     " is used by another application or not plugged in."
@@ -805,13 +805,13 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceBusyDlg(bool* retryClicked) {
                        "or reconnecting a sound device") %
                     "</li>"
                     "<li>" %
-                    tr("<b>Reconfigure</b> Mixxx's sound device settings.") %
+                    tr("<b>Reconfigure</b> Paramix's sound device settings.") %
                     "</li>"
                     "<li>" %
-                    tr("Get <b>Help</b> from the Mixxx Wiki.") %
+                    tr("Get <b>Help</b> from the Wiki.") %
                     "</li>"
                     "<li>" %
-                    tr("<b>Exit</b> Mixxx.") %
+                    tr("<b>Exit</b> Paramix.") %
                     "</li>"
                     "</ul></html>");
     return soundDeviceErrorDlg(title, text, retryClicked);
@@ -821,7 +821,7 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceErrorMsgDlg(
         SoundDeviceStatus status, bool* retryClicked) {
     QString title(tr("Sound Device Error"));
     QString text("<html> <p>" %
-                    tr("Mixxx was unable to open all the configured sound "
+                    tr("Paramix was unable to open all the configured sound "
                        "devices.") +
             "</p> <p>" %
                     m_pCoreServices->getSoundManager()
@@ -832,13 +832,13 @@ QDialog::DialogCode MixxxMainWindow::soundDeviceErrorMsgDlg(
                     tr("<b>Retry</b> after fixing an issue") %
                     "</li>"
                     "<li>" %
-                    tr("<b>Reconfigure</b> Mixxx's sound device settings.") %
+                    tr("<b>Reconfigure</b> Paramix's sound device settings.") %
                     "</li>"
                     "<li>" %
-                    tr("Get <b>Help</b> from the Mixxx Wiki.") %
+                    tr("Get <b>Help</b> from the Wiki.") %
                     "</li>"
                     "<li>" %
-                    tr("<b>Exit</b> Mixxx.") %
+                    tr("<b>Exit</b> Paramix.") %
                     "</li>"
                     "</ul></html>");
     return soundDeviceErrorDlg(title, text, retryClicked);
@@ -849,17 +849,17 @@ QDialog::DialogCode MixxxMainWindow::noOutputDlg(bool* continueClicked) {
     msgBox.setIcon(QMessageBox::Warning);
     msgBox.setWindowTitle(tr("No Output Devices"));
     msgBox.setText(
-            "<html>" + tr("Mixxx was configured without any output sound devices. "
+            "<html>" + tr("Paramix was configured without any output sound devices. "
                           "Audio processing will be disabled without a configured output device.") +
             "<ul>"
             "<li>" +
             tr("<b>Continue</b> without any outputs.") +
             "</li>"
             "<li>" +
-            tr("<b>Reconfigure</b> Mixxx's sound device settings.") +
+            tr("<b>Reconfigure</b> Paramix's sound device settings.") +
             "</li>"
             "<li>" +
-            tr("<b>Exit</b> Mixxx.") +
+            tr("<b>Exit</b> Paramix.") +
             "</li>"
             "</ul></html>");
 
@@ -1707,7 +1707,7 @@ bool MixxxMainWindow::confirmExit() {
     if (playing) {
         QMessageBox::StandardButton btn = QMessageBox::question(this,
                 tr("Confirm Exit"),
-                tr("A deck is currently playing. Exit Mixxx?"),
+                tr("A deck is currently playing. Exit Paramix?"),
                 QMessageBox::Yes | QMessageBox::No,
                 QMessageBox::No);
         if (btn == QMessageBox::No) {
@@ -1716,7 +1716,7 @@ bool MixxxMainWindow::confirmExit() {
     } else if (playingSampler) {
         QMessageBox::StandardButton btn = QMessageBox::question(this,
                 tr("Confirm Exit"),
-                tr("A sampler is currently playing. Exit Mixxx?"),
+                tr("A sampler is currently playing. Exit Paramix?"),
                 QMessageBox::Yes | QMessageBox::No,
                 QMessageBox::No);
         if (btn == QMessageBox::No) {
@@ -1725,7 +1725,7 @@ bool MixxxMainWindow::confirmExit() {
     }
     if (m_pPrefDlg && m_pPrefDlg->isVisible()) {
         QMessageBox::StandardButton btn = QMessageBox::question(
-                this, tr("Confirm Exit"), tr("The preferences window is still open.") + "<br>" + tr("Discard any changes and exit Mixxx?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                this, tr("Confirm Exit"), tr("The preferences window is still open.") + "<br>" + tr("Discard any changes and exit Paramix?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (btn == QMessageBox::No) {
             return false;
         } else {

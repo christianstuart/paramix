@@ -9,14 +9,14 @@
     "." TO_STR(minor)
 
 // Icons used for the main window and dialogs
-#define MIXXX_ICON_PATH ":/images/icons/scalable/apps/mixxx.svg"
-#define MIXXX_LOGO_PATH ":/images/mixxx_logo.svg"
+#define MIXXX_ICON_PATH ":/images/icons/scalable/apps/paramix.svg"
+#define MIXXX_LOGO_PATH ":/images/paramix_logo.svg"
 
-#define MIXXX_WEBSITE_URL       "https://www.mixxx.org"
-#define MIXXX_WEBSITE_SHORT_URL "www.mixxx.org"
-#define MIXXX_SUPPORT_URL       "https://www.mixxx.org/support/"
-#define MIXXX_TRANSLATION_URL "https://explore.transifex.com/mixxx-dj-software/"
-#define MIXXX_DONATE_URL "https://mixxx.org/donate"
+#define MIXXX_WEBSITE_URL       "https://github.com/christianstuart/paramix"
+#define MIXXX_WEBSITE_SHORT_URL "github.com/christianstuart/paramix"
+#define MIXXX_SUPPORT_URL       "https://github.com/christianstuart/paramix/issues"
+#define MIXXX_TRANSLATION_URL "https://github.com/christianstuart/paramix"
+#define MIXXX_DONATE_URL "https://github.com/christianstuart/paramix"
 
 #define MIXXX_CONTROLLER_FORUMS_URL \
     "https://mixxx.discourse.group/c/controller-mappings/10"
@@ -79,5 +79,5 @@
     MIXXX_MANUAL_URL "/chapters/appendix.html#settings-directory"
 #define MIXXX_MANUAL_OUTPUT_AND_INPUT_DEVICES \
     MIXXX_MANUAL_URL "/chapters/preferences/sound_hardware#output-and-input-devices"
-#define MIXXX_MANUAL_FILENAME   "Mixxx-Manual.pdf"
-#define MIXXX_KBD_SHORTCUTS_FILENAME "Mixxx-Keyboard-Shortcuts.pdf"
+#define MIXXX_MANUAL_FILENAME   "Paramix-Manual.pdf"
+#define MIXXX_KBD_SHORTCUTS_FILENAME "Paramix-Keyboard-Shortcuts.pdf"

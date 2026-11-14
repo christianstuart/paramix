@@ -205,11 +205,11 @@ QmlApplication::QmlApplication(
         msgBox.setIcon(QMessageBox::Critical);
         msgBox.setWindowTitle(tr("Existing user profile detected"));
         msgBox.setText(
-                tr("Trying to run Mixxx 3.0 with an existing %0 user profile! "
-                   "<br><br>There is <b>serious risks</b> of data loss and "
+                tr("Trying to run Paramix 3.0 with an existing %0 user profile! "
+                   "<br><br>There are <b>serious risks</b> of data loss and "
                    "corruption.<br>We recommend using a test profile folder "
                    "with the '--settings-path' argument. <br><br>If you want "
-                   "to continue at your own risk, run Mixxx with the argument "
+                   "to continue at your own risk, run Paramix with the argument "
                    "'--allow-dangerous-data-corruption-risk'.")
                         .arg(configVersion));
 

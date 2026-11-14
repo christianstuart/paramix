@@ -186,7 +186,7 @@ void MidiController::createOutputHandlers() {
     if (!failures.isEmpty()) {
         ErrorDialogProperties* props = ErrorDialogHandler::instance()->newDialogProperties();
         props->setType(DLG_WARNING);
-        props->setTitle(tr("MixxxControl(s) not found"));
+        props->setTitle(tr("Paramix control(s) not found"));
         props->setText(tr(
                 "One or more MixxxControls specified in the "
                 "outputs section of the loaded mapping were invalid."));

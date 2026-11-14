@@ -225,9 +225,9 @@ TrackPointer BrowseTableModel::getTrackByRef(const TrackRef& trackRef) const {
             m_pRecordingManager->getRecordingLocation() ==
                     trackRef.getLocation()) {
         QMessageBox::critical(nullptr,
-                tr("Mixxx Library"),
+                tr("Paramix Library"),
                 tr("Could not load the following file because it is in use by "
-                   "Mixxx or another application.") +
+                   "Paramix or another application.") +
                         "\n" + trackRef.getLocation());
         return TrackPointer();
     }

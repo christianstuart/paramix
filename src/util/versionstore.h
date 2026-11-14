@@ -5,19 +5,19 @@
 #include <QVersionNumber>
 
 namespace VersionStore {
-/// Constant to store the future unreleased Mixxx 3.0
+/// Constant to store the future unstable 3.0 profile version.
 static QString FUTURE_UNSTABLE = QStringLiteral("3.0-unstable");
 
-/// Returns the current Mixxx version string (e.g. 1.12.0-alpha)
+/// Returns the current Paramix version string (e.g. 1.12.0-alpha)
 QString version();
 
-/// Returns the current Mixxx version number (e.g. 1.12.0)
+/// Returns the current Paramix version number (e.g. 1.12.0)
 QVersionNumber versionNumber();
 
-/// Returns the current Mixxx version suffix (e.g. "beta")
+/// Returns the current Paramix version suffix (e.g. "beta")
 QString versionSuffix();
 
-/// Returns the application name. (e.g. "Mixxx")
+/// Returns the application name. (e.g. "Paramix")
 QString applicationName();
 
 /// Returns the last change date
@@ -36,7 +36,7 @@ QString gitDescribe();
 /// Returns the output of "git describe" and the branch name (if available)
 QString gitVersion();
 
-/// Returns the version of Qt used to build Mixxx.
+/// Returns the version of Qt used to build Paramix.
 QString qtVersion();
 
 /// Returns the build flags used to build Mixxx (e.g. "hid=1 modplug=0") or
