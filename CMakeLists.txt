@@ -2515,10 +2515,13 @@ else()
   qt_add_executable(mixxx WIN32 src/main.cpp MANUAL_FINALIZATION)
 endif()
 
-# Keep the CMake target name stable, but install the app as `paramix` /
-# `paramix.exe`. macOS uses the bundle name instead.
-if(NOT APPLE AND NOT ANDROID)
-  set_target_properties(mixxx PROPERTIES OUTPUT_NAME "paramix")
+# Keep the CMake target name stable, but name the binary `paramix` /
+# `paramix.exe`. A macOS app bundle uses its bundle name instead, but a
+# non-bundle macOS build still needs the renamed executable.
+if(NOT ANDROID)
+  if(NOT APPLE OR NOT MACOS_BUNDLE)
+    set_target_properties(mixxx PROPERTIES OUTPUT_NAME "paramix")
+  endif()
 endif()
 
 if(NOT QML)
