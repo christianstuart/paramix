@@ -10,6 +10,7 @@
 #include "moc_qmlconfigproxy.cpp"
 #include "preferences/colorpalettesettings.h"
 #include "preferences/constants.h"
+#include "stems/stemfileformat.h"
 #include "util/color/predefinedcolorpalettes.h"
 #include "waveform/waveformwidgetfactory.h"
 
@@ -48,6 +49,7 @@ const QString kWaveformGroup = QStringLiteral("[Waveform]");
 const QString kControlsGroup = QStringLiteral("[Controls]");
 const QString kLibraryGroup = QStringLiteral("[Library]");
 const QString kBpmGroup = QStringLiteral("[BPM]");
+const QString kStemsGroup = QStringLiteral("[Stems]");
 
 const QString kMultiSamplingKey = QStringLiteral("multi_sampling");
 const QString k3DHardwareAccelerationKey = QStringLiteral("force_hardware_acceleration");
@@ -134,6 +136,10 @@ const QString kResizableSkinKey = QStringLiteral("ResizableSkin");
 
 // BPM group
 const QString kSyncLockAlgorithmKey = QStringLiteral("sync_lock_algorithm");
+
+// Stems group
+const QString kStemFileFormatKey = QStringLiteral("FileFormat");
+const QString kStemAacBitrateKey = QStringLiteral("AacBitrate");
 
 } // namespace
 
@@ -941,6 +947,42 @@ PROPERTY_IMPL(kBpmGroup,
         EngineSync::SyncLockAlgorithm,
         bpmSyncLockAlgorithm,
         EngineSync::SyncLockAlgorithm::PREFER_SOFT_LEADER);
+
+// Stems group
+PROPERTY_IMPL_GETTER(kStemsGroup,
+        kStemFileFormatKey,
+        QString,
+        stemFileFormat,
+        QStringLiteral("flac"));
+
+void QmlConfigProxy::set_stemFileFormat(QString value) {
+    // Normalize to the names written by mixxx::stems::writeStemExportSettings()
+    // and fall back to FLAC for unknown values.
+    const QString sanitizedValue = mixxx::stems::stemFileFormatName(
+            mixxx::stems::parseStemFileFormat(value));
+    setConfigValueAndNotify<QString>(kStemsGroup,
+            kStemFileFormatKey,
+            sanitizedValue,
+            QStringLiteral("flac"),
+            &QmlConfigProxy::stemFileFormatChanged);
+}
+
+PROPERTY_IMPL_GETTER(kStemsGroup,
+        kStemAacBitrateKey,
+        int,
+        stemAacBitrate,
+        mixxx::stems::kDefaultAacBitrateKbps);
+
+void QmlConfigProxy::set_stemAacBitrate(int value) {
+    const int sanitizedValue = std::clamp(value,
+            mixxx::stems::kMinAacBitrateKbps,
+            mixxx::stems::kMaxAacBitrateKbps);
+    setConfigValueAndNotify<int>(kStemsGroup,
+            kStemAacBitrateKey,
+            sanitizedValue,
+            mixxx::stems::kDefaultAacBitrateKbps,
+            &QmlConfigProxy::stemAacBitrateChanged);
+}
 
 // static
 QmlConfigProxy* QmlConfigProxy::create(QQmlEngine* pQmlEngine, QJSEngine*) {
