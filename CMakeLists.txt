@@ -5561,18 +5561,19 @@ configure_file(
 )
 
 # Packaging
-set(CPACK_PACKAGE_NAME "Mixxx")
+set(CPACK_PACKAGE_NAME "paramix")
 set(CPACK_PACKAGE_VENDOR "Paramix Project")
-# TODO: Split this into Maintainer field: core-team@mixxx.org for package issues
-# and Uploaders field for personal signing email per Debian Policy.
+# TODO: Split this into a Maintainer field for package issues and an
+# Uploaders field for personal signing emails per Debian Policy.
 # https://www.debian.org/doc/debian-policy/ch-binary.html#the-maintainer-of-a-package
 set(CPACK_PACKAGE_CONTACT "Paramix Project <https://github.com/christianstuart/paramix/issues>")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Digital DJ Application")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Paramix digital DJ application")
 set(
   CPACK_PACKAGE_DESCRIPTION_FILE
   "${CMAKE_CURRENT_SOURCE_DIR}/packaging/CPackPackageDescription.txt"
 )
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "Paramix")
+set(CPACK_WIX_PRODUCT_NAME "Paramix")
 set(CPACK_PACKAGE_EXECUTABLES "paramix;Paramix")
 set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/res/images/paramix_install_logo.bmp")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/christianstuart/paramix")
