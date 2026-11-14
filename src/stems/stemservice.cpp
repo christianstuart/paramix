@@ -327,10 +327,12 @@ void StemService::processJob(Job& job,
 
     // Free-space preflight. The estimate is deliberately generous: FLAC and
     // ALAC are 24-bit, AAC scales with the requested bitrate.
-    constexpr int kExpectedModelSampleRate = 44100;
     qint64 estimatedBytes = 0;
     {
-        const double frames = pTrack->getDuration() * kExpectedModelSampleRate;
+        const int estimatedSampleRate = pTrack->getSampleRate().isValid()
+                ? pTrack->getSampleRate().value()
+                : 44100;
+        const double frames = pTrack->getDuration() * estimatedSampleRate;
         if (settings.format == StemFileFormat::Aac) {
             estimatedBytes = static_cast<qint64>(4.0 * frames * settings.aacBitrateKbps / 8.0);
         } else {
