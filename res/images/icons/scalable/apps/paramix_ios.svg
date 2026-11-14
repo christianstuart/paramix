@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1A2030"/>
+      <stop offset="1" stop-color="#07080B"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4C8DFF"/>
+      <stop offset="1" stop-color="#7A5AF8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="0" ry="0" fill="url(#bg)"/>
+  <rect x="12" y="12" width="1000" height="1000" rx="0" ry="0" fill="none" stroke="#2A3344" stroke-width="8"/>
+  <!-- Four stem lanes -->
+  <rect x="238" y="400" width="104" height="300" rx="52" fill="#2BB673"/>
+  <rect x="386" y="250" width="104" height="450" rx="52" fill="#E85D4A"/>
+  <rect x="534" y="330" width="104" height="370" rx="52" fill="#7A5AF8"/>
+  <rect x="682" y="190" width="104" height="510" rx="52" fill="#F2C94C"/>
+  <rect x="362" y="756" width="300" height="16" rx="8" fill="url(#accent)"/>
+</svg>

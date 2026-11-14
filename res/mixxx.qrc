@@ -30,13 +30,12 @@
         <file>images/library/ic_library_rekordbox.svg</file>
         <file>images/library/ic_library_serato.svg</file>
       <!-- logo and icons for 'About' dialog -->
-        <file>images/mixxx_logo.svg</file>
-        <file>images/icons/scalable/apps/mixxx.svg</file>
+        <file>images/paramix_logo.svg</file>
+        <file>images/icons/scalable/apps/paramix.svg</file>
         <file>images/heart_icon_light.svg</file>
         <file>images/heart_icon_dark.svg</file>
         <file>images/heart_icon_rainbow.svg</file>
-        <file>images/mixxx-icon-logo-symbolic.svg</file> <!-- default launch image -->
-        <file>images/mixxx-icon-logo-christmas.svg</file> <!-- christmas launch image -->
+        <file>images/paramix-icon-logo-symbolic.svg</file> <!-- default launch image -->
         <file>images/skin_preview_placeholder.png</file>
         <file>images/ic_checkmark.svg</file>
         <file>images/ic_delete.svg</file>
@@ -67,7 +66,7 @@
         <file>images/preferences/dark/ic_preferences_vinyl.svg</file>
         <file>images/preferences/dark/ic_preferences_waveforms.svg</file>
         <file>images/preferences/dark/ic_custom.svg</file>
-        <file>images/preferences/dark/ic_mixxx_symbolic.svg</file>
+        <file>images/preferences/dark/ic_paramix_symbolic.svg</file>
         <file>images/preferences/dark/ic_none.svg</file>
       <!-- light icon set for preferences -->
         <file>images/preferences/light/ic_preferences_autodj.svg</file>
@@ -94,7 +93,7 @@
         <file>images/preferences/light/ic_preferences_vinyl.svg</file>
         <file>images/preferences/light/ic_preferences_waveforms.svg</file>
         <file>images/preferences/light/ic_custom.svg</file>
-        <file>images/preferences/light/ic_mixxx_symbolic.svg</file>
+        <file>images/preferences/light/ic_paramix_symbolic.svg</file>
         <file>images/preferences/light/ic_none.svg</file>
       <!-- magnifier for the Search button in Search related tracks menu -->
         <file>images/ic_magnifier.svg</file>
