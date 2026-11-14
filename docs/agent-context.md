@@ -466,4 +466,3 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   `QmlLibraryTrackListColumn` has no stem role yet (TODO left in `Library/SourceTree.qml`). All
   changed QML passes `pyside6-qmllint` (ignoring unresolved `Mixxx.*` types) and the Qt 6.4 API
   guard.
-
