@@ -5,6 +5,7 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import "../Theme"
 
+/// Flat platter with the live BPM and pitch readout in the centre.
 Item {
     id: root
 
@@ -19,7 +20,10 @@ Item {
     Rectangle {
         id: spinner
 
-        color: '#BDBDBD'
+        anchors.top: parent.top
+        border.color: Theme.borderStrong
+        border.width: 1
+        color: Theme.surface3
         height: 140
         radius: width / 2
         width: 140
@@ -28,10 +32,6 @@ Item {
             angle: 45
             origin.x: spinner.width / 2
             origin.y: spinner.height / 2
-        }
-
-        anchors {
-            top: parent.top
         }
         MixxxControls.Spinny {
             id: spinnyIndicator
@@ -47,14 +47,12 @@ Item {
                 Rectangle {
                     id: tick
 
-                    color: '#0E0E0E'
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    color: Theme.surface0
                     height: 70
+                    radius: 1
                     width: 2
-
-                    anchors {
-                        horizontalCenter: parent.horizontalCenter
-                        top: parent.top
-                    }
                 }
             }
         }
@@ -64,7 +62,7 @@ Item {
 
         anchors.centerIn: spinner
         clip: true
-        color: '#0E0E0E'
+        color: Theme.surface0
         height: trackLoadedControl.value ? spinner.height / 4 : 0
         radius: height / 2 - 5
         width: spinner.width / 2 - 10
@@ -85,8 +83,17 @@ Item {
             readonly property real bpm: bpmControl.value
             readonly property int precision: 2
 
-            color: '#BDBDBD'
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 2
+            color: Theme.textPrimary
+            font.bold: true
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeMd
             text: `${Math.round(bpm)}.${((bpm % 1) * Math.pow(10, precision)).toFixed().padEnd(precision, "0")}`
+
+            Accessible.name: qsTr("%1 BPM").arg(tempo.text)
+            Accessible.role: Accessible.StaticText
 
             Mixxx.ControlProxy {
                 id: bpmControl
@@ -94,30 +101,28 @@ Item {
                 group: root.group
                 key: "bpm"
             }
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: parent.top
-                topMargin: 2
-            }
         }
         Label {
             id: pitchRatio
 
             readonly property real ratio: ((rateRatioControl.value - 1) * 100).toPrecision(2)
 
-            color: Theme.darkGray3
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 2
+            anchors.horizontalCenter: parent.horizontalCenter
+            color: Theme.textSecondary
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeXs
             text: ((ratio > 0) ? "+" + ratio.toFixed(2) : ratio.toFixed(2)) + "%"
+
+            Accessible.name: qsTr("Pitch %1").arg(pitchRatio.text)
+            Accessible.role: Accessible.StaticText
 
             Mixxx.ControlProxy {
                 id: rateRatioControl
 
                 group: root.group
                 key: "rate_ratio"
-            }
-            anchors {
-                bottom: parent.bottom
-                bottomMargin: 2
-                horizontalCenter: parent.horizontalCenter
             }
         }
     }

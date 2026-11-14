@@ -9,12 +9,13 @@ import QtQuick.Layouts
 import QtQuick.Controls 2.15
 import "../Theme"
 
+/// Track list with a flat header bar, zebra rows and an accent selection.
 Rectangle {
     id: root
 
     required property var model
 
-    color: Theme.darkGray
+    color: Theme.surface0
 
     LibraryComponent.Control {
         id: libraryControl
@@ -36,6 +37,24 @@ Rectangle {
             view.selectionModel.moveSelectionVertical(offset);
         }
     }
+    Rectangle {
+        id: headerBackground
+
+        anchors.left: horizontalHeader.left
+        anchors.right: horizontalHeader.right
+        anchors.top: horizontalHeader.top
+        color: Theme.surface2
+        height: horizontalHeader.height
+        radius: Theme.radiusSm
+
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            color: Theme.border
+            height: 1
+        }
+    }
     HorizontalHeaderView {
         id: horizontalHeader
 
@@ -43,7 +62,7 @@ Rectangle {
         property var sortingOrder: Qt.Descending
 
         anchors.left: parent.left
-        anchors.margins: 5
+        anchors.margins: Theme.space1
         anchors.right: parent.right
         anchors.top: parent.top
         syncView: view
@@ -54,14 +73,17 @@ Rectangle {
             required property string display
             required property int index
 
-            implicitHeight: columnName.contentHeight + 5
-            implicitWidth: columnName.contentWidth + 5
+            Accessible.name: qsTr("Sort by %1").arg(display)
+            Accessible.role: Accessible.Button
+            implicitHeight: 30
+            implicitWidth: columnName.contentWidth + Theme.space2
 
             MouseArea {
                 id: columnMouseHandler
 
                 acceptedButtons: Qt.LeftButton
                 anchors.fill: parent
+                hoverEnabled: true
 
                 onClicked: {
                     if (horizontalHeader.sortingColumn == index) {
@@ -77,52 +99,40 @@ Rectangle {
                 id: columnName
 
                 anchors.fill: parent
-                anchors.leftMargin: 15
-                color: Theme.textColor
+                anchors.leftMargin: Theme.space3
+                anchors.rightMargin: Theme.space4
+                color: columnMouseHandler.containsMouse ? Theme.textPrimary : Theme.textSecondary
                 elide: Text.ElideRight
-                font.capitalization: Font.Capitalize
+                font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
-                font.pixelSize: 12
-                font.weight: Font.Medium
+                font.letterSpacing: Theme.letterSpacingCaps
+                font.pixelSize: Theme.fontSizeXs
+                font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignLeft
                 text: display
                 verticalAlignment: Text.AlignVCenter
             }
-            Item {
-                anchors {
-                    bottom: parent.bottom
-                    left: parent.left
-                    leftMargin: 5
-                    top: parent.top
-                }
-                Label {
-                    id: sortIndicator
+            Text {
+                id: sortIndicator
 
-                    anchors.centerIn: parent
-                    color: "red"
-                    elide: Text.ElideRight
-                    font.bold: true
-                    font.capitalization: Font.AllUppercase
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.buttonFontPixelSize
-                    horizontalAlignment: Text.AlignRight
-                    rotation: horizontalHeader.sortingOrder == Qt.AscendingOrder ? 90 : -90
-                    text: "▶"
-                    verticalAlignment: Text.AlignVCenter
-                    visible: horizontalHeader.sortingColumn == index
-                }
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.space2
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.accent
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeXs
+                text: horizontalHeader.sortingOrder == Qt.AscendingOrder ? "▲" : "▼"
+                visible: horizontalHeader.sortingColumn == index
             }
             Rectangle {
                 id: columnResizer
 
-                color: Theme.darkGray2
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                anchors.top: parent.top
+                color: columnResizeHandler.containsMouse || columnResizeHandler.drag.active ? Theme.accent : Theme.border
                 width: 1
 
-                anchors {
-                    bottom: parent.bottom
-                    right: parent.right
-                    top: parent.top
-                }
                 MouseArea {
                     id: columnResizeHandler
 
@@ -130,6 +140,7 @@ Rectangle {
 
                     anchors.fill: parent
                     cursorShape: Qt.SizeHorCursor
+                    hoverEnabled: true
                     preventStealing: true
 
                     onMouseXChanged: {
@@ -199,7 +210,7 @@ Rectangle {
 
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        anchors.margins: 5
+        anchors.margins: Theme.space1
         anchors.right: parent.right
         anchors.top: horizontalHeader.bottom
         clip: true
@@ -223,7 +234,19 @@ Rectangle {
         reuseItems: true
 
         ScrollBar.vertical: ScrollBar {
+            id: verticalScrollBar
+
             policy: ScrollBar.AlwaysOn
+            width: 10
+
+            background: Rectangle {
+                color: "transparent"
+            }
+            contentItem: Rectangle {
+                color: verticalScrollBar.pressed ? Theme.accent : Theme.borderStrong
+                implicitWidth: 4
+                radius: Theme.radiusXs
+            }
         }
         delegate: Item {
             id: item

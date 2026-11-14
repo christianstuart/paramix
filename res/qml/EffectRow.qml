@@ -1,13 +1,23 @@
 import "." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick
+import "Theme"
 import "Effects" as Effects
 
+/// Two rows of effect units, split by a hairline so each half reads as one
+/// bank.
 Item {
     id: root
 
     implicitHeight: columns.height
 
+    Rectangle {
+        anchors.fill: parent
+        border.color: Theme.border
+        border.width: 1
+        color: Theme.surface1
+        radius: Theme.radiusMd
+    }
     Row {
         id: columns
 
@@ -40,19 +50,12 @@ Item {
             }
         }
     }
-    Skin.SectionBackground {
+    Rectangle {
         anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.right: parent.horizontalCenter
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        z: -1
-    }
-    Skin.SectionBackground {
-        anchors.bottom: parent.bottom
-        anchors.left: parent.horizontalCenter
-        anchors.right: parent.right
-        anchors.top: parent.top
-        z: -1
+        color: Theme.border
+        width: 1
     }
     Mixxx.ControlProxy {
         id: showFourUnitsControl

@@ -173,6 +173,7 @@ Item {
 
     Skin.SectionBackground {
         anchors.fill: parent
+        radius: Theme.radiusLg
     }
     Mixxx.ControlProxy {
         id: trackLoadedControl
@@ -185,9 +186,6 @@ Item {
 
         anchors.fill: root
         drag.target: root
-    }
-    Skin.SectionBackground {
-        anchors.fill: parent
     }
     ListModel {
         id: itemModel
@@ -208,7 +206,7 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.minimized ? 28 : 56
+                Layout.preferredHeight: root.minimized ? 28 : Theme.deckHeaderHeight
                 editOverlay.visible: false
 
                 DeckComponent.InfoBar {
@@ -231,12 +229,14 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
+                Layout.maximumHeight: 92
                 Layout.maximumWidth: 185
                 Layout.minimumWidth: 120
-                editLabel.color: Theme.white
+                Layout.alignment: Qt.AlignVCenter
+                editLabel.color: Theme.textPrimary
                 editLabel.font.capitalization: Font.AllUppercase
                 editLabel.text: qsTr("Loop")
-                editOverlay.color: Theme.midGray
+                editOverlay.color: Theme.surface2
                 height: 92
 
                 DeckComponent.Loop {
@@ -250,10 +250,12 @@ Item {
 
             LayoutItem {
                 Layout.preferredWidth: 120
-                editLabel.color: Theme.white
+                Layout.maximumHeight: 92
+                Layout.alignment: Qt.AlignVCenter
+                editLabel.color: Theme.textPrimary
                 editLabel.font.capitalization: Font.AllUppercase
                 editLabel.text: qsTr("Beatjump")
-                editOverlay.color: Theme.midGray
+                editOverlay.color: Theme.surface2
                 height: 92
 
                 DeckComponent.BeatJump {
@@ -269,10 +271,10 @@ Item {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
                 blurRadius: 4
-                editLabel.color: Theme.white
-                editLabel.font.pixelSize: 14
+                editLabel.color: Theme.textPrimary
+                editLabel.font.pixelSize: Theme.fontSizeLg
                 editLabel.text: qsTr("Waveform overview")
-                editOverlay.color: Qt.alpha('black', 0.5)
+                editOverlay.color: Theme.scrim
 
                 DeckComponent.WaveformOverview {
                     anchors.fill: parent
@@ -291,10 +293,10 @@ Item {
 
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillHeight: true
-                editLabel.color: Theme.midGray
+                editLabel.color: Theme.textSecondary
                 editLabel.font.capitalization: Font.AllUppercase
                 editLabel.text: qsTr("FX Assign")
-                editOverlay.color: Theme.darkGray2
+                editOverlay.color: Theme.surface1
                 width: 135
 
                 DeckComponent.FXAssign {
@@ -309,9 +311,9 @@ Item {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 75
                 blurRadius: 4
-                editLabel.color: Theme.white
+                editLabel.color: Theme.textPrimary
                 editLabel.text: qsTr("Tempo")
-                editOverlay.color: Qt.alpha('black', 0.5)
+                editOverlay.color: Theme.scrim
 
                 DeckComponent.TempoColumn {
                     anchors.fill: parent
@@ -326,12 +328,12 @@ Item {
             LayoutItem {
                 Layout.preferredHeight: root.minimized ? 32 : 60
                 Layout.preferredWidth: 60
-                editLabel.color: Theme.white
+                editLabel.color: Theme.textPrimary
                 editLabel.horizontalAlignment: Text.AlignHCenter
                 editLabel.text: qsTr("Play\nButton")
-                editOverlay.border.color: '#000000'
-                editOverlay.border.width: 2
-                editOverlay.color: Theme.darkGray2
+                editOverlay.border.color: Theme.surface0
+                editOverlay.border.width: 1
+                editOverlay.color: Theme.surface1
 
                 DeckComponent.PlayButton {
                     anchors.fill: parent
@@ -346,12 +348,12 @@ Item {
             LayoutItem {
                 Layout.preferredHeight: root.minimized ? 32 : 60
                 Layout.preferredWidth: 60
-                editLabel.color: Theme.white
+                editLabel.color: Theme.textPrimary
                 editLabel.horizontalAlignment: Text.AlignHCenter
                 editLabel.text: qsTr("Cue\nButton")
-                editOverlay.border.color: '#000000'
-                editOverlay.border.width: 2
-                editOverlay.color: Theme.darkGray2
+                editOverlay.border.color: Theme.surface0
+                editOverlay.border.width: 1
+                editOverlay.color: Theme.surface1
 
                 DeckComponent.CueButton {
                     anchors.fill: parent
@@ -365,10 +367,10 @@ Item {
 
             LayoutItem {
                 Layout.alignment: Qt.AlignTop
-                editLabel.color: Theme.midGray
-                editLabel.font.pixelSize: 14
+                editLabel.color: Theme.textSecondary
+                editLabel.font.pixelSize: Theme.fontSizeLg
                 editLabel.text: qsTr("Spinny")
-                editOverlay.color: "#BDBDBD"
+                editOverlay.color: Theme.surface3
                 editOverlay.radius: height
                 height: 140
                 width: 140
@@ -400,12 +402,13 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
-                Layout.minimumHeight: 22
+                Layout.minimumHeight: 24
+                Layout.preferredHeight: 24
                 blurRadius: 4
-                editLabel.color: Theme.white
-                editLabel.font.pixelSize: 14
+                editLabel.color: Theme.textPrimary
+                editLabel.font.pixelSize: Theme.fontSizeLg
                 editLabel.text: qsTr("Toolbar")
-                editOverlay.color: Qt.alpha('black', 0.5)
+                editOverlay.color: Theme.scrim
 
                 DeckComponent.Toolbar {
                     anchors.fill: parent
@@ -418,13 +421,13 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
-                Layout.minimumWidth: 250
+                Layout.minimumWidth: 300
                 blurRadius: 4
-                editLabel.color: Theme.white
-                editLabel.font.pixelSize: 14
-                editLabel.text: qsTr("Hotcue & Stem")
-                editOverlay.color: Qt.alpha('black', 0.5)
-                height: 92
+                editLabel.color: Theme.textPrimary
+                editLabel.font.pixelSize: Theme.fontSizeLg
+                editLabel.text: qsTr("Hotcues & Stems")
+                editOverlay.color: Theme.scrim
+                height: 132
 
                 DeckComponent.HotcueAndStem {
                     anchors.fill: parent
@@ -438,7 +441,7 @@ Item {
         id: grid
 
         anchors.fill: parent
-        anchors.margins: 4
+        anchors.margins: Theme.space1
         visible: !root.minimized
 
         FadeBehavior on visible {
@@ -454,7 +457,7 @@ Item {
         id: minimizedGrid
 
         anchors.fill: parent
-        anchors.margins: 4
+        anchors.margins: Theme.space1
         visible: root.minimized
 
         FadeBehavior on visible {
@@ -752,7 +755,7 @@ Item {
         Rectangle {
             id: overlay
 
-            color: Qt.alpha(Theme.accentColor, 0.2)
+            color: Qt.alpha(Theme.accent, 0.2)
             parent: root
             visible: root.editMode && selected
 

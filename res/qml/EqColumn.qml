@@ -5,27 +5,28 @@ import QtQuick.Layouts
 import Mixxx 1.0 as Mixxx
 import "Theme"
 
+/// High / mid / low EQ plus the quick effect for a single channel.
 Column {
     id: root
 
     required property string group
 
-    spacing: 4
+    spacing: Theme.space1
 
     Skin.EqKnob {
-        knob.color: Theme.eqHighColor
+        knob.color: Theme.textPrimary
         knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
         knob.key: "parameter3"
         statusKey: "button_parameter3"
     }
     Skin.EqKnob {
-        knob.color: Theme.eqMidColor
+        knob.color: Theme.textPrimary
         knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
         knob.key: "parameter2"
         statusKey: "button_parameter2"
     }
     Skin.EqKnob {
-        knob.color: Theme.eqLowColor
+        knob.color: Theme.textPrimary
         knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
         knob.key: "parameter1"
         statusKey: "button_parameter1"
@@ -34,7 +35,7 @@ Column {
         group: "[QuickEffectRack1_" + root.group + "]"
         knob.arcStyle: ShapePath.DashLine
         knob.arcStylePattern: [2, 2]
-        knob.color: Theme.eqFxColor
+        knob.color: Theme.warning
     }
     Mixxx.ControlProxy {
         id: fxSelect
@@ -45,14 +46,16 @@ Column {
     Skin.ComboBox {
         id: effectSelector
 
+        Accessible.name: qsTr("Quick effect preset")
+        Accessible.role: Accessible.ComboBox
         clip: true
         currentIndex: fxSelect.value == -1 ? 0 : fxSelect.value
-        font.pixelSize: 10
+        font.pixelSize: Theme.fontSizeXs
         indicator.width: 0
         model: Mixxx.EffectsManager.quickChainPresetModel
         popupMaxItem: 8
         popupWidth: 100
-        spacing: 2
+        spacing: Theme.space1
         textRole: "display"
         width: parent.width
 

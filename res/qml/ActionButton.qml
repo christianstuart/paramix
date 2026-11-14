@@ -1,8 +1,10 @@
 import QtQuick
 import QtQuick.Controls 2.12
-import Qt5Compat.GraphicalEffects
 import "Theme"
 
+/// Compact action button used in dialogs and the library context menu.
+/// `Category` keeps the semantic color (danger/action) but the shape and
+/// typography come from the design tokens.
 AbstractButton {
     id: root
 
@@ -18,23 +20,33 @@ AbstractButton {
     Accessible.role: Accessible.Button
     Accessible.name: labelField.text
 
-    implicitHeight: 24
+    hoverEnabled: true
+    implicitHeight: 28
 
-    background: Item {
-        Rectangle {
-            id: content
+    background: Rectangle {
+        border.color: root.category === ActionButton.Category.Danger
+                ? Theme.danger
+                : root.category === ActionButton.Category.Action
+                  ? Theme.accentHover
+                  : root.hovered
+                    ? Theme.borderStrong
+                    : Theme.border
+        border.width: 1
+        color: root.pressed
+               ? Theme.surface3
+               : root.hovered
+                 ? Theme.surface2
+                 : root.category === ActionButton.Category.Danger
+                   ? Qt.alpha(Theme.danger, 0.18)
+                   : root.category === ActionButton.Category.Action
+                     ? Qt.alpha(Theme.accent, 0.22)
+                     : Theme.surface1
+        radius: Theme.radiusSm
 
-            anchors.fill: parent
-            color: root.category == ActionButton.Category.Action ? '#2D4EA1' : root.category == ActionButton.Category.Danger ? '#7D3B3B' : Theme.darkGray3
-            radius: 4
-        }
-        DropShadow {
-            anchors.fill: parent
-            color: "#80000000"
-            horizontalOffset: 0
-            radius: 8.0
-            source: content
-            verticalOffset: 0
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
     }
     contentItem: Item {
@@ -42,11 +54,16 @@ AbstractButton {
             id: labelField
 
             anchors.fill: parent
-            color: Theme.white
+            color: root.category === ActionButton.Category.Danger
+                   ? Theme.danger
+                   : root.category === ActionButton.Category.Action
+                     ? Theme.accent
+                     : Theme.textPrimary
             font.bold: true
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.buttonFontPixelSize
+            font.letterSpacing: Theme.letterSpacingCaps
+            font.pixelSize: Theme.fontSizeXs
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }

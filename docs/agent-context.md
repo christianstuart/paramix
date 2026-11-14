@@ -4,7 +4,7 @@
 file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 `docs/old-context.md` (raw transcript of the original planning session).
 
-**Last updated:** 2026-11-14, during the Paramix identity rebrand.
+**Last updated:** 2026-11-14, after merging the UI overhaul with the Paramix rebrand.
 **Update rule:** every agent that changes repo state must append to §9 (Work log) and correct
 §3 (Current state) before finishing.
 
@@ -115,9 +115,11 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
 ### 3.4 Feature work
 **In progress.** Present: `docs/adr/` (ADR-001 Proposed, ADR-002 and ADR-003 accepted for
 review), `src/stems/` (`StemSeparatorBackend`, `StemSeparation`), and the proven 8-channel FLAC
-container. Still absent: `SoundSourceStemCache`, the ONNX Runtime backend and the
-`STEM_SEPARATION` flag, `src/analyzer/plugins/beatml/`, `res/skins/Paramix/`, and the `stem_cache`
-table (schema is at revision 40; the plan needs 41). Present from upstream: `src/track/beat*`,
+container. Still absent: `SoundSourceStemCache`, the `STEM_SEPARATION` flag,
+`src/analyzer/plugins/beatml/`, and the `stem_cache`
+table (schema is at revision 40; the plan needs 41). The QML skin lives in `res/qml` (there is no
+`res/skins/Paramix` directory; QML skins are discovered from `res/qml` in developer mode). Present
+from upstream: `src/track/beat*`,
 `analyzerqueenmarybeats`, `analyzersoundtouchbeats`, `waveformrendererstem`, `qmlstemsmodel`,
 `soundsourcestem`.
 
@@ -138,8 +140,8 @@ The baseline is closed and feature work is landing. Current state:
 | rbxport beat grid engine | **PR #16**: C++ port of rbxport `rbl-analysis`, third beat detector; green on all CI targets |
 | BeatGrid `BarInfo` | Not started (ADR-003 design only) |
 | Stem cache / schema 41 | Not started (ADR-002 design only) |
-| ONNX runtime + model backend | Not started |
-| Paramix QML skin overhaul | Not started |
+| ONNX runtime + model backend | **Merged** (#19): ONNX Runtime behind `StemSeparatorBackend` |
+| Paramix QML skin overhaul | **In progress** (`feature/ui-overhaul`): design tokens, flat base controls, shell, Stems settings page; deck/mixer/library work landing |
 | Packaging/installers | **In progress**: Paramix identity, executable name, desktop/AppStream metadata, installer artwork and app icons |
 
 Build status: the Windows x64 local build (`mixxx`, `mixxx-test`) is green. CI is green on
@@ -431,6 +433,39 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   (`rbxport-analysis:0`) and exposed in Preferences → Beat Detection. Ported tempo tests plus
   synthetic end-to-end grid/plugin tests; 10 rbxport tests green. The PR was rebased onto current
   `main` so it carries only the rbxport change.
+- **2026-11-13** — **UI overhaul started** on `feature/ui-overhaul` from `main` (`0b0a97e`).
+  `res/qml/Theme/Theme.qml` is now a token layer: named schemes (`Paramix Dark`,
+  `Paramix Midnight`, `Paramix High Contrast`), semantic surfaces/text/accents, a stem and phrase
+  palette, type, spacing, radius, motion and layout metrics. Every legacy Mixxx property is kept
+  as an alias so un-migrated components still work. `res/qml/skin.ini` is renamed to Paramix with
+  a 1280×720 minimum. The flat base controls (`Button`, `ActionButton`, `FormButton`, `ComboBox`,
+  `TextField`, `SectionBackground`, `SectionText`, `EmbeddedBackground`) are token-driven and keep
+  their old public properties. Documented in `docs/paramix-ui-design-system.md`.
+- **2026-11-13** — **Main window shell modernized.** Brand header, flat toolbar with accent active
+  states, tokenized splitter and waveform edge fades. All toolbar buttons gained `Accessible.name`;
+  no control bindings changed.
+- **2026-11-13** — **Settings → Stems page added.** `res/qml/Settings/Stems.qml` selects the stem
+  export format (FLAC/ALAC/AAC) and AAC bitrate (32–512 kbps), shows a read-only storage location,
+  and a disabled model-quality section with an explanation instead of a dead control. Two new
+  `Mixxx.Config` properties back it: `stemFileFormat` (`[Stems],FileFormat`, normalized through
+  `mixxx::stems::parseStemFileFormat`) and `stemAacBitrate` (`[Stems],AacBitrate`, clamped). Phrase
+  display was intentionally not added because beatgrid phrase storage is not implemented.
+- **2026-11-13** — **Deck and stem strip overhauled.** `Deck/HotcueAndStem.qml` keeps the hotcue
+  grid and adds a four-lane stem strip: colour chip, label and status dot; per-lane mute and solo;
+  a vertical volume fader; a QuickFX knob with enable toggle and chain preset; acapella and
+  instrumental complement buttons; and a `STEMS · N` / `NO STEMS` badge. Solo is QML-level mute
+  orchestration that saves and restores the other lanes (a native engine solo control is a later
+  change). Stem identity is classified from the model label with a four-stem fallback. Deck
+  surfaces, header, loops, beatjump, tempo, spinny, play/cue and the utility toolbar now use the
+  theme tokens; the hotcue/stem delegate grew to 132 px.
+- **2026-11-13** — **Mixer, library, sampler and effects modernized.** Flat framed mixer strips with
+  accent PFL and a segmented VU meter; library toolbar with the search field, a framed source tree,
+  a flat track list with zebra rows, hover, accent selection and sort indicators, and a tokenized
+  context menu; sampler cards with a track-colour accent; aux/mic, preview deck, effect units and
+  preset menus on the same tokens. The library stem-status column is still omitted because
+  `QmlLibraryTrackListColumn` has no stem role yet (TODO left in `Library/SourceTree.qml`). All
+  changed QML passes `pyside6-qmllint` (ignoring unresolved `Mixxx.*` types) and the Qt 6.4 API
+  guard.
 - **2026-11-14** — **Rebranded the application as Paramix.** `VersionStore::applicationName()` now returns
   `Paramix`, which drives the window title, dialog titles, notifications, MusicBrainz user agent, JACK
   client name and console banner. The application domain is `paramix.org`, the package/bundle/Flatpak ID

@@ -9,15 +9,24 @@ import "../Theme"
 Rectangle {
     id: root
 
-    property color buttonColor: trackLoadedControl.value > 0 ? Theme.buttonActiveColor : Theme.buttonDisableColor
+    property color buttonColor: trackLoadedControl.value > 0 ? Theme.textPrimary : Theme.textMuted
     required property string group
 
+    border.color: Theme.border
+    border.width: 1
     color: Theme.deckLoopBackgroundColor
+    radius: Theme.radiusMd
 
-    Label {
+    Text {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
+        anchors.topMargin: Theme.space1
         color: Theme.deckLoopLabelColor
+        font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
         text: qsTr("Loop")
     }
     Mixxx.ControlProxy {

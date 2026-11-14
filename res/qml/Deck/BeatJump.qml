@@ -1,6 +1,5 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
-import Qt5Compat.GraphicalEffects
 import QtQuick 2.12
 import QtQuick.Shapes
 import QtQuick.Controls 2.12
@@ -9,15 +8,24 @@ import "../Theme"
 Rectangle {
     id: root
 
-    property color buttonColor: trackLoadedControl.value > 0 ? Theme.buttonActiveColor : Theme.buttonDisableColor
+    property color buttonColor: trackLoadedControl.value > 0 ? Theme.textPrimary : Theme.textMuted
     required property string group
 
+    border.color: Theme.border
+    border.width: 1
     color: Theme.deckBeatjumpBackgroundColor
+    radius: Theme.radiusMd
 
-    Label {
+    Text {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
+        anchors.topMargin: Theme.space1
         color: Theme.deckBeatjumpLabelColor
+        font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
         text: qsTr("Beatjump")
     }
     Mixxx.ControlProxy {
@@ -281,24 +289,10 @@ Rectangle {
             id: backgroundImage
 
             anchors.fill: parent
-            color: '#2B2B2B'
-        }
-        DropShadow {
-            anchors.fill: backgroundImage
-            color: "#80000000"
-            horizontalOffset: 0
-            radius: 1.0
-            source: backgroundImage
-            verticalOffset: 0
-        }
-        InnerShadow {
-            anchors.fill: backgroundImage
-            color: "#353535"
-            horizontalOffset: -0
-            radius: 1
-            samples: 16
-            source: backgroundImage
-            verticalOffset: 0
+            border.color: Theme.border
+            border.width: 1
+            color: Theme.surface1
+            radius: Theme.radiusSm
         }
         TextInput {
             function update() {
@@ -307,8 +301,12 @@ Rectangle {
                 });
             }
 
+            Accessible.name: qsTr("Beatjump size")
+
             anchors.centerIn: backgroundImage
             color: root.buttonColor
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeMd
             text: beatjumpSize.valueText
 
             onAccepted: {

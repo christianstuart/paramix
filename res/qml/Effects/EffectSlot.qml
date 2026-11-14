@@ -19,6 +19,13 @@ Item {
 
     height: 50
 
+    // Flat card behind the slot so the three slots read as separate rows.
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 2
+        color: Theme.surface2
+        radius: Theme.radiusSm
+    }
     Item {
         id: selector
 
@@ -31,7 +38,7 @@ Item {
             id: focusButton
 
             anchors.left: parent.left
-            anchors.margins: 5
+            anchors.margins: Theme.space1
             anchors.verticalCenter: parent.verticalCenter
             effectNumber: root.effectNumber
             effectUnitGroup: root.effectUnitGroup
@@ -41,10 +48,10 @@ Item {
         Skin.ControlButton {
             id: effectEnableButton
 
-            activeColor: Theme.effectColor
+            activeColor: Theme.textOnAccent
             anchors.bottom: parent.bottom
             anchors.left: focusButton.right
-            anchors.margins: 5
+            anchors.margins: Theme.space1
             anchors.top: parent.top
             group: root.group
             key: "enabled"
@@ -57,7 +64,7 @@ Item {
 
             anchors.bottom: parent.bottom
             anchors.left: effectEnableButton.right
-            anchors.margins: 5
+            anchors.margins: Theme.space1
             anchors.right: effectMetaKnob.left
             anchors.top: parent.top
             slot: root.slot
@@ -66,11 +73,11 @@ Item {
             id: effectMetaKnob
 
             anchors.bottom: parent.bottom
-            anchors.margins: 5
+            anchors.margins: Theme.space1
             anchors.right: parent.right
             anchors.top: parent.top
             arcStart: Skin.Knob.ArcStart.Minimum
-            color: Theme.effectColor
+            color: Theme.warning
             group: root.group
             key: "meta"
             width: 40
@@ -81,13 +88,13 @@ Item {
 
         anchors.bottom: parent.bottom
         anchors.left: selector.right
-        anchors.leftMargin: 10
+        anchors.leftMargin: Theme.space2
         anchors.right: parent.right
         anchors.top: parent.top
         clip: true
         model: root.slot.parametersModel
         orientation: ListView.Horizontal
-        spacing: 5
+        spacing: Theme.space1
         visible: root.expanded
 
         delegate: Item {
@@ -113,6 +120,7 @@ Item {
             width: shown ? 55 : 0
 
             Skin.EmbeddedText {
+                anchors.bottomMargin: parameter.isKnob ? 14 : 0
                 anchors.fill: parent
                 font.bold: false
                 text: parameter.label
@@ -126,7 +134,7 @@ Item {
 
                 sourceComponent: Skin.ControlMiniKnob {
                     arcStart: 0
-                    color: Theme.effectColor
+                    color: Theme.warning
                     group: root.group
                     key: parameter.controlKey
                 }
@@ -138,7 +146,7 @@ Item {
                 width: parent.width
 
                 sourceComponent: Skin.ControlButton {
-                    activeColor: Theme.effectColor
+                    activeColor: Theme.textOnAccent
                     group: root.group
                     key: parameter.controlKey
                     text: qsTr("ON")
@@ -148,29 +156,33 @@ Item {
             Row {
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
-                height: 8
+                height: 14
+                spacing: 1
                 visible: parameter.shown && parameter.isKnob
 
                 Skin.ControlButton {
-                    activeColor: Theme.effectColor
+                    activeColor: Theme.textOnAccent
                     group: root.group
-                    height: 8
+                    height: 14
                     key: parameter.controlKey + "_link_inverse"
                     text: qsTr("I")
                     toggleable: true
-                    width: 12
+                    width: 14
                 }
                 Item {
-                    height: 8
-                    width: 34
+                    height: 14
+                    width: 38
 
                     Rectangle {
                         anchors.fill: parent
-                        color: linkTypeControl.value > 0 ? Theme.effectColor : Theme.knobBackgroundColor
+                        color: linkTypeControl.value > 0 ? Theme.accent : Theme.surface3
+                        radius: Theme.radiusXs
                     }
                     Text {
                         anchors.centerIn: parent
-                        font.pixelSize: 7
+                        color: linkTypeControl.value > 0 ? Theme.textOnAccent : Theme.textSecondary
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeXs
                         text: qsTr("LINK %1").arg(Math.round(linkTypeControl.value))
                     }
                     TapHandler {

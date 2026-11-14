@@ -4,38 +4,42 @@ import "." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick
 import QtQuick.Controls
+import "../Theme"
 
+/// Preset menu for a whole effect chain.
 Menu {
     id: root
 
-    property color backgroundColor: "#151517"
-    property color borderColor: "#333333"
+    property color backgroundColor: Theme.surface2
+    property color borderColor: Theme.border
     property url checkedSource
-    property color disabledTextColor: "#494949"
-    property string fontFamily: "Open Sans"
-    property int fontPixelSize: 14
-    property color hoverColor: "#2c454f"
-    property color hoverTextColor: "#ffffff"
-    property color separatorBottomColor: "#333333"
-    property color separatorTopColor: "#000000"
+    property color disabledTextColor: Theme.textMuted
+    property string fontFamily: Theme.fontFamily
+    property int fontPixelSize: Theme.fontSizeMd
+    property color hoverColor: Qt.alpha(Theme.accent, 0.22)
+    property color hoverTextColor: Theme.textPrimary
+    property color separatorColor: Theme.border
+    // Legacy aliases kept for the LateNightQML skin.
+    property color separatorBottomColor: separatorColor
+    property color separatorTopColor: separatorColor
     required property Mixxx.EffectSlotProxy slot1
     required property Mixxx.EffectSlotProxy slot2
     required property Mixxx.EffectSlotProxy slot3
     property url submenuArrowSource
-    property color textColor: "#c2b3a5"
+    property color textColor: Theme.textPrimary
     required property Mixxx.EffectUnitProxy unit
 
-    bottomPadding: 5
-    leftPadding: 5
-    rightPadding: 5
-    topPadding: 5
-    width: 160
+    bottomPadding: Theme.space1
+    leftPadding: Theme.space1
+    rightPadding: Theme.space1
+    topPadding: Theme.space1
+    width: 180
 
     background: Rectangle {
         border.color: root.borderColor
         border.width: 1
         color: root.backgroundColor
-        radius: 1
+        radius: Theme.radiusMd
     }
     delegate: Skin.EffectPresetMenuItem {
         checkedSource: root.checkedSource
@@ -77,8 +81,7 @@ Menu {
         onObjectRemoved: (index, object) => root.removeItem(object)
     }
     Skin.EffectPresetMenuSeparator {
-        bottomColor: root.separatorBottomColor
-        topColor: root.separatorTopColor
+        lineColor: root.separatorColor
     }
     Skin.EffectPresetMenuItem {
         checkedSource: root.checkedSource
@@ -124,8 +127,7 @@ Menu {
         onTriggered: root.unit.savePresetAs()
     }
     Skin.EffectPresetMenuSeparator {
-        bottomColor: root.separatorBottomColor
-        topColor: root.separatorTopColor
+        lineColor: root.separatorColor
     }
     Skin.EffectSlotPresetMenu {
         backgroundColor: root.backgroundColor
@@ -136,8 +138,7 @@ Menu {
         fontPixelSize: root.fontPixelSize
         hoverColor: root.hoverColor
         hoverTextColor: root.hoverTextColor
-        separatorBottomColor: root.separatorBottomColor
-        separatorTopColor: root.separatorTopColor
+        separatorColor: root.separatorColor
         slot: root.slot1
         submenuArrowSource: root.submenuArrowSource
         textColor: root.textColor
@@ -151,8 +152,7 @@ Menu {
         fontPixelSize: root.fontPixelSize
         hoverColor: root.hoverColor
         hoverTextColor: root.hoverTextColor
-        separatorBottomColor: root.separatorBottomColor
-        separatorTopColor: root.separatorTopColor
+        separatorColor: root.separatorColor
         slot: root.slot2
         submenuArrowSource: root.submenuArrowSource
         textColor: root.textColor
@@ -166,8 +166,7 @@ Menu {
         fontPixelSize: root.fontPixelSize
         hoverColor: root.hoverColor
         hoverTextColor: root.hoverTextColor
-        separatorBottomColor: root.separatorBottomColor
-        separatorTopColor: root.separatorTopColor
+        separatorColor: root.separatorColor
         slot: root.slot3
         submenuArrowSource: root.submenuArrowSource
         textColor: root.textColor

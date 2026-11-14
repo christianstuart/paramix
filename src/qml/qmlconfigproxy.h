@@ -319,6 +319,14 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     set_librarySeratoEnabled NOTIFY
                             librarySeratoEnabledChanged);
 
+    // Stems group
+    // {flac, alac, aac}
+    Q_PROPERTY(QString stemFileFormat READ stemFileFormat WRITE
+                    set_stemFileFormat NOTIFY stemFileFormatChanged);
+    // Kbps, 32..512
+    Q_PROPERTY(int stemAacBitrate READ stemAacBitrate WRITE set_stemAacBitrate
+                    NOTIFY stemAacBitrateChanged);
+
     // Colors
     Q_PROPERTY(QVariantList hotcueColorPalette READ hotcueColorPalette NOTIFY
                     hotcueColorPaletteChanged);
@@ -477,6 +485,11 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(bool, libraryRekordboxEnabled);
     PROPERTY_DECL_ACCESSOR(bool, librarySeratoEnabled);
 
+    // Stems group
+    PROPERTY_DECL_ACCESSOR(QString, stemFileFormat);
+    // Kbps, 32..512
+    PROPERTY_DECL_ACCESSOR(int, stemAacBitrate);
+
     static QmlConfigProxy* create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine);
     static inline void registerUserSettings(UserSettingsPointer pConfig) {
         s_pUserSettings = std::move(pConfig);
@@ -572,6 +585,9 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void libraryTraktorEnabledChanged();
     void libraryRekordboxEnabledChanged();
     void librarySeratoEnabledChanged();
+    // Stems group
+    void stemFileFormatChanged();
+    void stemAacBitrateChanged();
 
   private:
     template<typename Type, typename Signal>

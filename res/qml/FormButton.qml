@@ -3,92 +3,68 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import "Theme"
 
+/// Segmented/selector button used across the settings pages. It keeps the
+/// `backgroundColor` and highlight API of the legacy control but draws a flat,
+/// token-driven surface.
 AbstractButton {
     id: root
 
-    property color activeColor: Theme.deckActiveColor
-    property color backgroundColor: Theme.darkGray3
+    property color activeColor: Theme.textOnAccent
+    property color backgroundColor: Theme.surface1
     property bool highlight: false
-    property color normalColor: Theme.white
-    property color pressedColor: activeColor
+    property color normalColor: Theme.textPrimary
+    property color pressedColor: Theme.textOnAccent
 
     Accessible.role: Accessible.Button
     Accessible.name: text
 
-    implicitHeight: 20
+    hoverEnabled: true
+    implicitHeight: 26
     implicitWidth: 98
 
-    background: Item {
-        anchors.fill: parent
+    background: Rectangle {
+        border.color: root.checked || root.highlight
+                ? Theme.accentHover
+                : root.hovered
+                  ? Theme.borderStrong
+                  : Theme.border
+        border.width: 1
+        color: root.checked || root.highlight
+               ? Theme.accent
+               : root.pressed
+                 ? Theme.surface3
+                 : root.hovered
+                   ? Theme.surface2
+                   : root.backgroundColor
+        radius: Theme.radiusSm
 
-        Rectangle {
-            id: backgroundImage
-
-            anchors.fill: parent
-            color: root.backgroundColor
-            radius: 4
-            visible: false
-        }
-        InnerShadow {
-            id: bottomInnerEffect
-
-            anchors.fill: parent
-            color: "transparent"
-            horizontalOffset: -1
-            radius: 8
-            samples: 16
-            source: backgroundImage
-            spread: 0.3
-            verticalOffset: -1
-        }
-        InnerShadow {
-            id: topInnerEffect
-
-            anchors.fill: parent
-            color: "transparent"
-            horizontalOffset: 1
-            radius: 8
-            samples: 16
-            source: bottomInnerEffect
-            spread: 0.3
-            verticalOffset: 1
-        }
-        DropShadow {
-            id: dropEffect
-
-            anchors.fill: parent
-            color: "#0E0E0E"
-            horizontalOffset: 0
-            radius: 4.0
-            source: topInnerEffect
-            verticalOffset: 0
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
     }
     contentItem: Item {
         anchors.fill: parent
 
-        Glow {
-            id: labelGlow
-
-            anchors.fill: parent
-            color: label.color
-            radius: 1
-            source: label
-            spread: 0.1
-        }
         Label {
             id: label
 
             anchors.fill: parent
-            color: root.normalColor
+            color: root.checked || root.highlight
+                   ? root.activeColor
+                   : root.pressed
+                     ? root.pressedColor
+                     : root.normalColor
             font.bold: true
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
+            font.letterSpacing: Theme.letterSpacingCaps
             font.pixelSize: Theme.buttonFontPixelSize
             horizontalAlignment: Text.AlignHCenter
             text: root.text
             verticalAlignment: Text.AlignVCenter
-            visible: root.text != null
+            visible: root.text != null && root.text.length > 0
         }
         Image {
             id: image
@@ -96,70 +72,17 @@ AbstractButton {
             anchors.centerIn: parent
             asynchronous: true
             fillMode: Image.PreserveAspectFit
-            height: icon.height
-            source: icon.source
+            height: root.icon.height
+            source: root.icon.source
             visible: false
-            width: icon.width
+            width: root.icon.width
         }
         ColorOverlay {
             anchors.fill: image
             antialiasing: true
-            color: root.normalColor
+            color: root.checked || root.highlight ? root.activeColor : root.normalColor
             source: image
-            visible: icon.source != null
+            visible: root.icon.source != null && root.icon.source != ""
         }
     }
-    states: [
-        State {
-            name: "pressed"
-            when: root.pressed
-
-            PropertyChanges {
-                backgroundImage.color: root.checked ? "#3a60be" : root.backgroundColor
-            }
-            PropertyChanges {
-                label.color: root.pressedColor
-            }
-            PropertyChanges {
-                bottomInnerEffect.color: '#353535'
-            }
-            PropertyChanges {
-                topInnerEffect.color: '#353535'
-            }
-            PropertyChanges {
-                labelGlow.visible: true
-            }
-        },
-        State {
-            name: "active"
-            when: (root.highlight || root.checked) && !root.pressed
-
-            PropertyChanges {
-                backgroundImage.color: "#2D4EA1"
-            }
-            PropertyChanges {
-                label.color: root.activeColor
-            }
-            PropertyChanges {
-                bottomInnerEffect.color: '#353535'
-            }
-            PropertyChanges {
-                topInnerEffect.color: '#353535'
-            }
-            PropertyChanges {
-                labelGlow.visible: true
-            }
-        },
-        State {
-            name: "inactive"
-            when: !root.checked && !root.highlight && !root.pressed
-
-            PropertyChanges {
-                label.color: root.normalColor
-            }
-            PropertyChanges {
-                labelGlow.visible: false
-            }
-        }
-    ]
 }

@@ -20,7 +20,9 @@ Rectangle {
     property bool minimized: false
     required property int rightColumnWidth
 
-    radius: 5
+    border.color: Theme.border
+    border.width: 1
+    radius: Theme.radiusMd
 
     gradient: Gradient {
         orientation: Gradient.Horizontal
@@ -57,7 +59,7 @@ Rectangle {
 
         anchors.fill: coverArt
         color: Theme.deckEmptyCoverArt
-        radius: 4
+        radius: Theme.radiusSm
         visible: !root.deckPlayer?.isLoaded && !root.minimized
     }
     OpacityMask {
@@ -173,7 +175,15 @@ Rectangle {
                             width: 16
 
                             ShapePath {
-                                fillColor: mouse.containsMouse && !(mouse.pressedButtons & Qt.RightButton) && mouse.mouseX > star.x + stars.x ? "#3a60be" : (!mouse.containsMouse || mouse.pressedButtons & Qt.RightButton) && root.currentTrack?.stars > index ? (mouse.containsMouse ? "#7D3B3B" : '#D9D9D9') : '#96d9d9d9'
+                                fillColor: {
+                                    const isFilled = root.currentTrack?.stars > index;
+                                    const rightPressed = mouse.containsMouse && (mouse.pressedButtons & Qt.RightButton);
+                                    if (rightPressed && isFilled)
+                                        return Theme.danger;
+                                    if (mouse.containsMouse && !rightPressed && mouse.mouseX > star.x + stars.x)
+                                        return Theme.accent;
+                                    return isFilled ? Theme.warning : Theme.surface3;
+                                }
                                 startX: 8
                                 startY: 0
                                 strokeColor: 'transparent'
@@ -250,7 +260,7 @@ Rectangle {
                     anchors.topMargin: 5
                     color: root.lineColor
                     visible: showSeparator
-                    width: 2
+                    width: 1
 
                     Skin.FadeBehavior on visible {
                         fadeTarget: separator
@@ -328,7 +338,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             color: root.lineColor
-            height: 2
+            height: 1
             visible: !root.minimized
         }
         RowLayout {
@@ -364,11 +374,15 @@ Rectangle {
             id: data
 
             anchors.fill: parent
-            color: Theme.white
+            color: isTop ? Theme.textPrimary : Theme.textSecondary
             font.bold: isTop
-            font.pixelSize: isTop ? 18 : Theme.textFontPixelSize
+            font.capitalization: Font.MixedCase
+            font.family: Theme.fontFamily
+            font.letterSpacing: 0
+            font.pixelSize: isTop ? (root.minimized ? Theme.fontSizeSm : Theme.fontSizeXl) : (root.minimized ? Theme.fontSizeXs : Theme.fontSizeMd)
             horizontalAlignment: index == 0 ? Text.AlignLeft : Text.AlignHCenter
             visible: root.deckPlayer?.isLoaded
+            verticalAlignment: Text.AlignVCenter
 
             Skin.FadeBehavior on visible {
                 fadeTarget: data
@@ -384,7 +398,7 @@ Rectangle {
             anchors.topMargin: isTop ? 5 : 0
             color: root.lineColor
             visible: showSeparator
-            width: 2
+            width: 1
 
             Skin.FadeBehavior on visible {
                 fadeTarget: separator
