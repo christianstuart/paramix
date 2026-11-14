@@ -30,16 +30,17 @@ DlgControllerLearning::DlgControllerLearning(QWidget* parent,
     labelMappedTo->setText("");
 
     QString helpTitle(tr("Click anywhere in Paramix or choose a control to learn"));
-    QString helpBody(tr("You can click on any button, slider, or knob in Paramix "
-                        "to teach it that control.  You can also type in the "
-                        "box to search for a control by name, or click the "
-                        "Choose Control button to select from a list."));
+    QString helpBody(tr(
+            "You can click on any button, slider, or knob in Paramix "
+            "to teach it that control.  You can also type in the "
+            "box to search for a control by name, or click the "
+            "Choose Control button to select from a list."));
     labelMappingHelp->setTextFormat(Qt::RichText);
     labelMappingHelp->setText(QString(
             "<p><span style=\"font-weight:600;\">%1</span></p>"
-            "<p>%2</p>").arg(
-                    helpTitle, helpBody));
-
+            "<p>%2</p>")
+                    .arg(
+                            helpTitle, helpBody));
 
     QString nextTitle(tr("Now test it out!"));
     QString nextInstructionBody(tr(
@@ -55,9 +56,9 @@ DlgControllerLearning::DlgControllerLearning(QWidget* parent,
     labelNextHelp->setText(QString(
             "<p><span style=\"font-weight:600;\">%1</span></p>"
             "<p>%2</p><p><span style=\"font-weight:600;\">%3</span></p>"
-            "<p>%4</p>").arg(
-                    nextTitle, nextInstructionBody,
-                    nextTroubleshootTitle, nextTroubleshootBody));
+            "<p>%4</p>")
+                    .arg(
+                            nextTitle, nextInstructionBody, nextTroubleshootTitle, nextTroubleshootBody));
 
     // Ensure the first page is always shown regardless of the last page shown
     // when the .ui file was saved.
@@ -73,7 +74,7 @@ DlgControllerLearning::DlgControllerLearning(QWidget* parent,
             &DlgControllerLearning::controlPicked);
 
     comboBoxChosenControl->completer()->setCompletionMode(
-        QCompleter::PopupCompletion);
+            QCompleter::PopupCompletion);
     comboBoxChosenControl->completer()->setCaseSensitivity(Qt::CaseInsensitive);
     comboBoxChosenControl->completer()->setFilterMode(Qt::MatchContains);
 
@@ -165,7 +166,7 @@ void DlgControllerLearning::populateComboBox() {
     std::sort(sorted_controls.begin(), sorted_controls.end(), namedControlComparator);
     for (const NamedControl& control : std::as_const(sorted_controls)) {
         comboBoxChosenControl->addItem(control.first,
-                                       QVariant::fromValue(control.second));
+                QVariant::fromValue(control.second));
     }
 }
 
@@ -272,8 +273,8 @@ void DlgControllerLearning::DEBUGFakeMidiMessage2() {
 #endif
 
 void DlgControllerLearning::slotMessageReceived(unsigned char status,
-                                                unsigned char control,
-                                                unsigned char value) {
+        unsigned char control,
+        unsigned char value) {
     // Ignore message since we don't have a control yet.
     if (!m_currentControl.isValid()) {
         return;
@@ -407,8 +408,7 @@ void DlgControllerLearning::slotTimerExpired() {
         qDebug() << "DlgControllerLearning learned input mapping:" << mappingStr;
     }
 
-    QString mapMessage = QString("<i>%1 %2</i>").arg(
-            tr("Successfully mapped control:"), midiControl);
+    QString mapMessage = QString("<i>%1 %2</i>").arg(tr("Successfully mapped control:"), midiControl);
     labelMappedTo->setText(mapMessage);
     stackedWidget->setCurrentWidget(page3Confirm);
 }
@@ -432,7 +432,8 @@ void DlgControllerLearning::slotMidiOptionsChanged() {
     // Go over every mapping and set its MIDI options to match the user's
     // choices.
     for (MidiInputMappings::iterator it = m_mappings.begin();
-         it != m_mappings.end(); ++it) {
+            it != m_mappings.end();
+            ++it) {
         MidiOptions& options = it->options;
         options.setFlag(MidiOption::Switch, midiOptionSwitchMode->isChecked());
         options.setFlag(MidiOption::SoftTakeover, midiOptionSoftTakeover->isChecked());
@@ -456,7 +457,7 @@ DlgControllerLearning::~DlgControllerLearning() {
         stackedWidget->setCurrentWidget(page1Choose);
     }
 
-    //If there was any ongoing learning, cancel it (benign if there wasn't).
+    // If there was any ongoing learning, cancel it (benign if there wasn't).
     emit stopLearning();
     emit stopListeningForClicks();
 }
@@ -485,7 +486,7 @@ void DlgControllerLearning::loadControl(const ConfigKey& key,
 
     labelDescription->setText(tr("<i>Ready to learn %1</i>").arg(description));
     QString learnmessage = tr("Learning: %1. Now move a control on your controller.")
-            .arg(title);
+                                   .arg(title);
     controlToMapMessage->setText(learnmessage);
     labelMappedTo->setText("");
     pushButtonStartLearn->setDisabled(false);

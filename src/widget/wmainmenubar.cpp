@@ -84,7 +84,7 @@ QUrl documentationUrl(
         return QUrl(docUrl);
     }
 }
-}  // namespace
+} // namespace
 
 WMainMenuBar::WMainMenuBar(QWidget* pParent,
         UserSettingsPointer pConfig,
@@ -111,19 +111,18 @@ void WMainMenuBar::initialize() {
     for (unsigned int deck = 0; deck < kMaxLoadToDeckActions; ++deck) {
         QString playerLoadStatusText = loadTrackStatusText.arg(QString::number(deck + 1));
         QAction* pFileLoadSongToPlayer = new QAction(
-            loadTrackText.arg(QString::number(deck + 1)), this);
+                loadTrackText.arg(QString::number(deck + 1)), this);
         m_pKeyboard->registerMenuBarActionSetShortcut(pFileLoadSongToPlayer,
                 ConfigKey(kKbdShortcutsGroup,
                         QStringLiteral("FileMenu_LoadDeck%1").arg(deck + 1)),
                 loadToDeckDefaultKeyBinding(deck));
         pFileLoadSongToPlayer->setStatusTip(playerLoadStatusText);
         pFileLoadSongToPlayer->setWhatsThis(
-            buildWhatsThis(openText, playerLoadStatusText));
+                buildWhatsThis(openText, playerLoadStatusText));
         // Visibility of load to deck actions is set in
         // WMainMenuBar::onNumberOfDecksChanged.
         pFileLoadSongToPlayer->setVisible(false);
-        connect(pFileLoadSongToPlayer, &QAction::triggered,
-                this, [this, deck] { emit loadTrackToDeck(deck + 1); });
+        connect(pFileLoadSongToPlayer, &QAction::triggered, this, [this, deck] { emit loadTrackToDeck(deck + 1); });
 
         pFileMenu->addAction(pFileLoadSongToPlayer);
         m_loadToDeckActions.push_back(pFileLoadSongToPlayer);
@@ -337,7 +336,6 @@ void WMainMenuBar::initialize() {
             ConfigKey(kSkinGroup, QStringLiteral("show_preview_decks")));
     pViewMenu->addAction(pViewShowPreviewDeck);
 
-
     QString showCoverArtTitle = tr("Show Cover Art");
     QString showCoverArtText = tr("Show cover art in the Paramix interface.") +
             " " + mayNotBeSupported;
@@ -466,9 +464,8 @@ void WMainMenuBar::initialize() {
         vc_checkbox->setVisible(false);
         vc_checkbox->setStatusTip(vinylControlText);
         vc_checkbox->setWhatsThis(buildWhatsThis(vinylControlTitle,
-                                                 vinylControlText));
-        connect(vc_checkbox, &QAction::triggered,
-                this, [this, i] { emit toggleVinylControl(i); });
+                vinylControlText));
+        connect(vc_checkbox, &QAction::triggered, this, [this, i] { emit toggleVinylControl(i); });
         pVinylControlMenu->addAction(vc_checkbox);
     }
     pOptionsMenu->addMenu(pVinylControlMenu);
@@ -597,7 +594,7 @@ void WMainMenuBar::initialize() {
 
         QString enableExperimentTitle = tr("Stats: &Experiment Bucket");
         QString enableExperimentToolsText = tr(
-            "Enables experiment mode. Collects stats in the EXPERIMENT tracking bucket.");
+                "Enables experiment mode. Collects stats in the EXPERIMENT tracking bucket.");
         auto* pDeveloperStatsExperiment = new QAction(enableExperimentTitle, this);
         m_pKeyboard->registerMenuBarActionSetShortcut(pDeveloperStatsExperiment,
                 ConfigKey(kKbdShortcutsGroup,
@@ -606,7 +603,7 @@ void WMainMenuBar::initialize() {
         pDeveloperStatsExperiment->setShortcutContext(Qt::ApplicationShortcut);
         pDeveloperStatsExperiment->setStatusTip(enableExperimentToolsText);
         pDeveloperStatsExperiment->setWhatsThis(buildWhatsThis(
-            enableExperimentTitle, enableExperimentToolsText));
+                enableExperimentTitle, enableExperimentToolsText));
         pDeveloperStatsExperiment->setCheckable(true);
         pDeveloperStatsExperiment->setChecked(Experiment::isExperiment());
         connect(pDeveloperStatsExperiment,
@@ -617,7 +614,7 @@ void WMainMenuBar::initialize() {
 
         QString enableBaseTitle = tr("Stats: &Base Bucket");
         QString enableBaseToolsText = tr(
-            "Enables base mode. Collects stats in the BASE tracking bucket.");
+                "Enables base mode. Collects stats in the BASE tracking bucket.");
         auto* pDeveloperStatsBase = new QAction(enableBaseTitle, this);
         m_pKeyboard->registerMenuBarActionSetShortcut(
                 pDeveloperStatsBase,
@@ -626,7 +623,7 @@ void WMainMenuBar::initialize() {
         pDeveloperStatsBase->setShortcutContext(Qt::ApplicationShortcut);
         pDeveloperStatsBase->setStatusTip(enableBaseToolsText);
         pDeveloperStatsBase->setWhatsThis(buildWhatsThis(
-            enableBaseTitle, enableBaseToolsText));
+                enableBaseTitle, enableBaseToolsText));
         pDeveloperStatsBase->setCheckable(true);
         pDeveloperStatsBase->setChecked(Experiment::isBase());
         connect(pDeveloperStatsBase,
@@ -945,7 +942,7 @@ void WMainMenuBar::slotVisitUrl(const QUrl& url) {
 }
 
 void WMainMenuBar::createVisibilityControl(QAction* pAction,
-                                           const ConfigKey& key) {
+        const ConfigKey& key) {
     auto* pConnection = new VisibilityControlConnection(this, pAction, key);
     connect(this,
             &WMainMenuBar::internalOnNewSkinLoaded,
@@ -977,7 +974,7 @@ void WMainMenuBar::onNumberOfDecksChanged(int decks) {
 }
 
 VisibilityControlConnection::VisibilityControlConnection(
-    QObject* pParent, QAction* pAction, const ConfigKey& key)
+        QObject* pParent, QAction* pAction, const ConfigKey& key)
         : QObject(pParent),
           m_key(key),
           m_pAction(pAction) {

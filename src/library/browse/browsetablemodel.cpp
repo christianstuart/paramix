@@ -373,7 +373,7 @@ void BrowseTableModel::slotInsert(const BrowseTableItems& rows,
     // receive items this object has 'ordered' from the BrowseThread (singleton)
     if (caller_object == this) {
         emit saveModelState();
-        //qDebug() << "BrowseTableModel::slotInsert";
+        // qDebug() << "BrowseTableModel::slotInsert";
         for (int i = 0; i < rows.size(); ++i) {
             appendRow(rows.at(i));
         }

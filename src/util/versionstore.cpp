@@ -170,7 +170,6 @@ QString VersionStore::buildFlags() {
 }
 
 QStringList VersionStore::dependencyVersions() {
-
     // WARNING: may be inaccurate since some come from compile-time header
     // definitions instead of the actual dynamically loaded library).
     return {// Should be accurate.

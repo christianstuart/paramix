@@ -73,19 +73,19 @@ BrowseFeature::BrowseFeature(
             this,
             &BrowseFeature::invalidateRightClickIndex);
 
-    m_pAddQuickLinkAction = new QAction(tr("Add to Quick Links"),this);
+    m_pAddQuickLinkAction = new QAction(tr("Add to Quick Links"), this);
     connect(m_pAddQuickLinkAction,
             &QAction::triggered,
             this,
             &BrowseFeature::slotAddQuickLink);
 
-    m_pRemoveQuickLinkAction = new QAction(tr("Remove from Quick Links"),this);
+    m_pRemoveQuickLinkAction = new QAction(tr("Remove from Quick Links"), this);
     connect(m_pRemoveQuickLinkAction,
             &QAction::triggered,
             this,
             &BrowseFeature::slotRemoveQuickLink);
 
-    m_pAddtoLibraryAction = new QAction(tr("Add to Library"),this);
+    m_pAddtoLibraryAction = new QAction(tr("Add to Library"), this);
     connect(m_pAddtoLibraryAction,
             &QAction::triggered,
             this,
@@ -131,14 +131,14 @@ BrowseFeature::BrowseFeature(
             display_path.chop(1);
         }
         devices_link->appendChild(
-                display_path, // Displays C:
+                display_path,      // Displays C:
                 drive.filePath()); // Displays C:/
     }
 #elif defined(__APPLE__)
     // Apple hides the base Linux file structure But all devices are mounted at
     // /Volumes
     pRootItem->appendChild(tr("Devices"), "/Volumes/");
-#else  // LINUX
+#else // LINUX
     // DEVICE_NODE contents will be rendered lazily in onLazyChildExpandation.
     pRootItem->appendChild(tr("Removable Devices"), DEVICE_NODE);
 
@@ -212,11 +212,12 @@ void BrowseFeature::slotAddToLibrary() {
     msgBox.setIcon(QMessageBox::Warning);
     // strings are dupes from DlgPrefLibrary
     msgBox.setWindowTitle(tr("Music Directory Added"));
-    msgBox.setText(tr("You added one or more music directories. The tracks in "
-                      "these directories won't be available until you rescan "
-                      "your library. Would you like to rescan now?"));
+    msgBox.setText(tr(
+            "You added one or more music directories. The tracks in "
+            "these directories won't be available until you rescan "
+            "your library. Would you like to rescan now?"));
     QPushButton* scanButton = msgBox.addButton(
-        tr("Scan"), QMessageBox::AcceptRole);
+            tr("Scan"), QMessageBox::AcceptRole);
     msgBox.addButton(QMessageBox::Cancel);
     msgBox.setDefaultButton(scanButton);
     msgBox.exec();
@@ -271,7 +272,7 @@ TreeItemModel* BrowseFeature::sidebarModel() const {
 }
 
 void BrowseFeature::bindLibraryWidget(WLibrary* libraryWidget,
-                               KeyboardEventFilter* keyboard) {
+        KeyboardEventFilter* keyboard) {
     Q_UNUSED(keyboard);
     WLibraryTextBrowser* edit = new WLibraryTextBrowser(libraryWidget);
     edit->setHtml(getRootViewHtml());

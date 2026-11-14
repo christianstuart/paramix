@@ -12,9 +12,9 @@
 #define MIXXX_ICON_PATH ":/images/icons/scalable/apps/paramix.svg"
 #define MIXXX_LOGO_PATH ":/images/paramix_logo.svg"
 
-#define MIXXX_WEBSITE_URL       "https://github.com/christianstuart/paramix"
+#define MIXXX_WEBSITE_URL "https://github.com/christianstuart/paramix"
 #define MIXXX_WEBSITE_SHORT_URL "github.com/christianstuart/paramix"
-#define MIXXX_SUPPORT_URL       "https://github.com/christianstuart/paramix/issues"
+#define MIXXX_SUPPORT_URL "https://github.com/christianstuart/paramix/issues"
 #define MIXXX_TRANSLATION_URL "https://github.com/christianstuart/paramix"
 #define MIXXX_DONATE_URL "https://github.com/christianstuart/paramix"
 
@@ -79,5 +79,5 @@
     MIXXX_MANUAL_URL "/chapters/appendix.html#settings-directory"
 #define MIXXX_MANUAL_OUTPUT_AND_INPUT_DEVICES \
     MIXXX_MANUAL_URL "/chapters/preferences/sound_hardware#output-and-input-devices"
-#define MIXXX_MANUAL_FILENAME   "Paramix-Manual.pdf"
+#define MIXXX_MANUAL_FILENAME "Paramix-Manual.pdf"
 #define MIXXX_KBD_SHORTCUTS_FILENAME "Paramix-Keyboard-Shortcuts.pdf"

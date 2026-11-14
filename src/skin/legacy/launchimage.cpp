@@ -68,7 +68,7 @@ LaunchImage::LaunchImage(QWidget* pParent, const QString& styleSheet)
         setStyleSheet(styleSheet);
     }
 
-    QLabel *label = new QLabel(this);
+    QLabel* label = new QLabel(this);
 
     m_pProgressBar = new QProgressBar(this);
     m_pProgressBar->setTextVisible(false);
@@ -90,8 +90,7 @@ void LaunchImage::progress(int value, const QString& serviceName) {
     Q_UNUSED(serviceName);
 }
 
-void LaunchImage::paintEvent(QPaintEvent *)
-{
+void LaunchImage::paintEvent(QPaintEvent*) {
     QStyleOption opt;
     opt.initFrom(this);
     QPainter p(this);

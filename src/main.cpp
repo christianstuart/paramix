@@ -208,7 +208,7 @@ Java_org_qtproject_qt_android_QtNativeAccessibility_accessibilitySupported(JNIEn
 }
 #endif
 
-int main(int argc, char * argv[]) {
+int main(int argc, char* argv[]) {
     Console console;
 
     // These need to be set early on (not sure how early) in order to trigger
@@ -232,7 +232,7 @@ int main(int argc, char * argv[]) {
     // Setting the organization name results in a QDesktopStorage::DataLocation
     // of "$HOME/Library/Application Support/Paramix/Paramix" on OS X. Leave
     // the organization name blank.
-    //QCoreApplication::setOrganizationName("Paramix");
+    // QCoreApplication::setOrganizationName("Paramix");
 
     QCoreApplication::setApplicationName(VersionStore::applicationName());
     QGuiApplication::setApplicationDisplayName(VersionStore::applicationName());

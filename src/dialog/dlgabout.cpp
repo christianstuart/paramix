@@ -20,7 +20,7 @@ DlgAbout::DlgAbout()
     mixxx_logo->load(QString(MIXXX_LOGO_PATH));
 
     version_label->setText(tr("%1 %2").arg(VersionStore::applicationName(),
-                                         VersionStore::version()) +
+                                   VersionStore::version()) +
             QStringLiteral("<br><span style=\"font-size:small\">") +
             tr("Based on Mixxx, the free DJ software.") + QStringLiteral("</span>"));
     git_version_label->setText(VersionStore::gitVersion());
@@ -41,7 +41,7 @@ DlgAbout::DlgAbout()
                     .arg(QString::number(
                                  VersionStore::versionNumber().majorVersion()),
                             QString::number(VersionStore::versionNumber()
-                                                    .minorVersion()));
+                                            .minorVersion()));
     QString s_contributions = tr("With contributions from:");
     QString s_specialThanks = tr("And special thanks to:");
     QString s_pastDevs = tr("Past Developers");
@@ -486,18 +486,18 @@ DlgAbout::DlgAbout()
             << "John Last";
 
     QString sectionTemplate = QString(
-        "<p align=\"center\"><b>%1</b></p><p align=\"center\">%2</p>");
+            "<p align=\"center\"><b>%1</b></p><p align=\"center\">%2</p>");
     QStringList sections;
     sections << sectionTemplate.arg(s_devTeam,
-                                    thisReleaseDevelopers.join("<br>"))
+                        thisReleaseDevelopers.join("<br>"))
              << sectionTemplate.arg(s_contributions,
-                                    recentContributors.join("<br>"))
+                        recentContributors.join("<br>"))
              << sectionTemplate.arg(s_pastDevs,
-                                    pastDevelopers.join("<br>"))
+                        pastDevelopers.join("<br>"))
              << sectionTemplate.arg(s_pastContribs,
-                                    pastContributors.join("<br>"))
+                        pastContributors.join("<br>"))
              << sectionTemplate.arg(s_specialThanks,
-                                    specialThanks.join("<br>"));
+                        specialThanks.join("<br>"));
     textBrowser->setHtml(sections.join(""));
 
     textWebsiteLink->setText(
