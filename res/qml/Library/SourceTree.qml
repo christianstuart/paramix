@@ -138,6 +138,10 @@ Mixxx.LibrarySourceTree {
             delegate: DefaultDelegate {
             }
         },
+        // TODO: add a stem status column here (e.g. "Stems" with ready/missing
+        // state) once QmlLibraryTrackListColumn exposes a stem role. The
+        // C++ track list model has no such column yet, so it is intentionally
+        // left out instead of faking it in QML.
         Mixxx.TrackListColumn {
             autoHideWidth: 900
             columnIdx: Mixxx.TrackListColumn.SQLColumns.FileType
@@ -204,10 +208,11 @@ Mixxx.LibrarySourceTree {
             id: value
 
             anchors.fill: parent
-            anchors.leftMargin: 15
-            color: Theme.textColor
+            anchors.leftMargin: Theme.space3
+            color: Theme.textPrimary
             elide: Text.ElideRight
-            font.pixelSize: 14
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeMd
             text: display ?? ""
             verticalAlignment: Text.AlignVCenter
         }

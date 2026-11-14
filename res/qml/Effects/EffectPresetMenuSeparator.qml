@@ -1,28 +1,20 @@
 import QtQuick
 import QtQuick.Controls
+import "../Theme"
 
+/// Hairline separator for the effect preset menus.
 MenuSeparator {
     id: root
 
-    property color bottomColor: "#333333"
-    property color topColor: "#000000"
+    property color lineColor: Theme.border
 
-    implicitHeight: 6
+    implicitHeight: 9
 
-    contentItem: Item {
-        Rectangle {
-            color: root.topColor
-            height: 1
-            width: parent.width - 8
-            x: 4
-            y: 2
-        }
-        Rectangle {
-            color: root.bottomColor
-            height: 1
-            width: parent.width - 8
-            x: 4
-            y: 3
-        }
+    contentItem: Rectangle {
+        color: root.lineColor
+        height: 1
+        width: parent.width - 2 * Theme.space1
+        x: Theme.space1
+        y: 4
     }
 }

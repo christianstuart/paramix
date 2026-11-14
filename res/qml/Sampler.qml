@@ -6,6 +6,8 @@ import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import "Theme"
 
+/// One sampler slot: a flat card with the track colour as a thin accent,
+/// play/cue, waveform, rate and the optional hotcue / FX assignments.
 Rectangle {
     id: root
 
@@ -20,6 +22,7 @@ Rectangle {
     property bool showFxAssignments: true
     property bool showHotcues: true
     property bool showRateControl: true
+    readonly property var trackColor: root.currentTrack?.color
     readonly property real visualBpm: visualBpmControl.value
 
     signal fxAssignmentChanged(int unitNumber, bool enabled)
@@ -36,17 +39,25 @@ Rectangle {
         return data;
     }
     Drag.supportedActions: Qt.CopyAction
-    color: {
-        const trackColor = root.currentTrack?.color;
-        if (!trackColor?.valid)
-            return Theme.backgroundColor;
-        return Qt.darker(trackColor, 2);
-    }
+    border.color: Theme.border
+    border.width: 1
+    color: Theme.surface1
     implicitHeight: root.minimized ? 50 : 170
     implicitWidth: 230
+    radius: Theme.radiusMd
 
-    Skin.SectionBackground {
-        anchors.fill: parent
+    // Track colour as a thin accent instead of tinting the whole card.
+    Rectangle {
+        anchors.left: parent.left
+        anchors.leftMargin: Theme.radiusSm
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.radiusSm
+        anchors.top: parent.top
+        anchors.topMargin: 1
+        color: root.trackColor && root.trackColor.valid ? root.trackColor : "transparent"
+        height: 2
+        radius: 1
+        visible: !!root.trackColor && root.trackColor.valid
     }
     MouseArea {
         id: dragArea
@@ -67,34 +78,34 @@ Rectangle {
 
             anchors.bottom: parent.bottom
             anchors.left: parent.left
-            anchors.margins: 5
+            anchors.margins: Theme.space1
             anchors.right: vuMeter.left
             anchors.top: parent.top
         }
         Skin.ControlMiniKnob {
             id: gainKnob
 
-            anchors.margins: 5
+            anchors.margins: Theme.space1
             anchors.right: parent.right
             anchors.top: parent.top
-            color: Theme.samplerColor
+            color: Theme.accent
             group: root.group
-            height: 40
+            height: 36
             key: "pregain"
-            width: 40
+            width: 36
         }
         Skin.ControlButton {
             id: playButton
 
-            activeColor: Theme.samplerColor
+            activeColor: Theme.onAccent
             anchors.left: embedded.left
             anchors.top: embedded.top
             group: root.group
-            height: 40
+            height: 36
             highlight: playLatchedControl.value > 0 || root.playing
             key: "cue_gotoandplay"
             text: qsTr("Play")
-            width: 40
+            width: 36
 
             MouseArea {
                 acceptedButtons: Qt.RightButton
@@ -109,14 +120,15 @@ Rectangle {
             id: label
 
             anchors.left: playButton.right
-            anchors.leftMargin: 5
+            anchors.leftMargin: Theme.space1
             anchors.right: bpmLabel.left
-            anchors.rightMargin: 5
+            anchors.rightMargin: Theme.space1
             anchors.top: embedded.top
-            color: Theme.deckTextColor
+            color: Theme.textPrimary
             elide: Text.ElideRight
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.textFontPixelSize
+            font.pixelSize: Theme.fontSizeSm
+            font.weight: Theme.fontWeightDemiBold
             text: root.currentTrack?.title ?? ""
         }
         Text {
@@ -124,15 +136,15 @@ Rectangle {
 
             anchors.right: embedded.right
             anchors.top: embedded.top
-            color: Theme.deckTextColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.buttonFontPixelSize
+            color: Theme.textSecondary
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeXs
             text: root.loaded && root.visualBpm > 0 ? root.visualBpm.toFixed(1) : ""
         }
         Skin.WaveformOverview {
             anchors.bottom: embedded.bottom
             anchors.left: playButton.right
-            anchors.leftMargin: 5
+            anchors.leftMargin: Theme.space1
             anchors.right: embedded.right
             anchors.top: label.bottom
             anchors.topMargin: 2
@@ -142,7 +154,7 @@ Rectangle {
             id: vuMeter
 
             anchors.bottom: parent.bottom
-            anchors.margins: 5
+            anchors.margins: Theme.space1
             anchors.right: gainKnob.left
             anchors.top: parent.top
             group: root.group
@@ -155,18 +167,19 @@ Rectangle {
 
         anchors.bottom: parent.bottom
         anchors.left: parent.left
-        anchors.margins: 5
+        anchors.margins: Theme.space1
         anchors.right: parent.right
         anchors.top: summary.bottom
-        spacing: 3
+        spacing: Theme.space1
         visible: !root.minimized
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Theme.space1
 
             Skin.ControlButton {
                 Layout.fillWidth: true
+                activeColor: Theme.onAccent
                 group: root.group
                 key: "sync_enabled"
                 text: qsTr("Sync")
@@ -174,6 +187,7 @@ Rectangle {
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
+                activeColor: Theme.onAccent
                 group: root.group
                 key: "keylock"
                 text: qsTr("Key")
@@ -181,6 +195,7 @@ Rectangle {
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
+                activeColor: Theme.onAccent
                 group: root.group
                 key: "repeat"
                 text: qsTr("Loop")
@@ -188,6 +203,7 @@ Rectangle {
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
+                activeColor: Theme.onAccent
                 group: root.group
                 key: "pfl"
                 text: qsTr("PFL")
@@ -195,7 +211,7 @@ Rectangle {
             }
             Skin.OrientationToggleButton {
                 Layout.fillWidth: true
-                color: Theme.crossfaderOrientationColor
+                color: Theme.textMuted
                 group: root.group
                 key: "orientation"
             }
@@ -208,19 +224,24 @@ Rectangle {
         }
         Skin.ControlFader {
             Layout.fillWidth: true
-            bar.color: Theme.bpmSliderBarColor
+            bar.color: Theme.accent
             bar.start: 0.5
             bg: Theme.imgBpmSliderBackground
             group: root.group
             key: "rate"
             orientation: Qt.Horizontal
             visible: root.showRateControl
+
+            handleImage {
+                height: 6
+                width: 20
+            }
         }
         GridLayout {
             Layout.fillWidth: true
-            columnSpacing: 2
+            columnSpacing: Theme.space1
             columns: 4
-            rowSpacing: 2
+            rowSpacing: Theme.space1
             visible: root.showHotcues && root.hotcueCount > 0
 
             Repeater {
@@ -238,7 +259,7 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: Theme.space1
             visible: root.showFxAssignments && root.fxUnitCount > 0
 
             Repeater {
@@ -250,7 +271,7 @@ Rectangle {
                     required property int index
 
                     Layout.fillWidth: true
-                    activeColor: Theme.effectUnitColor
+                    activeColor: Theme.onAccent
                     group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
                     implicitHeight: 22
                     key: "group_" + root.group + "_enable"

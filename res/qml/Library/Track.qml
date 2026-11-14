@@ -3,6 +3,8 @@ import QtQuick
 import QtQuick.Controls 2.15
 import "../Theme"
 
+/// Interaction layer for a track list cell: drag, tap and the track context
+/// menu. The menu follows the flat dark surface language of the library.
 Item {
     id: root
 
@@ -38,6 +40,20 @@ Item {
         id: contextMenu
 
         title: qsTr("File")
+
+        background: Rectangle {
+            border.color: Theme.border
+            border.width: 1
+            color: Theme.surface2
+            radius: Theme.radiusMd
+        }
+        palette.buttonText: Theme.textPrimary
+        palette.highlight: Theme.accent
+        palette.highlightedText: Theme.onAccent
+        palette.mid: Theme.textMuted
+        palette.text: Theme.textPrimary
+        palette.window: Theme.surface2
+        palette.windowText: Theme.textPrimary
 
         Menu {
             enabled: {

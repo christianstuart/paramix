@@ -2,6 +2,7 @@ import "." as Skin
 import QtQuick 2.12
 import "Theme"
 
+/// Microphone and auxiliary units either side of the master crossfader.
 Item {
     id: root
 
@@ -20,8 +21,8 @@ Item {
         anchors.right: crossfader.left
         anchors.top: parent.top
         layoutDirection: Qt.RightToLeft
-        padding: 5
-        spacing: 10
+        padding: Theme.space1
+        spacing: Theme.space2
 
         Skin.MicrophoneUnit {
             unitNumber: 1
@@ -42,24 +43,28 @@ Item {
         id: crossfader
 
         anchors.centerIn: parent
-        height: crossfaderSlider.height + 20
+        height: crossfaderSlider.height + 2 * Theme.space2
         width: root.crossfaderWidth
 
         Skin.ControlFader {
             id: crossfaderSlider
 
             anchors.left: parent.left
-            anchors.leftMargin: 5
+            anchors.leftMargin: Theme.space2
             anchors.right: parent.right
-            anchors.rightMargin: 5
+            anchors.rightMargin: Theme.space2
             anchors.verticalCenter: parent.verticalCenter
-            bar.color: Theme.crossfaderBarColor
+            bar.color: Theme.accent
             bar.start: 0.5
             bg: Theme.imgCrossfaderBackground
             fg: Theme.imgCrossfaderHandle
             group: "[Master]"
             key: "crossfader"
             orientation: Qt.Horizontal
+
+            handleImage {
+                height: 28
+            }
         }
     }
     Row {
@@ -69,8 +74,8 @@ Item {
         anchors.left: crossfader.right
         anchors.right: parent.right
         anchors.top: parent.top
-        padding: 5
-        spacing: 10
+        padding: Theme.space1
+        spacing: Theme.space2
 
         Skin.AuxiliaryUnit {
             layoutDirection: Qt.RightToLeft

@@ -10,6 +10,8 @@ import QtQuick.Shapes 1.6
 import "Theme"
 import "Library" as LibraryComponent
 
+/// Library pane: a slim toolbar with the search field on top of the source
+/// tree, preview deck and track list.
 Item {
     id: root
 
@@ -29,15 +31,59 @@ Item {
     LibraryComponent.SourceTree {
         id: librarySources
     }
-    TextField {
-        id: searchField
+    Rectangle {
+        id: toolbar
 
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        placeholderText: qsTranslate("WSearchLineEdit", "Search...")
+        color: Theme.surface1
+        height: Theme.toolbarHeight
 
-        onTextChanged: root.applySearch()
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            color: Theme.border
+            height: 1
+        }
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: Theme.space3
+            anchors.rightMargin: Theme.space3
+            spacing: Theme.space3
+
+            Text {
+                Layout.alignment: Qt.AlignVCenter
+                color: Theme.textPrimary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeMd
+                font.weight: Theme.fontWeightDemiBold
+                text: qsTr("Library")
+                verticalAlignment: Text.AlignVCenter
+            }
+            Rectangle {
+                Layout.alignment: Qt.AlignVCenter
+                color: Theme.border
+                implicitHeight: Theme.space4
+                implicitWidth: 1
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+            TextField {
+                id: searchField
+
+                Layout.alignment: Qt.AlignVCenter
+                Layout.maximumWidth: 320
+                Layout.preferredWidth: 280
+                Accessible.name: qsTr("Search the library")
+                Accessible.role: Accessible.EditableText
+                placeholderText: qsTranslate("WSearchLineEdit", "Search...")
+
+                onTextChanged: root.applySearch()
+            }
+        }
     }
     SplitView {
         id: librarySplitView
@@ -45,39 +91,27 @@ Item {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: searchField.bottom
+        anchors.top: toolbar.bottom
         orientation: Qt.Horizontal
 
         handle: Rectangle {
-            id: handleDelegate
+            id: libraryHandle
 
-            property color handleColor: SplitHandle.pressed || SplitHandle.hovered ? Theme.panelSplitterHandleActive : Theme.panelSplitterHandle
-            property int handleSize: SplitHandle.pressed || SplitHandle.hovered ? 6 : 5
-
-            clip: true
-            color: Theme.panelSplitterBackground
+            color: "transparent"
             implicitHeight: 8
             implicitWidth: 8
 
             containmentMask: Item {
                 height: librarySplitView.height
                 width: 8
-                x: (handleDelegate.width - width) / 2
+                x: (libraryHandle.width - width) / 2
             }
 
-            ColumnLayout {
+            Rectangle {
                 anchors.centerIn: parent
-
-                Repeater {
-                    model: 3
-
-                    Rectangle {
-                        color: handleColor
-                        height: handleSize
-                        radius: handleSize
-                        width: handleSize
-                    }
-                }
+                color: SplitHandle.pressed || SplitHandle.hovered ? Theme.accent : Theme.border
+                height: parent.height
+                width: 1
             }
         }
 
@@ -90,35 +124,23 @@ Item {
             orientation: Qt.Vertical
 
             handle: Rectangle {
-                id: handleDelegate
+                id: sidebarHandle
 
-                property color handleColor: SplitHandle.pressed || SplitHandle.hovered ? Theme.panelSplitterHandleActive : Theme.panelSplitterHandle
-                property int handleSize: SplitHandle.pressed || SplitHandle.hovered ? 6 : 5
-
-                clip: true
-                color: Theme.panelSplitterBackground
+                color: "transparent"
                 implicitHeight: 8
                 implicitWidth: 8
 
                 containmentMask: Item {
                     height: 8
                     width: sideBarSplitView.width
-                    x: (handleDelegate.width - width) / 2
+                    x: (sidebarHandle.width - width) / 2
                 }
 
-                RowLayout {
+                Rectangle {
                     anchors.centerIn: parent
-
-                    Repeater {
-                        model: 3
-
-                        Rectangle {
-                            color: handleColor
-                            height: handleSize
-                            radius: handleSize
-                            width: handleSize
-                        }
-                    }
+                    color: SplitHandle.pressed || SplitHandle.hovered ? Theme.accent : Theme.border
+                    height: 1
+                    width: parent.width
                 }
             }
 

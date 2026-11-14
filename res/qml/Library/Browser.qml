@@ -6,33 +6,34 @@ import QtQuick
 import QtQml.Models
 import QtQuick.Layouts
 import QtQuick.Controls 2.15
-import QtQuick.Shapes 1.12
-import Qt5Compat.GraphicalEffects
 import "../Theme"
 
+/// Library source tree (All tracks, playlists, crates, ...).
 Rectangle {
     id: root
 
-    readonly property var featureSelection: ItemSelectionModel {
-    }
+    readonly property var featureSelection: ItemSelectionModel {}
     required property var model
 
-    color: Theme.backgroundColor
+    color: Theme.surface1
 
     Component.onCompleted: {
         root.model.activate(root.model.index(0, 0));
     }
 
     Rectangle {
-        anchors.bottomMargin: 40
+        id: treeFrame
+
         anchors.fill: parent
-        anchors.leftMargin: 7
-        anchors.rightMargin: 15
-        anchors.topMargin: 7
-        color: Theme.sunkenBackgroundColor
+        anchors.margins: Theme.space2
+        border.color: Theme.border
+        border.width: 1
+        color: Theme.surface0
+        radius: Theme.radiusMd
 
         ColumnLayout {
             anchors.fill: parent
+            anchors.margins: Theme.space1
             spacing: 0
 
             ScrollView {
@@ -54,7 +55,7 @@ Rectangle {
                         required property bool expanded
                         required property int hasChildren
                         required property var icon
-                        readonly property real indentation: 40
+                        readonly property real indentation: Theme.space3
                         // FIXME The signature for that function has changed after Qt 6.4.2 (currently shipped on Ubuntu 24.04)
                         // See https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-2770811094 for further details
                         readonly property var index: treeView.modelIndex(column, row)
@@ -62,7 +63,7 @@ Rectangle {
                         // Rotate indicator when expanded by the user
                         // (requires TreeView to have a selectionModel)
                         property Animation indicatorAnimation: NumberAnimation {
-                            duration: 100
+                            duration: Theme.motionFast
                             easing.type: Easing.OutQuart
                             from: expanded ? 0 : 90
                             property: "rotation"
@@ -71,13 +72,16 @@ Rectangle {
                         }
                         required property bool isTreeNode
                         required property string label
-                        readonly property real padding: 5
+                        readonly property real padding: Theme.space1
                         required property int row
+                        readonly property bool topLevel: depth === 0
 
                         // Assigned to by TreeView:
                         required property TreeView treeView
 
-                        implicitHeight: depth == 0 ? 42 : 35
+                        Accessible.name: label
+                        Accessible.role: Accessible.ListItem
+                        implicitHeight: topLevel ? 32 : 28
                         implicitWidth: treeView.width
 
                         TableView.onPooled: indicatorAnimation.complete()
@@ -89,151 +93,117 @@ Rectangle {
                             id: background
 
                             anchors.fill: parent
-                            color: depth == 0 ? Theme.midGray2 : 'transparent'
+                            color: topLevel ? Theme.surface2 : "transparent"
+                        }
+                        Rectangle {
+                            id: rowHighlight
 
-                            MouseArea {
-                                id: rowMouseArea
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 1
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.space1
+                            anchors.right: parent.right
+                            anchors.rightMargin: Theme.space1
+                            anchors.top: parent.top
+                            anchors.topMargin: 1
+                            color: current ? Qt.alpha(Theme.accent, 0.18) : rowMouseArea.containsMouse ? Theme.surface3 : "transparent"
+                            radius: Theme.radiusSm
+                        }
+                        Rectangle {
+                            id: currentMarker
 
-                                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                anchors.fill: parent
-                                hoverEnabled: true
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: Theme.space1
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.space1
+                            anchors.top: parent.top
+                            anchors.topMargin: Theme.space1
+                            color: Theme.accent
+                            radius: Theme.radiusXs
+                            visible: current
+                            width: 2
+                        }
+                        MouseArea {
+                            id: rowMouseArea
 
-                                onClicked: event => {
-                                    treeView.selectionModel.select(treeView.selectionModel.model.index(row, 0), ItemSelectionModel.Rows | ItemSelectionModel.Select | ItemSelectionModel.Clear | ItemSelectionModel.Current);
-                                    treeView.model.activate(index);
-                                    if (isTreeNode && hasChildren) {
-                                        treeView.toggleExpanded(row);
-                                    }
-                                    event.accepted = true;
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            onClicked: event => {
+                                treeView.selectionModel.select(treeView.selectionModel.model.index(row, 0), ItemSelectionModel.Rows | ItemSelectionModel.Select | ItemSelectionModel.Clear | ItemSelectionModel.Current);
+                                treeView.model.activate(index);
+                                if (isTreeNode && hasChildren) {
+                                    treeView.toggleExpanded(row);
                                 }
+                                event.accepted = true;
                             }
-                            Rectangle {
-                                anchors.bottom: parent.bottom
-                                anchors.left: parent.left
-                                anchors.leftMargin: 10 + 15 * depth
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                color: current ? Theme.midGray : 'transparent'
-                                width: 25
+                        }
+                        RowLayout {
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.space2 + indentation * depth
+                            anchors.right: parent.right
+                            anchors.rightMargin: Theme.space2
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.space1
 
-                                Repeater {
-                                    id: lineIcon
+                            Image {
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.preferredHeight: 16
+                                Layout.preferredWidth: 16
+                                asynchronous: true
+                                fillMode: Image.PreserveAspectFit
+                                source: icon ?? ""
+                                visible: !!icon
+                            }
+                            Label {
+                                id: indicator
 
-                                    anchors.left: parent.left
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    model: !!icon ? 1 : 0
+                                Layout.alignment: Qt.AlignVCenter
+                                color: Theme.textMuted
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeXs
+                                text: "▶"
+                                visible: isTreeNode && hasChildren
+                            }
+                            Label {
+                                id: labelItem
 
-                                    Image {
-                                        height: 25
-                                        source: icon
-                                        visible: depth == 0 && icon
-                                        width: 25
-                                    }
-                                }
-                                Label {
-                                    id: indicator
+                                Layout.alignment: Qt.AlignVCenter
+                                Layout.fillWidth: true
+                                color: topLevel ? Theme.textPrimary : Theme.textSecondary
+                                elide: Text.ElideRight
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMd
+                                font.weight: topLevel ? Font.DemiBold : Font.Medium
+                                text: label
+                            }
+                            Item {
+                                Layout.preferredHeight: 20
+                                Layout.preferredWidth: 20
+                                visible: rowMouseArea.containsMouse && isTreeNode && hasChildren
+                            }
+                        }
+                        Rectangle {
+                            id: newItem
 
-                                    Layout.preferredWidth: indicator.implicitWidth
-                                    color: Theme.textColor
-                                    text: "▶"
-                                    visible: isTreeNode && hasChildren
+                            anchors.right: parent.right
+                            anchors.rightMargin: Theme.space2
+                            anchors.verticalCenter: parent.verticalCenter
+                            border.color: Theme.borderStrong
+                            border.width: 1
+                            color: Theme.surface3
+                            height: 20
+                            radius: Theme.radiusSm
+                            visible: rowMouseArea.containsMouse && isTreeNode && hasChildren
+                            width: 20
 
-                                    anchors {
-                                        left: parent.left
-                                        verticalCenter: lineIcon.bottom
-                                    }
-                                }
-                                Label {
-                                    id: labelItem
-
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: depth == 0 && row == 0 ? 10 : 34
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    clip: true
-                                    color: Theme.textColor
-                                    font.pixelSize: 14
-                                    font.weight: depth == 0 ? Font.Bold : Font.Medium
-                                    text: label
-                                }
-                                Item {
-                                    id: newItem
-
-                                    height: parent.height
-                                    visible: rowMouseArea.containsMouse && isTreeNode && hasChildren
-
-                                    anchors {
-                                        right: parent.right
-                                        rightMargin: 10
-                                        verticalCenter: parent.verticalCenter
-                                    }
-                                    Rectangle {
-                                        anchors.centerIn: parent
-                                        height: parent.height
-                                        width: 30
-
-                                        gradient: Gradient {
-                                            orientation: Gradient.Horizontal
-
-                                            GradientStop {
-                                                color: Theme.sunkenBackgroundColor
-                                                position: 1
-                                            }
-                                            GradientStop {
-                                                color: 'transparent'
-                                                position: 0
-                                            }
-                                        }
-                                    }
-                                    Rectangle {
-                                        anchors.right: parent.right
-                                        anchors.rightMargin: 5
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        border.color: Theme.white
-                                        border.width: 2
-                                        color: 'transparent'
-                                        height: 20
-                                        radius: 20
-                                        width: 20
-
-                                        Shape {
-                                            anchors.fill: parent
-                                            anchors.margins: 4
-
-                                            ShapePath {
-                                                capStyle: ShapePath.RoundCap
-                                                fillColor: Theme.white
-                                                startX: 6
-                                                startY: 0
-                                                strokeWidth: 2
-
-                                                PathLine {
-                                                    x: 6
-                                                    y: 12
-                                                }
-                                                PathLine {
-                                                    x: 6
-                                                    y: 8
-                                                }
-                                            }
-                                            ShapePath {
-                                                capStyle: ShapePath.RoundCap
-                                                fillColor: Theme.white
-                                                startX: 0
-                                                startY: 6
-                                                strokeWidth: 2
-
-                                                PathLine {
-                                                    x: 12
-                                                    y: 6
-                                                }
-                                                PathLine {
-                                                    x: 8
-                                                    y: 6
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                            Text {
+                                anchors.centerIn: parent
+                                color: Theme.textSecondary
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMd
+                                text: "+"
                             }
                         }
                     }

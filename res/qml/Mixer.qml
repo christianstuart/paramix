@@ -4,11 +4,19 @@ import QtQuick 2.12
 import QtQuick.Layouts
 import "Theme"
 
+/// Channel mixer for two or four decks.
+///
+/// The mixer keeps a single flat surface. The left and right channel pairs are
+/// separated by one hairline so the strips read as two banks, and the deck
+/// assignment buttons for the crossfader live in a recessed strip at the
+/// bottom.
 Item {
     id: root
 
     required property var groups
     property bool show4decks: false
+
+    readonly property int stripWidth: 42
 
     implicitHeight: content.height + crossfader.height
     implicitWidth: 190
@@ -22,15 +30,14 @@ Item {
         Item {
             id: content
 
-            height: (root.show4decks ? eqDeck1.height * 2 : eqDeck1.height) + 10
+            height: (root.show4decks ? eqDeck1.height * 2 : eqDeck1.height) + 2 * Theme.space1
             width: root.implicitWidth
 
-            Skin.SectionBackground {
-                anchors.fill: parent
-            }
             Item {
+                id: stripArea
+
                 anchors.fill: parent
-                anchors.margins: 5
+                anchors.margins: Theme.space1
 
                 states: [
                     State {
@@ -72,16 +79,24 @@ Item {
                     }
                 ]
 
+                // Hairline between the left and the right channel bank.
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    color: Theme.border
+                    width: 1
+                }
+
                 Skin.EqColumn {
                     id: eqDeck3
 
                     group: root.groups[2]
                     visible: root.show4decks
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
                         left: parent.left
-                        rightMargin: 4
                         top: parent.top
                     }
                 }
@@ -89,12 +104,11 @@ Item {
                     id: eqDeck1
 
                     group: root.groups[0]
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
                         left: parent.left
-                        leftMargin: root.show4decks ? 4 : 0
-                        rightMargin: 4
+                        leftMargin: root.show4decks ? Theme.space1 : 0
                         top: parent.top
                     }
                 }
@@ -104,11 +118,10 @@ Item {
                     group: root.groups[2]
                     height: eqDeck2.height
                     visible: root.show4decks
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
                         left: parent.left
-                        rightMargin: 4
                         top: eqDeck3.bottom
                     }
                 }
@@ -117,12 +130,11 @@ Item {
 
                     group: root.groups[0]
                     height: eqDeck1.height
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
                         left: eqDeck1.right
-                        leftMargin: 4
-                        rightMargin: 2
+                        leftMargin: Theme.space1
                         top: parent.top
                     }
                 }
@@ -131,12 +143,11 @@ Item {
 
                     group: root.groups[1]
                     height: eqDeck2.height
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
-                        leftMargin: 2
                         right: eqDeck2.left
-                        rightMargin: 4
+                        rightMargin: Theme.space1
                         top: parent.top
                     }
                 }
@@ -146,10 +157,9 @@ Item {
                     group: root.groups[3]
                     height: eqDeck2.height
                     visible: root.show4decks
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
-                        leftMargin: 4
                         right: parent.right
                         top: eqDeck4.bottom
                     }
@@ -158,12 +168,11 @@ Item {
                     id: eqDeck2
 
                     group: root.groups[1]
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
                         right: parent.right
-                        // leftMargin: 4
-                        rightMargin: root.show4decks ? 4 : 0
+                        rightMargin: root.show4decks ? Theme.space1 : 0
                         top: parent.top
                     }
                 }
@@ -172,10 +181,9 @@ Item {
 
                     group: root.groups[3]
                     visible: root.show4decks
-                    width: 42
+                    width: root.stripWidth
 
                     anchors {
-                        leftMargin: 4
                         right: parent.right
                         top: parent.top
                     }
@@ -185,26 +193,36 @@ Item {
         Item {
             id: crossfader
 
-            height: 40
+            height: 44
             width: root.implicitWidth
 
-            Skin.SectionBackground {
-                anchors.fill: parent
-            }
-            Item {
-                anchors.fill: parent
-                anchors.margins: 3
+            Rectangle {
+                id: crossfaderSurface
 
-                Skin.SectionBackground {
-                    anchors.fill: parent
+                anchors.fill: parent
+                anchors.margins: Theme.space1
+                border.color: Theme.border
+                border.width: 1
+                color: Theme.surface0
+                radius: Theme.radiusSm
+
+                // Center detent marker behind the fader.
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.borderStrong
+                    height: 10
+                    width: 1
                 }
                 GridLayout {
                     id: leftDeckAssignment
 
                     anchors.left: parent.left
-                    columnSpacing: 0
-                    rowSpacing: 0
-                    width: root.show4decks ? 34 : 17
+                    anchors.leftMargin: Theme.space1
+                    anchors.verticalCenter: parent.verticalCenter
+                    columnSpacing: 2
+                    rowSpacing: 2
+                    width: root.show4decks ? 34 : 16
 
                     Repeater {
                         model: root.show4decks ? 4 : 2
@@ -214,25 +232,19 @@ Item {
 
                             Layout.column: show4decks ? index % 2 : 0
                             Layout.row: root.show4decks ? parseInt(index / 2) : index
-                            implicitHeight: 17
-                            implicitWidth: 17
+                            implicitHeight: 16
+                            implicitWidth: 16
 
-                            Skin.SectionBackground {
-                                anchors.fill: parent
-                            }
                             Skin.ControlButton {
                                 id: deckButton
 
-                                activeColor: Theme.deckActiveColor
+                                Accessible.name: qsTr("Assign crossfader to deck %1").arg(index + 1)
+                                activeColor: Theme.onAccent
+                                anchors.fill: parent
                                 group: `[Channel${index + 1}]`
                                 key: "orientation_left"
-                                text: `${index + 1}`
+                                text: qsTr("%1").arg(index + 1)
                                 toggleable: true
-
-                                anchors {
-                                    fill: parent
-                                    margins: 1
-                                }
                             }
                         }
                     }
@@ -240,7 +252,12 @@ Item {
                 Skin.ControlFader {
                     id: crossfaderSlider
 
-                    bar.color: Theme.crossfaderBarColor
+                    anchors.left: leftDeckAssignment.right
+                    anchors.leftMargin: Theme.space1
+                    anchors.right: rightDeckAssignment.left
+                    anchors.rightMargin: Theme.space1
+                    anchors.verticalCenter: parent.verticalCenter
+                    bar.color: Theme.accent
                     bar.start: 0.5
                     bg: Theme.imgCrossfaderBackground
                     fg: Theme.imgCrossfaderHandle
@@ -248,22 +265,19 @@ Item {
                     key: "crossfader"
                     orientation: Qt.Horizontal
 
-                    anchors {
-                        left: leftDeckAssignment.right
-                        right: rightDeckAssignment.left
-                        verticalCenter: parent.verticalCenter
-                    }
                     handleImage {
-                        height: 34
+                        height: 28
                     }
                 }
                 GridLayout {
                     id: rightDeckAssignment
 
                     anchors.right: parent.right
-                    columnSpacing: 0
-                    rowSpacing: 0
-                    width: root.show4decks ? 34 : 17
+                    anchors.rightMargin: Theme.space1
+                    anchors.verticalCenter: parent.verticalCenter
+                    columnSpacing: 2
+                    rowSpacing: 2
+                    width: root.show4decks ? 34 : 16
 
                     Repeater {
                         model: root.show4decks ? 4 : 2
@@ -273,25 +287,19 @@ Item {
 
                             Layout.column: show4decks ? index % 2 : 0
                             Layout.row: root.show4decks ? parseInt(index / 2) : index
-                            implicitHeight: 17
-                            implicitWidth: 17
+                            implicitHeight: 16
+                            implicitWidth: 16
 
-                            Skin.SectionBackground {
-                                anchors.fill: parent
-                            }
                             Skin.ControlButton {
-                                id: deckButton
+                                id: deckButtonRight
 
-                                activeColor: Theme.deckActiveColor
+                                Accessible.name: qsTr("Assign crossfader to deck %1").arg(index + 1)
+                                activeColor: Theme.onAccent
+                                anchors.fill: parent
                                 group: `[Channel${index + 1}]`
                                 key: "orientation_right"
-                                text: `${index + 1}`
+                                text: qsTr("%1").arg(index + 1)
                                 toggleable: true
-
-                                anchors {
-                                    fill: parent
-                                    margins: 1
-                                }
                             }
                         }
                     }

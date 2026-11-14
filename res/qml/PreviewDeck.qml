@@ -1,42 +1,32 @@
-import "." as Skin
-import Mixxx 1.0 as Mixxx
-import Qt.labs.qmlmodels
-import QtQml
 import QtQuick
-import QtQml.Models
-import QtQuick.Layouts
-import QtQuick.Controls 2.15
-import QtQuick.Shapes 1.6
 import "Theme"
 
+/// Placeholder for the preview deck pane below the library source tree.
 Rectangle {
     id: root
 
-    color: 'transparent'
-
-    Shape {
-        anchors.fill: parent
-        ShapePath {
-            strokeColor: Theme.midGray
-            strokeWidth: 1
-            fillColor: "transparent"
-            capStyle: ShapePath.RoundCap
-
-            startX: 0
-            startY: 0
-            PathLine { x: width; y: 0 }
-            PathLine { x: width; y: height }
-            PathLine { x: 0; y: height }
-            PathLine { x: 0; y: 0 }
-            PathLine { x: width; y: height }
-            PathLine { x: 0; y: height }
-            PathLine { x: width; y: 0 }
-        }
-    }
+    border.color: Theme.border
+    border.width: 1
+    color: Theme.surface1
+    radius: Theme.radiusMd
 
     Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Theme.space2
+        color: Theme.textSecondary
+        font.capitalization: Font.AllUppercase
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
+        font.weight: Theme.fontWeightDemiBold
+        text: qsTr("Preview")
+    }
+    Text {
         anchors.centerIn: parent
-        color: 'white'
-        text: qsTr("PreviewDeck placeholder")
+        color: Theme.textMuted
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeSm
+        text: qsTr("Preview deck placeholder")
     }
 }
