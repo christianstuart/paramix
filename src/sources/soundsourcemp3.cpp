@@ -1,10 +1,10 @@
 #include "sources/soundsourcemp3.h"
-#include "sources/mp3decoding.h"
-
-#include "util/logger.h"
-#include "util/math.h"
 
 #include <id3tag.h>
+
+#include "sources/mp3decoding.h"
+#include "util/logger.h"
+#include "util/math.h"
 
 namespace mixxx {
 
@@ -176,10 +176,10 @@ bool decodeFrameHeader(
 
 } // anonymous namespace
 
-//static
+// static
 const QString SoundSourceProviderMp3::kDisplayName = QStringLiteral("MAD");
 
-//static
+// static
 const QStringList SoundSourceProviderMp3::kSupportedFileTypes = {
         QStringLiteral("mp3"),
 };
@@ -436,7 +436,7 @@ SoundSource::OpenResult SoundSourceMp3::tryOpen(
 
         kLogger.warning() << "MP3 files with varying sample rate are not supported!";
         kLogger.warning() << "Since this happens most likely due to a corrupt file";
-        kLogger.warning() << "Mixxx tries to plays it with the most common sample rate for this file";
+        kLogger.warning() << "Paramix plays it with the most common sample rate for this file";
     }
 
     // Initialize the AudioSource

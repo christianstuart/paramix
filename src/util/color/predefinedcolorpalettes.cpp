@@ -251,7 +251,7 @@ namespace mixxx {
 
 const ColorPalette PredefinedColorPalettes::kMixxxHotcueColorPalette =
         ColorPalette(
-                QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPaletes", "Mixxx Hotcue Colors")),
+                QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPaletes", "Paramix Hotcue Colors")),
                 {
                         kColorMixxxRed,
                         kColorMixxxGreen,
@@ -369,7 +369,7 @@ const ColorPalette
 
 const ColorPalette PredefinedColorPalettes::kMixxxTrackColorPalette =
         ColorPalette(
-                QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPalettes", "Mixxx Track Colors")),
+                QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPalettes", "Paramix Track Colors")),
                 {
                         kMixxxTrackColorDarkRed,
                         kMixxxTrackColorRed,
@@ -460,7 +460,7 @@ const ColorPalette PredefinedColorPalettes::kVirtualDJTrackColorPalette =
 
 const ColorPalette PredefinedColorPalettes::kMixxxKeyColorPalette =
         ColorPalette(
-                QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPalettes", "Mixxx Key Colors")),
+                QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPalettes", "Paramix Key Colors")),
                 {
                         kMixxxKeyColor1,
                         kMixxxKeyColor2,

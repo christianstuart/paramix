@@ -1,27 +1,27 @@
 #pragma once
 
-#include <QObject>
+#include <QList>
 #include <QMessageBox>
 #include <QMutex>
+#include <QObject>
 #include <QString>
-#include <QList>
 
 #include "util/class.h"
 
 /** Class used to allow all threads to display message boxes on error conditions
-  * with a custom list of standard buttons and to be able to react to them. */
+ * with a custom list of standard buttons and to be able to react to them. */
 typedef enum {
-    DLG_FATAL       = 5,
-    DLG_CRITICAL    = 4,
-    DLG_WARNING     = 3,
-    DLG_INFO        = 2,
-    DLG_QUESTION    = 1,
-    DLG_NONE        = 0 // No icon (default)
+    DLG_FATAL = 5,
+    DLG_CRITICAL = 4,
+    DLG_WARNING = 3,
+    DLG_INFO = 2,
+    DLG_QUESTION = 1,
+    DLG_NONE = 0 // No icon (default)
 } DialogType;
 
 class ErrorDialogProperties {
   public:
-    /** Set the window title. ("Mixxx" is always prepended.) */
+    /** Set the window title. ("Paramix" is always prepended.) */
     void setTitle(const QString& title);
 
     /** Set a key to prevent multiple dialogs until the first is closed */
@@ -111,8 +111,8 @@ class ErrorDialogProperties {
 
 /** Singleton class because we only need one Handler to manage all error dialogs */
 class ErrorDialogHandler : public QObject {
-   Q_OBJECT
- public:
+    Q_OBJECT
+  public:
     static ErrorDialogHandler* instance() {
         if (!s_pInstance)
             s_pInstance = new ErrorDialogHandler();
@@ -149,7 +149,7 @@ class ErrorDialogHandler : public QObject {
     // Private constructor
     ErrorDialogHandler();
 
-    static ErrorDialogHandler *s_pInstance;
+    static ErrorDialogHandler* s_pInstance;
     static bool s_bEnabled;
 
     bool m_errorCondition;

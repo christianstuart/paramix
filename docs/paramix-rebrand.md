@@ -61,6 +61,8 @@ These are **upstream references**, not product branding:
 - **Legacy file/identifier names**: `mixxxdb.sqlite`, `.mixxx` import paths,
   `MixxxControl`, `MixxxLibraryFeature`, the `Mixxx` QML module, the `mixxx`
   CMake target, `#Mixxx` skin object names and MIDI preset XML elements.
+  Engine DJ exports keep the stable `Mixxx Crates` / `Mixxx Playlists` root
+  names so an existing exported database is not duplicated.
 - **Documentation links** that genuinely point at upstream resources
   (`manual.mixxx.org`, the Mixxx wiki and controller forums). Labels for those
   links are neutral ("Wiki", "Controller Forums", "DJ Hardware Guide") so the
@@ -77,7 +79,9 @@ There is **no first-run migration wizard yet** for the non-sandboxed case. That
 is the planned `~/.paramix` wizard (decision 10): copy the library database,
 settings and controller mappings, verify the copy, then switch and leave the old
 directory untouched. Until it lands, a user who upgrades in place should move
-the old directory manually or pass `--settings-path`.
+the old directory manually or pass `--settings-path`. Saved Icecast/
+Shoutcast passwords are stored under a `Mixxx - ` keychain prefix and must be
+re-entered once.
 
 ## 5. Follow-ups
 

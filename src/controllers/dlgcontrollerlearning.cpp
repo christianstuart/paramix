@@ -517,7 +517,7 @@ void DlgControllerLearning::controlPicked(const ConfigKey& control) {
 
 void DlgControllerLearning::controlClicked(const ConfigKey& controlKey) {
     if (!m_pControlPickerMenu->controlExists(controlKey)) {
-        qWarning() << "Mixxx UI element clicked for which there is no "
+        qWarning() << "Paramix UI element clicked for which there is no "
                       "learnable control "
                    << controlKey.group << " " << controlKey.item;
         QMessageBox::warning(

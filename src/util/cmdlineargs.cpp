@@ -166,7 +166,7 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     if (forUserFeedback) {
         parser.setApplicationDescription(
                 QCoreApplication::translate("CmdlineArgs",
-                        "Mixxx is an open source DJ software. For more "
+                        "Paramix is an open source DJ software. For more "
                         "information, see: ") +
                 MIXXX_MANUAL_COMMANDLINEOPTIONS_URL);
     }
@@ -510,13 +510,13 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     if (parser.isSet(logFlushLevel)) {
         if (!parseLogLevel(parser.value(logFlushLevel), &m_logFlushLevel)) {
             fputs("\nlog-flush-level wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only flush output after a critical message.\n",
+                  "Paramix will only flush output after a critical message.\n",
                     stdout);
         }
     } else if (parser.isSet(logFlushLevelDeprecated)) {
         if (!parseLogLevel(parser.value(logFlushLevelDeprecated), &m_logFlushLevel)) {
             fputs("\nlogFlushLevel wasn't 'trace', 'debug', 'info', 'warning', or 'critical'!\n"
-                  "Mixxx will only flush output after a critical message.\n",
+                  "Paramix will only flush output after a critical message.\n",
                     stdout);
         }
     }

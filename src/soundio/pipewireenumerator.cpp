@@ -167,9 +167,9 @@ void PipewireEnumerator::initialize() {
     // see https://docs.pipewire.org/page_man_pipewire-props_7.html
     // and pipewire/keys.h header
     m_pPwFilter = pw_filter_new(m_pPwCore,
-            "mixxx",
+            "paramix",
             pw_properties_new(PW_KEY_MEDIA_NAME,
-                    "Mixxx",
+                    "Paramix",
                     PW_KEY_MEDIA_TYPE,
                     "Audio",
                     PW_KEY_MEDIA_CATEGORY,
@@ -179,9 +179,9 @@ void PipewireEnumerator::initialize() {
                     PW_KEY_MEDIA_CLASS,
                     "Audio/Duplex",
                     PW_KEY_NODE_NAME,
-                    "Mixxx",
+                    "Paramix",
                     PW_KEY_NODE_NICK,
-                    "Mixxx",
+                    "Paramix",
                     // we need to limit the maximum quantum pipewire will give us
                     // since the callback can run before we configure any quantum
                     // from preference page (by using external patchbay)
@@ -304,7 +304,7 @@ void PipewireEnumerator::registryEventGlobal(uint32_t id,
         // any previous element is either invalid or already removed
         m_soundDevices.insert_or_assign(id, std::move(pDevice));
 
-        if (name.find("Mixxx") != std::string::npos) {
+        if (name.find("Paramix") != std::string::npos) {
             uint32_t filterId = pw_filter_get_node_id(m_pPwFilter);
             if (filterId == id) {
                 m_filterId = filterId;
