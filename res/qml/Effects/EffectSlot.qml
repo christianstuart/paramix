@@ -48,7 +48,7 @@ Item {
         Skin.ControlButton {
             id: effectEnableButton
 
-            activeColor: Theme.onAccent
+            activeColor: Theme.textOnAccent
             anchors.bottom: parent.bottom
             anchors.left: focusButton.right
             anchors.margins: Theme.space1
@@ -146,7 +146,7 @@ Item {
                 width: parent.width
 
                 sourceComponent: Skin.ControlButton {
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     group: root.group
                     key: parameter.controlKey
                     text: qsTr("ON")
@@ -161,7 +161,7 @@ Item {
                 visible: parameter.shown && parameter.isKnob
 
                 Skin.ControlButton {
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     group: root.group
                     height: 14
                     key: parameter.controlKey + "_link_inverse"
@@ -180,7 +180,7 @@ Item {
                     }
                     Text {
                         anchors.centerIn: parent
-                        color: linkTypeControl.value > 0 ? Theme.onAccent : Theme.textSecondary
+                        color: linkTypeControl.value > 0 ? Theme.textOnAccent : Theme.textSecondary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeXs
                         text: qsTr("LINK %1").arg(Math.round(linkTypeControl.value))

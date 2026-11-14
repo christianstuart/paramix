@@ -9,11 +9,11 @@ import "Theme"
 AbstractButton {
     id: root
 
-    property color activeColor: Theme.onAccent
+    property color activeColor: Theme.textOnAccent
     property color backgroundColor: Theme.surface1
     property bool highlight: false
     property color normalColor: Theme.textPrimary
-    property color pressedColor: Theme.onAccent
+    property color pressedColor: Theme.textOnAccent
 
     Accessible.role: Accessible.Button
     Accessible.name: text

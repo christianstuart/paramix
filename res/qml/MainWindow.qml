@@ -153,7 +153,7 @@ Item {
                 Skin.Button {
                     id: show4DecksButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checkable: true
                     text: qsTr("4 Decks")
                     visible: root.height > 515
@@ -163,7 +163,7 @@ Item {
                 Skin.Button {
                     id: maximizeLibraryButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checkable: true
                     text: qsTr("Library")
 
@@ -187,7 +187,7 @@ Item {
                 Skin.Button {
                     id: showEffectsButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checkable: true
                     text: qsTr("Effects")
 
@@ -196,7 +196,7 @@ Item {
                 Skin.Button {
                     id: showAuxButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checkable: true
                     text: qsTr("Aux")
 
@@ -205,7 +205,7 @@ Item {
                 Skin.Button {
                     id: showSamplersButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checkable: true
                     text: qsTr("Sampler")
 
@@ -217,7 +217,7 @@ Item {
                 Skin.Button {
                     id: editDeckButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checkable: true
                     text: qsTr("Edit")
 
@@ -226,7 +226,7 @@ Item {
                 Skin.Button {
                     id: showDevToolsButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checkable: true
                     checked: devToolsWindow.visible
                     text: qsTr("Develop")
@@ -250,7 +250,7 @@ Item {
                 Skin.Button {
                     id: showPreferencesButton
 
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     checked: settingsPopup.opened
                     icon.height: 16
                     icon.source: "images/gear.svg"

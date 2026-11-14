@@ -32,7 +32,7 @@ ColumnLayout {
         Skin.ControlButton {
             id: pitchDownButton
 
-            activeColor: Theme.onAccent
+            activeColor: Theme.textOnAccent
             group: root.group
             implicitHeight: 22
             implicitWidth: 20
@@ -136,7 +136,7 @@ ColumnLayout {
         Skin.ControlButton {
             id: pitchUpButton
 
-            activeColor: Theme.onAccent
+            activeColor: Theme.textOnAccent
             group: root.group
             implicitHeight: 22
             implicitWidth: 20

@@ -93,7 +93,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        activeColor: Theme.onAccent
+        activeColor: Theme.textOnAccent
         group: root.group
         height: 24
         key: "pfl"

@@ -1,4 +1,5 @@
 import ".." as Skin
+import QtQuick 2.12
 import "../Theme"
 
 /// Cue button. It lights up in the warning token while held so it stays
@@ -8,7 +9,7 @@ Skin.ControlButton {
 
     property bool minimized: false
 
-    activeColor: Theme.onAccent
+    activeColor: Theme.textOnAccent
     key: "cue_default"
     text: qsTr("Cue")
 

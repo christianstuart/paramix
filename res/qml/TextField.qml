@@ -14,7 +14,7 @@ TextField {
     bottomPadding: Theme.space1
     selectByMouse: true
     selectionColor: Theme.accent
-    selectedTextColor: Theme.onAccent
+    selectedTextColor: Theme.textOnAccent
 
     background: Rectangle {
         border.color: root.activeFocus ? Theme.focusRing : Theme.border

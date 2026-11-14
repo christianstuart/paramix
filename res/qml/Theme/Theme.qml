@@ -38,7 +38,7 @@ QtObject {
                 "accent": "#5B9DFF",
                 "accentHover": "#7FB4FF",
                 "accentPressed": "#3B7BE0",
-                "onAccent": "#06101F",
+                "textOnAccent": "#06101F",
                 "positive": "#3DDC97",
                 "warning": "#FFC857",
                 "danger": "#FF5C6C",
@@ -63,7 +63,7 @@ QtObject {
                 "accent": "#FFB000",
                 "accentHover": "#FFC64D",
                 "accentPressed": "#E09B00",
-                "onAccent": "#000000",
+                "textOnAccent": "#000000",
                 "positive": "#00C2A8",
                 "warning": "#FFD166",
                 "danger": "#FF4D4D",
@@ -87,7 +87,7 @@ QtObject {
                 "accent": "#4C8DFF",
                 "accentHover": "#6BA2FF",
                 "accentPressed": "#2F6FE0",
-                "onAccent": "#0B1220",
+                "textOnAccent": "#0B1220",
                 "positive": "#3DDC97",
                 "warning": "#FFC857",
                 "danger": "#FF5C6C",
@@ -114,7 +114,7 @@ QtObject {
     readonly property color textPrimary: palette.textPrimary
     readonly property color textSecondary: palette.textSecondary
     readonly property color textMuted: palette.textMuted
-    readonly property color onAccent: palette.onAccent
+    readonly property color textOnAccent: palette.textOnAccent
 
     // ── Accents and states ─────────────────────────────────────────────────
     readonly property color accent: palette.accent

@@ -239,7 +239,7 @@ Item {
                                 id: deckButton
 
                                 Accessible.name: qsTr("Assign crossfader to deck %1").arg(index + 1)
-                                activeColor: Theme.onAccent
+                                activeColor: Theme.textOnAccent
                                 anchors.fill: parent
                                 group: `[Channel${index + 1}]`
                                 key: "orientation_left"
@@ -294,7 +294,7 @@ Item {
                                 id: deckButtonRight
 
                                 Accessible.name: qsTr("Assign crossfader to deck %1").arg(index + 1)
-                                activeColor: Theme.onAccent
+                                activeColor: Theme.textOnAccent
                                 anchors.fill: parent
                                 group: `[Channel${index + 1}]`
                                 key: "orientation_right"

@@ -18,6 +18,9 @@ Menu {
     property color hoverColor: Qt.alpha(Theme.accent, 0.22)
     property color hoverTextColor: Theme.textPrimary
     property color separatorColor: Theme.border
+    // Legacy aliases kept for the LateNightQML skin.
+    property color separatorBottomColor: separatorColor
+    property color separatorTopColor: separatorColor
     required property Mixxx.EffectSlotProxy slot
     property url submenuArrowSource
     property color textColor: Theme.textPrimary

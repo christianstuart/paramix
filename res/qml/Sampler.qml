@@ -97,7 +97,7 @@ Rectangle {
         Skin.ControlButton {
             id: playButton
 
-            activeColor: Theme.onAccent
+            activeColor: Theme.textOnAccent
             anchors.left: embedded.left
             anchors.top: embedded.top
             group: root.group
@@ -179,7 +179,7 @@ Rectangle {
 
             Skin.ControlButton {
                 Layout.fillWidth: true
-                activeColor: Theme.onAccent
+                activeColor: Theme.textOnAccent
                 group: root.group
                 key: "sync_enabled"
                 text: qsTr("Sync")
@@ -187,7 +187,7 @@ Rectangle {
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
-                activeColor: Theme.onAccent
+                activeColor: Theme.textOnAccent
                 group: root.group
                 key: "keylock"
                 text: qsTr("Key")
@@ -195,7 +195,7 @@ Rectangle {
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
-                activeColor: Theme.onAccent
+                activeColor: Theme.textOnAccent
                 group: root.group
                 key: "repeat"
                 text: qsTr("Loop")
@@ -203,7 +203,7 @@ Rectangle {
             }
             Skin.ControlButton {
                 Layout.fillWidth: true
-                activeColor: Theme.onAccent
+                activeColor: Theme.textOnAccent
                 group: root.group
                 key: "pfl"
                 text: qsTr("PFL")
@@ -271,7 +271,7 @@ Rectangle {
                     required property int index
 
                     Layout.fillWidth: true
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
                     implicitHeight: 22
                     key: "group_" + root.group + "_enable"

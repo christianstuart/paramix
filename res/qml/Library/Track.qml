@@ -49,7 +49,7 @@ Item {
         }
         palette.buttonText: Theme.textPrimary
         palette.highlight: Theme.accent
-        palette.highlightedText: Theme.onAccent
+        palette.highlightedText: Theme.textOnAccent
         palette.mid: Theme.textMuted
         palette.text: Theme.textPrimary
         palette.window: Theme.surface2

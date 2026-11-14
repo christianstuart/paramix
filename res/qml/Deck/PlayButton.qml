@@ -12,7 +12,7 @@ Skin.ControlButton {
 
     property bool minimized: false
 
-    activeColor: Theme.onAccent
+    activeColor: Theme.textOnAccent
     key: "play"
     toggleable: trackLoadedControl.value == 1
 
@@ -51,7 +51,7 @@ Skin.ControlButton {
 
             ShapePath {
                 capStyle: ShapePath.RoundCap
-                fillColor: root.highlight ? Theme.onAccent : (trackLoadedControl.value > 0 ? Theme.accent : Theme.textMuted)
+                fillColor: root.highlight ? Theme.textOnAccent : (trackLoadedControl.value > 0 ? Theme.accent : Theme.textMuted)
                 fillRule: ShapePath.WindingFill
                 startX: 4
                 startY: 0
@@ -77,7 +77,7 @@ Skin.ControlButton {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 6
             anchors.horizontalCenter: parent.horizontalCenter
-            color: root.highlight ? Theme.onAccent : Theme.textSecondary
+            color: root.highlight ? Theme.textOnAccent : Theme.textSecondary
             font.bold: true
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily

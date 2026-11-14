@@ -207,7 +207,7 @@ Category {
         height: 20
 
         Setting.FormButton {
-            activeColor: Theme.onAccent
+            activeColor: Theme.textOnAccent
             anchors.left: parent.left
             backgroundColor: Theme.danger
             opacity: enabled ? 1.0 : 0.5
@@ -230,7 +230,7 @@ Category {
                 text: ""
             }
             Setting.FormButton {
-                activeColor: Theme.onAccent
+                activeColor: Theme.textOnAccent
                 backgroundColor: Theme.surface2
                 opacity: enabled ? 1.0 : 0.5
                 text: qsTr("Cancel")
@@ -241,7 +241,7 @@ Category {
                 }
             }
             Setting.FormButton {
-                activeColor: Theme.onAccent
+                activeColor: Theme.textOnAccent
                 backgroundColor: root.dirty ? Theme.accent : Theme.surface2
                 enabled: root.dirty
                 opacity: enabled ? 1.0 : 0.5

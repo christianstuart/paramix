@@ -42,7 +42,7 @@ Item {
                 Layout.maximumWidth: 30
                 Layout.minimumWidth: 22
                 Layout.preferredHeight: 22
-                activeColor: Theme.onAccent
+                activeColor: Theme.textOnAccent
                 group: `[EffectRack1_EffectUnit${index + 1}]`
                 implicitHeight: 22
                 key: `group_${root.group}_enable`

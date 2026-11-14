@@ -9,7 +9,7 @@ import "Theme"
 AbstractButton {
     id: root
 
-    property color activeColor: Theme.onAccent
+    property color activeColor: Theme.textOnAccent
     property bool highlight: false
     property color normalColor: Theme.textSecondary
     property color pressedColor: Theme.textPrimary

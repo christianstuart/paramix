@@ -68,7 +68,7 @@ Row {
                     width: 52
                 }
                 Skin.ControlButton {
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     group: root.group
                     key: "pfl"
                     text: qsTr("PFL")
@@ -86,7 +86,7 @@ Row {
                     Skin.ControlButton {
                         Layout.fillHeight: true
                         Layout.fillWidth: true
-                        activeColor: Theme.onAccent
+                        activeColor: Theme.textOnAccent
                         group: root.group
                         key: "talkover"
                         text: qsTr("Talk")
@@ -107,7 +107,7 @@ Row {
 
                                 Layout.fillHeight: true
                                 Layout.fillWidth: true
-                                activeColor: Theme.onAccent
+                                activeColor: Theme.textOnAccent
                                 group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
                                 implicitWidth: 28
                                 key: "group_" + root.group + "_enable"

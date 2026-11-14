@@ -80,7 +80,7 @@ Item {
 
                 Skin.ControlButton {
                     Accessible.name: root.expanded ? qsTr("Hide effect parameters") : qsTr("Show effect parameters")
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     group: root.group
                     height: 24
                     key: "show_parameters"
@@ -90,7 +90,7 @@ Item {
                 }
                 Skin.Button {
                     Accessible.name: qsTr("Effect unit %1 preset").arg(root.unitNumber)
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     height: 24
                     text: qsTr("FX %1").arg(root.unitNumber)
                     width: 56
@@ -98,7 +98,7 @@ Item {
                     onClicked: presetPopup.open()
                 }
                 Skin.ControlButton {
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     group: root.group
                     height: 24
                     key: "group_[Headphone]_enable"
@@ -111,7 +111,7 @@ Item {
                 spacing: Theme.space1
 
                 Skin.ControlButton {
-                    activeColor: Theme.onAccent
+                    activeColor: Theme.textOnAccent
                     group: root.group
                     height: 30
                     key: "mix_mode"

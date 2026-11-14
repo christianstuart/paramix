@@ -269,7 +269,7 @@ Rectangle {
 
                         Text {
                             Layout.alignment: Qt.AlignHCenter
-                            color: hotcue.isSet ? Theme.onAccent : Theme.textMuted
+                            color: hotcue.isSet ? Theme.textOnAccent : Theme.textMuted
                             font.bold: true
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeLg
@@ -278,7 +278,7 @@ Rectangle {
                         }
                         Text {
                             Layout.alignment: Qt.AlignHCenter
-                            color: hotcue.isSet ? Theme.onAccent : Theme.textMuted
+                            color: hotcue.isSet ? Theme.textOnAccent : Theme.textMuted
                             elide: Text.ElideRight
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeXs
@@ -404,7 +404,7 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.margins: 0
-            activeColor: Theme.onAccent
+            activeColor: Theme.textOnAccent
             checked: true
             implicitHeight: 30
 
@@ -417,7 +417,7 @@ Rectangle {
                 layer.samples: 4
 
                 ShapePath {
-                    fillColor: hotcueTabButton.checked ? Theme.onAccent : Theme.textSecondary
+                    fillColor: hotcueTabButton.checked ? Theme.textOnAccent : Theme.textSecondary
                     startX: 10
                     startY: 4
 
@@ -458,13 +458,13 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.margins: 0
-            activeColor: Theme.onAccent
+            activeColor: Theme.textOnAccent
             implicitHeight: 30
 
             Accessible.name: qsTr("Stems")
 
             contentItem: Item {
-                readonly property color iconColor: stemTabButton.checked ? Theme.onAccent : Theme.textSecondary
+                readonly property color iconColor: stemTabButton.checked ? Theme.textOnAccent : Theme.textSecondary
 
                 Rectangle {
                     color: parent.iconColor
@@ -572,7 +572,7 @@ Rectangle {
 
         property bool active: false
         property color activeBackground: Theme.accent
-        property color activeTextColor: Theme.onAccent
+        property color activeTextColor: Theme.textOnAccent
 
         checkable: false
         implicitHeight: 14
