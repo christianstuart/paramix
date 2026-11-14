@@ -107,28 +107,67 @@ Item {
         Rectangle {
             id: toolbar
 
-            color: Theme.toolbarBackgroundColor
-            height: 36
-            radius: 1
+            color: Theme.surface1
+            height: Theme.toolbarHeight
             width: parent.width
+
+            // Hairline separator instead of the legacy one-pixel rounded panel.
+            Rectangle {
+                anchors.bottom: parent.bottom
+                color: Theme.border
+                height: 1
+                width: parent.width
+            }
 
             RowLayout {
                 anchors.fill: parent
+                anchors.leftMargin: Theme.space2
+                anchors.rightMargin: Theme.space2
+                spacing: Theme.space1
 
+                // Brand mark: a small accent bar and the Paramix wordmark.
+                // It replaces the implicit blank space at the left of the
+                // legacy toolbar and gives the skin a recognizable identity.
+                RowLayout {
+                    spacing: Theme.space2
+
+                    Rectangle {
+                        color: Theme.accent
+                        implicitHeight: 18
+                        implicitWidth: 3
+                        radius: Theme.radiusXs
+                    }
+                    Text {
+                        color: Theme.textPrimary
+                        font.bold: true
+                        font.family: Theme.fontFamilyDisplay
+                        font.letterSpacing: 2
+                        font.pixelSize: Theme.fontSizeMd
+                        text: qsTr("PARAMIX")
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    Item {
+                        implicitWidth: Theme.space3
+                    }
+                }
                 Skin.Button {
                     id: show4DecksButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checkable: true
                     text: qsTr("4 Decks")
                     visible: root.height > 515
+
+                    Accessible.name: qsTr("Show four decks")
                 }
                 Skin.Button {
                     id: maximizeLibraryButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checkable: true
                     text: qsTr("Library")
+
+                    Accessible.name: qsTr("Maximize library")
 
                     onCheckedChanged: () => {
                         showMaximizedLibrary.value = this.checked;
@@ -148,23 +187,29 @@ Item {
                 Skin.Button {
                     id: showEffectsButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checkable: true
                     text: qsTr("Effects")
+
+                    Accessible.name: qsTr("Show effects")
                 }
                 Skin.Button {
                     id: showAuxButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checkable: true
                     text: qsTr("Aux")
+
+                    Accessible.name: qsTr("Show auxiliary units")
                 }
                 Skin.Button {
                     id: showSamplersButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checkable: true
                     text: qsTr("Sampler")
+
+                    Accessible.name: qsTr("Show samplers")
                 }
                 Item {
                     Layout.fillWidth: true
@@ -172,17 +217,21 @@ Item {
                 Skin.Button {
                     id: editDeckButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checkable: true
                     text: qsTr("Edit")
+
+                    Accessible.name: qsTr("Edit deck layout")
                 }
                 Skin.Button {
                     id: showDevToolsButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checkable: true
                     checked: devToolsWindow.visible
                     text: qsTr("Develop")
+
+                    Accessible.name: qsTr("Show developer tools")
 
                     onClicked: {
                         if (devToolsWindow.visible)
@@ -201,7 +250,7 @@ Item {
                 Skin.Button {
                     id: showPreferencesButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.onAccent
                     checked: settingsPopup.opened
                     icon.height: 16
                     icon.source: "images/gear.svg"
@@ -231,16 +280,16 @@ Item {
             handle: Rectangle {
                 id: handleDelegate
 
-                property color handleColor: SplitHandle.pressed || SplitHandle.hovered ? Theme.libraryPanelSplitterHandleActive : Theme.libraryPanelSplitterHandle
+                property color handleColor: SplitHandle.pressed || SplitHandle.hovered ? Theme.libraryPanelSplitterHandleActive : Theme.borderStrong
                 property int handleSize: SplitHandle.pressed || SplitHandle.hovered ? 6 : 3
 
                 clip: true
-                color: Theme.libraryPanelSplitterBackground
-                implicitHeight: 4
-                implicitWidth: 8
+                color: Theme.surface0
+                implicitHeight: Theme.space1
+                implicitWidth: Theme.space2
 
                 containmentMask: Item {
-                    height: 8
+                    height: Theme.space2
                     width: splitView.width
                     x: (handleDelegate.width - width) / 2
                 }
@@ -335,7 +384,7 @@ Item {
                         orientation: Gradient.Horizontal
 
                         GradientStop {
-                            color: Theme.darkGray
+                            color: Theme.surface0
                             position: 0
                         }
                         GradientStop {
@@ -361,7 +410,7 @@ Item {
                             position: 0
                         }
                         GradientStop {
-                            color: Theme.darkGray
+                            color: Theme.surface0
                             position: 1
                         }
                     }
