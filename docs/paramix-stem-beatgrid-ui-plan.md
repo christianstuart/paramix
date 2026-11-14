@@ -439,6 +439,17 @@ class BeatDetector {
 - **Data/compatibility decision (resolved 2026-11-11):** move to **`~/.paramix`** with a first-run migration wizard (decision 10). The wizard copies the library DB, settings and controller mappings, verifies the copy before switching, and leaves `~/.mixxx` untouched so a downgrade or a failed migration is recoverable. Internal `Mixxx` identifiers may stay where changing them would break file formats; user-visible paths, settings and branding become Paramix.
 - **Versioning:** `Paramix <fork-version>` surfaced in the UI, with the upstream Mixxx version recorded in About/diagnostics (e.g. "Paramix 1.0 (based on Mixxx 2.7.0)").
 
+**Implementation status (2026-11-14).** The user-visible identity is rebranded: application name,
+window/dialog titles, About dialog, menus, notifications, installer metadata, package IDs
+(`org.paramix.Paramix`), Linux desktop entry and AppStream metadata, macOS bundle identifier,
+Windows resource metadata and product/upgrade GUIDs, app/installer icons, and the QML/legacy skin
+logos. The installed executable is `paramix`/`paramix.exe` while the CMake target and internal
+`Mixxx` identifiers stay unchanged. Settings default to `~/.paramix` (Linux/BSD) and the matching
+app-data directory elsewhere. Upstream attribution (GPL notices, Mixxx Development Team, bundled
+effect credits, historical version references) is retained, and the About dialog states that
+Paramix is based on Mixxx. The first-run `~/.paramix` migration wizard and the Debian packaging
+rename are still open; see `docs/paramix-rebrand.md`.
+
 ---
 
 ## 7. Multi-agent execution plan

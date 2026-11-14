@@ -1,9 +1,9 @@
-app-id: org.mixxx.Mixxx
+app-id: org.paramix.Paramix
 runtime: org.kde.Platform
 runtime-version: "6.10"
 sdk: org.kde.Sdk
-command: mixxx
-rename-icon: mixxx
+command: paramix
+rename-icon: paramix
 finish-args:
   - --socket=wayland
   - --socket=fallback-x11
@@ -19,8 +19,8 @@ finish-args:
   - --system-talk-name=org.freedesktop.RealtimeKit1
   - --talk-name=org.freedesktop.ScreenSaver
   - --env=ALSA_CONFIG_PATH=
-  - --metadata=X-DConf=migrate-path=/org/mixxx/Mixxx
-  - --persist=.mixxx
+  - --metadata=X-DConf=migrate-path=/org/paramix/Paramix
+  - --persist=.paramix
 add-extensions:
   org.freedesktop.LinuxAudio.Plugins:
     directory: extensions/Plugins
@@ -58,7 +58,7 @@ modules:
   - modules/libebur128.yaml
   - modules/libkeyfinder.yaml
   - modules/libdjinterop.yaml
-  - name: mixxx
+  - name: paramix
     buildsystem: cmake-ninja
     run-tests: true
     build-options:
@@ -76,15 +76,15 @@ modules:
         path: ../../
       - commands:
           - export LV2_PATH=$HOME/.lv2:/app/extensions/Plugins/lv2:/app/lib/lv2
-          - exec mixxx.bin "$@"
+          - exec paramix.bin "$@"
         type: script
-        dest-filename: mixxx.sh
+        dest-filename: paramix.sh
     cleanup:
-      - /share/icons/hicolor/scalable/apps/mixxx_ios.svg
-      - /share/icons/hicolor/scalable/apps/mixxx_macos.svg
+      - /share/icons/hicolor/scalable/apps/paramix_ios.svg
+      - /share/icons/hicolor/scalable/apps/paramix_macos.svg
     post-install:
-      - desktop-file-edit --set-key="Exec" --set-value="mixxx %U" ${FLATPAK_DEST}/share/applications/org.mixxx.Mixxx.desktop
-      - mv ${FLATPAK_DEST}/bin/mixxx ${FLATPAK_DEST}/bin/mixxx.bin
-      - install -Dm755 mixxx.sh ${FLATPAK_DEST}/bin/mixxx
-      - install -Dm644 ./res/linux/org.mixxx.Mixxx.metainfo.xml /app/share/metainfo/org.mixxx.Mixxx.metainfo.xml
+      - desktop-file-edit --set-key="Exec" --set-value="paramix %U" ${FLATPAK_DEST}/share/applications/org.paramix.Paramix.desktop
+      - mv ${FLATPAK_DEST}/bin/paramix ${FLATPAK_DEST}/bin/paramix.bin
+      - install -Dm755 paramix.sh ${FLATPAK_DEST}/bin/paramix
+      - install -Dm644 ./res/linux/org.paramix.Paramix.metainfo.xml /app/share/metainfo/org.paramix.Paramix.metainfo.xml
       - install -d /app/extensions/Plugins

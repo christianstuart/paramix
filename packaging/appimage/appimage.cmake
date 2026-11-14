@@ -1,31 +1,31 @@
 # AppImage-specific install rules, included from the main CMakeLists.txt
 # when MIXXX_APPIMAGE is enabled.
 
-# AppImage desktop file (simplified Exec=mixxx).
+# AppImage desktop file (simplified Exec=paramix).
 # The Exec= key must refer to the binary by basename only, as CPack matches it
 # against an installed file.  The Icon= key references the uniquely named
 # high-resolution icon installed below, which is also what appimagetool looks
 # up at the AppDir root (it uses the desktop file's Icon= name).
 set(
   MIXXX_APPIMAGE_DESKTOP_FILE
-  "${CMAKE_CURRENT_BINARY_DIR}/mixxx-appimage.desktop"
+  "${CMAKE_CURRENT_BINARY_DIR}/paramix-appimage.desktop"
 )
 file(
   READ
-  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.desktop"
+  "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.paramix.Paramix.desktop"
   MIXXX_APPIMAGE_DESKTOP_CONTENT
 )
 string(
   REGEX REPLACE
   "\nExec=[^\n]*"
-  "\nExec=mixxx"
+  "\nExec=paramix"
   MIXXX_APPIMAGE_DESKTOP_CONTENT
   "${MIXXX_APPIMAGE_DESKTOP_CONTENT}"
 )
 string(
   REGEX REPLACE
   "\nIcon=[^\n]*"
-  "\nIcon=mixxx-512"
+  "\nIcon=paramix-512"
   MIXXX_APPIMAGE_DESKTOP_CONTENT
   "${MIXXX_APPIMAGE_DESKTOP_CONTENT}"
 )
@@ -33,22 +33,22 @@ file(WRITE "${MIXXX_APPIMAGE_DESKTOP_FILE}" "${MIXXX_APPIMAGE_DESKTOP_CONTENT}")
 
 # The 512x512 icon under a unique name, referenced by the AppImage desktop
 # file above and by CPACK_PACKAGE_ICON.  The hicolor install provides all
-# sizes as mixxx.png for the desktop environments, but a distinct name makes
+# sizes as paramix.png for the desktop environments, but a distinct name makes
 # the AppImage's top-level icon deterministically the high-resolution one.
 install(
-  FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons/512x512/apps/mixxx.png"
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons/512x512/apps/paramix.png"
   DESTINATION "${CMAKE_INSTALL_DATADIR}/pixmaps"
-  RENAME "mixxx-512.png"
+  RENAME "paramix-512.png"
 )
 install(
   FILES "${MIXXX_APPIMAGE_DESKTOP_FILE}"
   DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
-  RENAME "mixxx-appimage.desktop"
+  RENAME "paramix-appimage.desktop"
 )
 
 # Custom AppRun: the CPack AppImage generator uses an AppRun installed in
 # the AppDir root if present, falling back to a generated one otherwise.
-# The desktop file must use Exec=mixxx (a plain basename), so the
+# The desktop file must use Exec=paramix (a plain basename), so the
 # pasuspender convenience of the original Exec line is reproduced in AppRun
 # instead.
 install(

@@ -2118,7 +2118,7 @@ target_include_directories(
 )
 if(UNIX AND NOT APPLE)
   target_sources(mixxx-lib PRIVATE src/util/rlimit.cpp)
-  set(MIXXX_SETTINGS_PATH ".mixxx/")
+  set(MIXXX_SETTINGS_PATH ".paramix/")
 endif()
 
 if(APPLE)
@@ -2334,13 +2334,13 @@ if(APPLE AND MACOS_BUNDLE)
   set(MIXXX_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
   set(
     MACOS_BUNDLE_NAME
-    Mixxx
+    Paramix
     CACHE STRING
     "The macOS app bundle and executable name"
   )
   set(
     MACOS_BUNDLE_IDENTIFIER
-    org.mixxx.mixxx
+    org.paramix.Paramix
     CACHE STRING
     "The macOS app bundle identifier"
   )
@@ -2352,19 +2352,19 @@ elseif(APPLE AND IOS)
   set(MIXXX_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
   set(
     IOS_BUNDLE_NAME
-    Mixxx
+    Paramix
     CACHE STRING
     "The iOS app bundle and executable name"
   )
   set(
     IOS_BUNDLE_IDENTIFIER
-    org.mixxx.mixxx
+    org.paramix.Paramix
     CACHE STRING
     "The iOS app bundle identifier"
   )
 elseif(UNIX)
   set(MIXXX_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
-  set(MIXXX_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}")
+  set(MIXXX_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/paramix")
   set(MIXXX_INSTALL_DOCDIR "${CMAKE_INSTALL_DOCDIR}")
   set(MIXXX_INSTALL_LICENSEDIR "${CMAKE_INSTALL_DOCDIR}")
 endif()
@@ -2437,7 +2437,7 @@ if(ANDROID)
     PUBLIC __STDC_CONSTANT_MACROS __STDC_LIMIT_MACROS __STDC_FORMAT_MACROS
   )
   set_property(TARGET mixxx-lib PROPERTY ANDROID_ABIS "arm64-v8a")
-  target_compile_definitions(mixxx-lib PUBLIC ANDROID_PACKAGE_NAME="org.mixxx")
+  target_compile_definitions(mixxx-lib PUBLIC ANDROID_PACKAGE_NAME="org.paramix")
   qt_add_executable(mixxx src/main.cpp MANUAL_FINALIZATION)
   set_property(
     TARGET mixxx
@@ -2445,7 +2445,7 @@ if(ANDROID)
       QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/packaging/android"
   )
   set_target_properties(mixxx PROPERTIES QT_ANDROID_ABIS "${ANDROID_ABI}")
-  set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "org.mixxx")
+  set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "org.paramix")
   set_target_properties(
     mixxx
     PROPERTIES QT_ANDROID_VERSION_NAME "${MIXXX_VERSION}"
@@ -2513,6 +2513,12 @@ if(ANDROID)
   target_link_libraries(mixxx PUBLIC omp)
 else()
   qt_add_executable(mixxx WIN32 src/main.cpp MANUAL_FINALIZATION)
+endif()
+
+# Keep the CMake target name stable, but install the app as `paramix` /
+# `paramix.exe`. macOS uses the bundle name instead.
+if(NOT APPLE AND NOT ANDROID)
+  set_target_properties(mixxx PROPERTIES OUTPUT_NAME "paramix")
 endif()
 
 if(NOT QML)
@@ -2677,6 +2683,7 @@ install(
   FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
     "${CMAKE_CURRENT_SOURCE_DIR}/COPYING"
+    "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
   DESTINATION "${MIXXX_INSTALL_LICENSEDIR}"
 )
 
@@ -2687,9 +2694,9 @@ install(
     "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Keyboard-Shortcuts.pdf"
   DESTINATION "${MIXXX_INSTALL_DOCDIR}"
 )
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Manual.pdf")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/Paramix-Manual.pdf")
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Manual.pdf"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/Paramix-Manual.pdf"
     DESTINATION "${MIXXX_INSTALL_DOCDIR}"
   )
 endif()
@@ -2698,7 +2705,7 @@ endif()
 if(UNIX AND NOT APPLE)
   # .desktop file for KDE/GNOME menu
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.desktop"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.paramix.Paramix.desktop"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
   )
 
@@ -2711,13 +2718,13 @@ if(UNIX AND NOT APPLE)
   install(
     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons/"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor"
-    # This file is for Windows.
-    PATTERN ic_mixxx.ico EXCLUDE
+    # Windows icon files are installed by the Windows-specific rules.
+    PATTERN "*.ico" EXCLUDE
   )
 
   # .metainfo.xml file for KDE/GNOME AppStream initiative
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.metainfo.xml"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.paramix.Paramix.metainfo.xml"
     DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
   )
 
@@ -5555,24 +5562,24 @@ configure_file(
 
 # Packaging
 set(CPACK_PACKAGE_NAME "Mixxx")
-set(CPACK_PACKAGE_VENDOR "Mixxx Project")
+set(CPACK_PACKAGE_VENDOR "Paramix Project")
 # TODO: Split this into Maintainer field: core-team@mixxx.org for package issues
 # and Uploaders field for personal signing email per Debian Policy.
 # https://www.debian.org/doc/debian-policy/ch-binary.html#the-maintainer-of-a-package
-set(CPACK_PACKAGE_CONTACT "Daniel Schürmann <daschuer@mixxx.org>")
+set(CPACK_PACKAGE_CONTACT "Paramix Project <https://github.com/christianstuart/paramix/issues>")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Digital DJ Application")
 set(
   CPACK_PACKAGE_DESCRIPTION_FILE
   "${CMAKE_CURRENT_SOURCE_DIR}/packaging/CPackPackageDescription.txt"
 )
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "Mixxx")
-set(CPACK_PACKAGE_EXECUTABLES "mixxx;Mixxx")
-set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/res/images/mixxx_install_logo.bmp")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://www.mixxx.org/")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "Paramix")
+set(CPACK_PACKAGE_EXECUTABLES "paramix;Paramix")
+set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/res/images/paramix_install_logo.bmp")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/christianstuart/paramix")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_STRIP_FILES ON)
-set(CPACK_CREATE_DESKTOP_LINKS "mixxx")
+set(CPACK_CREATE_DESKTOP_LINKS "paramix")
 set(CPACK_MIXXX_VERSION "${MIXXX_VERSION}")
 # Save GIT values just in case they have been set manual via cmake
 set(CPACK_GIT_DESCRIBE "${GIT_DESCRIBE}")
@@ -5679,12 +5686,12 @@ set(
 
 # Use WiX toolset version >= 4.0 for building Windows installers.
 set(CPACK_WIX_VERSION 4)
-set(CPACK_WIX_UPGRADE_GUID "921DC99C-4DCF-478D-B950-50685CB9E6BE")
+set(CPACK_WIX_UPGRADE_GUID "6F2C1A34-9B7E-4D21-8A6C-3E5D0B4A7C19")
 set(
   CPACK_WIX_LICENSE_RTF
   "${CMAKE_CURRENT_BINARY_DIR}/packaging/wix/LICENSE.rtf"
 )
-set(CPACK_WIX_PRODUCT_ICON "${CMAKE_SOURCE_DIR}/res/images/icons/ic_mixxx.ico")
+set(CPACK_WIX_PRODUCT_ICON "${CMAKE_SOURCE_DIR}/res/images/icons/ic_paramix.ico")
 set(CPACK_WIX_PROPERTY_ARPHELPLINK "${CPACK_PACKAGE_HOMEPAGE_URL}")
 set(
   CPACK_WIX_UI_BANNER

@@ -1,4 +1,4 @@
-package org.mixxx;
+package org.paramix;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,8 +10,8 @@ import android.util.Log;
 
 public class UsbPermission {
     private static final String ACTION_USB_PERMISSION =
-        "org.mixxx.permissions.USB_PERMISSION";
-    private static final String TAG = "MixxxUsbPermission";
+        "org.paramix.permissions.USB_PERMISSION";
+    private static final String TAG = "ParamixUsbPermission";
     private static native void usbDeviceAccessResult(Object device, boolean granted);
     public boolean registerServiceBroadcastReceiver(Context context) {
         try {

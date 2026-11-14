@@ -1,4 +1,4 @@
-package org.mixxx;
+package org.paramix;
 
 import android.os.Bundle;
 import android.view.WindowManager;

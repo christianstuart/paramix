@@ -1,5 +1,5 @@
 #!/bin/bash
-# This is a cross-distribution script that builds Mixxx as a Flatpak.
+# This is a cross-distribution script that builds Paramix as a Flatpak.
 set -o pipefail
 
 # Script filename
@@ -9,7 +9,7 @@ SCRIPT=$(basename "$0")
 REQUIRED_PACKAGES=("org.kde.Platform//6.10" "org.kde.Sdk//6.10")
 
 # Default manifest
-MANIFEST="packaging/flatpak/org.mixxx.Mixxx.yaml"
+MANIFEST="packaging/flatpak/org.paramix.Paramix.yaml"
 
 # Build and repo directories
 BUILD_DIR="build_flatpak"
@@ -54,7 +54,7 @@ check_manifest() {
     if ! [[ -r $MANIFEST ]]; then
         echo "Error: Unable to read manifest file." >&2
         echo "Selected manifest: $MANIFEST" >&2
-        echo "Run this script from Mixxx source root to use the default manifest." >&2
+        echo "Run this script from the Paramix source root to use the default manifest." >&2
         echo "If you're using a custom manifest, make sure the file exists and is readable." >&2
         exit 1
     fi
@@ -138,7 +138,7 @@ while [[ $# -gt 0 ]]; do
             ;;
 
         -h | --help)
-            echo "Flatpak build script for Mixxx."
+            echo "Flatpak build script for Paramix."
             print_usage
             exit 0
             ;;
@@ -237,11 +237,11 @@ case "$COMMAND" in
         echo "Creating single-file Flatpak bundle..."
         flatpak build-bundle "$REPO_DIR" \
             --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-            Mixxx.flatpak org.mixxx.Mixxx
-        if [[ -f "Mixxx.flatpak" ]]; then
+            Paramix.flatpak org.paramix.Paramix
+        if [[ -f "Paramix.flatpak" ]]; then
             echo ""
             echo "To install the single-file bundle, run:"
-            echo "    flatpak install [--system | --user] Mixxx.flatpak"
+            echo "    flatpak install [--system | --user] Paramix.flatpak"
         fi
         ;;
 esac
@@ -250,11 +250,11 @@ esac
 if [[ $COMMAND == "debug" ]]; then
     echo ""
     echo "Creating Flatpak debug extension..."
-    flatpak build-bundle "$REPO_DIR" --runtime Mixxx.Debug.flatpak org.mixxx.Mixxx.Debug
-    if [[ -f "Mixxx.Debug.flatpak" ]]; then
+    flatpak build-bundle "$REPO_DIR" --runtime Paramix.Debug.flatpak org.paramix.Paramix.Debug
+    if [[ -f "Paramix.Debug.flatpak" ]]; then
         echo ""
         echo "To install the debug extension, run:"
-        echo "    flatpak install [--system | --user] Mixxx.Debug.flatpak"
+        echo "    flatpak install [--system | --user] Paramix.Debug.flatpak"
     fi
 fi
 
@@ -262,9 +262,9 @@ fi
 if [[ $COMMAND == "install" ]]; then
     echo ""
     echo "Direct install build finished."
-    if flatpak info "org.mixxx.Mixxx" > /dev/null 2>&1; then
+    if flatpak info "org.paramix.Paramix" > /dev/null 2>&1; then
         echo ""
-        echo "To start Mixxx, run:"
-        echo "    flatpak run org.mixxx.Mixxx"
+        echo "To start Paramix, run:"
+        echo "    flatpak run org.paramix.Paramix"
     fi
 fi

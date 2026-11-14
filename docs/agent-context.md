@@ -4,7 +4,7 @@
 file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 `docs/old-context.md` (raw transcript of the original planning session).
 
-**Last updated:** 2026-11-11, during Phase −1 (baseline).
+**Last updated:** 2026-11-14, during the Paramix identity rebrand.
 **Update rule:** every agent that changes repo state must append to §9 (Work log) and correct
 §3 (Current state) before finishing.
 
@@ -140,7 +140,7 @@ The baseline is closed and feature work is landing. Current state:
 | Stem cache / schema 41 | Not started (ADR-002 design only) |
 | ONNX runtime + model backend | Not started |
 | Paramix QML skin overhaul | Not started |
-| Packaging/installers | Not started |
+| Packaging/installers | **In progress**: Paramix identity, executable name, desktop/AppStream metadata, installer artwork and app icons |
 
 Build status: the Windows x64 local build (`mixxx`, `mixxx-test`) is green. CI is green on
 Linux x64, Windows x64, macOS arm64 and macOS x86_64 for the merged stem engine and the
@@ -431,3 +431,14 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   (`rbxport-analysis:0`) and exposed in Preferences → Beat Detection. Ported tempo tests plus
   synthetic end-to-end grid/plugin tests; 10 rbxport tests green. The PR was rebased onto current
   `main` so it carries only the rbxport change.
+- **2026-11-14** — **Rebranded the application as Paramix.** `VersionStore::applicationName()` now returns
+  `Paramix`, which drives the window title, dialog titles, notifications, MusicBrainz user agent, JACK
+  client name and console banner. The application domain is `paramix.org`, the package/bundle/Flatpak ID
+  is `org.paramix.Paramix`, and the installed executable is `paramix`/`paramix.exe` (the CMake target
+  stays `mixxx`). New assets: four-lane stem app icon, wordmark, symbolic lockup, PNG/ICO/ICNS/BMP
+  output, and regenerated WiX dialog/banner and macOS DMG artwork. The About dialog keeps the Mixxx
+  attribution, contributor history and GPL notice, and adds a "Based on Mixxx" line. User-visible
+  strings across C++ and `.ui` files were rebranded; historical version references, upstream docs
+  links, license headers and internal identifiers keep the Mixxx name. Settings now default to
+  `~/.paramix` on Linux and the matching app-data directory elsewhere; the first-run migration wizard
+  is still outstanding. Details: `docs/paramix-rebrand.md`.
