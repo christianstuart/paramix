@@ -3,86 +3,72 @@ import QtQuick 2
 import QtQuick.Controls 2
 import "Theme"
 
+/// Flat, token-driven button. The legacy `activeColor`, `normalColor`,
+/// `pressedColor` and `highlight` properties are preserved so existing call
+/// sites keep their intent while the visuals come from the design system.
 AbstractButton {
     id: root
 
-    property color activeColor: Theme.buttonActiveColor
+    property color activeColor: Theme.onAccent
     property bool highlight: false
-    property color normalColor: Theme.buttonNormalColor
-    property color pressedColor: activeColor
+    property color normalColor: Theme.textSecondary
+    property color pressedColor: Theme.textPrimary
 
     Accessible.role: Accessible.Button
     Accessible.name: text
 
-    implicitHeight: 26
-    implicitWidth: 52
+    hoverEnabled: true
+    implicitHeight: 28
+    implicitWidth: 64
 
-    background: Item {
-        anchors.fill: parent
+    background: Rectangle {
+        border.color: root.checked || root.highlight
+                ? Theme.accentHover
+                : root.hovered
+                  ? Theme.borderStrong
+                  : Theme.border
+        border.width: 1
+        color: root.checked || root.highlight
+               ? Theme.accent
+               : root.pressed
+                 ? Theme.surface3
+                 : root.hovered
+                   ? Theme.surface2
+                   : Theme.surface1
+        radius: Theme.radiusSm
 
-        Rectangle {
-            id: backgroundImage
-
-            anchors.fill: parent
-            color: '#2B2B2B'
-            radius: 2
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
-        DropShadow {
-            id: effect1
-
-            anchors.fill: backgroundImage
-            color: "#80000000"
-            horizontalOffset: 0
-            radius: 1.0
-            source: backgroundImage
-            verticalOffset: 0
-        }
-        InnerShadow {
-            id: effect2
-
-            anchors.fill: backgroundImage
-            color: "#353535"
-            horizontalOffset: 1
-            radius: 1
-            samples: 16
-            source: effect1
-            verticalOffset: 1
-        }
-        InnerShadow {
-            anchors.fill: backgroundImage
-            color: "#353535"
-            horizontalOffset: -1
-            radius: 1
-            samples: 16
-            source: effect2
-            verticalOffset: -1
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
     }
     contentItem: Item {
         anchors.fill: parent
 
-        Glow {
-            id: labelGlow
-
-            anchors.fill: parent
-            color: label.color
-            radius: 1
-            source: label
-            spread: 0.1
-        }
-        Label {
+        Text {
             id: label
 
             anchors.fill: parent
-            color: root.normalColor
+            color: root.checked || root.highlight
+                   ? root.activeColor
+                   : root.pressed
+                     ? root.pressedColor
+                     : root.normalColor
             font.bold: true
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
+            font.letterSpacing: Theme.letterSpacingCaps
             font.pixelSize: Theme.buttonFontPixelSize
             horizontalAlignment: Text.AlignHCenter
             text: root.text
             verticalAlignment: Text.AlignVCenter
-            visible: root.text != null
+            visible: root.text != null && root.text.length > 0
         }
         Image {
             id: image
@@ -90,66 +76,17 @@ AbstractButton {
             anchors.centerIn: parent
             asynchronous: true
             fillMode: Image.PreserveAspectFit
-            height: icon.height
-            source: icon.source
+            height: root.icon.height
+            source: root.icon.source
             visible: false
-            width: icon.width
+            width: root.icon.width
         }
         ColorOverlay {
             anchors.fill: image
             antialiasing: true
-            color: root.normalColor
+            color: root.checked || root.highlight ? root.activeColor : root.normalColor
             source: image
-            visible: icon.source != null
+            visible: root.icon.source != null && root.icon.source != ""
         }
     }
-    states: [
-        State {
-            name: "pressed"
-            when: root.pressed
-
-            PropertyChanges {
-                color: root.checked ? "#3a60be" : Theme.darkGray3
-                target: backgroundImage
-            }
-            PropertyChanges {
-                color: root.pressedColor
-                target: label
-            }
-            PropertyChanges {
-                target: labelGlow
-                visible: true
-            }
-        },
-        State {
-            name: "active"
-            when: (root.highlight || root.checked) && !root.pressed
-
-            PropertyChanges {
-                color: "#2D4EA1"
-                target: backgroundImage
-            }
-            PropertyChanges {
-                color: root.activeColor
-                target: label
-            }
-            PropertyChanges {
-                target: labelGlow
-                visible: true
-            }
-        },
-        State {
-            name: "inactive"
-            when: !root.checked && !root.highlight && !root.pressed
-
-            PropertyChanges {
-                color: root.normalColor
-                target: label
-            }
-            PropertyChanges {
-                target: labelGlow
-                visible: false
-            }
-        }
-    ]
 }
