@@ -47,7 +47,7 @@ ApplicationWindow {
         asynchronous: true
         onStatusChanged: {
             if (status === Loader.Error) {
-                console.error("Failed to load the Mixxx main window")
+                console.error("Failed to load the Paramix main window")
                 Qt.quit()
             }
         }
@@ -90,7 +90,7 @@ ApplicationWindow {
         Image {
             id: logo
             anchors.horizontalCenter: parent.horizontalCenter
-            source: "qrc:/images/mixxx-icon-logo-symbolic.svg"
+            source: "qrc:/images/paramix-icon-logo-symbolic.svg"
             // height: 64
             opacity: 0
             y: root.height / 2

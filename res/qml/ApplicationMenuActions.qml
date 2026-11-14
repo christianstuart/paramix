@@ -377,7 +377,7 @@ Item {
 
         text: qsTranslate("WMainMenuBar", "&Community Support") + root.externalLinkSuffix
 
-        onTriggered: Qt.openUrlExternally("https://www.mixxx.org/support/")
+        onTriggered: Qt.openUrlExternally("https://github.com/christianstuart/paramix/issues")
     }
     Action {
         id: helpUserManualAction
@@ -407,7 +407,7 @@ Item {
 
         text: qsTranslate("WMainMenuBar", "&Translate This Application") + root.externalLinkSuffix
 
-        onTriggered: Qt.openUrlExternally("https://explore.transifex.com/mixxx-dj-software/")
+        onTriggered: Qt.openUrlExternally("https://github.com/christianstuart/paramix")
     }
     Action {
         id: helpAboutAction
