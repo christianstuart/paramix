@@ -87,6 +87,11 @@ discovered when the app runs in developer mode, and macOS x64 CI builds with
 `QML=OFF`. Making Paramix the default skin is a separate packaging decision once
 the skin is feature-complete.
 
+Follow-up: the `Settings/` helper controls (`FormButton`, `SpinBox`, `Slider`,
+`InfoBubble`, `Category`) still use the legacy bitmap look. The new Stems page
+uses them so it matches the other settings pages; migrating those helpers to the
+tokens above is a separate change.
+
 Stem-specific UI (4-lane stem strip, acapella/instrumental complement buttons,
 separation status) is described in `docs/paramix-stem-beatgrid-ui-plan.md`
 §5.8/§6.6. Solo is currently QML-level mute orchestration; a native engine solo
