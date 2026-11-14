@@ -4,6 +4,7 @@ import QtQuick.Controls 2.12
 import QtQuick.Layouts
 import "../Theme"
 
+/// Deck FX unit assignment buttons (FX1..FX4).
 Item {
     id: root
 
@@ -12,43 +13,22 @@ Item {
     height: 35
     width: 135
 
-    states: [
-        State {
-            when: holder.index == 0
-
-            AnchorChanges {
-                anchors.bottom: undefined
-                anchors.top: parent.top
-                target: root
-            }
-        },
-        State {
-            when: holder.index != 0
-
-            AnchorChanges {
-                // anchors.bottom: parent.bottom
-                anchors.top: undefined
-                target: root
-            }
-        }
-    ]
-    transitions: Transition {
-        AnchorAnimation {
-            duration: 250
-        }
-    }
-
-    Label {
+    Text {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        color: '#626262'
-        font.pixelSize: 8
+        color: Theme.textSecondary
+        font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
         text: qsTr("FX Assign")
     }
     RowLayout {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
+        spacing: Theme.space1
 
         Repeater {
             model: 4
@@ -58,14 +38,18 @@ Item {
 
                 required property int index
 
+                Layout.fillHeight: true
                 Layout.maximumWidth: 30
                 Layout.minimumWidth: 22
-                activeColor: Theme.deckActiveColor
+                Layout.preferredHeight: 22
+                activeColor: Theme.onAccent
                 group: `[EffectRack1_EffectUnit${index + 1}]`
                 implicitHeight: 22
                 key: `group_${root.group}_enable`
                 text: `${index + 1}`
                 toggleable: true
+
+                Accessible.name: qsTr("FX unit %1").arg(index + 1)
             }
         }
     }

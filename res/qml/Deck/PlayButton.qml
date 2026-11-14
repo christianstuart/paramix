@@ -5,49 +5,68 @@ import QtQuick.Controls 2.12
 import ".." as Skin
 import "../Theme"
 
+/// Accent-filled transport button. The triangle/label use the accent token
+/// while stopped and the inverse `onAccent` token while playing.
 Skin.ControlButton {
     id: root
 
     property bool minimized: false
 
-    activeColor: Theme.deckActiveColor
+    activeColor: Theme.onAccent
     key: "play"
     toggleable: trackLoadedControl.value == 1
 
     Accessible.name: qsTr("Play")
 
+    background: Rectangle {
+        border.color: root.highlight ? Theme.accentHover : (root.hovered ? Theme.borderStrong : Theme.border)
+        border.width: 1
+        color: root.highlight ? Theme.accent : (root.pressed ? Theme.surface3 : (root.hovered ? Theme.surface2 : Theme.surface1))
+        radius: Theme.radiusLg
+
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
+        }
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
+        }
+    }
     contentItem: Item {
         id: content
 
         Shape {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: 6
+            anchors.topMargin: 8
             antialiasing: true
-            height: 32
+            height: 30
             layer.enabled: true
             layer.samples: 4
             visible: !root.minimized
-            width: 30
+            width: 26
 
             ShapePath {
                 capStyle: ShapePath.RoundCap
-                fillColor: trackLoadedControl.value > 0 ? Theme.buttonActiveColor : Theme.buttonDisableColor
+                fillColor: root.highlight ? Theme.onAccent : (trackLoadedControl.value > 0 ? Theme.accent : Theme.textMuted)
                 fillRule: ShapePath.WindingFill
-                startX: 5
+                startX: 4
                 startY: 0
                 strokeColor: 'transparent'
 
                 PathLine {
-                    x: 30
-                    y: 16
+                    x: 26
+                    y: 15
                 }
                 PathLine {
-                    x: 5
-                    y: 32
+                    x: 4
+                    y: 30
                 }
                 PathLine {
-                    x: 5
+                    x: 4
                     y: 0
                 }
             }
@@ -56,15 +75,16 @@ Skin.ControlButton {
             id: label
 
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 4
+            anchors.bottomMargin: 6
             anchors.horizontalCenter: parent.horizontalCenter
-            color: '#626262'
+            color: root.highlight ? Theme.onAccent : Theme.textSecondary
             font.bold: true
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
+            font.letterSpacing: Theme.letterSpacingCaps
             font.pixelSize: Theme.buttonFontPixelSize
             horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Play")
+            text: root.highlight ? qsTr("Pause") : qsTr("Play")
             verticalAlignment: Text.AlignVCenter
 
             states: [

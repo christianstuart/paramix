@@ -8,6 +8,8 @@ import QtQuick.Shapes
 import "../Theme"
 
 ColumnLayout {
+    id: root
+
     required property var currentTrack
     required property string group
 
@@ -30,11 +32,13 @@ ColumnLayout {
         Skin.ControlButton {
             id: pitchDownButton
 
-            activeColor: Theme.deckActiveColor
+            activeColor: Theme.onAccent
             group: root.group
             implicitHeight: 22
             implicitWidth: 20
             key: "pitch_down"
+
+            Accessible.name: qsTr("Pitch down")
 
             contentItem: Item {
                 anchors.fill: parent
@@ -48,7 +52,7 @@ ColumnLayout {
                     width: 12
 
                     ShapePath {
-                        fillColor: '#626262'
+                        fillColor: Theme.textSecondary
                         startX: 0
                         startY: 5
                         strokeColor: 'transparent'
@@ -108,12 +112,14 @@ ColumnLayout {
             key: "keylock"
             toggleable: true
 
+            Accessible.name: qsTr("Keylock")
+
             contentItem: Text {
                 id: item
 
                 color: {
                     if (!trackLoadedControl.value || keyCO.value <= 0) {
-                        return keylockCO.value ? Theme.white : Theme.midGray3;
+                        return keylockCO.value ? Theme.textPrimary : Theme.surface3;
                     }
                     return pitchKey.colorsMap[keyCO.value];
                 }
@@ -130,11 +136,13 @@ ColumnLayout {
         Skin.ControlButton {
             id: pitchUpButton
 
-            activeColor: Theme.deckActiveColor
+            activeColor: Theme.onAccent
             group: root.group
             implicitHeight: 22
             implicitWidth: 20
             key: "pitch_up"
+
+            Accessible.name: qsTr("Pitch up")
 
             contentItem: Item {
                 anchors.fill: parent
@@ -149,7 +157,7 @@ ColumnLayout {
 
                     ShapePath {
                         capStyle: ShapePath.RoundCap
-                        fillColor: '#626262'
+                        fillColor: Theme.textSecondary
                         fillRule: ShapePath.WindingFill
                         startX: 0
                         startY: 0
@@ -177,17 +185,42 @@ ColumnLayout {
 
         Layout.fillHeight: true
         Layout.fillWidth: true
-        bar.color: Theme.bpmSliderBarColor
-        bar.margin: 0
+        implicitHeight: 80
+        implicitWidth: 20
+        showDefaultHandle: false
+        bar.color: Theme.accent
+        bar.margin: 2
         bar.start: 0.5
-        bg: Theme.imgBpmSliderBackground
+        bar.width: 3
         group: root.group
         key: "rate"
         visible: !root.minimized
-        width: pitchKey.implicitWidth
+
+        Accessible.name: qsTr("Tempo")
 
         Skin.FadeBehavior on visible {
             fadeTarget: rateSlider
+        }
+
+        background: Rectangle {
+            color: "transparent"
+
+            Rectangle {
+                anchors.centerIn: parent
+                color: Theme.surface3
+                height: parent.height
+                radius: 2
+                width: 4
+            }
+        }
+        handle: Rectangle {
+            border.color: Theme.borderStrong
+            border.width: 1
+            color: Theme.textPrimary
+            height: 8
+            radius: 4
+            width: rateSlider.width
+            y: Math.round(rateSlider.visualPosition * (rateSlider.height - height))
         }
     }
     Skin.SyncButton {

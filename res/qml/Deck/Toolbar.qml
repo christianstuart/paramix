@@ -1,14 +1,22 @@
 import Mixxx 1.0 as Mixxx
 import QtQuick.Shapes
 import QtQuick 2.12
+import QtQuick.Layouts
 import ".." as Skin
 import "../Theme"
 
-Item {
+/// Deck utility row: reverse, beatgrid toggle and eject.
+Rectangle {
     id: root
 
-    property color buttonColor: trackLoadedControl.value > 0 ? Theme.buttonActiveColor : Theme.buttonDisableColor
+    property color buttonColor: trackLoadedControl.value > 0 ? Theme.textPrimary : Theme.textMuted
     required property string group
+
+    border.color: Theme.border
+    border.width: 1
+    color: Theme.surface1
+    implicitHeight: 24
+    radius: Theme.radiusSm
 
     Mixxx.ControlProxy {
         id: trackLoadedControl
@@ -16,109 +24,117 @@ Item {
         group: root.group
         key: "track_loaded"
     }
-    Skin.ControlButton {
-        id: reverseButton
+    RowLayout {
+        anchors.fill: parent
+        anchors.margins: 2
+        spacing: Theme.space1
 
-        activeColor: Theme.deckActiveColor
-        group: root.group
-        implicitHeight: 22
-        implicitWidth: 22
-        key: "reverse"
+        Skin.ControlButton {
+            id: reverseButton
 
-        Accessible.name: qsTr("Reverse")
+            Layout.fillHeight: true
+            Layout.preferredWidth: 22
+            activeColor: Theme.accent
+            group: root.group
+            implicitHeight: 20
+            implicitWidth: 22
+            key: "reverse"
 
-        contentItem: Shape {
-            anchors.fill: parent
-            antialiasing: true
-            layer.enabled: true
-            layer.samples: 4
+            Accessible.name: qsTr("Reverse")
 
-            ShapePath {
-                fillColor: root.buttonColor
-                startX: 5
-                startY: 11
-                strokeColor: 'transparent'
-
-                PathLine {
-                    x: 20
-                    y: 4
-                }
-                PathLine {
-                    x: 20
-                    y: 18
-                }
-                PathLine {
-                    x: 5
-                    y: 11
-                }
-            }
-        }
-    }
-    Skin.Button {
-        id: beatgridButton
-
-        anchors.right: ejectButton.left
-        anchors.rightMargin: 5
-        implicitHeight: 22
-        text: qsTr("Beatgrid")
-        visible: root.width > 165
-    }
-    Skin.ControlButton {
-        id: ejectButton
-
-        activeColor: Theme.deckActiveColor
-        anchors.right: parent.right
-        group: root.group
-        implicitHeight: 22
-        implicitWidth: 22
-        key: "eject"
-
-        Accessible.name: qsTr("Eject")
-
-        contentItem: Item {
-            anchors.fill: parent
-
-            Shape {
+            contentItem: Shape {
+                anchors.fill: parent
                 antialiasing: true
-                height: 10
                 layer.enabled: true
                 layer.samples: 4
-                width: 15
 
-                anchors {
-                    horizontalCenter: parent.horizontalCenter
-                    top: parent.top
-                    topMargin: 5
-                }
                 ShapePath {
                     fillColor: root.buttonColor
-                    startX: 7.5
-                    startY: 0
+                    startX: 5
+                    startY: 10
                     strokeColor: 'transparent'
 
                     PathLine {
-                        x: 15
-                        y: 10
+                        x: 17
+                        y: 4
                     }
                     PathLine {
-                        x: 0
-                        y: 10
+                        x: 17
+                        y: 16
                     }
                     PathLine {
-                        x: 7.5
-                        y: 0
+                        x: 5
+                        y: 10
                     }
                 }
             }
-            Rectangle {
-                color: root.buttonColor
-                height: 2
-                width: 15
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+        Skin.Button {
+            id: beatgridButton
 
-                anchors {
-                    bottom: parent.bottom
-                    bottomMargin: 3
-                    horizontalCenter: parent.horizontalCenter
+            Layout.fillHeight: true
+            Layout.preferredWidth: 64
+            implicitHeight: 20
+            text: qsTr("Beatgrid")
+            visible: root.width > 165
+        }
+        Skin.ControlButton {
+            id: ejectButton
+
+            Layout.fillHeight: true
+            Layout.preferredWidth: 22
+            activeColor: Theme.accent
+            group: root.group
+            implicitHeight: 20
+            implicitWidth: 22
+            key: "eject"
+
+            Accessible.name: qsTr("Eject")
+
+            contentItem: Item {
+                anchors.fill: parent
+
+                Shape {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 3
+                    antialiasing: true
+                    height: 8
+                    layer.enabled: true
+                    layer.samples: 4
+                    width: 14
+
+                    ShapePath {
+                        fillColor: root.buttonColor
+                        startX: 7
+                        startY: 0
+                        strokeColor: 'transparent'
+
+                        PathLine {
+                            x: 14
+                            y: 8
+                        }
+                        PathLine {
+                            x: 0
+                            y: 8
+                        }
+                        PathLine {
+                            x: 7
+                            y: 0
+                        }
+                    }
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 3
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: root.buttonColor
+                    height: 2
+                    radius: 1
+                    width: 14
                 }
             }
         }
