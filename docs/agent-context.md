@@ -115,9 +115,11 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
 ### 3.4 Feature work
 **In progress.** Present: `docs/adr/` (ADR-001 Proposed, ADR-002 and ADR-003 accepted for
 review), `src/stems/` (`StemSeparatorBackend`, `StemSeparation`), and the proven 8-channel FLAC
-container. Still absent: `SoundSourceStemCache`, the ONNX Runtime backend and the
-`STEM_SEPARATION` flag, `src/analyzer/plugins/beatml/`, `res/skins/Paramix/`, and the `stem_cache`
-table (schema is at revision 40; the plan needs 41). Present from upstream: `src/track/beat*`,
+container. Still absent: `SoundSourceStemCache`, the `STEM_SEPARATION` flag,
+`src/analyzer/plugins/beatml/`, and the `stem_cache`
+table (schema is at revision 40; the plan needs 41). The QML skin lives in `res/qml` (there is no
+`res/skins/Paramix` directory; QML skins are discovered from `res/qml` in developer mode). Present
+from upstream: `src/track/beat*`,
 `analyzerqueenmarybeats`, `analyzersoundtouchbeats`, `waveformrendererstem`, `qmlstemsmodel`,
 `soundsourcestem`.
 
@@ -138,7 +140,7 @@ The baseline is closed and feature work is landing. Current state:
 | rbxport beat grid engine | **PR #16**: C++ port of rbxport `rbl-analysis`, third beat detector; green on all CI targets |
 | BeatGrid `BarInfo` | Not started (ADR-003 design only) |
 | Stem cache / schema 41 | Not started (ADR-002 design only) |
-| ONNX runtime + model backend | Not started |
+| ONNX runtime + model backend | **Merged** (#19): ONNX Runtime behind `StemSeparatorBackend` |
 | Paramix QML skin overhaul | **In progress** (`feature/ui-overhaul`): design tokens, flat base controls, shell, Stems settings page; deck/mixer/library work landing |
 | Packaging/installers | Not started |
 
@@ -448,4 +450,20 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   `Mixxx.Config` properties back it: `stemFileFormat` (`[Stems],FileFormat`, normalized through
   `mixxx::stems::parseStemFileFormat`) and `stemAacBitrate` (`[Stems],AacBitrate`, clamped). Phrase
   display was intentionally not added because beatgrid phrase storage is not implemented.
+- **2026-11-13** — **Deck and stem strip overhauled.** `Deck/HotcueAndStem.qml` keeps the hotcue
+  grid and adds a four-lane stem strip: colour chip, label and status dot; per-lane mute and solo;
+  a vertical volume fader; a QuickFX knob with enable toggle and chain preset; acapella and
+  instrumental complement buttons; and a `STEMS · N` / `NO STEMS` badge. Solo is QML-level mute
+  orchestration that saves and restores the other lanes (a native engine solo control is a later
+  change). Stem identity is classified from the model label with a four-stem fallback. Deck
+  surfaces, header, loops, beatjump, tempo, spinny, play/cue and the utility toolbar now use the
+  theme tokens; the hotcue/stem delegate grew to 132 px.
+- **2026-11-13** — **Mixer, library, sampler and effects modernized.** Flat framed mixer strips with
+  accent PFL and a segmented VU meter; library toolbar with the search field, a framed source tree,
+  a flat track list with zebra rows, hover, accent selection and sort indicators, and a tokenized
+  context menu; sampler cards with a track-colour accent; aux/mic, preview deck, effect units and
+  preset menus on the same tokens. The library stem-status column is still omitted because
+  `QmlLibraryTrackListColumn` has no stem role yet (TODO left in `Library/SourceTree.qml`). All
+  changed QML passes `pyside6-qmllint` (ignoring unresolved `Mixxx.*` types) and the Qt 6.4 API
+  guard.
 
