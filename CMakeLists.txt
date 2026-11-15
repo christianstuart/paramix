@@ -1665,6 +1665,7 @@ add_library(
   src/stems/stemcache.cpp
   src/stems/stemfileformat.cpp
   src/stems/stemfilewriter.cpp
+  src/stems/stemresampler.cpp
   src/stems/stemseparation.cpp
   src/stems/stemservice.cpp
   src/stems/stemseparatorfactory.cpp
@@ -3036,6 +3037,7 @@ if(BUILD_TESTING)
     src/test/stemfilewritertest.cpp
     src/test/stemflactest.cpp
     src/test/stemcachetest.cpp
+    src/test/stemresamplertest.cpp
     src/test/stemsetdaotest.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp
