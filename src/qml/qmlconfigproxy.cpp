@@ -1,10 +1,9 @@
 #include "qml/qmlconfigproxy.h"
 
-#include <Qt>
-#include <algorithm>
-
 #include <QDir>
 #include <QFileDialog>
+#include <Qt>
+#include <algorithm>
 
 #include "control/controlobject.h"
 #include "library/basetracktablemodel.h"

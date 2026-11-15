@@ -1,12 +1,12 @@
 #pragma once
 
+#include <qqmlintegration.h>
+
 #include <QList>
 #include <QObject>
 #include <QPointer>
 #include <QQmlEngine>
 #include <QVariantList>
-#include <qqmlintegration.h>
-
 #include <memory>
 
 #include "qml/qmllibrarytracklistmodel.h"

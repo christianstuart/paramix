@@ -22,17 +22,17 @@ namespace {
 const ConfigKey kStemModelPathConfigKey("[Stems]", "ModelPath");
 
 static_assert(static_cast<int>(mixxx::stems::StemService::Status::NotSeparated) ==
-                QmlStemServiceProxy::NotSeparated);
+        QmlStemServiceProxy::NotSeparated);
 static_assert(static_cast<int>(mixxx::stems::StemService::Status::Queued) ==
-                QmlStemServiceProxy::Queued);
+        QmlStemServiceProxy::Queued);
 static_assert(static_cast<int>(mixxx::stems::StemService::Status::Separating) ==
-                QmlStemServiceProxy::Separating);
+        QmlStemServiceProxy::Separating);
 static_assert(static_cast<int>(mixxx::stems::StemService::Status::Ready) ==
-                QmlStemServiceProxy::Ready);
+        QmlStemServiceProxy::Ready);
 static_assert(static_cast<int>(mixxx::stems::StemService::Status::MissingStemFile) ==
-                QmlStemServiceProxy::MissingStemFile);
+        QmlStemServiceProxy::MissingStemFile);
 static_assert(static_cast<int>(mixxx::stems::StemService::Status::Failed) ==
-                QmlStemServiceProxy::Failed);
+        QmlStemServiceProxy::Failed);
 
 qint64 toQmlTrackId(TrackId trackId) {
     bool ok;
@@ -92,26 +92,11 @@ void QmlStemServiceProxy::attachToService() {
     }
     // The service emits from its worker thread, so the state below must only
     // be touched on the GUI thread.
-    connect(m_pService,
-            &mixxx::stems::StemService::trackStatusChanged,
-            this,
-            [this](TrackId trackId,
-                    mixxx::stems::StemService::Status status,
-                    int progress,
-                    const QString& message) {
-                handleTrackStatusChanged(toQmlTrackId(trackId),
-                        static_cast<int>(status),
-                        progress,
-                        message);
-            },
-            Qt::QueuedConnection);
-    connect(m_pService,
-            &mixxx::stems::StemService::stemsReady,
-            this,
-            [this](TrackId trackId) {
-                handleStemsReady(toQmlTrackId(trackId));
-            },
-            Qt::QueuedConnection);
+    connect(m_pService, &mixxx::stems::StemService::trackStatusChanged, this, [this](TrackId trackId, mixxx::stems::StemService::Status status, int progress, const QString& message) { handleTrackStatusChanged(toQmlTrackId(trackId),
+                                                                                                                                                                                                static_cast<int>(status),
+                                                                                                                                                                                                progress,
+                                                                                                                                                                                                message); }, Qt::QueuedConnection);
+    connect(m_pService, &mixxx::stems::StemService::stemsReady, this, [this](TrackId trackId) { handleStemsReady(toQmlTrackId(trackId)); }, Qt::QueuedConnection);
     // CoreServices destroys the service on shutdown. Do not keep a dangling
     // pointer around; the getters must stay safe.
     connect(m_pService, &QObject::destroyed, this, [this]() {

@@ -1,16 +1,14 @@
 #include "stems/stemgpudetect.h"
 
 #include <QtGlobal>
-
 #include <cstdint>
 #include <cstring>
 
 #include "stems/demucsonnxseparator.h"
 
 #if defined(Q_OS_WIN)
-#include <windows.h>
-
 #include <dxgi.h>
+#include <windows.h>
 #elif defined(Q_OS_MACOS)
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
@@ -60,7 +58,7 @@ bool detectDedicatedGpu() {
                 if (SUCCEEDED(pAdapter->GetDesc1(&description)) &&
                         (description.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
                         description.DedicatedVideoMemory >= kMinDedicatedVramBytes &&
-                        (description.VendorId == 0x10de || // NVIDIA
+                        (description.VendorId == 0x10de ||         // NVIDIA
                                 description.VendorId == 0x1002)) { // AMD
                     found = true;
                 }
@@ -92,7 +90,7 @@ bool detectDedicatedGpu() {
     io_iterator_t iterator = IO_OBJECT_NULL;
     if (IOServiceGetMatchingServices(
                 MACH_PORT_NULL, IOServiceMatching("IOAccelerator"), &iterator) !=
-            KERN_SUCCESS ||
+                    KERN_SUCCESS ||
             iterator == IO_OBJECT_NULL) {
         return false;
     }

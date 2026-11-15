@@ -24,7 +24,7 @@ class QAbstractItemModel;
 
 // pure virtual (abstract) class to provide an interface for libraryfeatures
 class LibraryFeature : public QObject {
-  Q_OBJECT
+    Q_OBJECT
   public:
     LibraryFeature(
             Library* pLibrary,
@@ -87,8 +87,10 @@ class LibraryFeature : public QObject {
     }
     // Reimplement this to register custom views with the library widget.
     virtual void bindLibraryWidget(WLibrary* /* libraryWidget */,
-                            KeyboardEventFilter* /* keyboard */) {}
-    virtual void bindSidebarWidget(WLibrarySidebar* /* sidebar widget */) {}
+            KeyboardEventFilter* /* keyboard */) {
+    }
+    virtual void bindSidebarWidget(WLibrarySidebar* /* sidebar widget */) {
+    }
     virtual TreeItemModel* sidebarModel() const = 0;
 
     virtual bool hasTrackTable() {
@@ -170,7 +172,7 @@ class LibraryFeature : public QObject {
     // The second arg indicates if the feature should be "selected" when loading starts
     void featureIsLoading(LibraryFeature*, bool selectFeature);
     // emit this signal if the foreign music collection has been imported/parsed.
-    void featureLoadingFinished(LibraryFeature*s);
+    void featureLoadingFinished(LibraryFeature* s);
     // emit this signal to select pFeature
     void featureSelect(LibraryFeature* pFeature, const QModelIndex& index, bool scrollTo = true);
     // emit this signal to enable/disable the cover art widget

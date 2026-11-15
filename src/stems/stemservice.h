@@ -1,10 +1,10 @@
 #pragma once
 
 #include <QMap>
-#include <QSet>
 #include <QMetaType>
 #include <QMutex>
 #include <QQueue>
+#include <QSet>
 #include <QThread>
 #include <QWaitCondition>
 #include <atomic>

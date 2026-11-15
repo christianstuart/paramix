@@ -27,7 +27,7 @@ class AnalysisFeature : public LibraryFeature {
                     analysisProgressChanged)
   public:
     AnalysisFeature(Library* pLibrary,
-                    UserSettingsPointer pConfig);
+            UserSettingsPointer pConfig);
     ~AnalysisFeature() override;
 
     QVariant title() override {
@@ -37,7 +37,7 @@ class AnalysisFeature : public LibraryFeature {
     bool dropAccept(const QList<QUrl>& urls, QObject* pSource) override;
     bool dragMoveAccept(const QList<QUrl>& urls) override;
     void bindLibraryWidget(WLibrary* libraryWidget,
-                    KeyboardEventFilter* keyboard) override;
+            KeyboardEventFilter* keyboard) override;
 
     /// Number of batch analyzer worker threads. Exposed so the startup audit
     /// log reports the same value that is actually used.

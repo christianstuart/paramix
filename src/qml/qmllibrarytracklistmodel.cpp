@@ -111,28 +111,15 @@ void QmlLibraryTrackListModel::ensureStemServiceConnected() {
     m_stemTrackIds = pStemService->trackIdsWithStemSets();
     // The service emits from its worker thread. The receiver context (`this`)
     // disconnects automatically when the model is destroyed.
-    connect(pStemService,
-            &mixxx::stems::StemService::stemsReady,
-            this,
-            [this](TrackId trackId) {
+    connect(pStemService, &mixxx::stems::StemService::stemsReady, this, [this](TrackId trackId) {
                 m_stemTrackIds.insert(trackId);
-                refreshHasStems(trackId, true);
-            },
-            Qt::QueuedConnection);
-    connect(pStemService,
-            &mixxx::stems::StemService::trackStatusChanged,
-            this,
-            [this](TrackId trackId,
-                    mixxx::stems::StemService::Status status,
-                    int /*progress*/,
-                    const QString& /*message*/) {
+                refreshHasStems(trackId, true); }, Qt::QueuedConnection);
+    connect(pStemService, &mixxx::stems::StemService::trackStatusChanged, this, [this](TrackId trackId, mixxx::stems::StemService::Status status, int /*progress*/, const QString& /*message*/) {
                 // Only the transition to Ready can change has_stems.
                 if (status == mixxx::stems::StemService::Status::Ready) {
                     m_stemTrackIds.insert(trackId);
                     refreshHasStems(trackId, false);
-                }
-            },
-            Qt::QueuedConnection);
+                } }, Qt::QueuedConnection);
 }
 
 void QmlLibraryTrackListModel::refreshHasStems(

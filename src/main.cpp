@@ -35,8 +35,8 @@
 #include "util/console.h"
 #include "util/logging.h"
 #ifdef Q_OS_MACOS
-#include "util/macprocessname.h"
 #include "util/darkappearance.h"
+#include "util/macprocessname.h"
 #endif
 #include "util/sandbox.h"
 #include "util/versionstore.h"

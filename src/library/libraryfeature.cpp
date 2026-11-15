@@ -68,26 +68,26 @@ QStringList LibraryFeature::getPlaylistFiles(QFileDialog::FileMode mode) const {
 bool LibraryFeature::exportPlaylistItemsIntoFile(
         QString playlistFilePath,
         const QList<QString>& playlistItemLocations,
-        bool useRelativePath)    {
+        bool useRelativePath) {
     if (playlistFilePath.endsWith(
-            QStringLiteral(".pls"),
-            Qt::CaseInsensitive)) {
+                QStringLiteral(".pls"),
+                Qt::CaseInsensitive)) {
         return ParserPls::writePLSFile(
                 playlistFilePath,
                 playlistItemLocations,
                 useRelativePath);
     } else if (playlistFilePath.endsWith(
-            QStringLiteral(".m3u8"),
-            Qt::CaseInsensitive)) {
+                       QStringLiteral(".m3u8"),
+                       Qt::CaseInsensitive)) {
         return ParserM3u::writeM3U8File(
                 playlistFilePath,
                 playlistItemLocations,
                 useRelativePath);
     } else {
-        //default export to M3U if file extension is missing
+        // default export to M3U if file extension is missing
         if (!playlistFilePath.endsWith(
-                QStringLiteral(".m3u"),
-                Qt::CaseInsensitive)) {
+                    QStringLiteral(".m3u"),
+                    Qt::CaseInsensitive)) {
             kLogger.debug()
                     << "No valid file extension for playlist export specified."
                     << "Appending .m3u and exporting to M3U.";

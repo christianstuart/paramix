@@ -1,9 +1,9 @@
 #include "library/analysis/analysisfeature.h"
 
-#include <algorithm>
 #include <QList>
 #include <QThread>
 #include <QtDebug>
+#include <algorithm>
 
 #include "analyzer/analyzerscheduledtrack.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
@@ -23,8 +23,7 @@ const mixxx::Logger kLogger("AnalysisFeature");
 
 const QString kViewName = QStringLiteral("Analysis");
 
-inline
-AnalyzerModeFlags getAnalyzerModeFlags(
+inline AnalyzerModeFlags getAnalyzerModeFlags(
         const UserSettingsPointer& pConfig) {
     // Always enable at least BPM detection for batch analysis, even if disabled
     // in the config for ad-hoc analysis of tracks.
@@ -81,10 +80,10 @@ void AnalysisFeature::setTitleProgress(int currentTrackNumber, int totalTracksCo
 }
 
 void AnalysisFeature::bindLibraryWidget(WLibrary* libraryWidget,
-                                 KeyboardEventFilter* keyboard) {
+        KeyboardEventFilter* keyboard) {
     m_pAnalysisView = new DlgAnalysis(libraryWidget,
-                                      m_pConfig,
-                                      m_pLibrary);
+            m_pConfig,
+            m_pLibrary);
     connect(m_pAnalysisView,
             &DlgAnalysis::loadTrack,
             this,
@@ -137,7 +136,7 @@ void AnalysisFeature::refreshLibraryModels() {
 }
 
 void AnalysisFeature::activate() {
-    //qDebug() << "AnalysisFeature::activate()";
+    // qDebug() << "AnalysisFeature::activate()";
     emit switchToView(kViewName);
     if (m_pAnalysisView) {
         emit restoreSearch(m_pAnalysisView->currentSearch());

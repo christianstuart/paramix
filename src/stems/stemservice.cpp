@@ -561,8 +561,8 @@ void StemService::processJob(Job& job,
                             separated.begin() + static_cast<std::size_t>(offset) *
                                             kStemChannelCount);
                     return true; }, [this, trackId](double progress) { setStatus(trackId,
-                                                                                    Status::Separating,
-                                                                                    static_cast<int>(std::clamp(progress, 0.0, 1.0) * 90.0)); }, [this]() {
+                                                                                                                                                                       Status::Separating,
+                                                                                                                                                                       static_cast<int>(std::clamp(progress, 0.0, 1.0) * 90.0)); }, [this]() {
                     if (m_cancelRequested.load()) {
                         return true;
                     }
