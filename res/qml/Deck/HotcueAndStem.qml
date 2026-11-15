@@ -6,7 +6,11 @@ import QtQuick.Layouts
 import QtQuick.Shapes
 import "../Theme"
 
-/// Deck hotcue grid plus a four-lane stem mixer strip.
+/// Deck hotcue grid and the four-lane stem mixer.
+///
+/// Both live in one component so the pane host stays at a constant height:
+/// `paneMode` 0 keeps the legacy in-pane Hotcues/Stems tabs, 1 shows hotcues
+/// only (the Cue pane) and 2 shows stems only (the Stems pane).
 ///
 /// Solo is implemented in QML only: activating it mutes every other stem and
 /// the previous mute states are restored when it is cleared. A native engine
@@ -18,6 +22,9 @@ Rectangle {
     required property var currentTrack
     required property string group
 
+    /// 0 = legacy tabs, 1 = hotcues only, 2 = stems only.
+    property int paneMode: 0
+
     /// Index of the lane that is currently soloed, or -1 when solo is off.
     property int soloLane: -1
     /// Mute state of every lane captured when solo was activated.
@@ -25,8 +32,32 @@ Rectangle {
 
     readonly property int stemCount: Math.max(0, Math.round(stemCountControl.value))
     readonly property int laneCount: stemLaneRepeater.count
-    readonly property bool showHotcues: Mixxx.Config.paramixShowHotcues
+    readonly property bool showHotcues: Mixxx.Config.paramixShowHotcues && root.paneMode !== 2
     readonly property bool showStems: Mixxx.Config.paramixShowStems && stemCount > 0
+            && root.paneMode !== 1
+    /// Wording for the empty pane, per tab: each pane now says what it is for
+    /// instead of advertising both hotcues and stems.
+    readonly property string emptyText: {
+        if (root.paneMode === 1) {
+            return Mixxx.Config.paramixShowHotcues
+                    ? qsTr("Load a track to use hotcues")
+                    : qsTr("Hotcues are hidden in the interface settings");
+        }
+        if (root.paneMode === 2) {
+            if (!Mixxx.Config.paramixShowStems) {
+                return qsTr("Stem controls are hidden in the interface settings");
+            }
+            if (trackLoadedControl.value == 0) {
+                return qsTr("Load a track to separate its stems");
+            }
+            return qsTr("Separate this track's stems to use this pane");
+        }
+        if (!root.showHotcues && !root.showStems) {
+            return qsTr("Cue pads are hidden in the interface settings");
+        }
+        return qsTr("Load a track to use hotcues and stems");
+    }
+
     /// True when the deck pane is squeezed by the compact deck layout. The
     /// stem lanes drop the QuickFX preset selector so the fader, mute/solo and
     /// knob stay usable instead of being clipped.
@@ -177,9 +208,7 @@ Rectangle {
             font.pixelSize: Theme.fontSizeXs
             font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: Text.AlignHCenter
-            text: (!root.showHotcues && !root.showStems)
-                  ? qsTr("Cue pads are hidden in the interface settings")
-                  : qsTr("Load a track to use hotcues and stems")
+            text: root.emptyText
             width: Math.max(80, Math.min(parent.width - 2 * Theme.space4, 260))
             wrapMode: Text.WordWrap
         }
@@ -447,7 +476,8 @@ Rectangle {
         anchors.rightMargin: Theme.space1
         anchors.top: parent.top
         spacing: Theme.space2
-        width: (root.showHotcues || root.showStems) ? 36 : 0
+        visible: root.paneMode === 0
+        width: (root.paneMode === 0 && (root.showHotcues || root.showStems)) ? 36 : 0
 
         Behavior on width {
             SpringAnimation {
@@ -724,17 +754,23 @@ Rectangle {
             anchors.margins: Theme.space1
             spacing: Theme.space1
 
-            // Vertical volume fader.
+            // Vertical volume fader. The stem volume control is a linear
+            // 0..1 gain, so 100 % (unity) is the top of the range; `maximum`
+            // keeps the fader from ever asking the engine for more than that.
+            // 16 px wide with a 5 px handle keeps the whole fader inside the
+            // 54 px lane card at the compact pane height.
             Skin.ControlFader {
                 id: volumeFader
 
                 Layout.fillHeight: true
-                Layout.preferredWidth: 20
+                Layout.preferredWidth: 16
+                from: 0
                 group: lane.stemGroup
-                implicitHeight: Theme.stemLaneHeight
-                implicitWidth: 20
+                implicitWidth: 16
                 key: "volume"
+                maximum: 1.0
                 showDefaultHandle: false
+                to: 1
 
                 Accessible.name: qsTr("%1 volume").arg(lane.displayLabel)
 
@@ -752,19 +788,24 @@ Rectangle {
                         anchors.centerIn: parent
                         color: Theme.surface3
                         height: parent.height
-                        radius: 2
-                        width: 4
+                        radius: 1.5
+                        width: 3
                     }
                 }
                 handle: Rectangle {
                     border.color: Theme.borderStrong
                     border.width: 1
                     color: lane.muted ? Theme.textMuted : Theme.textPrimary
-                    height: 6
-                    radius: 3
-                    width: 18
+                    height: 5
+                    radius: 2
+                    width: 14
                     x: Math.round((volumeFader.width - width) / 2)
-                    y: Math.round(volumeFader.visualPosition * (volumeFader.height - height))
+                    // Keep the handle inside the coloured part of the groove:
+                    // at 100 % its top lines up with the top of the bar instead
+                    // of overshooting it, so the fader visibly stops at unity.
+                    y: Math.round(volumeFader.bar.margin
+                                  + volumeFader.visualPosition
+                                    * (volumeFader.height - height - 2 * volumeFader.bar.margin))
 
                     Behavior on color {
                         ColorAnimation {
@@ -776,7 +817,7 @@ Rectangle {
             ColumnLayout {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 1
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -842,14 +883,14 @@ Rectangle {
                 RowLayout {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
-                    spacing: Theme.space1
+                    spacing: 3
 
                     Skin.ControlMiniKnob {
                         id: fxKnob
 
                         Layout.alignment: Qt.AlignVCenter
-                        Layout.preferredHeight: 24
-                        Layout.preferredWidth: 24
+                        Layout.preferredHeight: 20
+                        Layout.preferredWidth: 20
                         color: lane.fxEnabled ? Theme.accent : Theme.textMuted
                         group: lane.fxGroup
                         key: "super1"

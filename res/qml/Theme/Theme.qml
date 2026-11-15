@@ -67,10 +67,10 @@ QtObject {
                 "warning": "#FFB224",
                 "danger": "#FF4D5E",
                 "focusRing": "#B5B5B5",
-                "stemDrums": "#FF5A52",
-                "stemBass": "#7C5CFF",
-                "stemVocals": "#2ED47A",
-                "stemOther": "#FFC53D"
+                "stemDrums": "#C13BD6",
+                "stemBass": "#F08A24",
+                "stemVocals": "#2FBF71",
+                "stemOther": "#22C7D6"
             };
         case "Paramix High Contrast":
             // Okabe-Ito color-blind-safe palette.
@@ -93,10 +93,10 @@ QtObject {
                 "warning": "#FFD166",
                 "danger": "#FF5252",
                 "focusRing": "#FFD166",
-                "stemDrums": "#E69F00",
-                "stemBass": "#56B4E9",
-                "stemVocals": "#009E73",
-                "stemOther": "#CC79A7"
+                "stemDrums": "#C13BD6",
+                "stemBass": "#F08A24",
+                "stemVocals": "#2FBF71",
+                "stemOther": "#22C7D6"
             };
         default:
             // Paramix Dark: Traktor near-black stage. Neutral matte
@@ -121,10 +121,10 @@ QtObject {
                 "warning": "#FFB224",
                 "danger": "#FF4D5E",
                 "focusRing": "#B5B5B5",
-                "stemDrums": "#FF5A52",
-                "stemBass": "#7C5CFF",
-                "stemVocals": "#2ED47A",
-                "stemOther": "#FFC53D"
+                "stemDrums": "#C13BD6",
+                "stemBass": "#F08A24",
+                "stemVocals": "#2FBF71",
+                "stemOther": "#22C7D6"
             };
         }
     }

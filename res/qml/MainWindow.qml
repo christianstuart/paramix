@@ -17,15 +17,25 @@ Item {
 
     property alias editDeck: editDeckButton.checked
     property var focusedDeck: null
-    property alias maximizeLibrary: maximizeLibraryButton.checked
+    // Layout visibility is driven by the View menu in the toolbar. The stored
+    // state is kept independently of window size so shrinking the window only
+    // hides the four-deck layout, it does not forget the preference.
+    property bool fourDecksRequested: false
+    property bool maximizeLibrary: false
     readonly property int numDecks: 4
     readonly property int numPreviewDecks: 1
     readonly property int numSamplers: 16
-    readonly property bool show4decks: show4DecksButton.checked && show4DecksButton.visible
-    property alias showEffects: showEffectsButton.checked
-    property alias showSamplers: showSamplersButton.checked
+    readonly property bool show4decks: fourDecksRequested && root.height > 515
+    property bool showEffects: false
+    property bool showSamplers: false
     readonly property bool showMicrophoneInputs: showMicrophonesControl.value > 0
     readonly property int waveformOverviewTypeRgb: 2
+
+    onMaximizeLibraryChanged: {
+        if ((showMaximizedLibrary.value > 0) !== root.maximizeLibrary) {
+            showMaximizedLibrary.value = root.maximizeLibrary ? 1 : 0;
+        }
+    }
 
     Loader {
         id: nativeApplicationMenuLoader
@@ -95,16 +105,18 @@ Item {
         }
     }
     Mixxx.ControlProxy {
+        id: showMaximizedLibrary
+
+        group: "[Skin]"
+        key: "show_maximized_library"
+
+        onValueChanged: root.maximizeLibrary = value > 0
+    }
+    Mixxx.ControlProxy {
         id: showMicrophonesControl
 
         group: "[Skin]"
         key: "show_microphones"
-
-        onValueChanged: {
-            if (showAuxButton) {
-                showAuxButton.checked = showMicrophonesControl.value > 0;
-            }
-        }
     }
     Mixxx.ControlProxy {
         id: numMicrophones
@@ -135,6 +147,33 @@ Item {
             height: Theme.toolbarHeight
             width: parent.width
 
+            // Master tempo and tempo-source switch: centered in the bar so it
+            // sits above the playback marker of the overview waveforms.
+            MixerComponents.MasterTempoBox {
+                id: masterTempo
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.width >= 1100
+                z: 1
+            }
+            // Master output level, left of the tempo readout. Hidden on narrow
+            // windows where it would collide with the layout toggles.
+            MixerComponents.MasterLevelDisplay {
+                anchors.right: masterTempo.left
+                anchors.rightMargin: Theme.space4
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.width >= 1400
+                z: 1
+            }
+            // Recording output, right of the tempo readout.
+            MixerComponents.RecordingBox {
+                anchors.left: masterTempo.right
+                anchors.leftMargin: Theme.space4
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.width >= 1200
+                z: 1
+            }
             // Flat matte top plate with a 1 px hairline bottom separator.
             Rectangle {
                 anchors.bottom: parent.bottom
@@ -194,89 +233,93 @@ Item {
                         implicitWidth: Theme.space2
                     }
                 }
-                Rectangle {
-                    Layout.alignment: Qt.AlignVCenter
-                    color: Theme.border
-                    implicitHeight: 20
-                    implicitWidth: 1
-                }
-                Skin.Button {
-                    id: show4DecksButton
-
-                    activeColor: Theme.textOnAccent
-                    Layout.preferredWidth: 84
-                    checkable: true
-                    text: qsTr("4 Decks")
-                    visible: root.height > 515
-
-                    Accessible.name: qsTr("Show four decks")
-                }
-                Skin.Button {
-                    id: maximizeLibraryButton
-
-                    activeColor: Theme.textOnAccent
-                    Layout.preferredWidth: 84
-                    checkable: true
-                    text: qsTr("Library")
-
-                    Accessible.name: qsTr("Maximize library")
-
-                    onCheckedChanged: () => {
-                        showMaximizedLibrary.value = this.checked;
-                    }
-
-                    Mixxx.ControlProxy {
-                        id: showMaximizedLibrary
-
-                        group: "[Skin]"
-                        key: "show_maximized_library"
-
-                        onValueChanged: () => {
-                            maximizeLibraryButton.checked = this.value;
-                        }
-                    }
-                }
-                Skin.Button {
-                    id: showEffectsButton
-
-                    activeColor: Theme.textOnAccent
-                    Layout.preferredWidth: 84
-                    checkable: true
-                    text: qsTr("Effects")
-
-                    Accessible.name: qsTr("Show effects")
-                }
-                Skin.Button {
-                    id: showAuxButton
-
-                    activeColor: Theme.textOnAccent
-                    Layout.preferredWidth: 84
-                    checkable: true
-                    text: qsTr("Aux")
-
-                    Accessible.name: qsTr("Show microphone and auxiliary inputs")
-
-                    Component.onCompleted: checked = root.showMicrophoneInputs
-                    onCheckedChanged: showMicrophonesControl.value = showAuxButton.checked
-                }
-                Skin.Button {
-                    id: showSamplersButton
-
-                    activeColor: Theme.textOnAccent
-                    Layout.preferredWidth: 84
-                    checkable: true
-                    text: qsTr("Sampler")
-
-                    Accessible.name: qsTr("Show samplers")
-                }
                 Item {
                     Layout.fillWidth: true
+                }
+                // Layout visibility lives here instead of a row of toggles on
+                // the left: one key that opens a checkable menu.
+                Skin.Button {
+                    id: viewButton
+
+                    activeColor: Theme.textOnAccent
+                    highlight: layoutMenu.visible
+                    text: qsTr("View")
+
+                    Accessible.name: qsTr("Show or hide interface panels")
+
+                    onClicked: layoutMenu.visible ? layoutMenu.close() : layoutMenu.open()
+
+                    Menu {
+                        id: layoutMenu
+
+                        parent: viewButton
+                        width: 188
+                        x: parent.width - width
+                        y: parent.height + 4
+
+                        background: Rectangle {
+                            border.color: Theme.borderStrong
+                            border.width: 1
+                            color: Theme.surface2
+                            radius: Theme.radiusMd
+                        }
+                        padding: Theme.space1
+
+                        onAboutToShow: {
+                            fourDecksItem.checked = root.fourDecksRequested;
+                            libraryItem.checked = root.maximizeLibrary;
+                            effectsItem.checked = root.showEffects;
+                            auxItem.checked = root.showMicrophoneInputs;
+                            samplersItem.checked = root.showSamplers;
+                        }
+
+                        Skin.CheckMenuItem {
+                            id: fourDecksItem
+
+                            checkable: true
+                            enabled: root.height > 515
+                            text: qsTr("Four decks")
+
+                            onTriggered: root.fourDecksRequested = checked
+                        }
+                        Skin.CheckMenuItem {
+                            id: libraryItem
+
+                            checkable: true
+                            text: qsTr("Library")
+
+                            onTriggered: root.maximizeLibrary = checked
+                        }
+                        Skin.CheckMenuItem {
+                            id: effectsItem
+
+                            checkable: true
+                            text: qsTr("Effects")
+
+                            onTriggered: root.showEffects = checked
+                        }
+                        Skin.CheckMenuItem {
+                            id: auxItem
+
+                            checkable: true
+                            text: qsTr("Mic / Aux")
+
+                            onTriggered: showMicrophonesControl.value = checked ? 1 : 0
+                        }
+                        Skin.CheckMenuItem {
+                            id: samplersItem
+
+                            checkable: true
+                            text: qsTr("Samplers")
+
+                            onTriggered: root.showSamplers = checked
+                        }
+                    }
                 }
                 Skin.Button {
                     id: editDeckButton
 
                     activeColor: Theme.textOnAccent
-                    Layout.preferredWidth: 84
                     checkable: true
                     text: qsTr("Edit")
 
@@ -379,68 +422,29 @@ Item {
                 id: waveforms
 
                 SplitView.fillHeight: !library.active && Mixxx.Config.paramixShowWaveforms
-                SplitView.preferredHeight: library.active ? 120 : undefined
+                SplitView.preferredHeight: library.active ? 160 : undefined
                 visible: !root.maximizeLibrary && Mixxx.Config.paramixShowWaveforms
 
-                FadeBehavior on visible {
-                    fadeTarget: waveforms
-                }
-
-                Loader {
-                    id: deck3waveform
-
-                    readonly property string group: "[Channel3]"
-
-                    active: root.show4decks
-                    anchors.top: parent.top
-                    height: parent.height / 4
-                    width: root.width
-
-                    sourceComponent: Component {
-                        Skin.WaveformDisplay {
-                            group: deck3waveform.group
-
-                            FadeBehavior on visible {
-                                fadeTarget: deck3waveform
-                            }
-                        }
-                    }
-                }
+                // Only decks 1 and 2 get a waveform in the top strip. With four
+                // decks enabled the strip keeps these two rows at full height
+                // instead of splitting into four, so the stem lanes stay
+                // readable and no vertical space is spent on decks 3 and 4
+                // (they are still fully usable from their deck panes).
                 Skin.WaveformDisplay {
                     id: deck1waveform
 
-                    anchors.top: root.show4decks ? deck3waveform.bottom : parent.top
+                    anchors.top: parent.top
                     group: "[Channel1]"
-                    height: parent.height / (root.show4decks ? 4 : 2)
+                    height: parent.height / 2
                     width: root.width
                 }
                 Skin.WaveformDisplay {
                     id: deck2waveform
 
-                    anchors.bottom: root.show4decks ? deck4waveform.top : parent.bottom
-                    group: "[Channel2]"
-                    height: parent.height / (root.show4decks ? 4 : 2)
-                    width: root.width
-                }
-                Loader {
-                    id: deck4waveform
-
-                    readonly property string group: "[Channel4]"
-
-                    active: root.show4decks
                     anchors.bottom: parent.bottom
-                    height: parent.height / 4
+                    group: "[Channel2]"
+                    height: parent.height / 2
                     width: root.width
-
-                    sourceComponent: Component {
-                        Skin.WaveformDisplay {
-                            group: deck4waveform.group
-
-                            FadeBehavior on visible {
-                                fadeTarget: deck4waveform
-                            }
-                        }
-                    }
                 }
                 Rectangle {
                     width: 125
@@ -501,16 +505,6 @@ Item {
                     group: "[Channel1]"
                     height: root.maximizeLibrary ? 80 : root.show4decks ? mixer.height / 2 : mixer.height
                     minimized: root.maximizeLibrary
-
-                    Behavior on height {
-                        SpringAnimation {
-                            id: deck1HeightAnimation
-
-                            damping: 0.35
-                            duration: Theme.motionSpringDuration
-                            spring: 2.4
-                        }
-                    }
                     states: [
                         State {
                             when: root.maximizeLibrary
@@ -540,16 +534,6 @@ Item {
                     groups: [deck1.group, deck2.group, deck3.group, deck4.group]
                     show4decks: root.show4decks
                     visible: !root.maximizeLibrary
-
-                    Behavior on height {
-                        SpringAnimation {
-                            id: mixerHeightAnimation
-
-                            damping: 0.35
-                            duration: Theme.motionSpringDuration
-                            spring: 2.4
-                        }
-                    }
                     states: [
                         State {
                             when: root.focusedDeck === deck1 && root.width < 1400 && !root.maximizeLibrary
@@ -608,14 +592,6 @@ Item {
                             }
                         }
                     ]
-                    transitions: Transition {
-                        AnchorAnimation {
-                            duration: Theme.motionNormal
-                        }
-                    }
-                    FadeBehavior on visible {
-                        fadeTarget: mixer
-                    }
                 }
                 Deck {
                     id: deck2
@@ -624,16 +600,6 @@ Item {
                     group: "[Channel2]"
                     height: root.maximizeLibrary ? 80 : root.show4decks ? mixer.height / 2 : mixer.height
                     minimized: root.maximizeLibrary
-
-                    Behavior on height {
-                        SpringAnimation {
-                            id: deck2HeightAnimation
-
-                            damping: 0.35
-                            duration: Theme.motionSpringDuration
-                            spring: 2.4
-                        }
-                    }
                     states: [
                         State {
                             when: root.maximizeLibrary
@@ -662,20 +628,9 @@ Item {
 
                     active: root.show4decks
                     height: active ? (root.maximizeLibrary ? 80 : mixer.height / 2) : 0
-
-                    Behavior on height {
-                        SpringAnimation {
-                            id: deck3HeightAnimation
-
-                            damping: 0.35
-                            duration: Theme.motionSpringDuration
-                            spring: 2.4
-                        }
-                    }
                     sourceComponent: Component {
                         Deck {
-                            anchors.bottom: parent.bottom
-                            anchors.left: parent.left
+                            anchors.fill: parent
                             editMode: root.editDeck
                             group: deck3.group
                             minimized: root.maximizeLibrary
@@ -705,20 +660,9 @@ Item {
 
                     active: root.show4decks
                     height: active ? (root.maximizeLibrary ? 80 : mixer.height / 2) : 0
-
-                    Behavior on height {
-                        SpringAnimation {
-                            id: deck4HeightAnimation
-
-                            damping: 0.35
-                            duration: Theme.motionSpringDuration
-                            spring: 2.4
-                        }
-                    }
                     sourceComponent: Component {
                         Deck {
-                            anchors.bottom: parent.bottom
-                            anchors.right: parent.right
+                            anchors.fill: parent
                             editMode: root.editDeck
                             group: deck4.group
                             minimized: root.maximizeLibrary
@@ -761,6 +705,7 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: outputBar.bottom
+                    height: active ? implicitHeight : 0
                     visible: active
                     sourceComponent: Component {
                         MixerComponents.InputRack {
@@ -774,6 +719,7 @@ Item {
                     id: effects
 
                     active: root.showEffects
+                    height: active ? implicitHeight : 0
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: inputRack.bottom
@@ -786,6 +732,7 @@ Item {
                     id: samplers
 
                     active: root.showSamplers
+                    height: active ? implicitHeight : 0
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: effects.bottom
@@ -841,10 +788,6 @@ Item {
         }
     }
 
-    // Global job strip (stem separation, analysis). It overlays the top of the
-    // content area instead of taking part in the Column above, so a running
-    // job never reflows the decks or the library. It is invisible and zero
-    // height while idle.
     Skin.ParamixCustomize {
         id: customizePopup
     }

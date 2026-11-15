@@ -124,9 +124,11 @@ Item {
             normalized: Mixxx.Config.waveformOverviewNormalized
             renderer: Mixxx.Config.waveformOverviewType === 0 ? Mixxx.WaveformOverview.Renderer.Filtered : Mixxx.Config.waveformOverviewType === 1 ? Mixxx.WaveformOverview.Renderer.HSV : Mixxx.WaveformOverview.Renderer.RGB
             stereo: Mixxx.Config.waveformOverviewStereo
-            colorHigh: Theme.white
-            colorMid: Theme.blue
-            colorLow: Theme.green
+            // Match the deck's stacked spectrum so the overview reads the same:
+            // lows red, highs purple.
+            colorHigh: '#8B6BE0'
+            colorMid: '#C45B9E'
+            colorLow: '#E24B3F'
             group: root.group
         }
     }

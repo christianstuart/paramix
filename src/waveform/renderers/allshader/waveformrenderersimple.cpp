@@ -94,12 +94,23 @@ bool WaveformRendererSimple::preprocessInner() {
     const float heightFactor = allGain * halfBreadth / m_maxValue;
 
     // Effective visual frame for x
-    double xVisualFrame = qRound(firstVisualFrame / visualIncrementPerPixel) *
+    const double firstXVisualFrame = qRound(firstVisualFrame / visualIncrementPerPixel) *
             visualIncrementPerPixel;
+
+    const double maxSamplingRange = visualIncrementPerPixel / 2.0;
+
+    // Nothing may be drawn before the start of the track (visual frame 0). Skip
+    // the pixels that only cover the pre-track area instead of sampling the
+    // first frame over and over again.
+    const int firstSignalPixel = countColumnsBeforeTrackStart(
+            firstXVisualFrame, visualIncrementPerPixel, maxSamplingRange, pixelLength);
+    const int numSignalPixels = pixelLength - firstSignalPixel;
+    double xVisualFrame = firstXVisualFrame +
+            firstSignalPixel * visualIncrementPerPixel;
 
     const int numVerticesPerLine = 6; // 2 triangles
 
-    const int reserved = numVerticesPerLine * (pixelLength + 1);
+    const int reserved = numVerticesPerLine * (numSignalPixels + 1);
 
     geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
     geometry().allocate(reserved);
@@ -114,13 +125,11 @@ bool WaveformRendererSimple::preprocessInner() {
                     static_cast<float>(m_axesColor_g),
                     static_cast<float>(m_axesColor_b)});
 
-    const double maxSamplingRange = visualIncrementPerPixel / 2.0;
-
     const QVector3D signalColor{static_cast<float>(m_signalColor_r),
             static_cast<float>(m_signalColor_g),
             static_cast<float>(m_signalColor_b)};
 
-    for (int pos = 0; pos < pixelLength; ++pos) {
+    for (int pos = firstSignalPixel; pos < pixelLength; ++pos) {
         const int visualFrameStart = std::lround(xVisualFrame - maxSamplingRange);
         const int visualFrameStop = std::lround(xVisualFrame + maxSamplingRange);
 

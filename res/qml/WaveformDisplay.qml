@@ -21,6 +21,11 @@ Item {
     // the legacy preferences dialog can recreate that stack explicitly.
     property int renderedWaveformType: -1
     readonly property string zoomGroup: Mixxx.Config.waveformZoomSynchronization ? "[Channel1]" : group
+    /// True while a CPU-heavy background job (stem separation or a batch
+    /// analysis) is running.
+    readonly property bool backgroundWorkActive: Mixxx.StemService.busy
+            || Mixxx.StemService.queuedCount > 0
+            || Mixxx.Library.analysisActive
 
     Connections {
         target: Mixxx.Config
@@ -49,7 +54,14 @@ Item {
 
         anchors.fill: parent
         backgroundColor: "transparent"
-        frameRate: Mixxx.Config.waveformFrameRate
+        // Background analysis and stem separation fight the render thread for
+        // CPU. While they run, lower the refresh rate so frames arrive
+        // regularly instead of hitching; the play head is extrapolated to the
+        // vsync either way, so this reads as a steadier scroll, not a slower
+        // one.
+        frameRate: root.backgroundWorkActive
+                   ? Math.min(30, Mixxx.Config.waveformFrameRate)
+                   : Mixxx.Config.waveformFrameRate
         group: root.group
         options: Mixxx.Config.waveformOptions
         visible: Mixxx.Config.waveformEnabled
@@ -65,9 +77,6 @@ Item {
         Mixxx.WaveformRendererEndOfTrack {
             color: '#ff8872'
             endOfTrackWarningTime: Mixxx.Config.waveformEndOfTrackWarningTime
-        }
-        Mixxx.WaveformRendererPreroll {
-            color: '#ff8872'
         }
         Mixxx.WaveformRendererMarkRange {
             // Loop
@@ -117,9 +126,11 @@ Item {
             gainHigh: Mixxx.Config.waveformVisualGainHigh
             gainLow: Mixxx.Config.waveformVisualGainLow
             gainMid: Mixxx.Config.waveformVisualGainMedium
-            highColor: '#D5C2A2'
-            lowColor: '#2154D7'
-            midColor: '#97632D'
+            // Stacked spectrum: low frequencies at the bottom in red, high
+            // frequencies at the top in purple, magenta between them.
+            highColor: '#8B6BE0'
+            lowColor: '#E24B3F'
+            midColor: '#C45B9E'
             stacked: true
         }
         Mixxx.WaveformRendererSimple {
@@ -149,6 +160,12 @@ Item {
             midColor: '#97632D'
         }
         Mixxx.WaveformRendererStem {
+            // Per-stem visual gain, multiplied on top of the automatic lane
+            // fill (which already keeps every lane between 60% and 100% of its
+            // height, relative to the loudest stem of the track). The default
+            // of 1.0 for all four keeps the automatic fill; raise a value to
+            // push one stem lane louder, lower it to hold it back.
+            stemVisualGains: [1.0, 1.0, 1.0, 1.0]
             gainAll: root.splitStemTracks ? 2.0 : 1.0
             opacity: Mixxx.Config.waveformStemOpacity
             outlineOpacity: Mixxx.Config.waveformStemOutlineOpacity
@@ -329,5 +346,26 @@ Item {
                 zoomControl.value += 1;
             }
         }
+    }
+
+    // Per-lane labels and gain knobs, Traktor-style. Only shown while the stem
+    // lanes are split; in the single-lane overlay there is nothing to label.
+    readonly property var deckPlayer: Mixxx.PlayerManager.getPlayer(root.group)
+    readonly property bool stemSplitActive: root.splitStemTracks
+            || Mixxx.Config.waveformStemSplitTracks
+    Mixxx.ControlProxy {
+        id: stemCountControl
+
+        group: root.group
+        key: "stem_count"
+    }
+    Skin.StemLaneStrip {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.top: parent.top
+        group: root.group
+        stemsModel: root.deckPlayer ? root.deckPlayer.currentTrack.stemsModel : null
+        visible: root.stemSplitActive && stemCountControl.value > 0
+        width: 168
     }
 }

@@ -31,7 +31,6 @@ DlgPrefStems::DlgPrefStems(QWidget* pParent, UserSettingsPointer pConfig)
             this,
             &DlgPrefStems::slotFormatChanged);
     setScrollSafeGuard(comboBoxFormat);
-    setScrollSafeGuard(spinBoxAacBitrate);
 
     slotUpdate();
 }
@@ -52,7 +51,6 @@ void DlgPrefStems::slotUpdate() {
 }
 
 void DlgPrefStems::slotApply() {
-    m_settings.aacBitrateKbps = spinBoxAacBitrate->value();
     m_modelPath = lineEditModelPath->text().trimmed();
     m_outputDirectory = lineEditOutputDirectory->text().trimmed();
     if (m_outputDirectory.isEmpty()) {
@@ -96,28 +94,13 @@ void DlgPrefStems::slotBrowseModel() {
 }
 
 void DlgPrefStems::slotFormatChanged(int index) {
-    m_settings.format = index == 1 ? mixxx::stems::StemFileFormat::Alac
-            : index == 2           ? mixxx::stems::StemFileFormat::Aac
-                                   : mixxx::stems::StemFileFormat::Flac;
+    Q_UNUSED(index);
+    m_settings.format = mixxx::stems::StemFileFormat::Flac;
     updateGui();
 }
 
 void DlgPrefStems::updateGui() {
-    switch (m_settings.format) {
-    case mixxx::stems::StemFileFormat::Alac:
-        comboBoxFormat->setCurrentIndex(1);
-        break;
-    case mixxx::stems::StemFileFormat::Aac:
-        comboBoxFormat->setCurrentIndex(2);
-        break;
-    case mixxx::stems::StemFileFormat::Flac:
-        comboBoxFormat->setCurrentIndex(0);
-        break;
-    }
-    spinBoxAacBitrate->setValue(m_settings.aacBitrateKbps);
-    spinBoxAacBitrate->setEnabled(
-            m_settings.format == mixxx::stems::StemFileFormat::Aac);
-    labelAacBitrate->setEnabled(m_settings.format == mixxx::stems::StemFileFormat::Aac);
+    comboBoxFormat->setCurrentIndex(0);
     lineEditModelPath->setText(m_modelPath);
     lineEditOutputDirectory->setText(m_outputDirectory);
     checkBoxGpuAcceleration->setChecked(m_gpuAcceleration);

@@ -19,43 +19,22 @@ int clampedAacBitrate(int bitrateKbps) {
 
 StemFileFormat parseStemFileFormat(const QString& value) {
     const QString normalized = value.trimmed().toLower();
-    if (normalized == QStringLiteral("alac")) {
-        return StemFileFormat::Alac;
-    }
-    if (normalized == QStringLiteral("aac")) {
-        return StemFileFormat::Aac;
-    }
     return StemFileFormat::Flac;
 }
 
 QString stemFileFormatName(StemFileFormat format) {
-    switch (format) {
-    case StemFileFormat::Alac:
-        return QStringLiteral("alac");
-    case StemFileFormat::Aac:
-        return QStringLiteral("aac");
-    case StemFileFormat::Flac:
-        break;
-    }
+    Q_UNUSED(format);
     return QStringLiteral("flac");
 }
 
 QString stemFileExtension(StemFileFormat format) {
-    switch (format) {
-    case StemFileFormat::Alac:
-        // libsndfile writes ALAC in a CAF container.
-        return QStringLiteral("caf");
-    case StemFileFormat::Aac:
-        // The FDK encoder writes an ADTS stream.
-        return QStringLiteral("aac");
-    case StemFileFormat::Flac:
-        break;
-    }
+    Q_UNUSED(format);
     return QStringLiteral("flac");
 }
 
 bool isLosslessStemFormat(StemFileFormat format) {
-    return format != StemFileFormat::Aac;
+    Q_UNUSED(format);
+    return true;
 }
 
 StemExportSettings readStemExportSettings(UserSettingsPointer pConfig) {
@@ -65,8 +44,6 @@ StemExportSettings readStemExportSettings(UserSettingsPointer pConfig) {
     }
     settings.format = parseStemFileFormat(pConfig->getValue(
             ConfigKey(kGroup, kFileFormatKey), QStringLiteral("flac")));
-    settings.aacBitrateKbps = clampedAacBitrate(pConfig->getValue(
-            ConfigKey(kGroup, kAacBitrateKey), kDefaultAacBitrateKbps));
     return settings;
 }
 
@@ -77,8 +54,6 @@ void writeStemExportSettings(
     }
     pConfig->setValue(
             ConfigKey(kGroup, kFileFormatKey), stemFileFormatName(settings.format));
-    pConfig->setValue(ConfigKey(kGroup, kAacBitrateKey),
-            clampedAacBitrate(settings.aacBitrateKbps));
 }
 
 } // namespace mixxx::stems

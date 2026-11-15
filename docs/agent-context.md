@@ -4,7 +4,7 @@
 file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 `docs/old-context.md` (raw transcript of the original planning session).
 
-**Last updated:** 2026-11-15, after restoring classic feature parity in the Paramix QML skin.
+**Last updated:** 2026-11-15, after the stem waveform and deck layout pass (spectrum colors, label strip, 160 px waveform band).
 **Update rule:** every agent that changes repo state must append to §9 (Work log) and correct
 §3 (Current state) before finishing.
 
@@ -176,6 +176,19 @@ Still open: preview deck and vinyl-control deck UI are placeholders; the skin-se
 (Ctrl+1) is absent; AutoDJ/Recordings/Browse are classic widget views; CoreML is not enabled, so
 stem separation is CPU-only; per-column hide/reorder and search history/completion are missing.
 
+### 3.7 Current state (2026-11-15) — stem waveform and deck layout
+
+| Area | State |
+|---|---|
+| Stem waveform data | **Done.** The waveform analyzer opens the 8-channel stem cache, computes per-stem peak / RMS / band (low, mid, high, attack) per visual frame and stores it in the additive protobuf field `signal_stem_details = 6` (one `StemDetail` per stem, packed 2-bit band fields). `Waveform` builds a multi-resolution column pyramid once, on the analyzer thread; the renderer only samples it. Verified on `Wannabe`: 8 channels opened, 76,305 columns stored, `hasStemColumns` true in the renderer. |
+| Stem waveform look | **Done.** Split lanes are solid mirrored fills: constant opacity per column (no peak-dependent fade), a darker peak envelope with a brighter RMS core, and a 0.75 px floor so quiet columns never rasterize away. Each lane is normalized by its own 95th percentile (`getStemPeak`) so all four lanes fill their height; muted lanes are ghosted (desaturated, 32 % opacity) instead of hidden. |
+| Stem waveform color | **Done.** Color is computed per column from that column's own low / mid / high energy: a spectrum hue (amber lows, green mids, magenta highs, with the high-band *share* pulling to magenta) clamped to +/-0.09 hue around the lane's reference family (drums magenta, bass amber, other cyan, vocals green). This reproduces the Traktor reference palette while the content still moves the color inside the family. There is no flat per-stem fill color. |
+| Stem label strip | **Done.** `res/qml/StemLaneStrip.qml` overlays the left edge of each stem waveform: one row per stem (quarter-height, matching the renderer's lanes) with a colour key that doubles as the mute toggle, the uppercase stem name, and a gain knob bound to `[ChannelN_StemX],volume`. It sits on a solid panel that fades out to the right and swallows presses/wheel so the labels never scrub the track. |
+| Waveform resolution | **Improved.** Drawn columns went from a 24 px / minimum 6-frame aggregation to 8 px / minimum 1.5 frames, so close-up waveforms show the stored detail instead of wide blocks. The analysis rate is still 441 visual frames/s (2.27 ms per frame, `mainWaveformSampleRate`); going finer needs a waveform version bump and re-analysis of stem tracks. |
+| Pre-/post-roll marking | **Removed.** `WaveformRendererPreroll` is no longer instantiated by `res/qml/WaveformDisplay.qml`; the zone before the track start is empty background. The tiled triangle texture was what looked like repeated junk at the start of a track, four rows deep in split-stem mode. |
+| Waveform band height | **Done.** With the library visible the deck waveform strip is 160 px (`SplitView.preferredHeight`), i.e. 80 px per deck and 20 px per stem lane; the extra height comes from the library pane, which is the only flexible item in that split. |
+| Four-deck waveform strip | **Done.** Only channels 1 and 2 get a waveform row in the top strip; with four decks enabled those two keep the full half height instead of splitting into four. Decks 3-4 stay fully usable from their deck panes. |
+
 ---
 
 ## 4. Where the code already supports the plan (don't rebuild these)
@@ -242,16 +255,39 @@ stem separation is CPU-only; per-column hide/reorder and search history/completi
 
 ## 6. Next work (in priority order)
 
-Phase −1 is closed (see §4 and `docs/baseline-report.md`). Remaining, in order:
+Phase -1 is closed (see §4 and `docs/baseline-report.md`), the stem waveform pass is in (§3.7),
+and the tree builds and runs locally on `buildenv/` + `build-fast/`. Remaining, in order:
 
-1. **Phase 0 ADRs 001–005**, then the five spikes in plan §7.3 (ONNX `htdemucs_ft` benchmark,
-   Beat This! F-measure, 8-channel FLAC round-trip, four-lane 60 fps check, GitHub Releases
-   model-download dry run). The stem/waveform inventory is already done — do not redo it.
-2. **Local toolchain.** The owner is installing Qt 6 via MacPorts. Until that finishes, spikes that
-   need a real build cannot be measured; do documentation and audit work first.
-3. **Correct any remaining "build it from scratch" assumptions** in the plan or issues. The tree
-   already has per-stem waveform rendering, stem controls and `.stem.mp4` reading.
-4. Revisit the macOS x86_64 `-DQML=OFF` gap as its own scoped commit, with the 120-minute timeout
+1. **Waveform hitching while scrolling — open bug, needs a repro with the owner.** A deck can
+   blank for a moment and come back (or stay blank) while scrolling. Candidates: the scene-graph
+   texture upload path, `kPixelPerStrip = 2`, geometry rebuild cost (48 verts per pixel column) and
+   GPU contention with the stem separator (already mitigated by forcing the CPU provider while a
+   window is up). Reproduce on a non-stem track and on the Simple renderer first to separate
+   "stem renderer" from "waveform stack". Do not attempt the textured-renderer rewrite until the
+   repro is pinned down.
+2. **Waveform detail at deep zoom.** 441 visual frames/s is the ceiling today. Decide whether stem
+   tracks should analyze at 2-4x that rate (waveform version bump, re-analysis of the stem library,
+   ~2-4x blob size and memory) or whether the 8 px column floor plus 1.5-frame aggregation is
+   enough. Measure the blob size on a 4-minute stem track before deciding.
+3. **Stem cache silence runs.** One stem of `Wannabe` has ~28 % zero columns with runs up to
+   ~0.3 s of digital silence (audible as gaps in that lane). Looks like a separator/cache artifact,
+   not quiet material. Check the 8-channel cache directly (ffmpeg `astats`, then compare with the
+   separator's output buffers) before changing the renderer.
+4. **Stem label strip follow-ups.** Icons per lane (drums/bass/other/vocals) matching the reference,
+   a visible mute affordance (today the colour key doubles as the toggle), and per-lane separators
+   across the waveform so the four lanes read as rows.
+5. **Other skins and controller screens.** They still instantiate `WaveformRendererPreroll`
+   (`res/skins/LateNightQML/...`, `res/controllers/...`). The owner asked to leave them alone for
+   now; revisit when the Paramix deck is final.
+6. **FDK AAC encoder crash (independent bug).** `EncoderFdkAac::processFIFO()` segfaults with real
+   audio; AAC recording/broadcast is affected even though stem export is FLAC-only. Fix or disable
+   the encoder deliberately rather than leaving a latent crash.
+7. **`build-asan/` (4.7 GB, untracked) needs a keep/delete decision.** It is ignored by git; nothing
+   in the tree depends on it.
+8. **Phase 0 ADRs 001-005 and the plan §7.3 spikes** remain from the program plan (ONNX
+   `htdemucs_ft` benchmark, Beat This! F-measure, 8-channel FLAC round-trip, four-lane 60 fps check,
+   GitHub Releases model-download dry run).
+9. Revisit the macOS x86_64 `-DQML=OFF` CI gap as its own scoped commit, with the 120-minute timeout
    already in place.
 
 ---
@@ -323,6 +359,156 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   pauses stems when audio latency usage stays high; a startup audit line records the thread
   layout. Also fixed: `__STEM_SEPARATION__` was not defined for `mixxx-qml-lib`, so
   `Mixxx.StemService.available` reported false.
+- **2026-11-15** — **Stem export is FLAC only.** ALAC was removed first (libsndfile CAF/ALAC
+  aborted in `psf_close` with heap corruption), then AAC followed: with enough audio to reach the
+  encoder, `EncoderFdkAac::processFIFO()` segfaults (deterministic, `mixxx-test` crash report +
+  lldb show an invalid `vector<short>::data()` access), and the same encoder backs AAC recording and
+  broadcast. `StemFileFormat` now has only `Flac`, `writeAacStem`/`StemAacSettings`/
+  `FileEncoderCallback` are gone, the sidecar no longer emits `aac_bitrate_kbps`, and both the
+  legacy Qt Stems dialog and `Settings/Stems.qml` show a static "FLAC (lossless, 24-bit)" line with
+  no bitrate control. Legacy `alac`/`aac` values in `[Stems],FileFormat` and queued rows parse to
+  FLAC, so existing profiles keep working.
+- **2026-11-15** — **VU meters moved to a scene-graph item.** `LateNightQML/Controls/ImageVuMeter.qml`
+  was 13 instances of a repeating 10 ms QML Timer plus binding-driven clipped items (level -> height
+  -> anchors), i.e. ~1300 binding/layout updates per second. It is now a thin wrapper over the new
+  `Mixxx.VuMeter` (`src/qml/qmlvumeteritem.{h,cpp}`): one shared 30 Hz ticker decays the peak in C++,
+  the level/clip sources are QSG textures drawn as five quads, and a level change costs a single
+  `update()` instead of a binding storm. The wrapper only maps the LateNight theme assets and the
+  legacy `micAux`/`backgroundVariant` properties, so no call site changed. Assets are loaded into
+  QImage once per URL; nodes rebuild only when a source changes.
+- **2026-11-15** — **Stem separation: CPU while a window is shown.** `StemService::enqueue()` now
+  rejects the GPU provider when `QGuiApplication::topLevelWindows()` is non-empty
+  (`isInteractiveUiRunning()`), logging once why. Verified: the separator reports "on cpu", the WAV
+  export completes, and the worst frame during separation is 37 ms (was 1.3-2.3 s with the WebGPU
+  provider). Headless runs still get the GPU. The ALAC crash below is independent of the provider.
+- **2026-11-15** — **Stem separation profiling (QSG frame timing).** Recording start/stop is clean:
+  120 frames per 2 s window (=60 fps), worst frame 3-12 ms, on a 60 s probe-driven run. Stem separation
+  is the real stall: with the ONNX `webgpu` provider the UI drops to 3-13 fps with 1.3-2.3 s frame
+  times (all on the render thread, `render=`), because the separator shares the Metal GPU with the
+  scene graph; on `cpu` (`[Stems],GpuAcceleration 0`) the same job renders 30 fps with a 20 ms worst
+  frame (30 fps is the adaptive cap added in `WaveformDisplay.qml`). Note config booleans must be
+  written 1/0 - `false` is ignored and the default provider is used. Separately, ALAC stem writing
+  reproducibly aborts in `sf_close` with malloc heap corruption on the StemService thread (3 crashes,
+  WAV survived once); libsndfile ALAC writing is clean in isolation (4 sequential 60 s files), so the
+  corruption likely originates in the separation/resample buffers and surfaces at the write.
+- **2026-11-15** — **Waveform stutter work.** `WaveformDisplay.qml` lowers the deck refresh rate to
+  `min(30, waveformFrameRate)` while `Mixxx.StemService.busy/queuedCount` or
+  `Mixxx.Library.analysisActive` is set, so the render thread needs fewer slices while analysis or
+  stem separation runs. Audit of the rest: analysis workers are already capped at
+  `min(8, idealThreadCount/2)` and run `LowPriority`, `StemService` runs `LowPriority` with
+  `StemAnalysisCoordinator` pausing separation above 85% audio-latency usage, and the waveform
+  already extrapolates the play head to the next vsync (`getPlaySlipAtNextVSync`), so dropped frames
+  do not accumulate lag. The textured scenegraph renderer was NOT landed: the existing
+  `allshader::WaveformRendererTextured` is OpenGL-only (display lists + QOpenGLShaderProgram + FBO,
+  guarded by QT_OPENGL_ES_2) and cannot be instantiated on the QRhi/Metal backend; a scenegraph port
+  needs a new `rendergraph::Material`, two qsb shaders derived from `res/shaders/rgbsignal.frag`,
+  and a whole-track texture upload - a rewrite rather than a wiring change. Plan and file list are
+  captured in the session notes; not started to avoid an unvalidated rewrite across every deck.
+- **2026-11-15** — **Mono keys became lamps.** The output bar's mono toggles are no longer square
+  keys: each is a 10 px round lamp (dark ring when off, accent filled when on, hover lifts the face)
+  with the caption at `fontSizeXs - 1`, and the first one now reads "OUT MONO". The lamp was later
+  reduced to 8 px and given a top-lit gradient (lighter top stop, darker bottom, matching border) so
+  it reads as a small dome rather than a flat dot. They still drive
+  `[Master],mono_mixdown`, `[Master],head_mono_mixdown` and `[Recording],mono_mixdown`.
+- **2026-11-15** — **Main gain knob moved into the master out box.** The MAIN tile left the mixer's
+  output bar (it now starts at BAL); `[Master],gain` is a 24 px `Skin.ControlKnob` on the far right of
+  the 216 x 38 master out box, under a GAIN caption in a 28 px column with the exact geometry of the
+  record box (right margin 8, top/bottom margin 1). The L/R ladder ends 6 px before that column, the
+  same gap the record box keeps to its record key, and the box size is unchanged.
+- **2026-11-15** — **Master out box matched to the record box.** `MasterLevelDisplay` and
+  `RecordingBox` are both 216 x 38 framed panels (verified on screen: 76 device px tall at 2x, 432
+  wide). The master box legend is a single "OUT" line and both ladders start at the same 70 px
+  content column; the record box reads "REC OUT" with the record key vertically centred between the
+  ladder and the GAIN column. The file-size readout was dropped from the box (the proxy property
+  remains for later use).
+- **2026-11-15** — **Recording box redesigned.** `Mixer/RecordingBox.qml` is now a framed group:
+  "RECORD" over "OUT" on the left, the REC key and the live recorded file size on the top line
+  (`Mixxx.Recording.fileSizeText`, new in `QmlRecordingProxy`, fed by `RecordingManager::bytesRecorded`
+  and reset to "--" when a take ends), the trimmed L/R meter on the bottom line, and a 24 px trim
+  dial on the far right under a GAIN caption. The duration readout and clip dots were dropped from
+  this box to keep it to the requested four elements.
+- **2026-11-15** — **Recording mono key.** The output bar's mono column gained a third toggle,
+  "REC MONO", under MASTER MONO and CUE MONO. It drives the new `[Recording],mono_mixdown` control,
+  which mirrors `[Recording],channel_mode` so the Preferences recording channel mode and the toolbar
+  key stay in sync; `EngineRecord` captures the mode once per recording so toggling it mid-take cannot
+  change the encoded buffer format. The three rows are 12 px with 2 px gaps to fit the bar's 40 px
+  content height without growing it.
+- **2026-11-15** — **Toolbar master row rebalanced.** The tempo master box is now centred in the
+  top bar (above the playback marker), the master level moved to its left with the caption changed
+  from "MASTER" to "MASTER OUT" and placed before the ladder, and a new `Mixer/RecordingBox.qml`
+  sits to its right. The recording box shows the trimmed recording level (`[Recording],vu_meter_*`
+  with clip dots), the `Mixxx.Recording.durationText` readout, a trim dial on `[Recording],gain`
+  (new engine control, unity at parameter 0.5) and a REC key driving
+  `[Recording],toggle_recording` as a momentary button. Visibility: recording 1200 px, master level
+  1400 px, tempo box 1100 px.
+- **2026-11-15** — **Tempo master box in the toolbar.** New `Mixer/MasterTempoBox.qml` sits to the
+  left of the master level readout in the top bar: a BPM readout (reads `[InternalClock],bpm`, which
+  EngineSync keeps mirrored to the leader deck, so it shows the tempo decks are following in both
+  modes) with an AUTO / MASTER switch underneath. MASTER sets `[InternalClock],sync_leader`, making
+  the internal clock the sync leader and demoting the deck leader; AUTO clears it and then requests
+  the soft leader on a deck (preferring a playing synced deck), because the engine keeps the clock as
+  a soft leader when it is merely asked to step down. While MASTER is active the readout becomes an
+  editor: click to focus, type a BPM, Enter writes `[InternalClock],bpm`, Escape/blur cancels, so
+  synced decks retempo with the software master. Hidden below 1100 px width.
+- **2026-11-15** — **Tempo-master pill in the deck header.** `Deck/InfoBar.qml` gained an inline
+  `MasterPill` at the right end of the header's top row: a small "MASTER" capsule, hairline border
+  and muted text by default, filled accent blue with dark text while the deck is the sync leader.
+  It reads `[ChannelN],sync_mode` and treats 2 (soft leader) and 3 (explicit leader) as master, so
+  it matches the red/yellow "Leader" state of the deck SYNC key. Hidden in minimized decks.
+- **2026-11-15** — **Output bar section rules.** The output bar (MAIN/BAL/BOOTH/HEAD/MIX) now has
+  3 px `borderStrong` rules on both its top and bottom edges instead of the panel hairline, so the
+  seam between the deck/mixer controls and the library reads as a section break. The extra thickness
+  came out of the tiles: the captions sit 2 px lower, the readouts 2 px higher, and the dials are
+  18 px (was 20). The SPLIT key was shrunk to 34 px tall and `tileWidth - 6` wide so it keeps its
+  clearance from the new rules.
+- **2026-11-15** — **Library search moved into the source pane.** The full-width bar above the
+  library (the "LIBRARY" caption plus the search field) is gone. The library pane now starts
+  directly under the mixer, and the search field sits at the top of the source tree pane in
+  `Library/Browser.qml`, above Tracks/Auto DJ, with its clear key inline. `Browser` exposes
+  `searchInput` plus `searchEdited`/`searchCleared` signals; `Library.qml` keeps the debounce and
+  the track-list search call, so Cmd+F focus/select-all still works.
+- **2026-11-15** — **Layout toggles moved into a View menu.** The five toolbar keys on the left
+  (4 Decks, Library, Effects, Aux, Sampler) were removed; a single "View" key at the right end of
+  the toolbar opens a checkable dropdown (`Skin.CheckMenuItem`, new file `res/qml/CheckMenuItem.qml`)
+  with the same five switches. Layout state lives on the main window as
+  `fourDecksRequested`, `maximizeLibrary`, `showEffects` and `showSamplers`; `show4decks` stays a
+  derived value so a short window still drops to two decks without forgetting the preference.
+  `[Skin],show_maximized_library` is mirrored two ways with `maximizeLibrary`, and the Mic/Aux entry
+  writes `[Skin],show_microphones` directly.
+- **2026-11-15** — **Knob arcs drawn with Canvas.** The arc moved from QtQuick Shapes (which
+  tessellates the curve into flat segments unless global multisampling is on, and clipped against
+  the item bounds) to a 2D `Canvas` arc, so it is a true anti-aliased circle at any size, with the
+  radius held one pixel clear of the item edge. Dash styling is preserved for the QuickFX knob.
+- **2026-11-15** — **Knob arcs are always anti-aliased.** `Mixxx.Controls.Knob` only enabled
+  multisampling for the arc when the global multisampling preference was set, and that preference
+  defaults to Disabled, so the value arcs rendered jagged. The arc now always uses its own
+  `layer.samples: max(4, preference)` layer.
+- **2026-11-15** — **Mixer keys and mono outputs.** Channel PFL keys are now labelled CUE with a
+  headphone icon above each key (the fader is a few pixels shorter to make room). The output bar
+  gained independent mono toggles: `[Master],mono_mixdown` folds master and booth, and the new
+  `[Master],head_mono_mixdown` folds the headphone bus only (added in `EngineMixer`, applied in
+  `processHeadphones` when split cue is off). Both keys are gray/blue state squares with
+  "MASTER MONO" / "Cue mono" captions; the bar and its tiles were compacted ~20%, the dials
+  nudged down under their captions, and the split key moved to the far right.
+- **2026-11-15** — **Output bar layout.** The headphone split toggle sits at the far right of the
+  output bar, and the master level left the bar for the main toolbar (`Mixer/MasterLevelDisplay.qml`,
+  a compact two-row L/R ladder whose own width is just the ladder, so the bars center exactly on
+  the window's playback marker while the "MASTER" caption hangs off to the right). It hides below
+  1400 px where it would collide with the layout toggles.
+- **2026-11-15** — **Instant layout toggles.** Removed the spring height animations on the decks
+  and mixer and the fade/anchor transitions tied to the toolbar layout toggles (4 decks, library,
+  effects, aux, samplers), so the layout snaps to its new size instead of animating.
+- **2026-11-15** — **Layout toggles reclaim their space.** Decks 3/4 were created with only
+  bottom/left anchors inside their Loaders (zero size), which left the lower deck row blank in
+  4-deck mode; they now fill the Loader. The effects, samplers and mic/aux Loaders also kept their
+  last height after being toggled off, leaving a black gap above the library; their height is now
+  bound to `active ? implicitHeight : 0`, so the library expands back as soon as they are hidden.
+- **2026-11-15** — **Mixer FX column compacted.** The quick-effect preset dropdown now takes the
+  place of the redundant "FILTER" caption (single 18 px control instead of a caption plus a
+  separate dropdown row), so the channel PFL buttons and fader move up and the mixer - and with it
+  the decks and waveform, whose height tracks `mixer.height` - shrinks by that row, returning the
+  space to the library. The "MIXER" console label above the strips was removed for the same
+  reason; the mixer background and channel tags already identify the section.
 - **2026-11-15** — **Activity strip moved into the track browser.** The stem-separation and
   analysis progress rows left the top-of-window overlay and now sit at the bottom of the library's
   track-list pane (`res/qml/Library.qml`), scoped to the browser column so the source tree /
@@ -561,3 +747,28 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   links, license headers and internal identifiers keep the Mixxx name. Settings now default to
   `~/.paramix` on Linux and the matching app-data directory elsewhere; the first-run migration wizard
   is still outstanding. Details: `docs/paramix-rebrand.md`.
+
+- **2026-11-15** — **Stem waveform visuals rebuilt against the Traktor reference.** The analyzer
+  gained per-stem detail (peak, RMS, low/mid/high/attack, packed into `WaveformStemColumn`,
+  protobuf `signal_stem_details = 6`), a multi-resolution column pyramid built once per analysis,
+  and a per-stem 95th percentile. `waveformrendererstem.cpp` now draws solid mirrored lanes
+  (constant alpha, peak envelope + brighter RMS core, 0.75 px floor) scaled per stem instead of
+  against a shared reference, gates muted lanes as ghosts, and derives colour from each column's
+  own spectrum (amber lows, green mids, magenta highs) clamped to +/-0.09 hue around the lane's
+  reference family, which reproduces the reference palette while content still drives the colour.
+  `WaveformDisplay.qml` gained `res/qml/StemLaneStrip.qml`: per-lane colour key (mute toggle),
+  uppercase name and gain knob on `[ChannelN_StemX],volume`, on a fading panel over the left edge.
+  Drawn columns went from 6 frames / 24 px to 1.5 frames / 8 px so close-up detail is visible.
+- **2026-11-15** — **The "junk at the start of a track" was the preroll marker, not the stem
+  renderer.** `WaveformRendererPreroll` tiles a texture of small triangles across every frame before
+  position 0 and after the end; with four lanes it is drawn four times vertically, which read as
+  rows of repeating orange chevrons. A diagnostic run proved the data pipeline was healthy all
+  along (8 channels, 76,305 columns, `hasStemColumns` true) and that the first ~4 s of `Wannabe` are
+  genuinely near-silent in the stem cache. The marker was first replaced with a faint wash and then
+  removed from the Paramix deck waveform entirely; the zone is empty background now.
+- **2026-11-15** — **Deck layout: 160 px waveform band, two preview rows with four decks.** With the
+  library visible the waveform strip is 160 px (was 120), taken from the library pane because the
+  deck/mixer stack has fixed heights and the library is the only flexible item in that split. The
+  strip now always renders only channels 1 and 2, each keeping half the height, even with four decks
+  enabled; decks 3 and 4 have no waveform row (their panes are unchanged). `StemLaneStrip` rows are
+  quarter-height so they stay aligned with the renderer's lanes.

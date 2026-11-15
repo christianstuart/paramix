@@ -4,6 +4,7 @@
 #include <QString>
 #include <memory>
 
+#include "control/controllinpotmeter.h"
 #include "control/controlobject.h"
 #include "preferences/usersettings.h"
 
@@ -59,6 +60,10 @@ class RecordingManager : public QObject {
     void splitContinueRecording();
     void warnFreespace();
     std::unique_ptr<ControlObject> m_pCoRecStatus;
+    // Recording gain (trim), applied by EngineRecord before encoding.
+    std::unique_ptr<ControlLinPotmeter> m_pRecGain;
+    // Record in mono, mirrored to the "channel_mode" preference.
+    std::unique_ptr<ControlPushButton> m_pRecMono;
     std::unique_ptr<ControlPushButton> m_pToggleRecording;
 
     quint64 getFileSplitSize(const QString& fileSizeStr);

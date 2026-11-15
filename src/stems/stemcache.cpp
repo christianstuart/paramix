@@ -154,10 +154,13 @@ bool StemCache::removeCache(TrackId trackId) {
 }
 
 QList<StemInfo> StemCache::stemInfo() {
-    return {StemInfo(QStringLiteral("Drums"), QColor(QStringLiteral("#E85D4A"))),
-            StemInfo(QStringLiteral("Bass"), QColor(QStringLiteral("#7A5AF8"))),
-            StemInfo(QStringLiteral("Other"), QColor(QStringLiteral("#F2C94C"))),
-            StemInfo(QStringLiteral("Vocals"), QColor(QStringLiteral("#2BB673")))};
+    // Traktor-like identity colours: drums magenta/purple, bass orange,
+    // other cyan, vocals green. The renderer shifts the hue inside each of
+    // these ranges by the stem's own band content.
+    return {StemInfo(QStringLiteral("Drums"), QColor(QStringLiteral("#C13BD6"))),
+            StemInfo(QStringLiteral("Bass"), QColor(QStringLiteral("#F08A24"))),
+            StemInfo(QStringLiteral("Other"), QColor(QStringLiteral("#22C7D6"))),
+            StemInfo(QStringLiteral("Vocals"), QColor(QStringLiteral("#2FBF71")))};
 }
 
 } // namespace mixxx::stems

@@ -12,6 +12,9 @@ Rectangle {
 
     required property string group
     required property string key
+    /// Draw the active segments in neutral grey, for a meter that is live but
+    /// not currently in use (e.g. the recording ladder while stopped).
+    property bool muted: false
 
     /// Normalised level, 0.0 - 1.0.
     readonly property real level: Math.max(0, Math.min(1, control.parameter))
@@ -48,11 +51,13 @@ Rectangle {
                 // index 0 is the left segment, the level fills to the right.
                 readonly property real position: (index + 0.5) / root.segmentCount
                 readonly property bool active: position <= root.level
-                readonly property color activeColor: position > 0.9
-                        ? Theme.vuRed
-                        : position > 0.75
-                          ? Theme.vuYellow
-                          : Theme.vuGreen
+                readonly property color activeColor: root.muted
+                        ? Qt.alpha(Theme.textMuted, 0.55)
+                        : position > 0.9
+                          ? Theme.vuRed
+                          : position > 0.75
+                            ? Theme.vuYellow
+                            : Theme.vuGreen
 
                 antialiasing: false
                 color: active ? activeColor : Theme.surface3

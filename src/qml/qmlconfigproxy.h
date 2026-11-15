@@ -320,7 +320,7 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                             librarySeratoEnabledChanged);
 
     // Stems group
-    // {flac, alac, aac}
+    // {flac, aac}
     Q_PROPERTY(QString stemFileFormat READ stemFileFormat WRITE
                     set_stemFileFormat NOTIFY stemFileFormatChanged);
     // Kbps, 32..512

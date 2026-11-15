@@ -4,6 +4,7 @@
 
 #include "control/controlproxy.h"
 #include "encoder/encoder.h"
+#include "engine/enginevumeter.h"
 #include "mixer/playerinfo.h"
 #include "moc_enginerecord.cpp"
 #include "preferences/usersettings.h"
@@ -18,10 +19,12 @@ EngineRecord::EngineRecord(UserSettingsPointer pConfig)
         : m_pConfig(pConfig),
           m_sampleRateControl(
                   QStringLiteral("[App]"), QStringLiteral("samplerate")),
+          m_vuMeter(QStringLiteral("[Recording]"), QString(), false),
           m_frames(0),
           m_recordedDuration(0),
           m_iMetaDataLife(0),
           m_cueTrack(0),
+          m_recordMono(false),
           m_bCueIsEnabled(false),
           m_bCueUsesFileAnnotation(
                   false) { // defaulting to stereo but not picking from config
@@ -35,11 +38,13 @@ EngineRecord::EngineRecord(UserSettingsPointer pConfig)
                     ConfigKey(RECORDING_PREF_KEY, "tracklist_as_comment"), true);
         }
     });
+    m_pRecGain = new ControlProxy(RECORDING_PREF_KEY, "gain", this);
 }
 
 EngineRecord::~EngineRecord() {
     closeCueFile();
     closeFile();
+    delete m_pRecGain;
     delete m_pRecReady;
 }
 
@@ -56,6 +61,10 @@ int EngineRecord::updateFromPreferences() {
             ConfigKey(RECORDING_PREF_KEY, QStringLiteral("CueEnabled")));
     m_bCueUsesFileAnnotation = m_pConfig->getValue<bool>(
             ConfigKey(RECORDING_PREF_KEY, QStringLiteral("cue_file_annotation_enabled")));
+    // Capture the mono/stereo setting once per recording. Changing it mid
+    // recording would change the encoded buffer size and break the encoder.
+    m_recordMono =
+            m_pConfig->getValue<int>(ConfigKey(RECORDING_PREF_KEY, "channel_mode"), 0) == 1;
     m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_sampleRateControl.get());
 
     // Delete m_pEncoder if it has been initialized (with maybe) different bitrate.
@@ -128,6 +137,15 @@ bool EngineRecord::metaDataHasChanged()
 }
 
 void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize) {
+    // Apply the recording gain and feed the level meter before handling the
+    // recording status below, so the meter is live even while not recording.
+    m_gainBuffer.resize(bufferSize);
+    const CSAMPLE gain = static_cast<CSAMPLE>(m_pRecGain->get());
+    for (std::size_t i = 0; i < bufferSize; ++i) {
+        m_gainBuffer[i] = pBuffer[i] * gain;
+    }
+    m_vuMeter.process(m_gainBuffer.data(), bufferSize);
+
     const auto recordingStatus = static_cast<int>(m_pRecReady->get());
     static const QString tag("EngineRecord recording");
 
@@ -218,20 +236,18 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
     // Checking again from m_pRecReady since its status might have changed
     // in the previous "if" blocks.
     if (m_pRecReady->get() == RECORD_ON) {
-        int channelMode = m_pConfig->getValue<int>(
-                ConfigKey(RECORDING_PREF_KEY, "channel_mode"), 0);
-        bool recordMono = (channelMode == 1);
         /* Downmixing audio to mono if mono recording is enabled.
         We need to do it before encoding because some encoders don't support mono
         and we want to be able to record in mono even with these encoders.*/
-        const CSAMPLE* bufferToEncode = pBuffer;
+        const CSAMPLE* bufferToEncode = m_gainBuffer.data();
         std::vector<CSAMPLE> monoBuffer;
         std::size_t encoderBufferSize = bufferSize;
 
-        if (recordMono) {
+        if (m_recordMono) {
             // Allocate mono buffer (half the size since we're going from 2 channels to 1)
             monoBuffer.resize(bufferSize / 2);
-            SampleUtil::mixMultichannelToMono(monoBuffer.data(), pBuffer, bufferSize);
+            SampleUtil::mixMultichannelToMono(
+                    monoBuffer.data(), m_gainBuffer.data(), bufferSize);
             bufferToEncode = monoBuffer.data();
             encoderBufferSize = bufferSize / 2;
         }

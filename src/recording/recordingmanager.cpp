@@ -37,6 +37,26 @@ RecordingManager::RecordingManager(UserSettingsPointer pConfig, EngineMixer* pEn
             this,
             &RecordingManager::slotToggleRecording);
     m_pCoRecStatus = std::make_unique<ControlObject>(ConfigKey(RECORDING_PREF_KEY, "status"));
+    m_pRecGain = std::make_unique<ControlLinPotmeter>(
+            ConfigKey(RECORDING_PREF_KEY, "gain"), 0.0, 2.0, 0.01, 0.001, true);
+    // Default to unity gain; the control value is the linear gain factor,
+    // so the knob's parameter position 0.5 maps to gain 1.0.
+    m_pRecGain->set(1.0);
+    m_pRecMono = std::make_unique<ControlPushButton>(
+            ConfigKey(RECORDING_PREF_KEY, "mono_mixdown"));
+    m_pRecMono->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pRecMono->set(m_pConfig->getValue<int>(
+                            ConfigKey(RECORDING_PREF_KEY, "channel_mode"), 0) == 1
+                    ? 1.0
+                    : 0.0);
+    // Keep the preference in sync so Preferences and the engine agree.
+    connect(m_pRecMono.get(),
+            &ControlObject::valueChanged,
+            this,
+            [this](double value) {
+                m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "channel_mode"),
+                        ConfigValue(value > 0 ? 1 : 0));
+            });
 
     // Register EngineRecord with the engine sidechain.
     EngineSideChain* pSidechain = pEngine->getSideChain();

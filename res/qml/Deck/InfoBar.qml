@@ -307,21 +307,6 @@ Rectangle {
                         }
                     }
                 }
-                Rectangle {
-                    id: separator
-
-                    anchors.bottom: cell.bottom
-                    anchors.right: cell.right
-                    anchors.top: cell.top
-                    anchors.topMargin: 5
-                    color: root.lineColor
-                    visible: showSeparator
-                    width: 1
-
-                    Skin.FadeBehavior on visible {
-                        fadeTarget: separator
-                    }
-                }
             }
         }
     }
@@ -370,15 +355,19 @@ Rectangle {
             }
         }
     }
+    // The header used to fill its band edge to edge, which pushed the artist
+    // line onto the waveform below. The extra bottom inset lifts both rows; the
+    // title keeps a slightly larger share of the band so it stays optically
+    // centred in the upper half.
     ColumnLayout {
         anchors.bottom: root.bottom
-        anchors.bottomMargin: 1
+        anchors.bottomMargin: root.minimized ? 1 : 20
         anchors.left: coverArtFrame.visible ? coverArtFrame.right : root.left
         anchors.leftMargin: root.showCoverArt ? Theme.space3 : Theme.space2
         anchors.right: root.right
         anchors.rightMargin: Theme.space2
         anchors.top: root.top
-        anchors.topMargin: 1
+        anchors.topMargin: 0
         spacing: 0
 
         RowLayout {
@@ -394,12 +383,14 @@ Rectangle {
                 delegate: root.editMode ? editCellDelegate : cellDelegate
                 model: parent.model
             }
-        }
-        Rectangle {
-            Layout.fillWidth: true
-            color: root.lineColor
-            height: 1
-            visible: !root.minimized
+            // Tempo-master badge: neutral when another deck leads the sync,
+            // accent blue when this deck is the one the others lock to.
+            MasterPill {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.leftMargin: Theme.space2
+                group: root.group
+                visible: !root.minimized
+            }
         }
         RowLayout {
             id: bottomRow
@@ -449,21 +440,57 @@ Rectangle {
                 fadeTarget: data
             }
         }
-        Rectangle {
-            id: separator
+    }
 
-            anchors.bottom: cell.bottom
-            anchors.bottomMargin: isTop ? 0 : 5
-            anchors.right: cell.right
-            anchors.top: cell.top
-            anchors.topMargin: isTop ? 5 : 0
-            color: root.lineColor
-            visible: showSeparator
-            width: 1
+    /// Small status pill in the deck header: reads "MASTER" and turns accent
+    /// blue while this deck is the sync leader (soft or explicit), i.e. the
+    /// deck the other synced decks take their tempo from.
+    component MasterPill: Rectangle {
+        id: pill
 
-            Skin.FadeBehavior on visible {
-                fadeTarget: separator
+        required property string group
+
+        readonly property int syncModeValue: syncModeControl.value
+        readonly property bool isMaster: syncModeValue === 2 || syncModeValue === 3
+
+        Accessible.name: pill.isMaster ? qsTr("Tempo master") : qsTr("Not tempo master")
+        Accessible.role: Accessible.StaticText
+        border.color: pill.isMaster ? Theme.accent : Theme.borderStrong
+        border.width: 1
+        color: pill.isMaster ? Theme.accent : "transparent"
+        implicitHeight: 16
+        implicitWidth: pillLabel.implicitWidth + 12
+        radius: height / 2
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
             }
+        }
+
+        Text {
+            id: pillLabel
+
+            anchors.centerIn: parent
+            color: pill.isMaster ? Theme.textOnAccent : Theme.textMuted
+            font.capitalization: Font.AllUppercase
+            font.family: Theme.fontFamily
+            font.letterSpacing: Theme.letterSpacingCaps
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
+            text: qsTr("Master")
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionFast
+                }
+            }
+        }
+        Mixxx.ControlProxy {
+            id: syncModeControl
+
+            group: pill.group
+            key: "sync_mode"
         }
     }
 }

@@ -34,36 +34,6 @@
           <string>FLAC (lossless)</string>
          </property>
         </item>
-        <item>
-         <property name="text">
-          <string>ALAC (lossless)</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>AAC (lossy)</string>
-         </property>
-        </item>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="labelAacBitrate">
-        <property name="text">
-         <string>AAC bitrate (kbps)</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QSpinBox" name="spinBoxAacBitrate">
-        <property name="minimum">
-         <number>32</number>
-        </property>
-        <property name="maximum">
-         <number>512</number>
-        </property>
-        <property name="value">
-         <number>256</number>
-        </property>
        </widget>
       </item>
       <item row="2" column="0">

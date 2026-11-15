@@ -2,12 +2,14 @@
 
 #include <QDataStream>
 #include <QFile>
+#include <vector>
 
 #include "audio/types.h"
 #include "control/pollingcontrolproxy.h"
 #include "encoder/encoder.h"
 #include "encoder/encodercallback.h"
 #include "encoder/encodersettings.h"
+#include "engine/enginevumeter.h"
 #include "engine/sidechain/sidechainworker.h"
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
@@ -75,6 +77,12 @@ class EngineRecord : public QObject, public EncoderCallback, public SideChainWor
 
     PollingControlProxy m_sampleRateControl;
     ControlProxy* m_pRecReady;
+    // Recording gain (trim) applied to the audio before the VU meter and encoding.
+    ControlProxy* m_pRecGain;
+    // Live level meter for the unfiltered/trimmed recording signal.
+    EngineVuMeter m_vuMeter;
+    // Trimmed copy of the incoming buffer, reused between callbacks.
+    std::vector<CSAMPLE> m_gainBuffer;
     quint64 m_frames;
     mixxx::audio::SampleRate m_sampleRate;
     quint64 m_recordedDuration;
@@ -85,6 +93,8 @@ class EngineRecord : public QObject, public EncoderCallback, public SideChainWor
 
     QString m_cueFileName;
     quint64 m_cueTrack;
+    // Mono/stereo recording, captured once per recording from channel_mode.
+    bool m_recordMono;
     bool m_bCueIsEnabled;
     bool m_bTracklistAsCommentEnabled;
     bool m_bCueUsesFileAnnotation;

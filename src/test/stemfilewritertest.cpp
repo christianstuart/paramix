@@ -77,22 +77,18 @@ class StemFileFormatTest : public testing::Test {};
 TEST_F(StemFileFormatTest, ParsesFormatNamesAndFallsBackToFlac) {
     EXPECT_EQ(StemFileFormat::Flac, parseStemFileFormat(QStringLiteral("flac")));
     EXPECT_EQ(StemFileFormat::Flac, parseStemFileFormat(QStringLiteral("FLAC")));
-    EXPECT_EQ(StemFileFormat::Alac, parseStemFileFormat(QStringLiteral("alac")));
-    EXPECT_EQ(StemFileFormat::Aac, parseStemFileFormat(QStringLiteral("Aac")));
+    // The retired "alac" value keeps working by falling back to FLAC.
+    EXPECT_EQ(StemFileFormat::Flac, parseStemFileFormat(QStringLiteral("alac")));
+    // Retired formats fall back to FLAC so old configs keep working.
+    EXPECT_EQ(StemFileFormat::Flac, parseStemFileFormat(QStringLiteral("Aac")));
     EXPECT_EQ(StemFileFormat::Flac, parseStemFileFormat(QStringLiteral("bogus")));
     EXPECT_EQ(StemFileFormat::Flac, parseStemFileFormat(QString()));
 }
 
 TEST_F(StemFileFormatTest, ReportsFormatNamesExtensionsAndLosslessness) {
     EXPECT_EQ(QStringLiteral("flac"), stemFileFormatName(StemFileFormat::Flac));
-    EXPECT_EQ(QStringLiteral("alac"), stemFileFormatName(StemFileFormat::Alac));
-    EXPECT_EQ(QStringLiteral("aac"), stemFileFormatName(StemFileFormat::Aac));
     EXPECT_EQ(QStringLiteral("flac"), stemFileExtension(StemFileFormat::Flac));
-    EXPECT_EQ(QStringLiteral("caf"), stemFileExtension(StemFileFormat::Alac));
-    EXPECT_EQ(QStringLiteral("aac"), stemFileExtension(StemFileFormat::Aac));
     EXPECT_TRUE(isLosslessStemFormat(StemFileFormat::Flac));
-    EXPECT_TRUE(isLosslessStemFormat(StemFileFormat::Alac));
-    EXPECT_FALSE(isLosslessStemFormat(StemFileFormat::Aac));
 }
 
 TEST_F(StemFileFormatTest, SanitizesStemSetNames) {
@@ -151,70 +147,6 @@ TEST_F(StemFileWriterTest, WritesFlacSetAndRoundTrips) {
                 EXPECT_NEAR(stems[source], decoded[decodedIndex], 1e-5f);
             }
         }
-    }
-    EXPECT_TRUE(QFile::exists(setDir.filePath(QStringLiteral("stem-set.json"))));
-}
-
-TEST_F(StemFileWriterTest, WritesAlacSetAndRoundTrips) {
-    QTemporaryDir temp;
-    ASSERT_TRUE(temp.isValid());
-    const auto stems = makeStems(kFrames);
-    QString error;
-    ASSERT_TRUE(writeStemSet(temp.path(), makeInfo(StemFileFormat::Alac), stems.data(), &error)) << error.toStdString();
-    const QDir setDir(temp.path() + QStringLiteral("/track"));
-    for (int stem = 0; stem < kStemCount; ++stem) {
-        const QString path = setDir.filePath(
-                QString::fromLatin1(kStemNames[stem]) + QStringLiteral(".caf"));
-        ASSERT_TRUE(QFile::exists(path));
-        EXPECT_GT(QFileInfo(path).size(), 0);
-        const auto decoded = readSndFile(path, kFrames);
-        ASSERT_EQ(static_cast<std::size_t>(kFrames) * 2, decoded.size());
-        for (SINT frame = 0; frame < kFrames; ++frame) {
-            for (int channel = 0; channel < 2; ++channel) {
-                const auto source = static_cast<std::size_t>(frame) *
-                                kStemChannelCount +
-                        stem * 2 + channel;
-                EXPECT_NEAR(stems[source],
-                        decoded[static_cast<std::size_t>(frame) * 2 + channel],
-                        1e-5f);
-            }
-        }
-    }
-    EXPECT_TRUE(QFile::exists(setDir.filePath(QStringLiteral("stem-set.json"))));
-}
-
-TEST_F(StemFileWriterTest, WritesAacSetOrSkips) {
-    QTemporaryDir temp;
-    ASSERT_TRUE(temp.isValid());
-    auto info = makeInfo(StemFileFormat::Aac);
-    info.aacBitrateKbps = 128;
-    const auto stems = makeStems(kFrames);
-    QString error;
-    if (!writeStemSet(temp.path(), info, stems.data(), &error)) {
-        const std::string message = error.toStdString();
-        std::string lower = message;
-        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (lower.find("aac") != std::string::npos ||
-                lower.find("fdk") != std::string::npos) {
-            GTEST_SKIP() << message;
-        }
-        FAIL() << message;
-    }
-
-    const QDir setDir(temp.path() + QStringLiteral("/track"));
-    for (int stem = 0; stem < kStemCount; ++stem) {
-        const QString path = setDir.filePath(
-                QString::fromLatin1(kStemNames[stem]) + QStringLiteral(".aac"));
-        ASSERT_TRUE(QFile::exists(path));
-        EXPECT_GT(QFileInfo(path).size(), 0);
-        QFile file(path);
-        ASSERT_TRUE(file.open(QIODevice::ReadOnly));
-        const QByteArray header = file.read(2);
-        ASSERT_EQ(2, header.size());
-        const auto b0 = static_cast<unsigned char>(header[0]);
-        const auto b1 = static_cast<unsigned char>(header[1]);
-        EXPECT_EQ(0xFF, b0);
-        EXPECT_EQ(0xF0, b1 & 0xF6);
     }
     EXPECT_TRUE(QFile::exists(setDir.filePath(QStringLiteral("stem-set.json"))));
 }

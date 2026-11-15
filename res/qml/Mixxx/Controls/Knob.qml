@@ -14,7 +14,7 @@ Item {
 
     property real angle: 130
     property bool arc: false
-    property alias arcColor: arcPath.strokeColor
+    property color arcColor: "transparent"
     property real arcOffsetX: 0
     property real arcOffsetY: 0
     property real arcRadius: width / 2
@@ -29,9 +29,9 @@ Item {
             return valueCenter;
         }
     }
-    property alias arcStyle: arcPath.strokeStyle
-    property alias arcStylePattern: arcPath.dashPattern
-    property alias arcWidth: arcPath.strokeWidth
+    property int arcStyle: ShapePath.SolidLine
+    property var arcStylePattern: []
+    property real arcWidth: 2
     property alias background: background.data
     property alias foreground: foreground.data
     property bool hideCursorWhileDragging: true
@@ -75,32 +75,76 @@ Item {
             origin.y: root.height / 2 + root.knobCenterOffsetY
         }
     }
-    Shape {
-        // Enable smooth curves. For QtQuick Shapes, this currently only works
-        // by enabling multisampling, so we use 4xMSAA here.
-        // See https://www.qt.io/blog/2017/07/07/let-there-be-shapes for details.
-        property int multiSamplingLevel: Mixxx.Config.multiSamplingLevel
+    // The value arc is drawn with Canvas rather than Shape: QtQuick Shapes
+    // tessellates the arc into straight segments (which looked jagged and
+    // flattened near the top of the circle) unless multisampling is enabled
+    // globally, and that preference defaults to Disabled. The 2D canvas draws
+    // a genuinely circular, anti-aliased arc at any size.
+    Canvas {
+        id: arcCanvas
 
         anchors.fill: parent
         antialiasing: true
-        layer.enabled: multiSamplingLevel > 1
-        layer.samples: multiSamplingLevel
+        renderStrategy: Canvas.Immediate
         visible: root.arc
 
-        ShapePath {
-            id: arcPath
+        onHeightChanged: requestPaint()
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            ctx.clearRect(0, 0, width, height);
+            if (!root.arc) {
+                return;
+            }
+            const centerX = width / 2 + root.arcOffsetX;
+            const centerY = height / 2 + root.arcOffsetY;
+            const startDegrees = root.angleFrom(root.arcStartValue - root.valueCenter) - 90;
+            const sweepDegrees = root.angleFrom(root.value - root.arcStartValue);
+            const startRadians = startDegrees * Math.PI / 180;
+            const endRadians = (startDegrees + sweepDegrees) * Math.PI / 180;
 
-            fillColor: "transparent"
-            strokeColor: "transparent"
-            strokeWidth: 2
+            ctx.lineWidth = root.arcWidth;
+            ctx.strokeStyle = root.arcColor;
+            ctx.lineCap = "butt";
+            ctx.setLineDash(root.arcStyle === ShapePath.DashLine ? root.arcStylePattern : []);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, Math.max(0, root.arcRadius), startRadians, endRadians, sweepDegrees < 0);
+            ctx.stroke();
+        }
+        onWidthChanged: requestPaint()
 
-            PathAngleArc {
-                centerX: root.width / 2 + root.arcOffsetX
-                centerY: root.height / 2 + root.arcOffsetY
-                radiusX: root.arcRadius
-                radiusY: root.arcRadius
-                startAngle: root.angleFrom(root.arcStartValue - root.valueCenter) - 90
-                sweepAngle: root.angleFrom(root.value - root.arcStartValue)
+        Connections {
+            target: root
+
+            function onAngleChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcColorChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcOffsetXChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcOffsetYChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcRadiusChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcStartChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcStyleChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcStylePatternChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onArcWidthChanged() {
+                arcCanvas.requestPaint();
+            }
+            function onValueChanged() {
+                arcCanvas.requestPaint();
             }
         }
     }

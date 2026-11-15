@@ -15,13 +15,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <cerrno>
+#include <cstring>
+
 #include <QRegularExpression>
 #include <QUuid>
 
-#include "encoder/encodercallback.h"
-#include "encoder/encoderfdkaac.h"
-#include "encoder/encodersettings.h"
-#include "recording/defs_recording.h"
 #include "stems/stemseparatorbackend.h"
 #include "util/assert.h"
 
@@ -34,7 +33,7 @@ constexpr char kSidecarName[] = "stem-set.json";
 constexpr std::array<const char*, kStemCount> kStemNames = {
         "drums", "bass", "other", "vocals"};
 constexpr std::array<const char*, kStemCount> kStemColors = {
-        "#E85D4A", "#7A5AF8", "#F2C94C", "#2BB673"};
+        "#C13BD6", "#F08A24", "#22C7D6", "#2FBF71"};
 
 void setError(QString* pError, const QString& message) {
     if (pError != nullptr) {
@@ -89,9 +88,13 @@ bool writeSndFileStem(const QString& path,
 
     SNDFILE* pFile = openSndFileForWrite(path, &info);
     if (pFile == nullptr) {
-        setError(pError,
-                QStringLiteral("Could not create %1: %2")
-                        .arg(path, QString::fromUtf8(sf_strerror(nullptr))));
+        // sf_strerror(nullptr) only gives a generic message; prefer the OS
+        // error the failed open reported.
+        const int openError = errno;
+        const QString reason = openError != 0
+                ? QString::fromLocal8Bit(std::strerror(openError))
+                : QString::fromUtf8(sf_strerror(nullptr));
+        setError(pError, QStringLiteral("Could not create %1: %2").arg(path, reason));
         return false;
     }
 
@@ -106,119 +109,6 @@ bool writeSndFileStem(const QString& path,
     return written;
 }
 
-class FileEncoderCallback final : public EncoderCallback {
-  public:
-    explicit FileEncoderCallback(const QString& path)
-            : m_file(path) {
-        const bool opened =
-                m_file.open(QIODevice::WriteOnly | QIODevice::Truncate);
-        Q_UNUSED(opened);
-    }
-
-    bool isOpen() const {
-        return m_file.isOpen();
-    }
-
-    bool hasError() const {
-        return m_file.error() != QFileDevice::NoError;
-    }
-
-    void write(const unsigned char* pHeader,
-            const unsigned char* pBody,
-            int headerLength,
-            int bodyLength) override {
-        if (headerLength > 0) {
-            m_file.write(reinterpret_cast<const char*>(pHeader), headerLength);
-        }
-        if (bodyLength > 0) {
-            m_file.write(reinterpret_cast<const char*>(pBody), bodyLength);
-        }
-    }
-
-    int tell() override {
-        return static_cast<int>(m_file.pos());
-    }
-
-    void seek(int position) override {
-        m_file.seek(position);
-    }
-
-    int filelen() override {
-        return static_cast<int>(m_file.size());
-    }
-
-  private:
-    QFile m_file;
-};
-
-class StemAacSettings final : public EncoderSettings {
-  public:
-    explicit StemAacSettings(int bitrateKbps)
-            : m_bitrateKbps(bitrateKbps) {
-    }
-
-    QString getFormat() const override {
-        return QStringLiteral(ENCODING_AAC);
-    }
-
-    ChannelMode getChannelMode() const override {
-        return ChannelMode::STEREO;
-    }
-
-    int getQuality() const override {
-        return m_bitrateKbps;
-    }
-
-  private:
-    int m_bitrateKbps;
-};
-
-bool writeAacStem(const QString& path,
-        const CSAMPLE* pStems,
-        SINT frames,
-        int stem,
-        int sampleRate,
-        int bitrateKbps,
-        QString* pError) {
-    FileEncoderCallback callback(path);
-    if (!callback.isOpen()) {
-        setError(pError, QStringLiteral("Could not create %1").arg(path));
-        return false;
-    }
-
-    EncoderFdkAac encoder(&callback);
-    const StemAacSettings settings(bitrateKbps);
-    encoder.setEncoderSettings(settings);
-
-    QString userError;
-    if (encoder.initEncoder(mixxx::audio::SampleRate(sampleRate), &userError) != 0) {
-        setError(pError,
-                userError.isEmpty()
-                        ? QStringLiteral("The AAC encoder is not available")
-                        : userError);
-        return false;
-    }
-
-    std::vector<CSAMPLE> block(static_cast<std::size_t>(kBlockFrames) * 2);
-    for (SINT offset = 0; offset < frames; offset += kBlockFrames) {
-        const SINT count = std::min<SINT>(kBlockFrames, frames - offset);
-        for (SINT frame = 0; frame < count; ++frame) {
-            block[static_cast<std::size_t>(frame) * 2] =
-                    pStems[(offset + frame) * kStemChannelCount + stem * 2];
-            block[static_cast<std::size_t>(frame) * 2 + 1] =
-                    pStems[(offset + frame) * kStemChannelCount + stem * 2 + 1];
-        }
-        encoder.encodeBuffer(block.data(), static_cast<std::size_t>(count) * 2);
-    }
-    encoder.flush();
-
-    if (callback.hasError()) {
-        setError(pError, QStringLiteral("Could not write %1").arg(path));
-        return false;
-    }
-    return true;
-}
-
 bool writeSidecar(const QString& path,
         const StemSetInfo& info,
         QString* pError) {
@@ -229,10 +119,6 @@ bool writeSidecar(const QString& path,
     root[QStringLiteral("lossless")] = isLosslessStemFormat(info.format);
     root[QStringLiteral("sample_rate")] = info.sampleRate;
     root[QStringLiteral("frames")] = static_cast<qint64>(info.frames);
-    if (info.format == StemFileFormat::Aac) {
-        root[QStringLiteral("aac_bitrate_kbps")] = std::clamp(
-                info.aacBitrateKbps, kMinAacBitrateKbps, kMaxAacBitrateKbps);
-    }
 
     QJsonArray sources;
     const QString extension = stemFileExtension(info.format);
@@ -339,35 +225,21 @@ bool writeStemSet(const QString& outputDirectory,
     }
     const QString tempPath = outputDir.filePath(tempName);
 
-    const int sndFileFormat = info.format == StemFileFormat::Alac
-            ? SF_FORMAT_CAF | SF_FORMAT_ALAC_24
-            : SF_FORMAT_FLAC | SF_FORMAT_PCM_24;
+    const int sndFileFormat = SF_FORMAT_FLAC | SF_FORMAT_PCM_24;
     const QString extension = stemFileExtension(info.format);
-    const int bitrateKbps = std::clamp(
-            info.aacBitrateKbps, kMinAacBitrateKbps, kMaxAacBitrateKbps);
 
     bool written = true;
     for (int stem = 0; stem < kStemCount && written; ++stem) {
         const QString path = QDir(tempPath).filePath(
                 QStringLiteral("%1.%2")
                         .arg(QString::fromLatin1(kStemNames[stem]), extension));
-        if (info.format == StemFileFormat::Aac) {
-            written = writeAacStem(path,
-                    pInterleavedStems,
-                    info.frames,
-                    stem,
-                    info.sampleRate,
-                    bitrateKbps,
-                    pError);
-        } else {
-            written = writeSndFileStem(path,
-                    pInterleavedStems,
-                    info.frames,
-                    stem,
-                    info.sampleRate,
-                    sndFileFormat,
-                    pError);
-        }
+        written = writeSndFileStem(path,
+                pInterleavedStems,
+                info.frames,
+                stem,
+                info.sampleRate,
+                sndFileFormat,
+                pError);
     }
 
     if (written) {

@@ -85,27 +85,114 @@ ApplicationWindow {
             }
         }
     }
+    // Startup splash: the wordmark over the four deck colours, bouncing in a
+    // staggered loop until the main window is ready. The dots are the same
+    // blue/orange/purple/green used by the toolbar's deck indicators, so the
+    // launch screen introduces the palette instead of showing a static logo.
     Rectangle {
         id: splash
-        visible: opacity > 0
-        color: Theme.backgroundColor
+
         anchors.fill: parent
+        color: Theme.backgroundColor
+        visible: opacity > 0
 
-        property bool ready: false
-
-        Component.onCompleted: {
-            ready = true
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 450
+                easing.type: Easing.InOutQuad
+            }
         }
+        Column {
+            id: splashBlock
 
-        states: [
-            State {
-                when: splash.ready && content.status != Loader.Ready
+            anchors.centerIn: parent
+            opacity: 0
+            spacing: Theme.space4
 
-                PropertyChanges {
-                    logo.opacity: 1
-                    logo.y: root.height / 2 - logo.height / 2
+            NumberAnimation on opacity {
+                duration: 700
+                easing.type: Easing.OutCubic
+                from: 0
+                running: true
+                to: 1
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: Theme.textPrimary
+                font.bold: true
+                font.family: Theme.fontFamilyDisplay
+                font.letterSpacing: 5
+                font.pixelSize: Theme.fontSizeLg
+                text: qsTr("PARAMIX")
+            }
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: Theme.space2
+
+                Repeater {
+                    model: [Theme.deckA, Theme.deckB, Theme.deckC, Theme.deckD]
+
+                    Rectangle {
+                        required property int index
+                        required property var modelData
+
+                        color: modelData
+                        height: 10
+                        radius: width / 2
+                        width: 10
+                        y: 0
+
+                        SequentialAnimation on y {
+                            loops: Animation.Infinite
+
+                            PauseAnimation {
+                                duration: index * 110
+                            }
+                            // InOutSine both ways: zero velocity at the top and
+                            // the bottom, so the dot eases through the turn and
+                            // settles instead of snapping when the pause starts.
+                            NumberAnimation {
+                                duration: 420
+                                easing.type: Easing.InOutSine
+                                to: -9
+                            }
+                            NumberAnimation {
+                                duration: 420
+                                easing.type: Easing.InOutSine
+                                to: 0
+                            }
+                            PauseAnimation {
+                                duration: 240
+                            }
+                        }
+                        // Matching breath so the dots dim slightly at the floor
+                        // and brighten at the top of the arc.
+                        SequentialAnimation on opacity {
+                            loops: Animation.Infinite
+
+                            PauseAnimation {
+                                duration: index * 110
+                            }
+                            NumberAnimation {
+                                duration: 420
+                                easing.type: Easing.InOutSine
+                                to: 1
+                            }
+                            NumberAnimation {
+                                duration: 420
+                                easing.type: Easing.InOutSine
+                                to: 0.65
+                            }
+                            PauseAnimation {
+                                duration: 240
+                            }
+                        }
+                    }
                 }
-            },
+            }
+        }
+        states: [
             State {
                 when: content.status == Loader.Ready && content.active
 
@@ -114,25 +201,5 @@ ApplicationWindow {
                 }
             }
         ]
-        Image {
-            id: logo
-            anchors.horizontalCenter: parent.horizontalCenter
-            source: "qrc:/images/paramix-icon-logo-symbolic.svg"
-            // height: 64
-            opacity: 0
-            y: root.height / 2
-
-            Behavior on opacity {
-                NumberAnimation { duration: 1500; easing.type: Easing.InOutQuad }
-            }
-
-            Behavior on y {
-                NumberAnimation { duration: 1500; easing.type: Easing.InOutQuad }
-            }
-        }
-
-        Behavior on opacity {
-            NumberAnimation { duration: 500; easing.type: Easing.InOutQuad }
-        }
     }
 }

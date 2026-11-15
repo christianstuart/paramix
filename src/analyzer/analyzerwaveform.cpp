@@ -88,6 +88,27 @@ bool AnalyzerWaveform::initialize(const AnalyzerTrack& track,
     m_currentSummaryStride = 0;
     m_channelCount = channelCount;
 
+    // Force the sample buffers to be (re)allocated for the first chunk of this
+    // track; the per-stem buffers were just recreated empty above.
+    m_buffers.size = 0;
+
+    // Per-stem band filters, one set per stem, created once per analysis run.
+    if (stemCount > 0) {
+        m_stemFilters.resize(stemCount);
+        m_stemBuffers.resize(stemCount);
+        m_stemInput.resize(stemCount);
+        for (int stemIdx = 0; stemIdx < stemCount; ++stemIdx) {
+            m_stemFilters[stemIdx] = {
+                    std::make_unique<EngineFilterBessel4Low>(sampleRate, kLowMidFreqHz),
+                    std::make_unique<EngineFilterBessel4Band>(
+                            sampleRate, kLowMidFreqHz, kMidHighFreqHz),
+                    std::make_unique<EngineFilterBessel4High>(sampleRate, kMidHighFreqHz)};
+            m_stemFilters[stemIdx].low->assumeSettled();
+            m_stemFilters[stemIdx].mid->assumeSettled();
+            m_stemFilters[stemIdx].high->assumeSettled();
+        }
+    }
+
     //debug
     //m_waveform->dump();
     //m_waveformSummary->dump();
@@ -156,6 +177,14 @@ bool AnalyzerWaveform::shouldAnalyze(TrackPointer pTrack) const {
     if (!missingWaveform && !waveformHasStemData && isStemTrack) {
         missingWaveform = true;
     }
+    // Stem tracks analysed before the per-stem band detail was added are
+    // regenerated once, so their lanes get the spectral colouring. Non-stem
+    // tracks are unaffected and old summaries keep loading in the meantime.
+    if (!missingWaveform && isStemTrack &&
+            (pTrackWaveform.isNull() || !pTrackWaveform->hasStemColumns()) &&
+            (pLoadedTrackWaveform.isNull() || !pLoadedTrackWaveform->hasStemColumns())) {
+        missingWaveform = true;
+    }
 #endif
 
     // If we don't need to calculate the waveform/wavesummary, skip.
@@ -185,10 +214,17 @@ void AnalyzerWaveform::createFilters(mixxx::audio::SampleRate sampleRate) {
     m_filters.low->assumeSettled();
     m_filters.mid->assumeSettled();
     m_filters.high->assumeSettled();
+
+    m_stemFilters.clear();
+    m_stemBuffers.clear();
+    m_stemInput.clear();
 }
 
 void AnalyzerWaveform::destroyFilters() {
     m_filters = {};
+    m_stemFilters.clear();
+    m_stemBuffers.clear();
+    m_stemInput.clear();
 }
 
 bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
@@ -224,11 +260,37 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
         m_buffers.mid.resize(count);
         m_buffers.high.resize(count);
         m_buffers.size = count;
+        for (auto& buffers : m_stemBuffers) {
+            buffers.low.resize(count);
+            buffers.mid.resize(count);
+            buffers.high.resize(count);
+            buffers.size = count;
+        }
+        for (auto& input : m_stemInput) {
+            input.resize(count);
+        }
     }
 
     m_filters.low->process(pWaveformInput, &m_buffers.low[0], count);
     m_filters.mid->process(pWaveformInput, &m_buffers.mid[0], count);
     m_filters.high->process(pWaveformInput, &m_buffers.high[0], count);
+
+    // Filter every stem separately so the lane colour can follow its own
+    // spectrum. The stems are de-interleaved into a scratch buffer first
+    // because the filters expect interleaved stereo input.
+    const int stemFilterCount = std::min(stemCount, static_cast<int>(m_stemFilters.size()));
+    for (int stemIdx = 0; stemIdx < stemFilterCount; ++stemIdx) {
+        float* pStemInput = m_stemInput[stemIdx].data();
+        const SINT stemOffset = stemIdx * mixxx::kAnalysisChannels;
+        for (SINT frame = 0; frame < numFrames; ++frame) {
+            const SINT sourceIndex = frame * stemCount * mixxx::kAnalysisChannels + stemOffset;
+            pStemInput[frame * 2] = pIn[sourceIndex];
+            pStemInput[frame * 2 + 1] = pIn[sourceIndex + 1];
+        }
+        m_stemFilters[stemIdx].low->process(pStemInput, m_stemBuffers[stemIdx].low.data(), count);
+        m_stemFilters[stemIdx].mid->process(pStemInput, m_stemBuffers[stemIdx].mid.data(), count);
+        m_stemFilters[stemIdx].high->process(pStemInput, m_stemBuffers[stemIdx].high.data(), count);
+    }
 
     m_waveform->setSaveState(Waveform::SaveState::NotSaved);
     m_waveformSummary->setSaveState(Waveform::SaveState::NotSaved);
@@ -261,14 +323,30 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
         storeIfGreater(&m_stride.m_filteredData[Left][High], chigh[Left]);
         storeIfGreater(&m_stride.m_filteredData[Right][High], chigh[Right]);
 
-        for (int s = 0; s < stemCount; s++) {
+        for (int s = 0; s < stemFilterCount; s++) {
+            const SINT stemIndex = i * stemCount + s * mixxx::kAnalysisChannels;
             CSAMPLE cstem[2] = {
-                    fabs(pIn[i * stemCount + s * mixxx::kAnalysisChannels]),
-                    fabs(pIn[i * stemCount + s * mixxx::kAnalysisChannels +
-                            1])};
+                    fabs(pIn[stemIndex]),
+                    fabs(pIn[stemIndex + 1])};
             storeIfGreater(&m_stride.m_stemData[Left][s], cstem[Left]);
             storeIfGreater(&m_stride.m_stemData[Right][s], cstem[Right]);
+
+            // Energy for the RMS value of this stride.
+            m_stride.m_stemEnergy[Left][s] += pIn[stemIndex] * pIn[stemIndex];
+            m_stride.m_stemEnergy[Right][s] += pIn[stemIndex + 1] * pIn[stemIndex + 1];
+
+            // Per-stem band peaks, filtered from the stem signal.
+            const float* pStemLow = m_stemBuffers[s].low.data();
+            const float* pStemMid = m_stemBuffers[s].mid.data();
+            const float* pStemHigh = m_stemBuffers[s].high.data();
+            storeIfGreater(&m_stride.m_stemFilteredData[Left][s][0], fabs(pStemLow[i]));
+            storeIfGreater(&m_stride.m_stemFilteredData[Right][s][0], fabs(pStemLow[i + 1]));
+            storeIfGreater(&m_stride.m_stemFilteredData[Left][s][1], fabs(pStemMid[i]));
+            storeIfGreater(&m_stride.m_stemFilteredData[Right][s][1], fabs(pStemMid[i + 1]));
+            storeIfGreater(&m_stride.m_stemFilteredData[Left][s][2], fabs(pStemHigh[i]));
+            storeIfGreater(&m_stride.m_stemFilteredData[Right][s][2], fabs(pStemHigh[i + 1]));
         }
+        m_stride.m_stemSamples++;
 
         m_stride.m_position++;
 
@@ -277,7 +355,15 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
                 qWarning() << "AnalyzerWaveform::process - currentStride > waveform size";
                 return false;
             }
-            m_stride.store(m_waveformData + m_currentStride);
+            WaveformStemColumn* pStemColumn = nullptr;
+            if (m_waveform->hasStemColumns()) {
+                WaveformStemColumn* pColumns = m_waveform->stemColumnDataForWrite();
+                const int columnIndex = m_currentStride / ChannelCount;
+                if (pColumns && columnIndex < m_waveform->getStemColumnCount(0)) {
+                    pStemColumn = pColumns + columnIndex;
+                }
+            }
+            m_stride.store(m_waveformData + m_currentStride, pStemColumn);
             m_currentStride += ChannelCount;
             m_waveform->setCompletion(m_currentStride);
         }
@@ -326,6 +412,9 @@ void AnalyzerWaveform::storeResults(TrackPointer pTrack) {
         m_waveform->setCompletion(m_waveform->getDataSize());
         m_waveform->setVersion(WaveformFactory::currentWaveformVersion());
         m_waveform->setDescription(WaveformFactory::currentWaveformDescription());
+        // Derive the display pyramid and the whole-track stem peaks once, here
+        // on the analyzer thread, so the renderer never recomputes them.
+        m_waveform->buildStemColumnLevels();
     }
 
     // Force completion to waveform size
