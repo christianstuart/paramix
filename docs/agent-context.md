@@ -323,6 +323,11 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   pauses stems when audio latency usage stays high; a startup audit line records the thread
   layout. Also fixed: `__STEM_SEPARATION__` was not defined for `mixxx-qml-lib`, so
   `Mixxx.StemService.available` reported false.
+- **2026-11-15** — **Activity strip moved into the track browser.** The stem-separation and
+  analysis progress rows left the top-of-window overlay and now sit at the bottom of the library's
+  track-list pane (`res/qml/Library.qml`), scoped to the browser column so the source tree /
+  playlist / file-system pane keeps its full height. The strip is zero-height while idle and
+  shrinks the track list only while a job runs.
 - **2026-11-15** — **Bottom bar layout.** The output knobs (MAIN, BAL, BOOTH, HEAD, MIX, SPLIT)
   are grouped at the far left, the crossfader is centered in the bar, and the master meter is a
   framed horizontal L/R ladder on the right (`Mixer/HorizontalVuMeter.qml`), with bigger rails,
