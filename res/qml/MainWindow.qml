@@ -491,8 +491,8 @@ Item {
                 SplitView.fillHeight: library.active || !Mixxx.Config.paramixShowWaveforms
                 SplitView.maximumHeight: (library.active || !Mixxx.Config.paramixShowWaveforms)
                         ? undefined
-                        : mixer.height
-                SplitView.minimumHeight: mixer.height
+                        : mixer.height + outputBar.height
+                SplitView.minimumHeight: mixer.height + outputBar.height
 
                 Deck {
                     id: deck1
@@ -742,6 +742,16 @@ Item {
                     }
                 }
 
+                MixerComponents.OutputBar {
+                    id: outputBar
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: mixer.bottom
+                    height: visible ? implicitHeight : 0
+                    show4decks: root.show4decks
+                    visible: !root.maximizeLibrary
+                }
                 Loader {
                     id: inputRack
 
@@ -750,7 +760,7 @@ Item {
                             !root.maximizeLibrary
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: mixer.bottom
+                    anchors.top: outputBar.bottom
                     visible: active
                     sourceComponent: Component {
                         MixerComponents.InputRack {

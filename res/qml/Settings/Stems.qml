@@ -23,6 +23,7 @@ Category {
         bitrateInput.value = Mixxx.Config.stemAacBitrate;
         root.modelPath = Mixxx.Config.stemModelPath;
         root.outputDirectory = Mixxx.Config.stemOutputDirectory;
+        gpuAccelerationInput.selected = Mixxx.Config.stemGpuAcceleration ? "on" : "off";
         root.dirty = false;
     }
     function markDirty() {
@@ -35,6 +36,7 @@ Category {
         bitrateInput.value = 256;
         root.modelPath = "";
         root.outputDirectory = "";
+        gpuAccelerationInput.selected = Mixxx.Config.stemGpuAccelerationDefault ? "on" : "off";
         root.dirty = true;
     }
     function save() {
@@ -42,6 +44,7 @@ Category {
         Mixxx.Config.stemAacBitrate = bitrateInput.value;
         Mixxx.Config.stemModelPath = root.modelPath;
         Mixxx.Config.stemOutputDirectory = root.outputDirectory;
+        Mixxx.Config.stemGpuAcceleration = gpuAccelerationInput.selected === "on";
         root.load();
     }
 
@@ -235,6 +238,48 @@ Category {
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontSizeMd
                 text: qsTr("Generate Stems uses this ONNX model (for example htdemucs.onnx). Without a model the separation job fails with an explanatory message.")
+                wrapMode: Text.WordWrap
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: Theme.border
+            }
+            Text {
+                Layout.fillWidth: true
+                color: Theme.textPrimary
+                font.pixelSize: Theme.fontSizeLg
+                font.weight: Theme.fontWeightDemiBold
+                text: qsTr("Performance")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+
+                StemsSettingParameter {
+                    label: qsTr("GPU acceleration")
+                }
+                RatioChoice {
+                    id: gpuAccelerationInput
+
+                    options: ["on", "off"]
+
+                    onSelectedChanged: root.markDirty()
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontSizeMd
+                text: qsTr("Stem separation uses the GPU when one is available, which is usually several times faster than the CPU. Turn this off to keep the GPU free for waveforms or other applications.")
+                wrapMode: Text.WordWrap
+            }
+            Text {
+                Layout.fillWidth: true
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSizeMd
+                text: Mixxx.Config.stemGpuAccelerationDefault
+                      ? qsTr("A suitable GPU was detected on this computer, so acceleration is on unless you turn it off.")
+                      : qsTr("No suitable GPU was detected, so acceleration is off by default. Turning it on is safe: the separator falls back to the CPU if the GPU cannot run the model.")
                 wrapMode: Text.WordWrap
             }
         }

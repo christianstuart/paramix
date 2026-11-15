@@ -6,6 +6,7 @@
 
 #include "moc_dlgprefstems.cpp"
 #include "preferences/configobject.h"
+#include "stems/stemgpudetect.h"
 
 namespace {
 constexpr char kGroup[] = "[Stems]";
@@ -46,6 +47,7 @@ void DlgPrefStems::slotUpdate() {
     m_modelPath = m_pConfig->getValue(ConfigKey(kGroup, kModelPathKey), QString());
     m_outputDirectory = m_pConfig->getValue(ConfigKey(kGroup, kOutputDirectoryKey),
             QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")));
+    m_gpuAcceleration = mixxx::stems::isGpuAccelerationEnabled(m_pConfig);
     updateGui();
 }
 
@@ -59,12 +61,14 @@ void DlgPrefStems::slotApply() {
     mixxx::stems::writeStemExportSettings(m_pConfig, m_settings);
     m_pConfig->setValue(ConfigKey(kGroup, kModelPathKey), m_modelPath);
     m_pConfig->setValue(ConfigKey(kGroup, kOutputDirectoryKey), m_outputDirectory);
+    mixxx::stems::setGpuAccelerationEnabled(m_pConfig, m_gpuAcceleration);
 }
 
 void DlgPrefStems::slotResetToDefaults() {
     m_settings = mixxx::stems::StemExportSettings();
     m_modelPath.clear();
     m_outputDirectory = QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems"));
+    m_gpuAcceleration = mixxx::stems::gpuAccelerationDefault();
     updateGui();
 }
 
@@ -116,4 +120,5 @@ void DlgPrefStems::updateGui() {
     labelAacBitrate->setEnabled(m_settings.format == mixxx::stems::StemFileFormat::Aac);
     lineEditModelPath->setText(m_modelPath);
     lineEditOutputDirectory->setText(m_outputDirectory);
+    checkBoxGpuAcceleration->setChecked(m_gpuAcceleration);
 }

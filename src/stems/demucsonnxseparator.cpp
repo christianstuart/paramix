@@ -109,6 +109,15 @@ std::string DemucsOnnxSeparator::device() const {
     return demucs::device_name(m_pImpl->m_separator->device());
 }
 
+bool hasGpuInferenceProvider() {
+    for (const demucs::Device device : demucs::available_devices()) {
+        if (device != demucs::Device::Cpu && device != demucs::Device::Auto) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string DemucsOnnxSeparator::lastError() const {
     return m_pImpl->m_lastError;
 }

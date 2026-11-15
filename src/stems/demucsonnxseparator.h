@@ -24,7 +24,7 @@ inline int boundedOnnxThreadCount() {
 struct DemucsOnnxConfig {
     /// A graph (`*.onnx`), a bag manifest (`*.json`), or a bare model name.
     std::string modelPath;
-    /// auto, cpu, cuda, tensorrt, directml, coreml or rocm.
+    /// auto, cpu, cuda, tensorrt, directml, coreml, rocm or webgpu.
     std::string device = "auto";
     /// ONNX Runtime intra-op threads; zero uses a bounded default of
     /// min(4, max(1, hardware_concurrency() / 2)).
@@ -117,5 +117,11 @@ inline constexpr bool isDemucsOnnxAvailable() {
     return false;
 #endif
 }
+
+/// True when the linked ONNX Runtime exposes at least one GPU execution
+/// provider. False in builds without ONNX Runtime. This answers "could a GPU
+/// be used at all?", not "is the machine's GPU suitable?" — the latter is
+/// hasDedicatedGpu() in `stems/stemgpudetect.h`.
+bool hasGpuInferenceProvider();
 
 } // namespace mixxx::stems

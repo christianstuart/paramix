@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -193,6 +194,25 @@ TEST_F(DemucsOnnxSeparatorTest, SeparatesTinyModelAndReportsProgress) {
         }
     }
     EXPECT_GE(progress.back(), 0.9);
+}
+
+TEST_F(DemucsOnnxSeparatorTest, AutoDeviceCreatesASeparator) {
+    const char* modelPath = std::getenv("PARAMIX_TEST_DEMUCS_ONNX");
+    if (modelPath == nullptr || *modelPath == '\0') {
+        GTEST_SKIP() << "set PARAMIX_TEST_DEMUCS_ONNX";
+    }
+    if (!hasGpuInferenceProvider()) {
+        GTEST_SKIP() << "this ONNX Runtime build has no GPU execution provider";
+    }
+    DemucsOnnxConfig config = modelConfig();
+    config.device = "auto";
+    std::string error;
+    auto separator = createDemucsOnnxSeparator(config, &error);
+    ASSERT_NE(nullptr, separator) << error;
+    // `auto` may still end on the CPU if no accelerator accepts the graph;
+    // what must hold is that asking for a GPU never fails session creation.
+    EXPECT_FALSE(separator->device().empty());
+    std::cout << "auto selected provider: " << separator->device() << std::endl;
 }
 
 TEST_F(DemucsOnnxSeparatorTest, CancelsAfterFirstOutputBlock) {

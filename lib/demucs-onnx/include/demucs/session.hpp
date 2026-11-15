@@ -27,7 +27,11 @@
 
 namespace demucs {
 
-enum class Device { Auto, Cpu, Cuda, TensorRT, DirectML, CoreML, Rocm };
+// Paramix: WebGPU is appended here, not upstream. It is the accelerator that
+// works with the exported HTDemucs graph on macOS, where CoreML refuses the
+// dynamic sequence-length reshape. The stock runtime declares it in the
+// generic provider API, so no extra header is required.
+enum class Device { Auto, Cpu, Cuda, TensorRT, DirectML, CoreML, Rocm, WebGpu };
 
 inline const char* device_name(Device device) {
     switch (device) {
@@ -38,6 +42,7 @@ inline const char* device_name(Device device) {
         case Device::DirectML: return "directml";
         case Device::CoreML: return "coreml";
         case Device::Rocm: return "rocm";
+        case Device::WebGpu: return "webgpu";
     }
     return "cpu";
 }
@@ -50,6 +55,7 @@ inline bool parse_device(const std::string& text, Device& out) {
     if (text == "directml" || text == "dml") { out = Device::DirectML; return true; }
     if (text == "coreml") { out = Device::CoreML; return true; }
     if (text == "rocm") { out = Device::Rocm; return true; }
+    if (text == "webgpu") { out = Device::WebGpu; return true; }
     return false;
 }
 
@@ -65,6 +71,7 @@ inline std::vector<Device> available_devices() {
     if (has("TensorrtExecutionProvider")) devices.push_back(Device::TensorRT);
     if (has("CUDAExecutionProvider")) devices.push_back(Device::Cuda);
     if (has("ROCMExecutionProvider")) devices.push_back(Device::Rocm);
+    if (has("WebGpuExecutionProvider")) devices.push_back(Device::WebGpu);
 #ifdef DEMUCS_WITH_DML
     if (has("DmlExecutionProvider")) devices.push_back(Device::DirectML);
 #endif
@@ -123,6 +130,12 @@ inline Device append_provider(Ort::SessionOptions& options, const SessionConfig&
                 rocm.device_id = config.device_id;
                 options.AppendExecutionProvider_ROCM(rocm);
                 return Device::Rocm;
+            }
+            case Device::WebGpu: {
+                // The generic provider API takes the EP name; WebGPU has no
+                // typed factory in this runtime version.
+                options.AppendExecutionProvider("WebGPU", {});
+                return Device::WebGpu;
             }
 #ifdef DEMUCS_WITH_DML
             case Device::DirectML: {
@@ -184,8 +197,19 @@ inline Ort::Session create_session(const Ort::Env& env, const std::string& model
             if (candidate == Device::Cpu) break;
             Ort::SessionOptions options = fresh_options();
             if (append_provider(options, config, candidate) == candidate) {
-                chosen = candidate;
-                return open(options);
+                // Appending a provider can succeed while opening the session
+                // fails (a half-installed CUDA runtime, a WebGPU device that
+                // rejects the graph). That must degrade to the next provider,
+                // not fail the job.
+                try {
+                    chosen = candidate;
+                    return open(options);
+                } catch (const std::exception& error) {
+                    std::fprintf(stderr,
+                                 "[warn] %s could not create a session (%s); trying the next provider\n",
+                                 device_name(candidate), error.what());
+                    chosen = Device::Cpu;
+                }
             }
         }
         chosen = Device::Cpu;

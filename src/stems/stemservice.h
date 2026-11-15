@@ -126,6 +126,8 @@ class StemService : public QThread, public Singleton<StemService> {
         QString outputDirectory;
         QString setName;
         QString modelPath;
+        // True when the job should ask the runtime for a GPU provider.
+        bool gpuAcceleration = false;
         StemExportSettings settings;
     };
 
@@ -136,6 +138,7 @@ class StemService : public QThread, public Singleton<StemService> {
     void processJob(Job& job,
             std::unique_ptr<DemucsOnnxSeparator>* ppSeparator,
             QString* pLoadedModelPath,
+            QString* pLoadedDevice,
             StemSetDao& dao);
     void setStatus(
             TrackId trackId, Status status, int progress, const QString& message = QString());
@@ -161,6 +164,9 @@ class StemService : public QThread, public Singleton<StemService> {
     // m_mutex, read lock-free for cheap polling.
     std::atomic<bool> m_busy{false};
     std::atomic<bool> m_cancelRequested{false};
+    // Set after a GPU provider fails mid-job. The process then stays on CPU
+    // instead of paying the same failure on every later track (ADR-001 §2.3).
+    std::atomic<bool> m_gpuDisabled{false};
 };
 
 } // namespace mixxx::stems

@@ -28,6 +28,46 @@ outputs  spec [1, 4, 4, 2048, 336]   per-source CaC spectrogram
 stem[s] = wav[s] + ISTFT(spec[s])
 ```
 
+## GPU acceleration
+
+`Settings -> Stems -> Performance -> GPU acceleration` writes
+`[Stems],GpuAcceleration`. The key is stored only when it differs from the
+detected default, so a machine that has never touched the setting follows the
+hardware probe. `src/stems/stemgpudetect.*` decides that default:
+
+| Platform | Default-on when |
+|---|---|
+| Windows | DXGI reports a non-software adapter with ≥ 1 GiB dedicated video memory from NVIDIA or AMD |
+| macOS arm64 | always (Apple Silicon's unified-memory GPU is a real accelerator) |
+| macOS x86_64 | an `IOAccelerator` that is not `IntelAccelerator` is present |
+| Linux | a DRM card from NVIDIA, or an AMD card with ≥ 1 GiB `mem_info_vram_total` |
+
+The runtime must also report a GPU execution provider
+(`hasGpuInferenceProvider()`), so a CPU-only ONNX Runtime build stays on the CPU
+even on a machine with a discrete GPU. Enabled means `device = "auto"`: the
+vendored runtime walks TensorRT → CUDA → ROCm → WebGPU and falls back to CPU if
+none of them initialises. A provider that initialises but fails on `Run` is
+handled by `StemService`, which re-runs the job on the CPU and disables GPU
+acceleration for the rest of the process.
+
+CoreML is deliberately not compiled in (`DEMUCS_WITH_COREML` is never
+defined): with the current `htdemucs.onnx` export it builds a session for
+1217/2390 nodes and then fails at run time with
+`Error executing model: Error in dynamically resizing for sequence length`.
+WebGPU runs the same graph correctly.
+
+Measured on an Intel i9-9980HK / AMD Radeon Pro 5300M (macOS x86_64, ONNX
+Runtime 1.23.0, 161 MB `htdemucs.onnx`, 30 s stereo clip):
+
+| Provider | Time | Real-time factor |
+|---|---|---|
+| CPU (4 threads) | 15.3 s | 1.96× |
+| WebGPU, batch 1 | 9.7 s | 3.08× |
+| WebGPU, batch 4 | 10.4 s | 2.89× |
+
+The host STFT/iSTFT, normalisation, overlap-add and the interleaved repack stay
+on the CPU, so the end-to-end gain is smaller than the network's own speedup.
+
 ## Local build
 
 ```powershell

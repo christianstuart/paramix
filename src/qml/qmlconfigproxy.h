@@ -332,6 +332,13 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     // Directory where separated stem sets are written.
     Q_PROPERTY(QString stemOutputDirectory READ stemOutputDirectory WRITE
                     set_stemOutputDirectory NOTIFY stemOutputDirectoryChanged);
+    // Ask the separator for a GPU execution provider.
+    Q_PROPERTY(bool stemGpuAcceleration READ stemGpuAcceleration WRITE
+                    set_stemGpuAcceleration NOTIFY stemGpuAccelerationChanged);
+    // Hardware-independent default: true when a suitable GPU and a runtime
+    // provider were both detected. Constant for the process lifetime.
+    Q_PROPERTY(bool stemGpuAccelerationDefault READ stemGpuAccelerationDefault
+                    CONSTANT);
 
     // Paramix interface customization
     Q_PROPERTY(QString paramixColorScheme READ paramixColorScheme WRITE
@@ -545,6 +552,8 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(int, stemAacBitrate);
     PROPERTY_DECL_ACCESSOR(QString, stemModelPath);
     PROPERTY_DECL_ACCESSOR(QString, stemOutputDirectory);
+    PROPERTY_DECL_ACCESSOR(bool, stemGpuAcceleration);
+    bool stemGpuAccelerationDefault() const;
 
     static QmlConfigProxy* create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine);
     static inline void registerUserSettings(UserSettingsPointer pConfig) {
@@ -660,6 +669,7 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void stemAacBitrateChanged();
     void stemModelPathChanged();
     void stemOutputDirectoryChanged();
+    void stemGpuAccelerationChanged();
 
   private:
     template<typename Type, typename Signal>
