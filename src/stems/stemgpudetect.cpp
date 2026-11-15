@@ -18,6 +18,7 @@
 #elif defined(Q_OS_LINUX)
 #include <QDir>
 #include <QFile>
+#include <QRegularExpression>
 #endif
 
 namespace mixxx::stems {
@@ -97,10 +98,11 @@ bool detectDedicatedGpu() {
     }
     bool found = false;
     io_object_t service = IO_OBJECT_NULL;
-    while (!found && (service = IOIteratorNext(iterator)) != IO_OBJECT_NULL) {
+    while ((service = IOIteratorNext(iterator)) != IO_OBJECT_NULL) {
         const CFTypeRef pClass = IORegistryEntryCreateCFProperty(
                 service, CFSTR("IOClass"), kCFAllocatorDefault, 0);
-        if (pClass != nullptr && CFGetTypeID(pClass) == CFStringGetTypeID()) {
+        if (!found && pClass != nullptr &&
+                CFGetTypeID(pClass) == CFStringGetTypeID()) {
             char name[256] = {};
             if (CFStringGetCString(static_cast<CFStringRef>(pClass),
                         name,
@@ -124,9 +126,13 @@ bool detectDedicatedGpu() {
 #elif defined(Q_OS_LINUX)
 bool detectDedicatedGpu() {
     const QDir drm(QStringLiteral("/sys/class/drm"));
-    const QStringList cards = drm.entryList(
-            {QStringLiteral("card[0-9]*")}, QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const QString& card : cards) {
+    const QRegularExpression cardPattern(QStringLiteral("^card\\d+$"));
+    const QStringList entries =
+            drm.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString& card : entries) {
+        if (!cardPattern.match(card).hasMatch()) {
+            continue;
+        }
         const QString devicePath = drm.filePath(card) + QStringLiteral("/device/");
         QFile vendorFile(devicePath + QStringLiteral("vendor"));
         if (!vendorFile.open(QIODevice::ReadOnly)) {

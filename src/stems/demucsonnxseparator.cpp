@@ -110,12 +110,16 @@ std::string DemucsOnnxSeparator::device() const {
 }
 
 bool hasGpuInferenceProvider() {
-    for (const demucs::Device device : demucs::available_devices()) {
-        if (device != demucs::Device::Cpu && device != demucs::Device::Auto) {
-            return true;
+    // The provider list is fixed for the lifetime of the loaded runtime.
+    static const bool kHasGpuProvider = [] {
+        for (const demucs::Device device : demucs::available_devices()) {
+            if (device != demucs::Device::Cpu && device != demucs::Device::Auto) {
+                return true;
+            }
         }
-    }
-    return false;
+        return false;
+    }();
+    return kHasGpuProvider;
 }
 
 std::string DemucsOnnxSeparator::lastError() const {
