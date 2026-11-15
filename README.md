@@ -22,8 +22,9 @@ Paramix runs on Windows, GNU/Linux and macOS (Apple Silicon and Intel).
 - Runs **on demand** or as a **batch job** across a selection of tracks, with progress, pause,
   cancel and resume. Separation happens in the background and never blocks playback.
 - Results are cached on disk, so a separated track loads instantly the next time.
-- **GPU acceleration** (CoreML on macOS, DirectML/CUDA on Windows, CUDA on Linux) with a CPU
-  fallback and an opt-out in Settings.
+- **GPU acceleration** where the inference runtime exposes a provider (DirectML/CUDA on
+  Windows, CUDA on Linux) with automatic CPU fallback and an opt-out in Settings. macOS runs on
+  the CPU for now; the CoreML provider is prepared but not enabled yet.
 - **Model downloads only:** the separation models are fetched once from the Paramix model
   releases with SHA-256 verification and an MIT license prompt. Nothing is bundled in the
   installer, and audio never leaves your machine. Offline installs are supported through
@@ -56,6 +57,10 @@ Paramix runs on Windows, GNU/Linux and macOS (Apple Silicon and Intel).
 
 - New **Paramix QML skin** as the default, with a stem mixer strip, separation status and a
   dedicated Stems settings page.
+- **Feature parity with the classic interface:** the full track context menu (Auto DJ, playlists
+  and crates, BPM, metadata, analysis, stem generation, file operations, properties), the real
+  library source tree with multi-select and search, and background stem/analysis progress at the
+  bottom of the track browser.
 - Highly customizable: design tokens (color, type, spacing, radius, motion), layout variants
   (2/4 decks, stem lane density, stacked vs tinted waveform), color schemes, and user-loaded
   QML overrides without recompiling.

@@ -224,12 +224,32 @@ Item {
                 visible: Mixxx.Config.paramixShowPreview
             }
         }
-        LibraryComponent.TrackList {
-            SplitView.fillHeight: true
+        Item {
+            id: trackBrowserPane
 
-            // FIXME: this is necessary to prevent the header label to render outside of the table when horizontally scrolling: https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-3311914346
-            clip: true
-            model: root.sidebar.tracklist
+            SplitView.fillHeight: true
+            SplitView.minimumWidth: 200
+
+            LibraryComponent.TrackList {
+                anchors.bottom: taskStatusStrip.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                // FIXME: this is necessary to prevent the header label to render outside of the table when horizontally scrolling: https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-3311914346
+                clip: true
+                model: root.sidebar.tracklist
+            }
+            // Background jobs (stem separation, analysis) report at the bottom
+            // of the track browser only, so the source tree keeps its full
+            // height. Idle -> zero height.
+            Skin.TaskStatusStrip {
+                id: taskStatusStrip
+
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: implicitHeight
+            }
         }
     }
 

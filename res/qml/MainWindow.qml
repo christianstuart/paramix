@@ -845,15 +845,6 @@ Item {
     // content area instead of taking part in the Column above, so a running
     // job never reflows the decks or the library. It is invisible and zero
     // height while idle.
-    Skin.TaskStatusStrip {
-        id: taskStatusStrip
-
-        anchors.left: content.left
-        anchors.right: content.right
-        anchors.top: content.top
-        anchors.topMargin: toolbar.height
-        z: 2
-    }
     Skin.ParamixCustomize {
         id: customizePopup
     }

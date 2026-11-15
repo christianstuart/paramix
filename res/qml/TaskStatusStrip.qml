@@ -4,7 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import "Theme"
 
-/// Global background-task strip, pinned directly below the top toolbar.
+/// Background-task strip, pinned to the bottom of the library browser pane.
 ///
 /// Everything is a binding on `Mixxx.StemService` / `Mixxx.Library`, so the
 /// strip appears with the first queued job and collapses again as soon as the
