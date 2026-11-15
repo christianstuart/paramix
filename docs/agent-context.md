@@ -323,6 +323,10 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   pauses stems when audio latency usage stays high; a startup audit line records the thread
   layout. Also fixed: `__STEM_SEPARATION__` was not defined for `mixxx-qml-lib`, so
   `Mixxx.StemService.available` reported false.
+- **2026-11-15** — **Bottom bar layout.** The output knobs (MAIN, BAL, BOOTH, HEAD, MIX, SPLIT)
+  are grouped at the far left, the crossfader is centered in the bar, and the master meter is a
+  framed horizontal L/R ladder on the right (`Mixer/HorizontalVuMeter.qml`), with bigger rails,
+  brighter inactive segments and 8 px clip LEDs so it reads at a glance.
 - **2026-11-15** — **Master/headphone strip and crossfader moved to a bottom bar.** The four
   output tiles and the crossfader (with its deck-assignment buttons) left the narrow mixer column
   for a full-width bar directly below the deck/mixer row (`res/qml/Mixer/OutputBar.qml`,
