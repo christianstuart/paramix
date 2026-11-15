@@ -1,7 +1,6 @@
 #include "waveform/waveform.h"
 
 #include <QtDebug>
-
 #include <algorithm>
 #include <array>
 
@@ -71,7 +70,7 @@ Waveform::Waveform(
                 static_cast<int>(frameLength / m_audioVisualRatio *
                         mixxx::kAnalysisChannels) +
                 1;
-        numberOfVisualSamples += numberOfVisualSamples%2;
+        numberOfVisualSamples += numberOfVisualSamples % 2;
     }
     assign(numberOfVisualSamples);
     setCompletion(0);
@@ -183,12 +182,12 @@ void Waveform::readByteArray(const QByteArray& data) {
     }
 
     if (!waveform.has_visual_sample_rate() ||
-        !waveform.has_audio_visual_ratio() ||
-        !waveform.has_signal_all() ||
-        !waveform.has_signal_filtered() ||
-        !waveform.signal_filtered().has_low() ||
-        !waveform.signal_filtered().has_mid() ||
-        !waveform.signal_filtered().has_high()) {
+            !waveform.has_audio_visual_ratio() ||
+            !waveform.has_signal_all() ||
+            !waveform.has_signal_filtered() ||
+            !waveform.signal_filtered().has_low() ||
+            !waveform.signal_filtered().has_mid() ||
+            !waveform.signal_filtered().has_high()) {
         qDebug() << "ERROR: Waveform proto is missing key data. Skipping.";
         return;
     }
@@ -218,8 +217,8 @@ void Waveform::readByteArray(const QByteArray& data) {
     m_visualSampleRate = waveform.visual_sample_rate();
     m_audioVisualRatio = waveform.audio_visual_ratio();
     if (low.value_size() != dataSize ||
-        mid.value_size() != dataSize ||
-        high.value_size() != dataSize) {
+            mid.value_size() != dataSize ||
+            high.value_size() != dataSize) {
         qDebug() << "WARNING: Filtered data size does not match all-signal size.";
     }
 

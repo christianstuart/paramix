@@ -12,8 +12,8 @@
 #include "util/sample.h"
 #include "waveform/waveform.h"
 
-//NOTS vrince some test to segment sound, to apply color in the waveform
-//#define TEST_HEAT_MAP
+// NOTS vrince some test to segment sound, to apply color in the waveform
+// #define TEST_HEAT_MAP
 #ifdef TEST_HEAT_MAP
 class QImage;
 #endif

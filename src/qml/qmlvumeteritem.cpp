@@ -1,8 +1,5 @@
 #include "qml/qmlvumeteritem.h"
 
-#include <algorithm>
-#include <utility>
-
 #include <QDateTime>
 #include <QSet>
 #include <QTimer>
@@ -10,6 +7,8 @@
 #include <QtQuick/QSGSimpleRectNode>
 #include <QtQuick/QSGSimpleTextureNode>
 #include <QtQuick/QSGTexture>
+#include <algorithm>
+#include <utility>
 
 #include "control/controlproxy.h"
 #include "moc_qmlvumeteritem.cpp"

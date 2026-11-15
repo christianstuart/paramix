@@ -58,7 +58,7 @@ bool AnalyzerWaveform::initialize(const AnalyzerTrack& track,
     destroyFilters();
     createFilters(sampleRate);
 
-    //TODO (vrince) Do we want to expose this as settings or whatever ?
+    // TODO (vrince) Do we want to expose this as settings or whatever ?
     constexpr int mainWaveformSampleRate = 441;
     // two visual sample per pixel in full width overview in full hd
     constexpr int summaryWaveformSamples = 2 * 1920;
@@ -109,9 +109,9 @@ bool AnalyzerWaveform::initialize(const AnalyzerTrack& track,
         }
     }
 
-    //debug
-    //m_waveform->dump();
-    //m_waveformSummary->dump();
+    // debug
+    // m_waveform->dump();
+    // m_waveformSummary->dump();
 
 #ifdef TEST_HEAT_MAP
     test_heatMap = new QImage(256, 256, QImage::Format_RGB32);
@@ -390,8 +390,8 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
         }
     }
 
-    //kLogger.debug() << "process - m_waveform->getCompletion()" << m_waveform->getCompletion() << "off" << m_waveform->getDataSize();
-    //kLogger.debug() << "process - m_waveformSummary->getCompletion()" << m_waveformSummary->getCompletion() << "off" << m_waveformSummary->getDataSize();
+    // kLogger.debug() << "process - m_waveform->getCompletion()" << m_waveform->getCompletion() << "off" << m_waveform->getDataSize();
+    // kLogger.debug() << "process - m_waveformSummary->getCompletion()" << m_waveformSummary->getCompletion() << "off" << m_waveformSummary->getDataSize();
     if (pMixedChannel) {
         SampleUtil::free(pMixedChannel);
     }

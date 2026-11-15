@@ -3,7 +3,6 @@
 #include <QFont>
 #include <QImage>
 #include <QOpenGLTexture>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -55,8 +54,8 @@ const float kGhostedStemOpacity = 0.32f;
 // side (yellow to green) and the *share* of high energy then pulls the hue
 // across to magenta once it dominates a column, which is what makes a drum lane
 // with cymbals read magenta while a vocal stays green.
-constexpr float kStemLowHue = 0.08f; // amber / orange
-constexpr float kStemMidHue = 0.38f; // green
+constexpr float kStemLowHue = 0.08f;  // amber / orange
+constexpr float kStemMidHue = 0.38f;  // green
 constexpr float kStemHighHue = 0.84f; // magenta
 // Mid is nudged up, high is only used as a share: at the same loudness highs
 // carry far less amplitude than lows, so raw amplitudes would never reach the
@@ -74,9 +73,9 @@ constexpr float kStemHighMixHigh = 0.34f;
 // vocals between green and cyan, without any lane wandering into another's
 // family.
 constexpr float kStemFamilyThrow = 0.09f;
-constexpr float kStemDrumsHue = 0.811f; // #C13BD6
-constexpr float kStemBassHue = 0.083f; // #F08A24
-constexpr float kStemOtherHue = 0.514f; // #22C7D6
+constexpr float kStemDrumsHue = 0.811f;  // #C13BD6
+constexpr float kStemBassHue = 0.083f;   // #F08A24
+constexpr float kStemOtherHue = 0.514f;  // #22C7D6
 constexpr float kStemVocalsHue = 0.410f; // #2FBF71
 
 /// Reference hue for a stem, matched by label the same way the QML lane strip

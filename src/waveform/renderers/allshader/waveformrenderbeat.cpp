@@ -1,7 +1,6 @@
 #include "waveform/renderers/allshader/waveformrenderbeat.h"
 
 #include <QDomNode>
-
 #include <algorithm>
 
 #include "audio/frame.h"

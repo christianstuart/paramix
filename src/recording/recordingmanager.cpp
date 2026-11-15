@@ -123,11 +123,11 @@ void RecordingManager::startRecording() {
                                     .fileExtension;
 
     m_iNumberOfBytesRecordedSplit = 0;
-    m_secondsRecordedSplit=0;
+    m_secondsRecordedSplit = 0;
     m_iNumberOfBytesRecorded = 0;
-    m_secondsRecorded=0;
+    m_secondsRecorded = 0;
     m_dfSilence = false;
-    m_dfCounter=0;
+    m_dfCounter = 0;
     m_split_size = 0;
     m_split_time = 0;
 
@@ -138,8 +138,7 @@ void RecordingManager::startRecording() {
     }
     if (m_split_time < INT_MAX) {
         qDebug() << "Split time is:" << m_split_time;
-    }
-    else {
+    } else {
         qDebug() << "Split size is:" << m_split_size;
     }
 
@@ -160,13 +159,12 @@ void RecordingManager::startRecording() {
     m_pCoRecStatus->set(RECORD_READY);
 }
 
-void RecordingManager::splitContinueRecording()
-{
+void RecordingManager::splitContinueRecording() {
     ++m_iNumberSplits;
-    m_secondsRecorded+=m_secondsRecordedSplit;
+    m_secondsRecorded += m_secondsRecordedSplit;
 
     m_iNumberOfBytesRecordedSplit = 0;
-    m_secondsRecordedSplit=0;
+    m_secondsRecordedSplit = 0;
 
     QString encodingType = m_pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Encoding"));
     QString fileExtension = EncoderFactory::getFactory()
@@ -194,7 +192,7 @@ void RecordingManager::stopRecording() {
 
 void RecordingManager::setRecordingDir() {
     QDir recordDir(m_pConfig->getValueString(
-        ConfigKey(RECORDING_PREF_KEY, "Directory")));
+            ConfigKey(RECORDING_PREF_KEY, "Directory")));
     // Note: the default ConfigKey for recordDir is set in DlgPrefRecord::DlgPrefRecord.
 
     if (!recordDir.exists()) {
@@ -226,7 +224,7 @@ void RecordingManager::slotDurationRecorded(quint64 duration) {
             // This will reuse the previous filename but append a suffix.
             splitContinueRecording();
         }
-        emit durationRecorded(getRecordedDurationStr(m_secondsRecorded+m_secondsRecordedSplit));
+        emit durationRecorded(getRecordedDurationStr(m_secondsRecorded + m_secondsRecordedSplit));
     }
 }
 
@@ -243,9 +241,9 @@ void RecordingManager::slotBytesRecorded(int bytes) {
     m_iNumberOfBytesRecorded += bytes;
     m_iNumberOfBytesRecordedSplit += bytes;
 
-    //Split before reaching the max size. m_split_size has some headroom, as
-    //seen in the constant definitions in defs_recording.h. Also, note that
-    //bytes are increased in the order of 10s of KBs each call.
+    // Split before reaching the max size. m_split_size has some headroom, as
+    // seen in the constant definitions in defs_recording.h. Also, note that
+    // bytes are increased in the order of 10s of KBs each call.
     if (m_split_size != 0 &&
             m_iNumberOfBytesRecordedSplit >= m_split_size) {
         qDebug() << "Splitting after " << m_iNumberOfBytesRecorded << " bytes written";
@@ -287,7 +285,7 @@ void RecordingManager::warnFreespace() {
     props->setType(DLG_WARNING);
     props->setTitle(tr("Low Disk Space Warning"));
     props->setText(tr("There is less than 1 GiB of usable space in the recording folder"));
-    props->setKey("RecordingManager::warnFreespace");   // To prevent multiple windows for the same error
+    props->setKey("RecordingManager::warnFreespace"); // To prevent multiple windows for the same error
 
     props->addButton(QMessageBox::Ok);
     props->setDefaultButton(QMessageBox::Ok);
@@ -298,7 +296,7 @@ void RecordingManager::warnFreespace() {
 }
 
 void RecordingManager::slotIsRecording(bool isRecordingActive, bool error) {
-    //qDebug() << "SlotIsRecording " << isRecording << error;
+    // qDebug() << "SlotIsRecording " << isRecording << error;
 
     // Notify the GUI controls, see dlgrecording.cpp.
     m_bRecording = isRecordingActive;
@@ -308,10 +306,7 @@ void RecordingManager::slotIsRecording(bool isRecordingActive, bool error) {
         ErrorDialogProperties* props = ErrorDialogHandler::instance()->newDialogProperties();
         props->setType(DLG_WARNING);
         props->setTitle(tr("Recording"));
-        props->setText("<html>"+tr("Could not create audio file for recording!")
-                       +"<p>"+tr("Ensure there is enough free disk space and you have write permission for the Recordings folder.")
-                       +"<p>"+tr("You can change the location of the Recordings folder in Preferences -> Recording.")
-                       +"</p></html>");
+        props->setText("<html>" + tr("Could not create audio file for recording!") + "<p>" + tr("Ensure there is enough free disk space and you have write permission for the Recordings folder.") + "<p>" + tr("You can change the location of the Recordings folder in Preferences -> Recording.") + "</p></html>");
         ErrorDialogHandler::instance()->requestErrorDialog(props);
     }
 }
@@ -348,13 +343,13 @@ quint64 RecordingManager::getFileSplitSize(const QString& fileSizeStr) {
 
 unsigned int RecordingManager::getFileSplitSeconds(const QString& fileSizeStr) {
     if (fileSizeStr == SPLIT_60MIN) {
-        return 60*60;
+        return 60 * 60;
     } else if (fileSizeStr == SPLIT_74MIN) {
-        return 74*60;
+        return 74 * 60;
     } else if (fileSizeStr == SPLIT_80MIN) {
-        return 80*60;
+        return 80 * 60;
     } else if (fileSizeStr == SPLIT_120MIN) {
-        return 120*60;
+        return 120 * 60;
     } else { // Do not limit by time for the rest.
         return INT_MAX;
     }

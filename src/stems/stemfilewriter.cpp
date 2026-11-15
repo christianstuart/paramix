@@ -15,11 +15,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <cerrno>
-#include <cstring>
-
 #include <QRegularExpression>
 #include <QUuid>
+#include <cerrno>
+#include <cstring>
 
 #include "stems/stemseparatorbackend.h"
 #include "util/assert.h"

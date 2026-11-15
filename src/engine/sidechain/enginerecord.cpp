@@ -98,22 +98,21 @@ int EngineRecord::updateFromPreferences() {
     return ret;
 }
 
-bool EngineRecord::metaDataHasChanged()
-{
-    //Originally, m_iMetaDataLife was used so that getCurrentPlayingTrack was called
-    //less often, because it was calculating it.
-    //Nowadays (since Mixxx 1.11), it just accesses a map on a thread safe method.
+bool EngineRecord::metaDataHasChanged() {
+    // Originally, m_iMetaDataLife was used so that getCurrentPlayingTrack was called
+    // less often, because it was calculating it.
+    // Nowadays (since Mixxx 1.11), it just accesses a map on a thread safe method.
     TrackPointer pTrack = PlayerInfo::instance().getCurrentPlayingTrack();
     if (!pTrack) {
         m_iMetaDataLife = kMetaDataLifeTimeout;
         return false;
     }
 
-    //The counter is kept so that changes back and forth with the faders/crossfader
+    // The counter is kept so that changes back and forth with the faders/crossfader
     //(like in scratching or other effects) are not counted as multiple track changes
-    //in the cue file. A better solution could consist of a signal from PlayerInfo and
-    //a slot that decides if the changes received are valid or are to be ignored once
-    //the next process call comes. This could also help improve the time written in the CUE.
+    // in the cue file. A better solution could consist of a signal from PlayerInfo and
+    // a slot that decides if the changes received are valid or are to be ignored once
+    // the next process call comes. This could also help improve the time written in the CUE.
     if (m_iMetaDataLife < kMetaDataLifeTimeout) {
         m_iMetaDataLife++;
         return false;
@@ -123,11 +122,10 @@ bool EngineRecord::metaDataHasChanged()
     if (m_pCurrentTrack) {
         if (!pTrack->getId().isValid() || !m_pCurrentTrack->getId().isValid()) {
             if ((pTrack->getArtist() == m_pCurrentTrack->getArtist()) &&
-                (pTrack->getTitle() == m_pCurrentTrack->getArtist())) {
+                    (pTrack->getTitle() == m_pCurrentTrack->getArtist())) {
                 return false;
             }
-        }
-        else if (pTrack->getId() == m_pCurrentTrack->getId()) {
+        } else if (pTrack->getId() == m_pCurrentTrack->getId()) {
             return false;
         }
     }
@@ -150,10 +148,10 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
     static const QString tag("EngineRecord recording");
 
     if (recordingStatus == RECORD_OFF) {
-        //qDebug("Setting record flag to: OFF");
+        // qDebug("Setting record flag to: OFF");
         if (fileOpen()) {
             Event::end(tag);
-            closeFile();  // Close file and free encoder.
+            closeFile(); // Close file and free encoder.
             if (m_bCueIsEnabled) {
                 closeCueFile();
             }
@@ -175,7 +173,7 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
             Event::start(tag);
             qDebug("Setting record flag to: ON");
             m_pRecReady->set(RECORD_ON);
-            emit isRecording(true, false);  // will notify the RecordingManager
+            emit isRecording(true, false); // will notify the RecordingManager
 
             // Since we just started recording, timeout and clear the metadata.
             m_iMetaDataLife = kMetaDataLifeTimeout;
@@ -199,16 +197,16 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
         }
     } else if (recordingStatus == RECORD_SPLIT_CONTINUE) {
         if (fileOpen()) {
-            closeFile();  // Close file and free encoder.
+            closeFile(); // Close file and free encoder.
             if (m_bCueIsEnabled) {
                 closeCueFile();
             }
         }
-        updateFromPreferences();  // Update file location from preferences.
+        updateFromPreferences(); // Update file location from preferences.
         if (openFile()) {
-            qDebug() << "Splitting to a new file: "<< m_fileName;
+            qDebug() << "Splitting to a new file: " << m_fileName;
             m_pRecReady->set(RECORD_ON);
-            emit isRecording(true, false);  // will notify the RecordingManager
+            emit isRecording(true, false); // will notify the RecordingManager
 
             // Since we just started recording, timeout and clear the metadata.
             m_iMetaDataLife = kMetaDataLifeTimeout;
@@ -223,7 +221,7 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
                 openCueFile();
                 m_cueTrack = 0;
             }
-        } else {  // Maybe the encoder could not be initialized
+        } else { // Maybe the encoder could not be initialized
             qDebug() << "Could not open" << m_fileName << "for writing.";
             Event::end(tag);
             qDebug("Setting record flag to: OFF");
@@ -298,9 +296,7 @@ void EngineRecord::writeCueLine() {
     }
 
     // CDDA is specified as having 75 frames a second
-    unsigned long cueFrame = ((unsigned long)
-                                ((m_frames / (m_sampleRate / 75)))
-                                    % 75);
+    unsigned long cueFrame = ((unsigned long)((m_frames / (m_sampleRate / 75))) % 75);
 
     m_cueFile.write(QStringLiteral("  TRACK %1 AUDIO\n")
                     .arg((double)m_cueTrack, 2, 'f', 0, '0')
@@ -323,25 +319,23 @@ void EngineRecord::writeCueLine() {
     // We'd need a signal fired state tracker
     // for the track detection code.
     m_cueFile.write(QString("    INDEX 01 %1:%2\n")
-                            .arg(getRecordedDurationStr())
-                            .arg(static_cast<double>(cueFrame), 2, 'f', 0, '0')
-                            .toUtf8());
+                    .arg(getRecordedDurationStr())
+                    .arg(static_cast<double>(cueFrame), 2, 'f', 0, '0')
+                    .toUtf8());
 }
 
 // Encoder calls this method to write compressed audio
-void EngineRecord::write(const unsigned char *header, const unsigned char *body,
-                         int headerLen, int bodyLen) {
+void EngineRecord::write(const unsigned char* header, const unsigned char* body, int headerLen, int bodyLen) {
     if (!fileOpen()) {
         return;
     }
     // Relevant for OGG
     if (headerLen > 0) {
-        m_dataStream.writeRawData((const char*) header, headerLen);
+        m_dataStream.writeRawData((const char*)header, headerLen);
     }
     // Always write body
-    m_dataStream.writeRawData((const char*) body, bodyLen);
-    emit bytesRecorded((headerLen+bodyLen));
-
+    m_dataStream.writeRawData((const char*)body, bodyLen);
+    emit bytesRecorded((headerLen + bodyLen));
 }
 // Encoder calls this method to write compressed audio
 int EngineRecord::tell() {
@@ -408,27 +402,27 @@ bool EngineRecord::openCueFile() {
 
     if (m_baAuthor.length() > 0) {
         m_cueFile.write(QString("PERFORMER \"%1\"\n")
-                                .arg(QString(m_baAuthor).replace(QString("\""), QString("\\\"")))
-                                .toUtf8());
+                        .arg(QString(m_baAuthor).replace(QString("\""), QString("\\\"")))
+                        .toUtf8());
     }
 
     if (m_baTitle.length() > 0) {
         m_cueFile.write(QString("TITLE \"%1\"\n")
-                                .arg(QString(m_baTitle).replace(QString("\""), QString("\\\"")))
-                                .toUtf8());
+                        .arg(QString(m_baTitle).replace(QString("\""), QString("\\\"")))
+                        .toUtf8());
     }
 
     m_cueFile.write(
             QString("FILE \"%1\" %2\n")
                     .arg(QFileInfo(m_fileName)
-                                    .fileName() //strip path
+                                    .fileName() // strip path
                                     .replace(QString("\""),
                                             QString("\\\"")), // escape doublequote
                             (m_encoding == ENCODING_MP3)
                                     ? ENCODING_MP3
                                     : (m_encoding == ENCODING_AIFF)
-                                            ? ENCODING_AIFF
-                                            : "WAVE" // MP3 and AIFF are recognized but other formats just use WAVE.
+                                    ? ENCODING_AIFF
+                                    : "WAVE" // MP3 and AIFF are recognized but other formats just use WAVE.
                             )
                     .toUtf8());
     return true;
