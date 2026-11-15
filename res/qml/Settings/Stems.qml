@@ -12,15 +12,11 @@ Category {
     property bool dirty: false
     property string modelPath: ""
     property string outputDirectory: ""
-    readonly property list<string> fileFormats: ["flac", "alac", "aac"]
-    readonly property bool aacSelected: root.fileFormats[formatInput.currentIndex] === "aac"
+    readonly property list<string> fileFormats: ["flac"]
 
     label: qsTr("Stems")
 
     function load() {
-        const formatIndex = root.fileFormats.indexOf(Mixxx.Config.stemFileFormat);
-        formatInput.currentIndex = formatIndex >= 0 ? formatIndex : 0;
-        bitrateInput.value = Mixxx.Config.stemAacBitrate;
         root.modelPath = Mixxx.Config.stemModelPath;
         root.outputDirectory = Mixxx.Config.stemOutputDirectory;
         gpuAccelerationInput.selected = Mixxx.Config.stemGpuAcceleration ? "on" : "off";
@@ -32,16 +28,13 @@ Category {
         }
     }
     function reset() {
-        formatInput.currentIndex = 0;
-        bitrateInput.value = 256;
         root.modelPath = "";
         root.outputDirectory = "";
         gpuAccelerationInput.selected = Mixxx.Config.stemGpuAccelerationDefault ? "on" : "off";
         root.dirty = true;
     }
     function save() {
-        Mixxx.Config.stemFileFormat = root.fileFormats[formatInput.currentIndex];
-        Mixxx.Config.stemAacBitrate = bitrateInput.value;
+        Mixxx.Config.stemFileFormat = "flac";
         Mixxx.Config.stemModelPath = root.modelPath;
         Mixxx.Config.stemOutputDirectory = root.outputDirectory;
         Mixxx.Config.stemGpuAcceleration = gpuAccelerationInput.selected === "on";
@@ -85,73 +78,18 @@ Category {
                 StemsSettingParameter {
                     label: qsTr("Output format")
                 }
-                Skin.ComboBox {
-                    id: formatInput
-
-                    Accessible.name: qsTr("Output format")
-                    Accessible.role: Accessible.ComboBox
-                    Layout.preferredWidth: 200
-                    model: [qsTr("FLAC (lossless)"), qsTr("ALAC (lossless)"), qsTr("AAC (lossy)")]
-
-                    onCurrentIndexChanged: root.markDirty()
+                Text {
+                    Layout.fillWidth: true
+                    color: Theme.textSecondary
+                    font.pixelSize: Theme.fontSizeMd
+                    text: qsTr("FLAC (lossless, 24-bit)")
                 }
             }
             Text {
                 Layout.fillWidth: true
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontSizeMd
-                text: qsTr("FLAC and ALAC keep the separated stems lossless. AAC saves disk space but permanently discards detail.")
-                wrapMode: Text.WordWrap
-            }
-            RowLayout {
-                Layout.fillWidth: true
-
-                StemsSettingParameter {
-                    label: qsTr("AAC bitrate")
-                }
-                Setting.SpinBox {
-                    id: bitrateInput
-
-                    Accessible.name: qsTr("AAC bitrate")
-                    Accessible.role: Accessible.SpinBox
-                    enabled: root.aacSelected
-                    Layout.preferredWidth: 160
-                    max: 512
-                    min: 32
-                    opacity: enabled ? 1.0 : 0.4
-                    precision: 0
-                    suffix: qsTr(" kbps")
-                    value: 256
-
-                    onValueChanged: root.markDirty()
-                }
-                Setting.InfoBubble {
-                    id: bitrateInfo
-
-                    Accessible.name: qsTr("About the AAC bitrate")
-                    Accessible.role: Accessible.Button
-                    active: bitrateHelp.visible
-                    height: 18
-                    width: 18
-
-                    onPressed: bitrateHelp.visible = !bitrateHelp.visible
-                }
-            }
-            Text {
-                Layout.fillWidth: true
-                color: Theme.textMuted
-                font.pixelSize: Theme.fontSizeMd
-                text: qsTr("The bitrate only applies to AAC output.")
-                wrapMode: Text.WordWrap
-            }
-            Text {
-                id: bitrateHelp
-
-                Layout.fillWidth: true
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSizeMd
-                text: qsTr("256 kbps is transparent for most material. Raise it for dense mixes or lower it to save disk space. FLAC and ALAC ignore this value.")
-                visible: false
+                text: qsTr("Separated stems are written as FLAC: lossless, and the only format the stem writer supports.")
                 wrapMode: Text.WordWrap
             }
             Rectangle {

@@ -20,12 +20,6 @@ ColumnLayout {
     spacing: Theme.space1
 
     Mixxx.ControlProxy {
-        id: keylockCO
-
-        group: root.group
-        key: pitchKey.key
-    }
-    Mixxx.ControlProxy {
         id: keyCO
 
         group: root.group
@@ -82,11 +76,15 @@ ColumnLayout {
                 }
             }
         }
-        Skin.ControlButton {
+        // Keylock key. Enabled: the face is filled with the track key's own
+        // colour and shows the key, so the strip carries the Camelot colour
+        // instead of another accent block. Disabled: a plain grey note.
+        Skin.Button {
             id: pitchKey
 
-            // FIXME: the following map are copied from S4 mapping. Once the interface setting PR is merged, we should use the palette
-            readonly property variant colorsMap: ["#b960a2"// 1d
+            // FIXME: the following maps are copied from the S4 mapping. Once the
+            // interface setting PR is merged, we should use the palette.
+            readonly property variant colorsMap: ["#b960a2" // 1d
                 , "#9fc516" // 8d
                 , "#527fc0" // 3d
                 , "#f28b2e" // 10d
@@ -112,33 +110,63 @@ ColumnLayout {
                 , "#7499cd" // 3m
             ]
             readonly property variant textMap: ["1d", "8d", "3d", "10d", "5d", "12d", "7d", "2d", "9d", "4d", "11d", "6d", "10m", "5m", "12m", "7m", "2m", "9m", "4m", "11m", "6m", "1m", "8m", "3m"]
+            /// Keylock is engaged (note icon palette depends on this).
+            readonly property bool lockOn: keyBehavior.isActive
+            /// Keylock engaged *and* the deck knows the track key, so the face
+            /// can carry the Camelot colour.
+            readonly property bool active: pitchKey.lockOn
+                    && trackLoadedControl.value != 0
+                    && keyCO.value > 0
+            readonly property color keyColor: pitchKey.active
+                    ? colorsMap[keyCO.value]
+                    : "transparent"
 
             Layout.fillHeight: true
             Layout.fillWidth: true
-            group: root.group
+            highlight: false
             implicitHeight: 24
-            key: "keylock"
-            toggleable: true
 
             Accessible.name: qsTr("Keylock")
 
-            contentItem: Text {
-                color: {
-                    if (!trackLoadedControl.value || keyCO.value <= 0)
-                        return Theme.textMuted;
-                    return keylockCO.value ? pitchKey.colorsMap[keyCO.value] : Theme.textSecondary;
+            background: Rectangle {
+                border.color: pitchKey.active
+                        ? Qt.lighter(pitchKey.keyColor, 1.15)
+                        : Theme.border
+                border.width: 1
+                color: pitchKey.active ? pitchKey.keyColor : Theme.surface2
+                radius: Theme.radiusSm
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.motionFast
+                    }
                 }
+            }
+            contentItem: Text {
+                // Locked without a track keeps the note, in the accent, so the
+                // engaged state is still visible on an empty deck.
+                color: pitchKey.active
+                       ? Theme.surface0
+                       : pitchKey.lockOn ? Theme.accent : Theme.textMuted
                 font.capitalization: Font.MixedCase
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeXs
+                font.pixelSize: pitchKey.active ? Theme.fontSizeXs : Theme.fontSizeMd
                 font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
-                text: {
-                    if (!trackLoadedControl.value || keyCO.value <= 0)
-                        return "-";
-                    return pitchKey.textMap[keyCO.value];
-                }
+                text: pitchKey.active ? pitchKey.textMap[keyCO.value] : "♪"
                 verticalAlignment: Text.AlignVCenter
+            }
+            onCanceled: keyBehavior.releasePrimary()
+            onPressed: keyBehavior.pressPrimary()
+            onReleased: keyBehavior.releasePrimary()
+
+            Skin.ControlProxyButtonBehavior {
+                id: keyBehavior
+
+                group: root.group
+                handlePointerInput: false
+                key: "keylock"
+                toggleable: true
             }
         }
         Skin.ControlButton {

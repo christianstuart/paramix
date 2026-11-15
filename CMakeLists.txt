@@ -2946,6 +2946,7 @@ if(BUILD_TESTING)
   set(
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
+    src/test/waveformstemdetailtest.cpp
     src/test/analyzersilence_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp
@@ -4120,6 +4121,7 @@ if(QML)
       src/qml/qmlstemserviceproxy.cpp
       src/qml/qmlvinylsignalquality.cpp
       src/qml/qmlvisibleeffectsmodel.cpp
+      src/qml/qmlvumeteritem.cpp
       src/qml/qmlwaveformdisplay.cpp
       src/qml/qmlwaveformoverview.cpp
       src/qml/qmlwaveformrenderer.cpp

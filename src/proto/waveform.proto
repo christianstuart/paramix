@@ -25,9 +25,23 @@ message Waveform {
     optional double mid_high_cutoff_frequency = 6;
     optional double high_cutoff_frequency = 7;
   }
+  // Per-stem display detail. One entry per stem, one value per visual frame
+  // (the same base resolution as Signal above). This is an additive optional
+  // extension: waveforms written by older versions simply do not carry it and
+  // are read back as "no per-stem detail" (the stem renderer then falls back
+  // to flat, single-colour lanes). Old readers ignore the unknown field.
+  message StemDetail {
+    // RMS amplitude of the stem over the frame, 0..255.
+    repeated int32 rms = 1 [ packed = true ];
+    // Bit-packed band/attack data per frame:
+    //   bits 0-1 low band energy, bits 2-3 mid, bits 4-5 high,
+    //   bits 6-7 attack (transient) strength.
+    repeated int32 bands = 2 [ packed = true ];
+  }
   optional double visual_sample_rate = 1;
   optional double audio_visual_ratio = 2;
   optional Signal signal_all = 3;
   optional FilteredSignal signal_filtered = 4;
   repeated Signal signal_stems = 5;
+  repeated StemDetail signal_stem_details = 6;
 }

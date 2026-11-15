@@ -29,7 +29,8 @@ Item {
     enum Pane {
         Move = 0,
         Cue = 1,
-        Grid = 2
+        Grid = 2,
+        Stems = 3
     }
 
     readonly property var currentTrack: deckPlayer.currentTrack
@@ -242,7 +243,7 @@ Item {
 
         onValueChanged: pane => {
             const index = Math.round(pane);
-            if (index >= Deck.Pane.Move && index <= Deck.Pane.Grid)
+            if (index >= Deck.Pane.Move && index <= Deck.Pane.Stems)
                 root.activePane = index;
         }
     }
@@ -373,14 +374,29 @@ Item {
                         anchors.fill: parent
                         currentTrack: root.currentTrack
                         group: root.group
+                        paneMode: 1
                         // Cue is the fallback pane: it stays visible unless the
                         // selector explicitly asks for another tab, so the
                         // strip is never empty for an out-of-range selection.
                         visible: root.activePane !== Deck.Pane.Move
                                  && root.activePane !== Deck.Pane.Grid
+                                 && root.activePane !== Deck.Pane.Stems
 
                         Skin.FadeBehavior on visible {
                             fadeTarget: cuePane
+                        }
+                    }
+                    DeckComponent.HotcueAndStem {
+                        id: stemsPane
+
+                        anchors.fill: parent
+                        currentTrack: root.currentTrack
+                        group: root.group
+                        paneMode: 2
+                        visible: root.activePane === Deck.Pane.Stems
+
+                        Skin.FadeBehavior on visible {
+                            fadeTarget: stemsPane
                         }
                     }
                     DeckComponent.GridPane {

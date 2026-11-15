@@ -1,6 +1,7 @@
 import "." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQuick.Shapes
 import QtQuick.Layouts
 import "Mixer" as MixerComponents
 import "Theme"
@@ -20,7 +21,7 @@ Item {
 
     readonly property int stripWidth: 44
 
-    implicitHeight: content.height + sectionLabel.height
+    implicitHeight: content.height
     implicitWidth: 196
 
     Skin.SectionBackground {
@@ -28,33 +29,6 @@ Item {
     }
     Column {
         anchors.fill: parent
-
-        // Console section label: uppercase micro-type, Rekordbox-style.
-        Item {
-            id: sectionLabel
-
-            height: 22
-            width: root.implicitWidth
-
-            Text {
-                anchors.centerIn: parent
-                color: Theme.textMuted
-                font.family: Theme.fontFamily
-                font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Theme.fontSizeXs
-                font.weight: Theme.fontWeightDemiBold
-                text: qsTr("MIXER")
-            }
-            Rectangle {
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.space2
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.space2
-                color: Theme.border
-                height: 1
-            }
-        }
 
         Item {
             id: content
@@ -116,7 +90,6 @@ Item {
                     color: Theme.borderStrong
                     width: 1
                 }
-
                 Skin.EqColumn {
                     id: eqDeck3
 

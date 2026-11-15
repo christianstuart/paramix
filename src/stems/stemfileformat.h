@@ -10,12 +10,9 @@ namespace mixxx::stems {
 /// `.stem.mp4` export: Paramix writes four stereo stem files instead of a
 /// five-stream MP4 with an NI manifest atom.
 enum class StemFileFormat {
-    /// FLAC, lossless, 24-bit.
+    /// FLAC, lossless, 24-bit. The only supported export format: lossless,
+    /// cross-platform, and the AAC encoder crashed in the write path.
     Flac,
-    /// Apple Lossless in a CAF container, lossless, 24-bit.
-    Alac,
-    /// AAC-LC in an ADTS stream, lossy.
-    Aac,
 };
 
 inline constexpr int kDefaultAacBitrateKbps = 256;
@@ -25,11 +22,11 @@ inline constexpr int kMaxAacBitrateKbps = 512;
 /// The quality/time switch exposed in Settings -> Stems.
 struct StemExportSettings {
     StemFileFormat format = StemFileFormat::Flac;
-    int aacBitrateKbps = kDefaultAacBitrateKbps;
 };
 
-/// Parses `flac`, `alac` or `aac` (case-insensitive); unknown values fall back
-/// to FLAC rather than failing a background job.
+/// Parses `flac` (case-insensitive). The retired `alac` and `aac` values map to
+/// FLAC so existing configs and queued rows keep working; unknown values fall
+/// back to FLAC rather than failing a background job.
 StemFileFormat parseStemFileFormat(const QString& value);
 
 QString stemFileFormatName(StemFileFormat format);

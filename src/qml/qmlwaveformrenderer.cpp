@@ -347,6 +347,19 @@ QmlWaveformRendererFactory::Renderer QmlWaveformRendererStem::create(
             &QmlWaveformRendererStem::splitStemTracksChanged,
             pRenderer.get(),
             &allshader::WaveformRendererStem::setSplitStemTracks);
+
+    const auto applyStemVisualGains = [renderer = pRenderer.get()](const QVariantList& gains) {
+        for (int stemIdx = 0; stemIdx < gains.size(); ++stemIdx) {
+            renderer->setStemVisualGain(stemIdx, gains.at(stemIdx).toFloat());
+        }
+    };
+    applyStemVisualGains(m_stemVisualGains);
+    connect(this,
+            &QmlWaveformRendererStem::stemVisualGainsChanged,
+            pRenderer.get(),
+            [this, applyStemVisualGains]() {
+                applyStemVisualGains(m_stemVisualGains);
+            });
     return QmlWaveformRendererFactory::Renderer{pRenderer.get(), std::move(pRenderer)};
 }
 #endif

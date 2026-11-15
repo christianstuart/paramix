@@ -3,9 +3,9 @@ import QtQuick 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Vertical MOVE / CUE / GRID selector for the deck pane stack.
+/// Vertical MOVE / CUE / GRID / STEMS selector for the deck pane stack.
 ///
-/// Traktor puts this three-row stack at the right edge of the loop row, one
+/// Traktor puts this stacked selector at the right edge of the loop row, one
 /// block wide, with the active pane filled by the accent. The stack is exactly
 /// as tall as the loop card next to it, so the two read as one row and neither
 /// can overlap the other. The host is a constant height, so switching panes
@@ -13,7 +13,8 @@ import "../Theme"
 ColumnLayout {
     id: root
 
-    /// 0 = Move (beatjump), 1 = Cue (hotcues + stems), 2 = Grid (beatgrid).
+    /// 0 = Move (beatjump), 1 = Cue (hotcues), 2 = Grid (beatgrid),
+    /// 3 = Stems (stem mixer lanes).
     property int activePane: 1
     /// Lights a small badge on the GRID tab while the BPM is locked.
     property bool gridLocked: false
@@ -23,21 +24,29 @@ ColumnLayout {
     spacing: Theme.space1
 
     Repeater {
+        // Display order: Cue first (the default pane), then Move, Grid, Stem.
+        // The `pane` values are the persisted Deck.Pane enum, so reordering the
+        // list does not invalidate a saved selection.
         model: [
+            {
+                "label": qsTr("Cue"),
+                "pane": 1,
+                "hint": qsTr("Show hotcues")
+            },
             {
                 "label": qsTr("Move"),
                 "pane": 0,
                 "hint": qsTr("Show beatjump controls")
             },
             {
-                "label": qsTr("Cue"),
-                "pane": 1,
-                "hint": qsTr("Show hotcues and stems")
-            },
-            {
                 "label": qsTr("Grid"),
                 "pane": 2,
                 "hint": qsTr("Show beatgrid controls")
+            },
+            {
+                "label": qsTr("Stem"),
+                "pane": 3,
+                "hint": qsTr("Show the stem mixer")
             }
         ]
 

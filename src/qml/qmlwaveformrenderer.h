@@ -645,6 +645,10 @@ class QmlWaveformRendererStem
     Q_PROPERTY(bool reorderOnChange MEMBER m_reorderOnChange NOTIFY
                     reorderOnChangeChanged)
     Q_PROPERTY(bool splitStemTracks MEMBER m_splitStemTracks NOTIFY splitStemTracksChanged)
+    // Optional per-stem visual gain (4 values) applied on top of the automatic
+    // lane fill. Empty/omitted means 1.0 for every stem.
+    Q_PROPERTY(QVariantList stemVisualGains READ stemVisualGains WRITE
+                    setStemVisualGains NOTIFY stemVisualGainsChanged)
     QML_NAMED_ELEMENT(WaveformRendererStem)
 
   public:
@@ -668,12 +672,24 @@ class QmlWaveformRendererStem
     }
 #endif
 
+    QVariantList stemVisualGains() const {
+        return m_stemVisualGains;
+    }
+    void setStemVisualGains(const QVariantList& gains) {
+        if (m_stemVisualGains == gains) {
+            return;
+        }
+        m_stemVisualGains = gains;
+        emit stemVisualGainsChanged();
+    }
+
   signals:
     void gainAllChanged(double);
     void opacityChanged(double);
     void outlineOpacityChanged(double);
     void reorderOnChangeChanged(bool);
     void splitStemTracksChanged(bool);
+    void stemVisualGainsChanged();
 
   private:
     double gainAll() const {
@@ -692,6 +708,7 @@ class QmlWaveformRendererStem
     double m_outlineOpacity{0.15};
     bool m_reorderOnChange{true};
     bool m_splitStemTracks{false};
+    QVariantList m_stemVisualGains;
 
     ::WaveformRendererAbstract::PositionSource m_position{::WaveformRendererAbstract::Play};
 };

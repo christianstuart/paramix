@@ -147,6 +147,8 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
           m_busCrossfaderRightHandle(registerChannelGroup("[BusRight]")),
           m_pMainMonoMixdown(std::make_unique<ControlObject>(
                   ConfigKey(group, "mono_mixdown"), true, false, true)),
+          m_pHeadMonoMixdown(std::make_unique<ControlObject>(
+                  ConfigKey(group, "head_mono_mixdown"), true, false, true)),
           m_pMicMonitorMode(std::make_unique<ControlObject>(
                   ConfigKey(group, "talkover_mix"), true, false, true)) {
     pEffectsManager->registerInputChannel(m_mainHandle);
@@ -481,11 +483,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
 
     // Calculate the crossfader gains for left and right side of the crossfader
     CSAMPLE_GAIN crossfaderLeftGain, crossfaderRightGain;
-    EngineXfader::getXfadeGains(m_pCrossfader->get(), m_pXFaderCurve->get(),
-                                m_pXFaderCalibration->get(),
-                                m_pXFaderMode->get(),
-                                m_pXFaderReverse->toBool(),
-                                &crossfaderLeftGain, &crossfaderRightGain);
+    EngineXfader::getXfadeGains(m_pCrossfader->get(), m_pXFaderCurve->get(), m_pXFaderCalibration->get(), m_pXFaderMode->get(), m_pXFaderReverse->toBool(), &crossfaderLeftGain, &crossfaderRightGain);
 
     // Make the mix for each crossfader orientation output bus.
     // m_mainGain takes care of applying the attenuation from
@@ -547,7 +545,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
                 static_cast<int>(bufferSize));
 
         MicMonitorMode configuredMicMonitorMode = static_cast<MicMonitorMode>(
-            static_cast<int>(m_pMicMonitorMode->get()));
+                static_cast<int>(m_pMicMonitorMode->get()));
 
         // Process main, booth, and record/broadcast buffers according to the
         // MicMonitorMode configured in DlgPrefSound
@@ -838,7 +836,7 @@ void EngineMixer::processHeadphones(
             ph[i] = (ph[i] + ph[i + 1]) / 2;
             ph[i + 1] = (pm[i] + pm[i + 1]) / 2;
         }
-    } else if (m_pMainMonoMixdown->toBool()) {
+    } else if (m_pHeadMonoMixdown->toBool()) {
         SampleUtil::mixStereoToMono(m_head.data(), bufferSize);
     }
 

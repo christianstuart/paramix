@@ -1,5 +1,6 @@
 import "." as Skin
 import QtQuick 2.12
+import QtQuick.Shapes
 import "Theme"
 
 /// One mixer channel strip: channel tag, trim, level faders and cue.
@@ -93,7 +94,7 @@ Item {
     Rectangle {
         id: faderFrame
 
-        anchors.bottom: pflButton.top
+        anchors.bottom: cueIcon.top
         anchors.bottomMargin: Theme.space1
         anchors.left: parent.left
         anchors.right: parent.right
@@ -155,6 +156,57 @@ Item {
             }
         }
     }
+    // Headphone cue icon above the CUE key. The fader frame ends above it, so
+    // the fader is a few pixels shorter to make room.
+    Item {
+        id: cueIcon
+
+        anchors.bottom: pflButton.top
+        anchors.bottomMargin: 6
+        anchors.horizontalCenter: parent.horizontalCenter
+        height: 11
+        width: 13
+        z: 2
+
+        Shape {
+            anchors.fill: parent
+
+            ShapePath {
+                capStyle: ShapePath.RoundCap
+                fillColor: "transparent"
+                joinStyle: ShapePath.RoundJoin
+                startX: 2
+                startY: 8
+                strokeColor: Theme.textMuted
+                strokeWidth: 1.2
+
+                PathArc {
+                    direction: PathArc.Clockwise
+                    radiusX: 4.5
+                    radiusY: 4.5
+                    useLargeArc: false
+                    x: 11
+                    y: 8
+                }
+            }
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            color: Theme.textMuted
+            height: 4
+            radius: 1
+            width: 2.5
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.right: parent.right
+            color: Theme.textMuted
+            height: 4
+            radius: 1
+            width: 2.5
+        }
+    }
     Skin.ControlButton {
         id: pflButton
 
@@ -165,7 +217,7 @@ Item {
         group: root.group
         height: 22
         key: "pfl"
-        text: qsTr("PFL")
+        text: qsTr("CUE")
         toggleable: true
     }
 }

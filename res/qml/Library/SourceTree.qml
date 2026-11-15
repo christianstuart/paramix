@@ -94,6 +94,7 @@ Mixxx.LibrarySourceTree {
             label: qsTr("Title")
 
             delegate: DefaultDelegate {
+                bold: true
             }
         },
         Mixxx.TrackListColumn {
@@ -102,6 +103,7 @@ Mixxx.LibrarySourceTree {
             label: qsTr("Artist")
 
             delegate: DefaultDelegate {
+                bold: true
             }
         },
         Mixxx.TrackListColumn {
@@ -164,6 +166,10 @@ Mixxx.LibrarySourceTree {
     component DefaultDelegate: LibraryComponent.Cell {
         id: cell
 
+        /// Title and artist are the identifying columns; the host sets this so
+        /// they read heavier than the metadata next to them.
+        property bool bold: false
+
         readonly property var caps: capabilities
 
         // FIXME: https://bugreports.qt.io/browse/QTBUG-111789
@@ -209,6 +215,7 @@ Mixxx.LibrarySourceTree {
             elide: Text.ElideRight
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeMd
+            font.weight: cell.bold ? Theme.fontWeightBold : Theme.fontWeightRegular
             text: display ?? ""
             verticalAlignment: Text.AlignVCenter
         }

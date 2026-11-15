@@ -206,7 +206,7 @@ Popup {
                             spacing: Theme.space1
 
                             Repeater {
-                                model: ["#4F8CF7", "#2BB673", "#E85D4A", "#7A5AF8", "#FFB000", "#FF4D8D", "#00C2A8"]
+                                model: ["#4F8CF7", "#E85D4A", "#7A5AF8", "#FFB000", "#FF4D8D", "#00C2A8"]
 
                                 Rectangle {
                                     required property string modelData

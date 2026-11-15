@@ -15,7 +15,7 @@ MixxxControls.Knob {
     arc: true
     arcColor: root.color
     arcOffsetY: width * 0.01
-    arcRadius: width * 0.45
+    arcRadius: Math.min(width * 0.45, width / 2 - arcWidth / 2 - 1)
     arcWidth: 2
     implicitHeight: implicitWidth
     implicitWidth: background.width

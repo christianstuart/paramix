@@ -1,7 +1,9 @@
 #include "waveform/renderers/allshader/waveformrenderbeat.h"
 
 #include <QDomNode>
+#include <algorithm>
 
+#include "audio/frame.h"
 #include "engine/engine.h"
 #include "moc_waveformrenderbeat.cpp"
 #include "rendergraph/geometry.h"
@@ -89,8 +91,15 @@ bool WaveformRenderBeat::preprocessInner() {
     const double lastDisplayedPosition =
             m_waveformRenderer->getLastDisplayedPosition(positionType);
 
-    const auto startPosition = mixxx::audio::FramePos::fromEngineSamplePos(
-            firstDisplayedPosition * trackSamples);
+    // The beat grid must not be drawn before the start of the track. The first
+    // displayed position is negative whenever the display extends into the
+    // pre-track area, and auto-generated grids usually contain beats at
+    // negative positions, which would paint beat lines left of frame 0.
+    const auto trackStartPosition = mixxx::audio::kStartFramePos;
+    const auto startPosition = std::max(
+            mixxx::audio::FramePos::fromEngineSamplePos(
+                    firstDisplayedPosition * trackSamples),
+            trackStartPosition);
     const auto endPosition = mixxx::audio::FramePos::fromEngineSamplePos(
             lastDisplayedPosition * trackSamples);
 

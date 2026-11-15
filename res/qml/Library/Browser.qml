@@ -6,6 +6,7 @@ import QtQuick
 import QtQml.Models
 import QtQuick.Layouts
 import QtQuick.Controls 2.15
+import Qt5Compat.GraphicalEffects
 import "../Theme"
 
 /// Library source tree (All tracks, playlists, crates, ...).
@@ -16,6 +17,13 @@ Rectangle {
         model: root.model
     }
     required property var model
+    // The library search sits with the sources now that the full-width library
+    // toolbar is gone. The owning pane drives the actual search; this only
+    // reports edits so the debounce stays in one place.
+    readonly property alias searchInput: searchField
+
+    signal searchCleared()
+    signal searchEdited()
 
     color: Theme.surface1
 
@@ -69,6 +77,80 @@ Rectangle {
             anchors.fill: parent
             anchors.margins: Theme.space1
             spacing: 0
+
+            Item {
+                id: searchBox
+
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.space1
+                Layout.rightMargin: Theme.space1
+                Layout.topMargin: Theme.space1
+                implicitHeight: 30
+
+                Skin.TextField {
+                    id: searchField
+
+                    anchors.fill: parent
+                    Accessible.name: qsTr("Search the library")
+                    Accessible.role: Accessible.EditableText
+                    font.pixelSize: Theme.fontSizeSm
+                    placeholderText: qsTranslate("WSearchLineEdit", "Search...")
+                    rightPadding: Theme.space2 + (clearButton.visible ? clearButton.width + Theme.space1 : 0)
+                    verticalAlignment: TextInput.AlignVCenter
+
+                    onTextChanged: root.searchEdited()
+                }
+                Item {
+                    id: clearButton
+
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.space2
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 14
+                    visible: searchField.text.length > 0
+                    width: 14
+
+                    Accessible.name: qsTr("Clear search")
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.searchCleared()
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: clearMouseArea.containsMouse ? Theme.surfaceHover : "transparent"
+                        radius: Theme.radiusXs
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        color: clearMouseArea.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        height: 1
+                        rotation: 45
+                        width: 7
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        color: clearMouseArea.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        height: 1
+                        rotation: -45
+                        width: 7
+                    }
+                    MouseArea {
+                        id: clearMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+
+                        onClicked: root.searchCleared()
+                    }
+                }
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.space1
+                Layout.rightMargin: Theme.space1
+                Layout.topMargin: Theme.space1
+                color: Theme.border
+                implicitHeight: 1
+            }
 
             ScrollView {
                 Layout.fillHeight: true
@@ -188,12 +270,19 @@ Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: Theme.space1
 
+                            // Source icons ship in their own colours (orange
+                            // tracks, red recordings, ...). Tint them with the
+                            // accent so the tree reads as one system.
                             Image {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.preferredHeight: 16
                                 Layout.preferredWidth: 16
                                 asynchronous: true
                                 fillMode: Image.PreserveAspectFit
+                                layer.enabled: !!icon
+                                layer.effect: ColorOverlay {
+                                    color: Theme.accent
+                                }
                                 source: icon ?? ""
                                 visible: !!icon
                             }

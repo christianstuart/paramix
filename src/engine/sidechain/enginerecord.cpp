@@ -4,6 +4,7 @@
 
 #include "control/controlproxy.h"
 #include "encoder/encoder.h"
+#include "engine/enginevumeter.h"
 #include "mixer/playerinfo.h"
 #include "moc_enginerecord.cpp"
 #include "preferences/usersettings.h"
@@ -18,10 +19,12 @@ EngineRecord::EngineRecord(UserSettingsPointer pConfig)
         : m_pConfig(pConfig),
           m_sampleRateControl(
                   QStringLiteral("[App]"), QStringLiteral("samplerate")),
+          m_vuMeter(QStringLiteral("[Recording]"), QString(), false),
           m_frames(0),
           m_recordedDuration(0),
           m_iMetaDataLife(0),
           m_cueTrack(0),
+          m_recordMono(false),
           m_bCueIsEnabled(false),
           m_bCueUsesFileAnnotation(
                   false) { // defaulting to stereo but not picking from config
@@ -35,11 +38,13 @@ EngineRecord::EngineRecord(UserSettingsPointer pConfig)
                     ConfigKey(RECORDING_PREF_KEY, "tracklist_as_comment"), true);
         }
     });
+    m_pRecGain = new ControlProxy(RECORDING_PREF_KEY, "gain", this);
 }
 
 EngineRecord::~EngineRecord() {
     closeCueFile();
     closeFile();
+    delete m_pRecGain;
     delete m_pRecReady;
 }
 
@@ -56,6 +61,10 @@ int EngineRecord::updateFromPreferences() {
             ConfigKey(RECORDING_PREF_KEY, QStringLiteral("CueEnabled")));
     m_bCueUsesFileAnnotation = m_pConfig->getValue<bool>(
             ConfigKey(RECORDING_PREF_KEY, QStringLiteral("cue_file_annotation_enabled")));
+    // Capture the mono/stereo setting once per recording. Changing it mid
+    // recording would change the encoded buffer size and break the encoder.
+    m_recordMono =
+            m_pConfig->getValue<int>(ConfigKey(RECORDING_PREF_KEY, "channel_mode"), 0) == 1;
     m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_sampleRateControl.get());
 
     // Delete m_pEncoder if it has been initialized (with maybe) different bitrate.
@@ -89,22 +98,21 @@ int EngineRecord::updateFromPreferences() {
     return ret;
 }
 
-bool EngineRecord::metaDataHasChanged()
-{
-    //Originally, m_iMetaDataLife was used so that getCurrentPlayingTrack was called
-    //less often, because it was calculating it.
-    //Nowadays (since Mixxx 1.11), it just accesses a map on a thread safe method.
+bool EngineRecord::metaDataHasChanged() {
+    // Originally, m_iMetaDataLife was used so that getCurrentPlayingTrack was called
+    // less often, because it was calculating it.
+    // Nowadays (since Mixxx 1.11), it just accesses a map on a thread safe method.
     TrackPointer pTrack = PlayerInfo::instance().getCurrentPlayingTrack();
     if (!pTrack) {
         m_iMetaDataLife = kMetaDataLifeTimeout;
         return false;
     }
 
-    //The counter is kept so that changes back and forth with the faders/crossfader
+    // The counter is kept so that changes back and forth with the faders/crossfader
     //(like in scratching or other effects) are not counted as multiple track changes
-    //in the cue file. A better solution could consist of a signal from PlayerInfo and
-    //a slot that decides if the changes received are valid or are to be ignored once
-    //the next process call comes. This could also help improve the time written in the CUE.
+    // in the cue file. A better solution could consist of a signal from PlayerInfo and
+    // a slot that decides if the changes received are valid or are to be ignored once
+    // the next process call comes. This could also help improve the time written in the CUE.
     if (m_iMetaDataLife < kMetaDataLifeTimeout) {
         m_iMetaDataLife++;
         return false;
@@ -114,11 +122,10 @@ bool EngineRecord::metaDataHasChanged()
     if (m_pCurrentTrack) {
         if (!pTrack->getId().isValid() || !m_pCurrentTrack->getId().isValid()) {
             if ((pTrack->getArtist() == m_pCurrentTrack->getArtist()) &&
-                (pTrack->getTitle() == m_pCurrentTrack->getArtist())) {
+                    (pTrack->getTitle() == m_pCurrentTrack->getArtist())) {
                 return false;
             }
-        }
-        else if (pTrack->getId() == m_pCurrentTrack->getId()) {
+        } else if (pTrack->getId() == m_pCurrentTrack->getId()) {
             return false;
         }
     }
@@ -128,14 +135,23 @@ bool EngineRecord::metaDataHasChanged()
 }
 
 void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize) {
+    // Apply the recording gain and feed the level meter before handling the
+    // recording status below, so the meter is live even while not recording.
+    m_gainBuffer.resize(bufferSize);
+    const CSAMPLE gain = static_cast<CSAMPLE>(m_pRecGain->get());
+    for (std::size_t i = 0; i < bufferSize; ++i) {
+        m_gainBuffer[i] = pBuffer[i] * gain;
+    }
+    m_vuMeter.process(m_gainBuffer.data(), bufferSize);
+
     const auto recordingStatus = static_cast<int>(m_pRecReady->get());
     static const QString tag("EngineRecord recording");
 
     if (recordingStatus == RECORD_OFF) {
-        //qDebug("Setting record flag to: OFF");
+        // qDebug("Setting record flag to: OFF");
         if (fileOpen()) {
             Event::end(tag);
-            closeFile();  // Close file and free encoder.
+            closeFile(); // Close file and free encoder.
             if (m_bCueIsEnabled) {
                 closeCueFile();
             }
@@ -157,7 +173,7 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
             Event::start(tag);
             qDebug("Setting record flag to: ON");
             m_pRecReady->set(RECORD_ON);
-            emit isRecording(true, false);  // will notify the RecordingManager
+            emit isRecording(true, false); // will notify the RecordingManager
 
             // Since we just started recording, timeout and clear the metadata.
             m_iMetaDataLife = kMetaDataLifeTimeout;
@@ -181,16 +197,16 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
         }
     } else if (recordingStatus == RECORD_SPLIT_CONTINUE) {
         if (fileOpen()) {
-            closeFile();  // Close file and free encoder.
+            closeFile(); // Close file and free encoder.
             if (m_bCueIsEnabled) {
                 closeCueFile();
             }
         }
-        updateFromPreferences();  // Update file location from preferences.
+        updateFromPreferences(); // Update file location from preferences.
         if (openFile()) {
-            qDebug() << "Splitting to a new file: "<< m_fileName;
+            qDebug() << "Splitting to a new file: " << m_fileName;
             m_pRecReady->set(RECORD_ON);
-            emit isRecording(true, false);  // will notify the RecordingManager
+            emit isRecording(true, false); // will notify the RecordingManager
 
             // Since we just started recording, timeout and clear the metadata.
             m_iMetaDataLife = kMetaDataLifeTimeout;
@@ -205,7 +221,7 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
                 openCueFile();
                 m_cueTrack = 0;
             }
-        } else {  // Maybe the encoder could not be initialized
+        } else { // Maybe the encoder could not be initialized
             qDebug() << "Could not open" << m_fileName << "for writing.";
             Event::end(tag);
             qDebug("Setting record flag to: OFF");
@@ -218,20 +234,18 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const std::size_t bufferSize)
     // Checking again from m_pRecReady since its status might have changed
     // in the previous "if" blocks.
     if (m_pRecReady->get() == RECORD_ON) {
-        int channelMode = m_pConfig->getValue<int>(
-                ConfigKey(RECORDING_PREF_KEY, "channel_mode"), 0);
-        bool recordMono = (channelMode == 1);
         /* Downmixing audio to mono if mono recording is enabled.
         We need to do it before encoding because some encoders don't support mono
         and we want to be able to record in mono even with these encoders.*/
-        const CSAMPLE* bufferToEncode = pBuffer;
+        const CSAMPLE* bufferToEncode = m_gainBuffer.data();
         std::vector<CSAMPLE> monoBuffer;
         std::size_t encoderBufferSize = bufferSize;
 
-        if (recordMono) {
+        if (m_recordMono) {
             // Allocate mono buffer (half the size since we're going from 2 channels to 1)
             monoBuffer.resize(bufferSize / 2);
-            SampleUtil::mixMultichannelToMono(monoBuffer.data(), pBuffer, bufferSize);
+            SampleUtil::mixMultichannelToMono(
+                    monoBuffer.data(), m_gainBuffer.data(), bufferSize);
             bufferToEncode = monoBuffer.data();
             encoderBufferSize = bufferSize / 2;
         }
@@ -282,9 +296,7 @@ void EngineRecord::writeCueLine() {
     }
 
     // CDDA is specified as having 75 frames a second
-    unsigned long cueFrame = ((unsigned long)
-                                ((m_frames / (m_sampleRate / 75)))
-                                    % 75);
+    unsigned long cueFrame = ((unsigned long)((m_frames / (m_sampleRate / 75))) % 75);
 
     m_cueFile.write(QStringLiteral("  TRACK %1 AUDIO\n")
                     .arg((double)m_cueTrack, 2, 'f', 0, '0')
@@ -307,25 +319,23 @@ void EngineRecord::writeCueLine() {
     // We'd need a signal fired state tracker
     // for the track detection code.
     m_cueFile.write(QString("    INDEX 01 %1:%2\n")
-                            .arg(getRecordedDurationStr())
-                            .arg(static_cast<double>(cueFrame), 2, 'f', 0, '0')
-                            .toUtf8());
+                    .arg(getRecordedDurationStr())
+                    .arg(static_cast<double>(cueFrame), 2, 'f', 0, '0')
+                    .toUtf8());
 }
 
 // Encoder calls this method to write compressed audio
-void EngineRecord::write(const unsigned char *header, const unsigned char *body,
-                         int headerLen, int bodyLen) {
+void EngineRecord::write(const unsigned char* header, const unsigned char* body, int headerLen, int bodyLen) {
     if (!fileOpen()) {
         return;
     }
     // Relevant for OGG
     if (headerLen > 0) {
-        m_dataStream.writeRawData((const char*) header, headerLen);
+        m_dataStream.writeRawData((const char*)header, headerLen);
     }
     // Always write body
-    m_dataStream.writeRawData((const char*) body, bodyLen);
-    emit bytesRecorded((headerLen+bodyLen));
-
+    m_dataStream.writeRawData((const char*)body, bodyLen);
+    emit bytesRecorded((headerLen + bodyLen));
 }
 // Encoder calls this method to write compressed audio
 int EngineRecord::tell() {
@@ -392,27 +402,27 @@ bool EngineRecord::openCueFile() {
 
     if (m_baAuthor.length() > 0) {
         m_cueFile.write(QString("PERFORMER \"%1\"\n")
-                                .arg(QString(m_baAuthor).replace(QString("\""), QString("\\\"")))
-                                .toUtf8());
+                        .arg(QString(m_baAuthor).replace(QString("\""), QString("\\\"")))
+                        .toUtf8());
     }
 
     if (m_baTitle.length() > 0) {
         m_cueFile.write(QString("TITLE \"%1\"\n")
-                                .arg(QString(m_baTitle).replace(QString("\""), QString("\\\"")))
-                                .toUtf8());
+                        .arg(QString(m_baTitle).replace(QString("\""), QString("\\\"")))
+                        .toUtf8());
     }
 
     m_cueFile.write(
             QString("FILE \"%1\" %2\n")
                     .arg(QFileInfo(m_fileName)
-                                    .fileName() //strip path
+                                    .fileName() // strip path
                                     .replace(QString("\""),
                                             QString("\\\"")), // escape doublequote
                             (m_encoding == ENCODING_MP3)
                                     ? ENCODING_MP3
                                     : (m_encoding == ENCODING_AIFF)
-                                            ? ENCODING_AIFF
-                                            : "WAVE" // MP3 and AIFF are recognized but other formats just use WAVE.
+                                    ? ENCODING_AIFF
+                                    : "WAVE" // MP3 and AIFF are recognized but other formats just use WAVE.
                             )
                     .toUtf8());
     return true;

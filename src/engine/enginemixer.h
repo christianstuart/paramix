@@ -53,7 +53,7 @@ class EngineMixer : public QObject, public AudioSource {
 
     ChannelHandleAndGroup registerChannelGroup(const QString& group) {
         return ChannelHandleAndGroup(
-                   m_pChannelHandleFactory->getOrCreateHandle(group), group);
+                m_pChannelHandleFactory->getOrCreateHandle(group), group);
     }
 
     ChannelHandleAndGroup getChannelGroup(const QString& group) {
@@ -85,18 +85,18 @@ class EngineMixer : public QObject, public AudioSource {
             CSAMPLE_GAIN centerGain,
             CSAMPLE_GAIN rightGain) {
         switch (orientation) {
-            case EngineChannel::LEFT:
-                return leftGain;
-            case EngineChannel::RIGHT:
-                return rightGain;
-            case EngineChannel::CENTER:
-            default:
-                return centerGain;
+        case EngineChannel::LEFT:
+            return leftGain;
+        case EngineChannel::RIGHT:
+            return rightGain;
+        case EngineChannel::CENTER:
+        default:
+            return centerGain;
         }
     }
 
     // Provide access to the sync lock so enginebuffers can know what their rate controller is.
-    EngineSync* getEngineSync() const{
+    EngineSync* getEngineSync() const {
         return m_pEngineSync.get();
     }
 
@@ -203,7 +203,9 @@ class EngineMixer : public QObject, public AudioSource {
     template<typename T, unsigned int CAPACITY>
     class FastVector {
       public:
-        inline FastVector() : m_size(0), m_data((T*)((void *)m_buffer)) {};
+        inline FastVector()
+                : m_size(0),
+                  m_data((T*)((void*)m_buffer)) {};
         inline ~FastVector() {
             if (QTypeInfo<T>::isComplex) {
                 for (int i = 0; i < m_size; ++i) {
@@ -231,16 +233,17 @@ class EngineMixer : public QObject, public AudioSource {
             T copy(t);
             m_data[i] = copy;
         }
-        inline int size () const {
+        inline int size() const {
             return m_size;
         }
+
       private:
         int m_size;
         T* const m_data;
         // Using a long double buffer guarantees the alignment for any type
         // but avoids the constructor call T();
         long double m_buffer[(CAPACITY * sizeof(T) + sizeof(long double) - 1) /
-                             sizeof(long double)];
+                sizeof(long double)];
     };
 
   protected:
@@ -347,6 +350,7 @@ class EngineMixer : public QObject, public AudioSource {
 
     // Mix two Mono channels. This is useful for outdoor gigs
     std::unique_ptr<ControlObject> m_pMainMonoMixdown;
+    std::unique_ptr<ControlObject> m_pHeadMonoMixdown;
     std::unique_ptr<ControlObject> m_pMicMonitorMode;
 
     // TODO (Swiftb0y): remove volatile (probably supposed to be std::atomic instead).

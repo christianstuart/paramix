@@ -68,23 +68,10 @@ Column {
         knob.key: "parameter1"
         statusKey: "button_parameter1"
     }
-    Text {
-        color: Theme.accent
-        elide: Text.ElideRight
-        font.family: Theme.fontFamily
-        font.letterSpacing: Theme.letterSpacingCaps
-        font.pixelSize: Theme.fontSizeXs
-        font.weight: Theme.fontWeightDemiBold
-        horizontalAlignment: Text.AlignHCenter
-        text: qsTr("FILTER")
-        width: parent.width
-    }
-    Skin.QuickFxKnob {
-        group: "[QuickEffectRack1_" + root.group + "]"
-        knob.arcStyle: ShapePath.DashLine
-        knob.arcStylePattern: [2, 2]
-        knob.color: Theme.accent
-    }
+    // The quick-effect preset dropdown takes the place of the old "FILTER"
+    // caption: it names the effect (which is usually the filter) and frees the
+    // row the separate dropdown used to occupy, so the fader and the decks
+    // above can be shorter.
     Mixxx.ControlProxy {
         id: fxSelect
 
@@ -99,6 +86,7 @@ Column {
         clip: true
         currentIndex: fxSelect.value == -1 ? 0 : fxSelect.value
         font.pixelSize: Theme.fontSizeXs
+        implicitHeight: 18
         indicator.width: 0
         model: Mixxx.EffectsManager.quickChainPresetModel
         popupMaxItem: 8
@@ -111,5 +99,11 @@ Column {
         onActivated: index => {
             fxSelect.value = index;
         }
+    }
+    Skin.QuickFxKnob {
+        group: "[QuickEffectRack1_" + root.group + "]"
+        knob.arcStyle: ShapePath.DashLine
+        knob.arcStylePattern: [2, 2]
+        knob.color: Theme.accent
     }
 }

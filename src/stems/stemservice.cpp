@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QMap>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -31,6 +32,19 @@
 
 namespace mixxx::stems {
 namespace {
+
+/// True while the application shows a window, i.e. the user is looking at the
+/// UI. GPU stem separation shares the graphics device with the scene graph and
+/// blocks the render thread for up to seconds per chunk (the ONNX WebGPU
+/// provider on macOS), which is unacceptable while the UI is on screen. The
+/// GPU provider is therefore only used for headless/offline runs; interactive
+/// separation stays on the CPU, which renders at full frame rate.
+bool isInteractiveUiRunning() {
+    if (qobject_cast<QGuiApplication*>(QCoreApplication::instance()) == nullptr) {
+        return false;
+    }
+    return !QGuiApplication::topLevelWindows().isEmpty();
+}
 
 const mixxx::Logger kLogger("StemService");
 
@@ -107,9 +121,7 @@ bool StemService::queueExport(const StemExportRequest& request) {
     queued.outputDirectory = outputDirectory;
     queued.setName = setName;
     queued.format = stemFileFormatName(settings.format);
-    queued.aacBitrateKbps = settings.format == StemFileFormat::Aac
-            ? settings.aacBitrateKbps
-            : 0;
+    queued.aacBitrateKbps = 0;
     // Live outside the lock: it may open a database connection on this thread.
     const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
     if (database.isOpen()) {
@@ -127,8 +139,18 @@ bool StemService::queueExport(const StemExportRequest& request) {
                 outputDirectory,
                 setName,
                 modelPathValue,
-                isGpuAccelerationEnabled(m_pConfig) && !m_gpuDisabled.load(),
+                isGpuAccelerationEnabled(m_pConfig) && !m_gpuDisabled.load() &&
+                        !isInteractiveUiRunning(),
                 settings});
+    }
+    if (isGpuAccelerationEnabled(m_pConfig) && isInteractiveUiRunning()) {
+        static bool s_loggedCpuFallback = false;
+        if (!s_loggedCpuFallback) {
+            s_loggedCpuFallback = true;
+            kLogger.info()
+                    << "Stem separation runs on the CPU while a window is shown:"
+                       " the GPU provider blocks the render thread and stalls the UI";
+        }
     }
     setStatus(trackId, Status::Queued, 0);
     m_waitCondition.wakeAll();
@@ -385,11 +407,7 @@ void StemService::processJob(Job& job,
                 ? pTrack->getSampleRate().value()
                 : 44100;
         const double frames = pTrack->getDuration() * estimatedSampleRate;
-        if (settings.format == StemFileFormat::Aac) {
-            estimatedBytes = static_cast<qint64>(4.0 * frames * settings.aacBitrateKbps / 8.0);
-        } else {
-            estimatedBytes = static_cast<qint64>(frames * kStemChannelCount * 3.0);
-        }
+        estimatedBytes = static_cast<qint64>(frames * kStemChannelCount * 3.0);
         estimatedBytes = static_cast<qint64>(estimatedBytes * 1.05) + 4096;
     }
     const QString existingAncestor = QFileInfo(outputDirectory).absolutePath();
@@ -675,7 +693,6 @@ void StemService::processJob(Job& job,
     info.sampleRate = sourceSampleRate;
     info.frames = sourceFrames;
     info.format = settings.format;
-    info.aacBitrateKbps = settings.aacBitrateKbps;
     QString error;
     if (!writeStemSet(outputDirectory, info, finalStems.data(), &error)) {
         setStatus(trackId, Status::Failed, 0, error);
@@ -704,9 +721,7 @@ void StemService::processJob(Job& job,
     record.model = info.modelName;
     record.sampleRate = sourceSampleRate;
     record.frameCount = sourceFrames;
-    record.aacBitrateKbps = settings.format == StemFileFormat::Aac
-            ? settings.aacBitrateKbps
-            : 0;
+    record.aacBitrateKbps = 0;
     if (!dao.insert(record)) {
         kLogger.warning() << "Stem set written but not indexed for track" << trackId;
     }

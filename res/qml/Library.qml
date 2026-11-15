@@ -10,8 +10,8 @@ import QtQuick.Shapes 1.6
 import "Theme"
 import "Library" as LibraryComponent
 
-/// Library pane: a slim toolbar with the search field on top of the source
-/// tree, preview deck and track list.
+/// Library pane: source tree (with the search field at its top), preview deck
+/// and track list. There is no separate library toolbar any more.
 Item {
     id: root
 
@@ -19,138 +19,25 @@ Item {
 
     function applySearch() {
         if (root.sidebar && root.sidebar.tracklist) {
-            root.sidebar.tracklist.search(searchField.text);
+            root.sidebar.tracklist.search(libraryBrowser.searchInput.text);
         }
     }
     function clearSearch() {
-        searchField.text = "";
+        libraryBrowser.searchInput.text = "";
         // A clear should not wait for the debounce interval.
         searchDebounce.stop();
         root.applySearch();
-        searchField.forceActiveFocus(Qt.ShortcutFocusReason);
+        libraryBrowser.searchInput.forceActiveFocus(Qt.ShortcutFocusReason);
     }
     function focusSearch() {
         searchDebounce.stop();
         root.applySearch();
-        searchField.forceActiveFocus(Qt.ShortcutFocusReason);
-        searchField.selectAll();
+        libraryBrowser.searchInput.forceActiveFocus(Qt.ShortcutFocusReason);
+        libraryBrowser.searchInput.selectAll();
     }
 
     LibraryComponent.SourceTree {
         id: librarySources
-    }
-    Rectangle {
-        id: toolbar
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        color: Theme.surface2
-        height: Theme.toolbarHeight
-
-        Rectangle {
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            color: Theme.borderStrong
-            height: 1
-        }
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            color: Theme.topHighlight
-            height: 1
-        }
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Theme.space3
-            anchors.rightMargin: Theme.space3
-            spacing: Theme.space3
-
-            Text {
-                Layout.alignment: Qt.AlignVCenter
-                color: Theme.textSecondary
-                font.capitalization: Font.AllUppercase
-                font.family: Theme.fontFamily
-                font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Theme.fontSizeXs
-                font.weight: Theme.fontWeightDemiBold
-                text: qsTr("Library")
-                verticalAlignment: Text.AlignVCenter
-            }
-            Rectangle {
-                Layout.alignment: Qt.AlignVCenter
-                color: Theme.border
-                implicitHeight: Theme.space4
-                implicitWidth: 1
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-            Item {
-                id: searchBox
-
-                Layout.alignment: Qt.AlignVCenter
-                Layout.maximumWidth: 320
-                Layout.preferredWidth: 280
-                implicitHeight: searchField.implicitHeight
-
-                TextField {
-                    id: searchField
-
-                    anchors.fill: parent
-                    Accessible.name: qsTr("Search the library")
-                    Accessible.role: Accessible.EditableText
-                    placeholderText: qsTranslate("WSearchLineEdit", "Search...")
-                    rightPadding: Theme.space3 + clearButton.width + Theme.space1
-
-                    onTextChanged: searchDebounce.restart()
-                }
-                Item {
-                    id: clearButton
-
-                    anchors.right: parent.right
-                    anchors.rightMargin: Theme.space2
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 16
-                    visible: searchField.text.length > 0
-                    width: 16
-
-                    Accessible.name: qsTr("Clear search")
-                    Accessible.role: Accessible.Button
-                    Accessible.onPressAction: root.clearSearch()
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: clearMouseArea.containsMouse ? Theme.surfaceHover : "transparent"
-                        radius: Theme.radiusXs
-                    }
-                    Rectangle {
-                        anchors.centerIn: parent
-                        color: clearMouseArea.containsMouse ? Theme.textPrimary : Theme.textMuted
-                        height: 1
-                        rotation: 45
-                        width: 8
-                    }
-                    Rectangle {
-                        anchors.centerIn: parent
-                        color: clearMouseArea.containsMouse ? Theme.textPrimary : Theme.textMuted
-                        height: 1
-                        rotation: -45
-                        width: 8
-                    }
-                    MouseArea {
-                        id: clearMouseArea
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-
-                        onClicked: root.clearSearch()
-                    }
-                }
-            }
-        }
     }
     SplitView {
         id: librarySplitView
@@ -158,7 +45,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: toolbar.bottom
+        anchors.top: parent.top
         orientation: Qt.Horizontal
 
         handle: Rectangle {
@@ -212,10 +99,15 @@ Item {
             }
 
             LibraryComponent.Browser {
+                id: libraryBrowser
+
                 SplitView.fillHeight: true
                 SplitView.minimumHeight: 200
                 SplitView.preferredHeight: 500
                 model: root.sidebar
+
+                onSearchEdited: searchDebounce.restart()
+                onSearchCleared: root.clearSearch()
             }
             Skin.PreviewDeck {
                 SplitView.maximumHeight: 200
