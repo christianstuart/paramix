@@ -323,12 +323,12 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   pauses stems when audio latency usage stays high; a startup audit line records the thread
   layout. Also fixed: `__STEM_SEPARATION__` was not defined for `mixxx-qml-lib`, so
   `Mixxx.StemService.available` reported false.
-- **2026-11-15** — **Deck pane geometry contained.** The deck card now clips its content and the
-  MOVE/CUE/GRID band height is derived from the deck height (reserving the header, transport row
-  and a usable waveform). In short layouts (4-deck mode, small windows) the band shrinks and, below
-  72 px (64 compact), hides together with the tab stack instead of painting below the card;
-  maximized library keeps the collapsed deck strip unchanged. Verified with window grabs in
-  2-deck, forced 4-deck and maximized-library modes.
+- **2026-11-15** — **Deck panes moved beside the loop selector.** The separate full-width pane
+  band was removed: the active MOVE/CUE/GRID pane now occupies the transport row to the left of
+  the LOOP card, sharing its 92 px height with the loop card and the tab stack, so it is adjacent
+  to the loop-size selector inside the play/cue block. The deck card still clips its content for
+  short layouts. Verified with window grabs for all three panes (hotcue pads, beatjump strip,
+  beatgrid/BPM controls) at 92 px.
 - **2026-11-15** — **Deck panes, mixer sections, Helvetica.** The deck now uses a MOVE / CUE /
   GRID tab stack (Traktor reference: `docs/reference/traktor-Move.jpg`, `traktor-Cue.jpg`, `traktor-Grid.jpg`) with a constant 112 px
   (96 compact) pane band, persisted per deck in `[Skin],deckN_pane`; autosaved. The mixer gained

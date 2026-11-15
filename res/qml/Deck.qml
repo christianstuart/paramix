@@ -42,27 +42,12 @@ Item {
     /// full-width band below that row, exactly like the reference. 112 px is
     /// the smallest height that keeps the 2 x 4 hotcue grid and the stem lanes
     /// usable; the waveform row above absorbs whatever is left.
-    readonly property int paneTargetHeight: Mixxx.Config.paramixCompactDecks ? 96 : 112
-    /// The pane band lives inside the deck card, so it must never push past the
-    /// deck's bottom edge. Reserve the fixed rows above it (header, transport
-    /// row) plus a usable waveform height, then shrink the band to whatever is
-    /// left instead of letting it overflow below the card in short layouts
-    /// (4-deck mode, maximized library, small windows).
-    readonly property int paneHeight: {
-        const margins = (Mixxx.Config.paramixCompactDecks ? 2 : Theme.space1) * 2;
-        const headerRow = Mixxx.Config.paramixCompactDecks ? 44 : Theme.deckHeaderHeight;
-        const transportRow = 124;
-        const minWaveform = 56;
-        const available = height - margins - headerRow - transportRow - minWaveform;
-        return Math.max(0, Math.min(paneTargetHeight, available));
-    }
-    /// Below this the band cannot show a usable hotcue/stem grid, so it hides
-    /// together with the tab stack rather than clipping mid-row.
-    readonly property bool paneVisible: paneHeight >= (Mixxx.Config.paramixCompactDecks ? 64 : 72)
-    /// The tab stack is the same height as the loop card so the two line up in
-    /// the transport row and neither overlaps the other: 3 x 28 px tabs plus
-    /// 2 x 4 px gaps.
-    readonly property int paneTabsHeight: paneVisible ? 92 : 0
+    /// Height shared by the MOVE / CUE / GRID pane, the loop card and the tab
+    /// stack: the pane sits beside the loop-size selector inside the transport
+    /// block, so all three line up top and bottom.
+    readonly property int paneHeight: 92
+    readonly property bool paneVisible: true
+    readonly property int paneTabsHeight: 92
     /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
     property int activePane: Deck.Pane.Cue
     /// Persisted per deck so the chosen pane survives a restart.
@@ -146,10 +131,14 @@ Item {
                                                     "type": "toolbar"
                                                 },
                                                 {
+                                                    // The active pane sits beside the
+                                                    // loop-size selector, inside the
+                                                    // transport block: pane, loop card,
+                                                    // then the MOVE/CUE/GRID tabs.
                                                     "type": "row",
                                                     "items": [
                                                         {
-                                                            "type": "spacer"
+                                                            "type": "deckPane"
                                                         },
                                                         {
                                                             "type": "loop"
@@ -162,12 +151,6 @@ Item {
                                             ]
                                         }
                                     ]
-                                },
-                                {
-                                    // Exactly one full-width strip directly
-                                    // below the transport row; the tab stack
-                                    // above it ends on the same right edge.
-                                    "type": "deckPane"
                                 }
                             ]
                         },
