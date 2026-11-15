@@ -323,6 +323,12 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   pauses stems when audio latency usage stays high; a startup audit line records the thread
   layout. Also fixed: `__STEM_SEPARATION__` was not defined for `mixxx-qml-lib`, so
   `Mixxx.StemService.available` reported false.
+- **2026-11-15** — **Master/headphone strip and crossfader moved to a bottom bar.** The four
+  output tiles and the crossfader (with its deck-assignment buttons) left the narrow mixer column
+  for a full-width bar directly below the deck/mixer row (`res/qml/Mixer/OutputBar.qml`,
+  `res/qml/Mixer/CrossfaderUnit.qml`). The mixer now ends at the channel strips, so the decks -
+  whose height tracks `mixer.height` - end exactly at the bar's top edge (the crossfader's top).
+  The freed height goes to the library. Verified with a window grab.
 - **2026-11-15** — **Deck panes moved beside the loop selector.** The separate full-width pane
   band was removed: the active MOVE/CUE/GRID pane now occupies the transport row to the left of
   the LOOP card, sharing its 92 px height with the loop card and the tab stack, so it is adjacent
