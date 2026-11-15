@@ -123,7 +123,7 @@ Item {
             anchors.leftMargin: 6
             anchors.rightMargin: 6
             text: root.displayKeyText
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 12
             font.weight: Font.Medium
             color: root.keyTextColor

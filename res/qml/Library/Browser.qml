@@ -12,13 +12,47 @@ import "../Theme"
 Rectangle {
     id: root
 
-    readonly property var featureSelection: ItemSelectionModel {}
+    readonly property var featureSelection: ItemSelectionModel {
+        model: root.model
+    }
     required property var model
 
     color: Theme.surface1
 
-    Component.onCompleted: {
+    function activateDefaultSource() {
+        if (!root.model || root.model.tracklist) {
+            return;
+        }
+        // activate() ignores invalid indexes, so no validity check is needed.
         root.model.activate(root.model.index(0, 0));
+    }
+    function selectRow(index) {
+        if (!index) {
+            return;
+        }
+        featureSelection.setCurrentIndex(index, ItemSelectionModel.NoUpdate);
+        featureSelection.select(index, ItemSelectionModel.ClearAndSelect | ItemSelectionModel.Rows);
+    }
+    function toggleNode(row) {
+        if (featureView.isExpanded(row)) {
+            featureView.collapse(row);
+            return;
+        }
+        // Lazy sources (crates, playlists, folders, ...) only create their
+        // children when the item is expanded. Do that before expanding the
+        // view so the view can take the new rows into account.
+        featureView.model.expand(featureView.index(row, 0));
+        featureView.expand(row);
+    }
+
+    Component.onCompleted: root.activateDefaultSource()
+
+    Connections {
+        function onModelReset() {
+            root.activateDefaultSource();
+        }
+
+        target: root.model
     }
 
     Rectangle {
@@ -46,7 +80,7 @@ Rectangle {
                     Layout.fillWidth: true
                     clip: true
                     model: root.model
-                    selectionModel: featureSelection
+                    selectionModel: root.featureSelection
 
                     delegate: FocusScope {
                         required property int column
@@ -56,9 +90,10 @@ Rectangle {
                         required property int hasChildren
                         required property var icon
                         readonly property real indentation: Theme.space3
-                        // FIXME The signature for that function has changed after Qt 6.4.2 (currently shipped on Ubuntu 24.04)
-                        // See https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-2770811094 for further details
-                        readonly property var index: treeView.modelIndex(column, row)
+                        // Note: the modelIndex() signature changed with Qt 6.4:
+                        // the arguments are (row, column). index() is the
+                        // non-deprecated equivalent.
+                        readonly property var sourceIndex: treeView.index(row, column)
 
                         // Rotate indicator when expanded by the user
                         // (requires TreeView to have a selectionModel)
@@ -126,17 +161,23 @@ Rectangle {
                         MouseArea {
                             id: rowMouseArea
 
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            acceptedButtons: Qt.LeftButton
                             anchors.fill: parent
                             hoverEnabled: true
 
-                            onClicked: event => {
-                                treeView.selectionModel.select(treeView.selectionModel.model.index(row, 0), ItemSelectionModel.Rows | ItemSelectionModel.Select | ItemSelectionModel.Clear | ItemSelectionModel.Current);
-                                treeView.model.activate(index);
-                                if (isTreeNode && hasChildren) {
-                                    treeView.toggleExpanded(row);
+                            onClicked: {
+                                root.selectRow(sourceIndex);
+                                // Selecting a source activates it, i.e. shows its
+                                // tracks. Expanding is a separate action.
+                                root.model.activate(sourceIndex);
+                            }
+                            onDoubleClicked: {
+                                // Double click also expands sources that
+                                // create their children lazily (e.g. folders
+                                // which have no children yet).
+                                if (isTreeNode) {
+                                    root.toggleNode(row);
                                 }
-                                event.accepted = true;
                             }
                         }
                         RowLayout {
@@ -165,6 +206,11 @@ Rectangle {
                                 font.pixelSize: Theme.fontSizeXs
                                 text: "▶"
                                 visible: isTreeNode && hasChildren
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: root.toggleNode(row)
+                                }
                             }
                             Label {
                                 id: labelItem

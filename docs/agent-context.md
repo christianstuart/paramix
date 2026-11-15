@@ -4,7 +4,7 @@
 file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 `docs/old-context.md` (raw transcript of the original planning session).
 
-**Last updated:** 2026-11-14, after merging the UI overhaul with the Paramix rebrand.
+**Last updated:** 2026-11-15, after restoring classic feature parity in the Paramix QML skin.
 **Update rule:** every agent that changes repo state must append to §9 (Work log) and correct
 §3 (Current state) before finishing.
 
@@ -149,6 +149,33 @@ Linux x64, Windows x64, macOS arm64 and macOS x86_64 for the merged stem engine 
 rbxport PR. The Linux-only stem failure was an uninitialized `SampleBuffer` accumulator,
 fixed before #13 merged.
 
+### 3.6 Current state (2026-11-15) — QML feature parity
+
+The Paramix QML skin now exposes the classic Mixxx functionality. Verified by build, QML startup
+smoke test and runtime grabs on a 2,433-track profile.
+
+| Area | State |
+|---|---|
+| Track context menu | **Done.** `Mixxx.LibraryTrackMenu` (`src/qml/qmltrackmenuproxy.*`) builds the real `WTrackMenu` for the current selection and serializes its `QAction` tree; `res/qml/Library/TrackMenu.qml` renders it. All actions work: AutoDJ queue (bottom/top/replace), Load to (decks/samplers/preview/stems), playlists, tri-state crates, Adjust BPM, rating, color, Metadata (tags, cover, MusicBrainz, find-on-web), Hotcues, Clear (13), Analyze/reanalyze modes, **Generate/Remove Stems**, hide, move to trash, open in file browser, Properties. |
+| Library sources | **Done.** `QmlSidebarModelProxy` mirrors `Library::sidebarModel()`, so Tracks (+Missing/Hidden children), Auto DJ, Playlists, Crates, Computer, Recordings, History, Analyze and the external collections are present. Lazy children expand; icons render. Widget-only views (AutoDJ/Recordings/Browse/Missing/Hidden) still switch to their classic widget views, not a QML list. |
+| Library interaction | **Done.** Source activation fixed (`index(row, column)`), multi-select (Ctrl/Cmd, Shift range, select-all), page/home/end navigation, focus retention, debounced search with clear button, search restored on source switch, per-row `has_stems` badge. |
+| Stem generation | **Done in UI.** `Mixxx.StemService` (`src/qml/qmlstemserviceproxy.*`): availability/model, queue and active counts, live 0–100 % progress, current track, generate/remove/cancel. Global task strip (`res/qml/TaskStatusStrip.qml`) with queue count and Cancel. Settings → Stems now exposes the ONNX model path and output directory. |
+| Analysis progress | **Done.** `Mixxx.Library.analysisActive/analysisProgress/analysisCurrent/analysisTotal/analysisTrackTitle`; second task-strip row. |
+| Background threading | **Done.** Batch analyzer capped at `min(8, cores/2)` low-priority workers; `StemAnalysisCoordinator` suspends analysis while stems separate (user pauses preserved) and pauses stems when `[App],audio_latency_usage` stays above 0.85; startup audit line logs worker counts/priorities. |
+| Deck panes | **Done.** MOVE / CUE / GRID tab stack (reference: `docs/reference/traktor-Move.jpg`, `traktor-Cue.jpg`, `traktor-Grid.jpg`), one constant 112 px (96 compact) band; beatjump and beatgrid/BPM moved into panes; selection persisted per deck via `[Skin],deckN_pane` (CUE default). |
+| Mixer | **Done.** Master (gain/balance/booth), headphone (gain/mix/split), main VU + clip LEDs, width-responsive 3→2→1 columns; mic/aux rack is a bounded, collapsible horizontal strip. |
+| Fonts | **Done.** Deck and mixer typography resolves through `Theme.fontFamily` (Helvetica Neue by default; Helvetica override in customization). |
+
+Fixes landed with the parity work: the profile-guard path no longer calls `exit()` from the
+`QmlApplication` constructor (it crashed in Qt's SQL teardown), zero-width menus (the Basic style
+takes menu width from the background), a use-after-free when switching library sources, a null
+`m_pSidebarWidget` dereference in Create Crate, and `WheelHandler` failing to load under
+`import QtQuick 2.12`.
+
+Still open: preview deck and vinyl-control deck UI are placeholders; the skin-settings menu
+(Ctrl+1) is absent; AutoDJ/Recordings/Browse are classic widget views; CoreML is not enabled, so
+stem separation is CPU-only; per-column hide/reorder and search history/completion are missing.
+
 ---
 
 ## 4. Where the code already supports the plan (don't rebuild these)
@@ -267,6 +294,42 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
 ---
 
 ## 9. Work log
+
+- **2026-11-14** — **Exit-path crash fixed.** `QmlApplication` called `exit(-1)` from inside its
+  constructor when the existing-profile guard fired, which ran static destructors while
+  `QCoreApplication` and `CoreServices` were alive and crashed in
+  `QSqlDatabasePrivate::removeDatabase`. It now clears `m_loadSucceeded` and returns, and
+  `runMixxx()` reports the startup error after normal teardown. Verified: exit code 1, no crash
+  report.
+- **2026-11-14** — **Track menu restored through a C++ bridge.** `QmlLibraryTrackMenu`
+  (`src/qml/qmltrackmenuproxy.*`) serializes the real `WTrackMenu` action tree (submenus,
+  separators, enablement, shortcuts, rating/color/checkbox widget actions) for QML rendering, and
+  invokes the underlying `QAction`. `res/qml/Library/TrackMenu.qml` renders it with the Paramix
+  look; the duplicate menu in `Library/Track.qml` was removed. Fixes required: menu backgrounds
+  must declare an `implicitWidth` (Basic style derives menu width from it), `Menu.title` instead of
+  `text`, `addItem` only for items and `addMenu` for submenus, and `MenuSeparator` created as a
+  component.
+- **2026-11-15** — **Library parity.** `QmlSidebarModelProxy` now mirrors the library's real
+  sidebar (fixing a model use-after-free on source switch and a null-deref in Create Crate),
+  `Browser.qml` uses `index(row, column)` (the old call activated only row 0), icons map to a real
+  role, and the track list gained multi-selection, range selection, select-all, page/home/end
+  navigation, focus retention, debounced search with a clear button, and a `has_stems` badge
+  backed by the exported `stem_set` index.
+- **2026-11-15** — **Progress and background-work isolation.** `QmlStemServiceProxy` exposes
+  queue/active counts, current job title and 0–100 % progress, with lazy attachment to
+  `StemService` (it is created after QML loads). `AnalysisFeature` publishes aggregate analysis
+  progress, forwarded by `QmlLibraryProxy`. `TaskStatusStrip.qml` shows both jobs. Analyzer workers
+  are capped at `min(8, cores/2)`; `StemAnalysisCoordinator` suspends analysis while stems run and
+  pauses stems when audio latency usage stays high; a startup audit line records the thread
+  layout. Also fixed: `__STEM_SEPARATION__` was not defined for `mixxx-qml-lib`, so
+  `Mixxx.StemService.available` reported false.
+- **2026-11-15** — **Deck panes, mixer sections, Helvetica.** The deck now uses a MOVE / CUE /
+  GRID tab stack (Traktor reference: `docs/reference/traktor-Move.jpg`, `traktor-Cue.jpg`, `traktor-Grid.jpg`) with a constant 112 px
+  (96 compact) pane band, persisted per deck in `[Skin],deckN_pane`; autosaved. The mixer gained
+  master/headphone controls, main VU + clip LEDs and a collapsible mic/aux input strip, laid out
+  responsively for the narrow mixer column. Deck and mixer typography now resolves through
+  `Theme.fontFamily` (Helvetica Neue / Helvetica). Verified with runtime window grabs; build
+  green, `QmlStartupSmokeTest` 2/2, QML API guard 0 violations.
 
 - **2026-11-11** — Repo import committed; dotfiles added; CI workflow authored (hand-written,
   contained bugs). Repo found untracked with only `README.md` tracked before that.

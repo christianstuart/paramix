@@ -188,7 +188,7 @@ void ErrorDialogHandler::errorDialog(ErrorDialogProperties* pProps) {
                     pScreen->geometry()));
             pMsgBox->setStyleSheet(
                     QString("QTextEdit { min-width: %1px ; max-height: %2px; "
-                            "font-family: monospace;}")
+                            "font-family: 'Helvetica Neue';}")
                             .arg(dialogWidth - kEstimatedDialogPadding)
                             .arg(dialogHeight));
         }

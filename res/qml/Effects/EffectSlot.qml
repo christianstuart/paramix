@@ -55,7 +55,7 @@ Item {
             anchors.top: parent.top
             group: root.group
             key: "enabled"
-            text: qsTr("ON")
+            text: qsTr("On")
             toggleable: true
             width: 40
         }
@@ -77,7 +77,7 @@ Item {
             anchors.right: parent.right
             anchors.top: parent.top
             arcStart: Skin.Knob.ArcStart.Minimum
-            color: Theme.warning
+            color: Theme.textSecondary
             group: root.group
             key: "meta"
             width: 40
@@ -134,7 +134,7 @@ Item {
 
                 sourceComponent: Skin.ControlMiniKnob {
                     arcStart: 0
-                    color: Theme.warning
+                    color: Theme.textSecondary
                     group: root.group
                     key: parameter.controlKey
                 }
@@ -149,7 +149,7 @@ Item {
                     activeColor: Theme.textOnAccent
                     group: root.group
                     key: parameter.controlKey
-                    text: qsTr("ON")
+                    text: qsTr("On")
                     toggleable: true
                 }
             }
@@ -170,6 +170,10 @@ Item {
                     width: 14
                 }
                 Item {
+                    id: linkTypeItem
+
+                    Accessible.name: qsTr("Link type %1").arg(Math.round(linkTypeControl.value))
+                    Accessible.role: Accessible.Button
                     height: 14
                     width: 38
 
@@ -183,7 +187,7 @@ Item {
                         color: linkTypeControl.value > 0 ? Theme.textOnAccent : Theme.textSecondary
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeXs
-                        text: qsTr("LINK %1").arg(Math.round(linkTypeControl.value))
+                        text: qsTr("Link %1").arg(Math.round(linkTypeControl.value))
                     }
                     TapHandler {
                         onTapped: linkTypeControl.value = (Math.round(linkTypeControl.value) + 1) % 5

@@ -138,10 +138,9 @@ Mixxx.LibrarySourceTree {
             delegate: DefaultDelegate {
             }
         },
-        // TODO: add a stem status column here (e.g. "Stems" with ready/missing
-        // state) once QmlLibraryTrackListColumn exposes a stem role. The
-        // C++ track list model has no such column yet, so it is intentionally
-        // left out instead of faking it in QML.
+        // Stem state is not a sortable column. TrackList.qml draws a small
+        // badge in the left gutter of the Title cell for rows whose track has
+        // separated stems (model role `has_stems`), so no extra column here.
         Mixxx.TrackListColumn {
             autoHideWidth: 900
             columnIdx: Mixxx.TrackListColumn.SQLColumns.FileType
@@ -161,11 +160,6 @@ Mixxx.LibrarySourceTree {
             }
         }
     ]
-
-    Mixxx.LibraryAllTrackSource {
-        columns: root.defaultColumns
-        label: qsTr("All...")
-    }
 
     component DefaultDelegate: LibraryComponent.Cell {
         id: cell
@@ -208,7 +202,9 @@ Mixxx.LibrarySourceTree {
             id: value
 
             anchors.fill: parent
-            anchors.leftMargin: Theme.space3
+            // Leave room for the stem badge that the track list draws in the
+            // left gutter of the title cell (see TrackList.qml).
+            anchors.leftMargin: Theme.space3 + (stemBadgeVisible ? 16 : 0)
             color: Theme.textPrimary
             elide: Text.ElideRight
             font.family: Theme.fontFamily

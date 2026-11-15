@@ -23,6 +23,7 @@ Skin.ComboBox {
 
     Accessible.name: qsTr("Effect")
     Accessible.role: Accessible.ComboBox
+    implicitHeight: 24
     model: Mixxx.EffectsManager.visibleEffectsModel
     textRole: "display"
 

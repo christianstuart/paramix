@@ -1,17 +1,23 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
-import Qt5Compat.GraphicalEffects
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts
 import QtQuick.Shapes
 import "../Theme"
 
+/// Tempo strip: pitch nudge, key, pitch fader, sync and range.
+///
+/// Every control is 24 px high and shares the neutral-surface / accent-active
+/// treatment used by the toolbar. Key colours tint the key label only, not the
+/// whole button, so the strip stays calm at rest.
 ColumnLayout {
     id: root
 
     required property var currentTrack
     required property string group
+
+    spacing: Theme.space1
 
     Mixxx.ControlProxy {
         id: keylockCO
@@ -27,15 +33,18 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true
-        height: 22
+        Layout.preferredHeight: 24
+        spacing: Theme.space1
 
         Skin.ControlButton {
             id: pitchDownButton
 
+            Layout.fillHeight: true
+            Layout.preferredWidth: 22
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 22
-            implicitWidth: 20
+            implicitHeight: 24
+            implicitWidth: 22
             key: "pitch_down"
 
             Accessible.name: qsTr("Pitch down")
@@ -49,20 +58,20 @@ ColumnLayout {
                     height: 10
                     layer.enabled: true
                     layer.samples: 4
-                    width: 12
+                    width: 10
 
                     ShapePath {
-                        fillColor: Theme.textSecondary
+                        fillColor: pitchDownButton.highlight ? Theme.textOnAccent : (pitchDownButton.hovered ? Theme.textPrimary : Theme.textSecondary)
                         startX: 0
                         startY: 5
                         strokeColor: 'transparent'
 
                         PathLine {
-                            x: 12
+                            x: 10
                             y: 0
                         }
                         PathLine {
-                            x: 12
+                            x: 10
                             y: 10
                         }
                         PathLine {
@@ -100,30 +109,29 @@ ColumnLayout {
                 , "#70c4a0" // 6m
                 , "#c680b6" // 1m
                 , "#b2d145" // 8m
-                , "#7499cd"  // 3m
+                , "#7499cd" // 3m
             ]
             readonly property variant textMap: ["1d", "8d", "3d", "10d", "5d", "12d", "7d", "2d", "9d", "4d", "11d", "6d", "10m", "5m", "12m", "7m", "2m", "9m", "4m", "11m", "6m", "1m", "8m", "3m"]
 
+            Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.leftMargin: 0
-            Layout.rightMargin: 0
             group: root.group
-            implicitHeight: 22
+            implicitHeight: 24
             key: "keylock"
             toggleable: true
 
             Accessible.name: qsTr("Keylock")
 
             contentItem: Text {
-                id: item
-
                 color: {
-                    if (!trackLoadedControl.value || keyCO.value <= 0) {
-                        return keylockCO.value ? Theme.textPrimary : Theme.surface3;
-                    }
-                    return pitchKey.colorsMap[keyCO.value];
+                    if (!trackLoadedControl.value || keyCO.value <= 0)
+                        return Theme.textMuted;
+                    return keylockCO.value ? pitchKey.colorsMap[keyCO.value] : Theme.textSecondary;
                 }
-                font.pixelSize: 8
+                font.capitalization: Font.MixedCase
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeXs
+                font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
                 text: {
                     if (!trackLoadedControl.value || keyCO.value <= 0)
@@ -136,10 +144,12 @@ ColumnLayout {
         Skin.ControlButton {
             id: pitchUpButton
 
+            Layout.fillHeight: true
+            Layout.preferredWidth: 22
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 22
-            implicitWidth: 20
+            implicitHeight: 24
+            implicitWidth: 22
             key: "pitch_up"
 
             Accessible.name: qsTr("Pitch up")
@@ -153,18 +163,16 @@ ColumnLayout {
                     height: 10
                     layer.enabled: true
                     layer.samples: 4
-                    width: 12
+                    width: 10
 
                     ShapePath {
-                        capStyle: ShapePath.RoundCap
-                        fillColor: Theme.textSecondary
-                        fillRule: ShapePath.WindingFill
+                        fillColor: pitchUpButton.highlight ? Theme.textOnAccent : (pitchUpButton.hovered ? Theme.textPrimary : Theme.textSecondary)
                         startX: 0
                         startY: 0
                         strokeColor: 'transparent'
 
                         PathLine {
-                            x: 12
+                            x: 10
                             y: 5
                         }
                         PathLine {
@@ -194,23 +202,40 @@ ColumnLayout {
         bar.width: 3
         group: root.group
         key: "rate"
-        visible: !root.minimized
 
         Accessible.name: qsTr("Tempo")
 
-        Skin.FadeBehavior on visible {
-            fadeTarget: rateSlider
-        }
-
         background: Rectangle {
+            // Mixxx.Controls.Slider hosts custom backgrounds in a fill item;
+            // without anchors the Rectangle would collapse to 0 x 0 and the
+            // rail would never paint.
+            anchors.fill: parent
             color: "transparent"
 
+            // Recessed centre well so the fader reads as a hardware rail even
+            // when the handle is parked at 0 %.
             Rectangle {
                 anchors.centerIn: parent
-                color: Theme.surface3
+                border.color: Theme.border
+                border.width: 1
+                color: Theme.surface0
                 height: parent.height
-                radius: 2
-                width: 4
+                radius: Theme.radiusSm
+                width: 14
+            }
+            Rectangle {
+                anchors.centerIn: parent
+                color: Theme.borderStrong
+                height: parent.height
+                radius: 1
+                width: 3
+            }
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.borderStrong
+                height: 1
+                width: 9
             }
         }
         handle: Rectangle {
@@ -218,25 +243,30 @@ ColumnLayout {
             border.width: 1
             color: Theme.textPrimary
             height: 8
-            radius: 4
-            width: rateSlider.width
+            radius: Theme.radiusXs
+            width: 30
+            x: Math.round((rateSlider.width - width) / 2)
             y: Math.round(rateSlider.visualPosition * (rateSlider.height - height))
         }
     }
     Skin.SyncButton {
         id: syncButton
 
-        Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
+        Layout.preferredHeight: 24
         group: root.group
-        height: 22
+        height: 24
+
+        Accessible.name: syncButton.highlight ? qsTr("Disable sync") : qsTr("Enable sync")
     }
     Skin.RangeButton {
         id: rangeButton
 
-        Layout.alignment: Qt.AlignHCenter
         Layout.fillWidth: true
+        Layout.preferredHeight: 24
         group: root.group
-        height: 22
+        height: 24
+
+        Accessible.name: qsTr("Tempo range")
     }
 }

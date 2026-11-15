@@ -30,6 +30,10 @@ class ControlIndicatorTimer;
 class DbConnectionPool;
 class ScreensaverManager;
 
+namespace stems {
+class StemAnalysisCoordinator;
+} // namespace stems
+
 class CoreServices : public QObject {
     Q_OBJECT
 
@@ -140,6 +144,8 @@ class CoreServices : public QObject {
     std::shared_ptr<DbConnectionPool> m_pDbConnectionPool;
     std::shared_ptr<TrackCollectionManager> m_pTrackCollectionManager;
     std::shared_ptr<Library> m_pLibrary;
+
+    std::unique_ptr<stems::StemAnalysisCoordinator> m_pStemAnalysisCoordinator;
 
     std::shared_ptr<KeyboardEventFilter> m_pKeyboardEventFilter;
 

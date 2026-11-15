@@ -275,6 +275,33 @@ column is deferred until a C++ track-list column exists; the Standard Bar vs. Re
 toggle is deferred until beatgrid phrase storage (ADR-003) is implemented; native engine stem
 solo is deferred, so the strip currently orchestrates mute at the QML level.
 
+**Implementation status (2026-11-15).** The QML skin now has feature parity with the classic UI for
+the parts this plan depends on:
+
+- **Stem generation is reachable from the UI.** The track context menu is rendered from the real
+  `WTrackMenu` action tree (`src/qml/qmltrackmenuproxy.*`), so Generate Stems / Remove Stems,
+  AutoDJ queueing, playlists, crates, BPM, metadata, clear/analyze and file operations behave
+  exactly like the classic menu. `Mixxx.StemService` exposes availability, model status, queue and
+  active counts, the current job title and live 0–100 % progress; a global task strip shows the
+  running job, the queue depth and a Cancel button, and Settings → Stems now edits the ONNX model
+  path and the output directory. The library shows a per-row stems badge backed by the exported
+  `stem_set` index, and refreshes when `stemsReady` fires.
+- **Background work is isolated.** Batch analysis uses at most `min(8, cores/2)` low-priority
+  workers; a coordinator suspends analysis while stems separate (without discarding the queue and
+  without overriding a user pause) and pauses separation when audio latency usage stays above 0.85.
+  The stem worker runs at low priority with a bounded ONNX thread pool
+  (`min(4, cores/2)`), and startup logs the thread layout for audit.
+- **Analysis progress is visible.** `AnalysisFeature` publishes an aggregate 0–100 % progress,
+  current/total count and the current track title, shown in the same task strip as stems.
+- **Deck layout follows the reference screenshots** (`docs/reference/traktor-Move.jpg`, `traktor-Cue.jpg`, `traktor-Grid.jpg`). A MOVE / CUE / GRID tab stack replaces the
+  always-visible beatjump and beatgrid rows: one constant 112 px (96 compact) pane band, persisted
+  per deck in `[Skin],deckN_pane`, CUE by default.
+- **Mixer parity.** Master (gain/balance/booth), headphone (gain/mix/split), main VU with clip LEDs
+  and a collapsible mic/aux strip; the section is width-responsive for the narrow mixer column.
+
+Not covered yet: CoreML execution provider (separation is CPU-only), `.stem.mp4` export from the
+generated sets, the model download manager, and a QML stem-status column (the badge replaces it).
+
 ### 5.9 Model hosting and distribution (decided: download-only via GitHub Releases)
 
 **What ships:** no model weights in git or in any installer. The app carries ONNX Runtime (the inference library) and a small **model manifest** (JSON) listing model id, version, URL, SHA-256, byte size, license, stem layout, sample rate and required ORT opset. The actual `htdemucs_ft` assets (~630 MB fp16) live as GitHub Releases assets on the dedicated **`paramix-models`** repository (decision 9).

@@ -5,7 +5,12 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import "../Theme"
 
-/// Flat platter with the live BPM and pitch readout in the centre.
+/// Platter with concentric rings, a rotating position tick and the live BPM /
+/// pitch readout in the centre.
+///
+/// The platter is deliberately matte: flat surface tokens, 1 px hairlines and
+/// no glow. The tick and hub only brighten when a track is loaded, so the
+/// control reads as idle hardware rather than a lit ornament.
 Item {
     id: root
 
@@ -20,18 +25,39 @@ Item {
     Rectangle {
         id: spinner
 
-        anchors.top: parent.top
+        anchors.centerIn: parent
         border.color: Theme.borderStrong
         border.width: 1
-        color: Theme.surface3
+        color: Theme.surface2
         height: 140
         radius: width / 2
         width: 140
 
-        transform: Rotation {
-            angle: 45
-            origin.x: spinner.width / 2
-            origin.y: spinner.height / 2
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 6
+            border.color: Theme.border
+            border.width: 1
+            color: "transparent"
+            radius: width / 2
+        }
+        Rectangle {
+            id: hub
+
+            anchors.centerIn: parent
+            border.color: Theme.border
+            border.width: 1
+            color: Theme.surface0
+            height: 64
+            opacity: trackLoadedControl.value ? 1 : 0.75
+            radius: width / 2
+            width: 64
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.motionNormal
+                }
+            }
         }
         MixxxControls.Spinny {
             id: spinnyIndicator
@@ -49,31 +75,31 @@ Item {
 
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
-                    color: Theme.surface0
-                    height: 70
+                    anchors.topMargin: 16
+                    color: trackLoadedControl.value ? Theme.textSecondary : Theme.textMuted
+                    height: 16
                     radius: 1
                     width: 2
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.motionFast
+                        }
+                    }
                 }
             }
         }
     }
-    Rectangle {
+    Column {
         id: tempoInfo
 
         anchors.centerIn: spinner
-        clip: true
-        color: Theme.surface0
-        height: trackLoadedControl.value ? spinner.height / 4 : 0
-        radius: height / 2 - 5
-        width: spinner.width / 2 - 10
+        opacity: trackLoadedControl.value ? 1 : 0
+        spacing: 1
 
-        Behavior on height {
-            SpringAnimation {
-                id: heightAnimation
-
-                damping: 0.2
-                duration: 500
-                spring: 2
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.motionNormal
             }
         }
 
@@ -84,12 +110,11 @@ Item {
             readonly property int precision: 2
 
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: 2
             color: Theme.textPrimary
-            font.bold: true
             font.family: Theme.fontFamilyMono
-            font.pixelSize: Theme.fontSizeMd
+            font.pixelSize: Theme.fontSizeLg
+            font.weight: Theme.fontWeightDemiBold
+            horizontalAlignment: Text.AlignHCenter
             text: `${Math.round(bpm)}.${((bpm % 1) * Math.pow(10, precision)).toFixed().padEnd(precision, "0")}`
 
             Accessible.name: qsTr("%1 BPM").arg(tempo.text)
@@ -107,12 +132,11 @@ Item {
 
             readonly property real ratio: ((rateRatioControl.value - 1) * 100).toPrecision(2)
 
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 2
             anchors.horizontalCenter: parent.horizontalCenter
-            color: Theme.textSecondary
+            color: Theme.textMuted
             font.family: Theme.fontFamilyMono
             font.pixelSize: Theme.fontSizeXs
+            horizontalAlignment: Text.AlignHCenter
             text: ((ratio > 0) ? "+" + ratio.toFixed(2) : ratio.toFixed(2)) + "%"
 
             Accessible.name: qsTr("Pitch %1").arg(pitchRatio.text)

@@ -405,7 +405,7 @@ void WTrackTableViewHeader::setFont(const QFont& font) {
     // we did NOT set in qss.
     // So, for
     // WTrackTableViewHeader, WTrackTableViewHeader::section {
-    //   font-family: "Open Sans Semibold", "Open Sans";
+    //   font-family: "Helvetica Neue";
     //   font-weight: 500; /* semi-bold */
     //   font-style: normal;
     //   text-transform: none;

@@ -143,6 +143,11 @@ QmlApplication::QmlApplication(
             QJSEngine::CppOwnership);
     QmlApplicationProxy::registerVinylControlManager(
             m_pCoreServices->getVinylControlManager().get());
+    // The QML skin is loaded before CoreServices::initialize(), so register the
+    // settings-backed singletons now. initializeQMLSingletons() repeats this
+    // after startup; the static pointers are simply overwritten.
+    QmlApplicationProxy::registerUserSettings(m_pCoreServices->getSettings());
+    QmlConfigProxy::registerUserSettings(m_pCoreServices->getSettings());
 
     const ConfigKey overviewTypeKey(
             QStringLiteral("[Waveform]"),
@@ -215,9 +220,15 @@ QmlApplication::QmlApplication(
 
         QPushButton* continueButton =
                 msgBox.addButton(tr("Ok"), QMessageBox::ActionRole);
+        Q_UNUSED(continueButton);
         msgBox.exec();
-        m_pCoreServices.reset();
-        exit(-1);
+        // Never call exit() from inside the constructor. That runs the static
+        // destructors while QCoreApplication and CoreServices are still alive
+        // and crashes in Qt's thread-local database connection cleanup.
+        // Instead report the failure to runMixxx() and let it return normally,
+        // so that everything is destroyed in the correct order.
+        m_loadSucceeded = false;
+        return;
     }
 
     SoundDeviceStatus result = m_pCoreServices->getSoundManager()->setupDevices();

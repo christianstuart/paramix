@@ -49,6 +49,9 @@ Item {
         Skin.ControlFader {
             id: crossfaderSlider
 
+            Accessible.name: qsTr("Crossfader")
+            Accessible.role: Accessible.Slider
+
             anchors.left: parent.left
             anchors.leftMargin: Theme.space2
             anchors.right: parent.right
@@ -66,6 +69,12 @@ Item {
                 height: 28
             }
         }
+    }
+    Skin.SectionBackground {
+        anchors.bottom: parent.bottom
+        anchors.left: crossfader.right
+        anchors.right: parent.right
+        anchors.top: parent.top
     }
     Row {
         id: auxiliaryRow

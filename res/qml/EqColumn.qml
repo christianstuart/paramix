@@ -6,6 +6,9 @@ import Mixxx 1.0 as Mixxx
 import "Theme"
 
 /// High / mid / low EQ plus the quick effect for a single channel.
+///
+/// Rekordbox channel EQ: labelled micro-type knobs over a recessed preset
+/// well. Kill state dims the whole well; the filter knob carries the accent.
 Column {
     id: root
 
@@ -13,11 +16,34 @@ Column {
 
     spacing: Theme.space1
 
+    Text {
+        color: Theme.textMuted
+        elide: Text.ElideRight
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
+        font.weight: Theme.fontWeightDemiBold
+        horizontalAlignment: Text.AlignHCenter
+        text: qsTr("HI")
+        width: parent.width
+    }
+
     Skin.EqKnob {
         knob.color: Theme.textPrimary
         knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
         knob.key: "parameter3"
         statusKey: "button_parameter3"
+    }
+    Text {
+        color: Theme.textMuted
+        elide: Text.ElideRight
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
+        font.weight: Theme.fontWeightDemiBold
+        horizontalAlignment: Text.AlignHCenter
+        text: qsTr("MID")
+        width: parent.width
     }
     Skin.EqKnob {
         knob.color: Theme.textPrimary
@@ -25,17 +51,39 @@ Column {
         knob.key: "parameter2"
         statusKey: "button_parameter2"
     }
+    Text {
+        color: Theme.textMuted
+        elide: Text.ElideRight
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
+        font.weight: Theme.fontWeightDemiBold
+        horizontalAlignment: Text.AlignHCenter
+        text: qsTr("LOW")
+        width: parent.width
+    }
     Skin.EqKnob {
         knob.color: Theme.textPrimary
         knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
         knob.key: "parameter1"
         statusKey: "button_parameter1"
     }
+    Text {
+        color: Theme.accent
+        elide: Text.ElideRight
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
+        font.weight: Theme.fontWeightDemiBold
+        horizontalAlignment: Text.AlignHCenter
+        text: qsTr("FILTER")
+        width: parent.width
+    }
     Skin.QuickFxKnob {
         group: "[QuickEffectRack1_" + root.group + "]"
         knob.arcStyle: ShapePath.DashLine
         knob.arcStylePattern: [2, 2]
-        knob.color: Theme.warning
+        knob.color: Theme.accent
     }
     Mixxx.ControlProxy {
         id: fxSelect
@@ -55,6 +103,7 @@ Column {
         model: Mixxx.EffectsManager.quickChainPresetModel
         popupMaxItem: 8
         popupWidth: 100
+        rightPadding: Theme.space1
         spacing: Theme.space1
         textRole: "display"
         width: parent.width

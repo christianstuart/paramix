@@ -43,7 +43,7 @@ Item {
                 Layout.fillWidth: true
                 color: root.deckTextColor
                 elide: Text.ElideRight
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 16
                 text: root.isLoaded ? (root.currentTrack?.title || qsTr("Unknown Title")) : ""
                 verticalAlignment: Text.AlignVCenter
@@ -51,7 +51,7 @@ Item {
             Text {
                 Layout.preferredWidth: 62
                 color: LateNightTheme.deckTimeTextColor
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 13
                 horizontalAlignment: Text.AlignRight
                 text: root.isLoaded
@@ -76,7 +76,7 @@ Item {
                 Layout.fillWidth: true
                 color: root.deckTextColor
                 elide: Text.ElideRight
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 15
                 text: root.isLoaded ? (root.currentTrack?.artist || qsTr("Unknown Artist")) : ""
                 verticalAlignment: Text.AlignVCenter
@@ -84,7 +84,7 @@ Item {
             Text {
                 Layout.preferredWidth: 62
                 color: LateNightTheme.deckTimeTextColor
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignRight
                 text: root.isLoaded

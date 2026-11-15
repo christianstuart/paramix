@@ -50,6 +50,12 @@ class SidebarModel : public QAbstractItemModel {
     void clear(const QModelIndex& index);
     void paste(const QModelIndex& index);
 
+    /// The library features exposed by this model, in display order.
+    /// Used to mirror the legacy sidebar in QML.
+    const QList<LibraryFeature*>& features() const {
+        return m_sFeatures;
+    }
+
   public slots:
     void pressed(const QModelIndex& index);
     void clicked(const QModelIndex& index);

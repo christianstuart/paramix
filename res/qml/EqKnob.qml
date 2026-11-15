@@ -10,11 +10,24 @@ Rectangle {
     property string statusGroup: root.knob.group
     required property string statusKey
 
-    color: Theme.knobBackgroundColor
-    height: 42
-    opacity: statusControl.value ? 0.4 : 1
-    radius: 5
-    width: 42
+    border.color: Theme.border
+    border.width: 1
+    color: Theme.surface1
+    height: 44
+    opacity: statusControl.value ? 0.45 : 1
+    radius: Theme.radiusSm
+    width: 44
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.leftMargin: 1
+        anchors.right: parent.right
+        anchors.rightMargin: 1
+        anchors.top: parent.top
+        anchors.topMargin: 1
+        color: Theme.topHighlight
+        height: 1
+    }
 
     TapHandler {
         onDoubleTapped: {

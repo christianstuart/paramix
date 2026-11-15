@@ -33,6 +33,7 @@ Skin.EmbeddedText {
     font.family: Theme.fontFamilyMono
     font.letterSpacing: 0
     font.pixelSize: Theme.fontSizeMd
+    font.weight: Theme.fontWeightMedium
 
     function toTime(value) {
         if (!Number.isFinite(value)) {

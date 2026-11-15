@@ -41,10 +41,7 @@ class DemucsOnnxSeparator::Impl final {
         }
         // Keep the DSP pool off every core the engine and GUI need. ADR-001
         // bounds the workers at min(4, cores / 2); zero means this default.
-        const int hardwareThreads =
-                static_cast<int>(std::thread::hardware_concurrency());
-        const int boundedThreads =
-                std::max(1, std::min(4, hardwareThreads / 2));
+        const int boundedThreads = boundedOnnxThreadCount();
         options.session.threads =
                 config.threads > 0 ? config.threads : boundedThreads;
         options.dsp_threads = boundedThreads;

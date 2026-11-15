@@ -24,12 +24,18 @@ It complements `docs/paramix-ui-design-system.md` and the legal attribution in
 
 The window title, error-dialog titles, notifications, MusicBrainz user agent,
 JACK client name and console banner all derive from
-`VersionStore::applicationName()`, so they follow the table above.
+`VersionStore::applicationName()`, so they follow the table above. A
+non-bundled macOS developer build additionally sets `NSProcessInfo.processName`
+to `Paramix` (`src/util/macprocessname.mm`) so the system menu bar shows the
+capitalized name instead of the executable name `paramix`.
 
 ## 2. Brand assets
 
 - App icon: four stem lanes of varying height in the theme palette on a dark
   rounded tile (`res/images/icons/scalable/apps/paramix.svg`).
+- Interface font: **Inter** is bundled in `res/fonts/InterVariable.ttf` (OFL)
+  and loaded by `FontUtils`; the QML skin defaults to it and the customizer can
+  switch to a system family.
 - Wordmark: `res/images/paramix_logo.svg` (About dialog) and
   `res/images/paramix-icon-logo-symbolic.svg` (splash / symbolic lockup).
 - Raster output: `res/images/icons/{32,64,128,256,512}/apps/paramix.png`,
@@ -83,7 +89,19 @@ the old directory manually or pass `--settings-path`. Saved Icecast/
 Shoutcast passwords are stored under a `Mixxx - ` keychain prefix and must be
 re-entered once.
 
-## 5. Follow-ups
+## 5. Customization and settings
+
+The Paramix QML interface has a dedicated **Customize Paramix** panel for
+scheme, accent color, font, type scale, motion, panel visibility, waveform
+playhead/style and stem lanes. The values live in a `[Paramix]` config group and
+are injected into the `Theme` singleton. The toolbar gear opens the native Mixxx
+Preferences dialog, which remains the primary settings window for audio,
+library, controllers and analysis. The QML settings popup added during the UI
+overhaul is retired. The customizer can restart into the classic widget
+interface, and the native Help menu can restart back into the QML interface.
+See `docs/paramix-ui-design-system.md` §6.
+
+## 6. Follow-ups
 
 - Debian/Ubuntu packaging (`packaging/debian`, `packaging/CPackDebInstall.cmake`)
   still uses the upstream package name, man page and udev rule file names.

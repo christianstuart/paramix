@@ -118,6 +118,22 @@ class WTrackMenu : public QMenu {
     void slotRemoveFromDisk();
     const QString getDeckGroup() const;
 
+    // Helpers for the QML track menu bridge (see qml/qmltrackmenuproxy.h).
+    // The widget actions for rating and track color cannot be serialized, so
+    // the QML menu renders them itself and forwards the chosen value here.
+    int commonTrackRating() const {
+        return getCommonTrackRating();
+    }
+    std::optional<std::optional<mixxx::RgbColor>> commonTrackColor() const {
+        return getCommonTrackColor();
+    }
+    void setSelectionRating(int rating) {
+        slotSetRating(rating);
+    }
+    void setSelectionColor(const mixxx::RgbColor::optional_t& color) {
+        slotColorPicked(color);
+    }
+
   signals:
 #ifdef __STEM__
     void loadTrackToPlayer(TrackPointer pTrack,

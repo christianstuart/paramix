@@ -17,20 +17,28 @@ Rectangle {
     }
     Drag.supportedActions: Qt.CopyAction
     anchors.fill: parent
-    color: selected ? Qt.alpha(Theme.accent, 0.2) : hoverHandler.hovered ? Theme.surface2 : (row % 2 == 0 ? Theme.surface1 : Theme.surface0)
+    color: selected ? Qt.alpha(Theme.accent, 0.22) : hoverHandler.hovered ? Theme.surfaceHover : (row % 2 == 0 ? Theme.surface1 : Theme.surface0)
 
     HoverHandler {
         id: hoverHandler
     }
 
-    // Accent marker on the left edge of the selected row.
+    // Accent marker on the left edge of the selected row + subtle bottom key.
     Rectangle {
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.top: parent.top
         color: Theme.accent
         visible: selected
-        width: 2
+        width: 3
+    }
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        color: selected ? Qt.alpha(Theme.accent, 0.35) : Theme.border
+        height: 1
+        opacity: selected ? 1.0 : 0.4
     }
     Item {
         id: dragImageSource

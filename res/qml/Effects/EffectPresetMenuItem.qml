@@ -11,7 +11,7 @@ MenuItem {
     property color disabledTextColor: Theme.textMuted
     property string fontFamily: Theme.fontFamily
     property int fontPixelSize: Theme.fontSizeMd
-    property color hoverColor: Qt.alpha(Theme.accent, 0.22)
+    property color hoverColor: Qt.alpha(Theme.accent, 0.12)
     property color hoverTextColor: Theme.textPrimary
     property url submenuArrowSource
     property color textColor: Theme.textPrimary

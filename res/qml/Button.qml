@@ -3,9 +3,8 @@ import QtQuick 2
 import QtQuick.Controls 2
 import "Theme"
 
-/// Flat, token-driven button. The legacy `activeColor`, `normalColor`,
-/// `pressedColor` and `highlight` properties are preserved so existing call
-/// sites keep their intent while the visuals come from the design system.
+/// Flat, token-driven hardware key. Rekordbox-style: raised face, hairline
+/// frame, lit top edge; active state fills with the signal-blue accent.
 AbstractButton {
     id: root
 
@@ -14,28 +13,56 @@ AbstractButton {
     property color normalColor: Theme.textSecondary
     property color pressedColor: Theme.textPrimary
 
+    readonly property bool activeState: root.checked || root.highlight
+    readonly property color labelColor: root.activeState
+            ? root.activeColor
+            : root.pressed
+              ? root.pressedColor
+              : root.hovered
+                ? Theme.textPrimary
+                : root.normalColor
+
     Accessible.role: Accessible.Button
-    Accessible.name: text
+    Accessible.name: root.text
 
     hoverEnabled: true
-    implicitHeight: 28
-    implicitWidth: 64
+    implicitHeight: 26
+    // Auto-fit the label so toolbar text never elides at larger font scales;
+    // contentWidth is the text's natural width and doesn't depend on layout.
+    implicitWidth: Math.max(56, label.contentWidth + 12)
+    opacity: root.enabled ? 1.0 : 0.45
 
     background: Rectangle {
-        border.color: root.checked || root.highlight
-                ? Theme.accentHover
-                : root.hovered
-                  ? Theme.borderStrong
-                  : Theme.border
+        border.color: root.activeState
+                ? Qt.lighter(Theme.accent, 1.12)
+                : root.activeFocus
+                  ? Theme.focusRing
+                  : root.hovered
+                    ? Theme.borderStrong
+                    : Theme.border
         border.width: 1
-        color: root.checked || root.highlight
-               ? Theme.accent
+        color: root.activeState
+               ? root.pressed
+                 ? Theme.accentPressed
+                 : Theme.accent
                : root.pressed
                  ? Theme.surface3
                  : root.hovered
-                   ? Theme.surface2
-                   : Theme.surface1
+                   ? Theme.surfaceHover
+                   : Theme.surface2
         radius: Theme.radiusSm
+
+        // Flat key face; active state is a solid fill, no gloss.
+        Rectangle {
+            anchors.left: parent.left
+            anchors.leftMargin: 1
+            anchors.right: parent.right
+            anchors.rightMargin: 1
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            color: root.activeState ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+            height: 1
+        }
 
         Behavior on color {
             ColorAnimation {
@@ -49,22 +76,19 @@ AbstractButton {
         }
     }
     contentItem: Item {
-        anchors.fill: parent
-
         Text {
             id: label
 
             anchors.fill: parent
-            color: root.checked || root.highlight
-                   ? root.activeColor
-                   : root.pressed
-                     ? root.pressedColor
-                     : root.normalColor
-            font.bold: true
+            anchors.leftMargin: 6
+            anchors.rightMargin: 6
+            color: root.labelColor
+            elide: Text.ElideRight
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
             font.letterSpacing: Theme.letterSpacingCaps
-            font.pixelSize: Theme.buttonFontPixelSize
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: Text.AlignHCenter
             text: root.text
             verticalAlignment: Text.AlignVCenter
@@ -84,7 +108,7 @@ AbstractButton {
         ColorOverlay {
             anchors.fill: image
             antialiasing: true
-            color: root.checked || root.highlight ? root.activeColor : root.normalColor
+            color: root.labelColor
             source: image
             visible: root.icon.source != null && root.icon.source != ""
         }

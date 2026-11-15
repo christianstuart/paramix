@@ -1189,7 +1189,7 @@ WSearchLineEdit,
 WSearchLineEdit QAbstractScrollArea,
 #fadeModeCombobox,
 #fadeModeCombobox QAbstractScrollArea {
-  font-family: "Open Sans";
+  font-family: "Helvetica Neue";
   font-weight: bold;
 }
 /* yellow */

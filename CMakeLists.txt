@@ -1662,6 +1662,7 @@ add_library(
   src/stems/demucslimiter.cpp
   src/stems/demucsnormalization.cpp
   src/stems/demucsstft.cpp
+  src/stems/stemanalysiscoordinator.cpp
   src/stems/stemcache.cpp
   src/stems/stemfileformat.cpp
   src/stems/stemfilewriter.cpp
@@ -1731,6 +1732,7 @@ add_library(
   src/util/fileinfo.cpp
   src/util/filename.cpp
   src/util/font.cpp
+  src/util/restartapplication.cpp
   src/util/imagefiledata.cpp
   src/util/imagefiledata.cpp
   src/util/imageutils.cpp
@@ -2134,7 +2136,7 @@ if(APPLE)
   # Apple's Metal API in the foreseeable future.
   target_compile_definitions(mixxx-lib PUBLIC GL_SILENCE_DEPRECATION)
 
-  target_sources(mixxx-lib PRIVATE src/util/appleosversion.mm)
+  target_sources(mixxx-lib PRIVATE src/util/appleosversion.mm src/util/macprocessname.mm)
 
   if(IOS)
     target_sources(
@@ -2516,12 +2518,12 @@ else()
 endif()
 
 # Keep the CMake target name stable, but name the binary `paramix` /
-# `paramix.exe`. A macOS app bundle uses its bundle name instead, but a
-# non-bundle macOS build still needs the renamed executable.
-if(NOT ANDROID)
-  if(NOT APPLE OR NOT MACOS_BUNDLE)
-    set_target_properties(mixxx PROPERTIES OUTPUT_NAME "paramix")
-  endif()
+# `paramix.exe`. A macOS app bundle uses its bundle name instead. A non-bundle
+# macOS build uses `Paramix` so the system menu bar shows the capitalized name.
+if(APPLE AND NOT MACOS_BUNDLE)
+  set_target_properties(mixxx PROPERTIES OUTPUT_NAME "Paramix")
+elseif(NOT ANDROID)
+  set_target_properties(mixxx PROPERTIES OUTPUT_NAME "paramix")
 endif()
 
 if(NOT QML)
@@ -4050,6 +4052,13 @@ if(QML)
 
   target_link_libraries(mixxx-qml-lib PRIVATE mixxx-qml-libplugin)
 
+  # The QML proxies check compile-time stem separation availability
+  # (mixxx::stems::isDemucsOnnxAvailable()). mixxx-qml-lib is linked into
+  # mixxx-lib, so it does not inherit mixxx-lib's PUBLIC definitions.
+  if(STEM_SEPARATION_ENABLED)
+    target_compile_definitions(mixxx-qml-lib PUBLIC __STEM_SEPARATION__)
+  endif()
+
   qt_add_library(mixxx-qml-mixxxcontrols STATIC)
   set_target_properties(mixxx-qml-mixxxcontrols PROPERTIES AUTOMOC ON)
   qt_add_qml_module(mixxx-qml-mixxxcontrols
@@ -4094,7 +4103,6 @@ if(QML)
       src/qml/qmlkeyutils.cpp
       src/qml/qmllegacylibraryitem.cpp
       src/qml/qmllibraryproxy.cpp
-      src/qml/qmllibrarysource.cpp
       src/qml/qmllibrarysourcetree.cpp
       src/qml/qmllibrarytracklistmodel.cpp
       src/qml/qmlmixxxcontrollerscreen.cpp
@@ -4105,6 +4113,7 @@ if(QML)
       src/qml/qmllibrarytracklistcolumn.cpp
       src/qml/qmltrackproxy.cpp
       src/qml/qmlspinnyposition.cpp
+      src/qml/qmlstemserviceproxy.cpp
       src/qml/qmlvinylsignalquality.cpp
       src/qml/qmlvisibleeffectsmodel.cpp
       src/qml/qmlwaveformdisplay.cpp
@@ -4115,6 +4124,7 @@ if(QML)
       src/qml/qmltrackproxy.cpp
       src/qml/qmlsoundmanagerproxy.cpp
       src/qml/qmlpreferencesproxy.cpp
+      src/qml/qmltrackmenuproxy.cpp
       src/waveform/renderers/allshader/digitsrenderer.cpp
       src/waveform/renderers/allshader/waveformrenderbeat.cpp
       src/waveform/renderers/allshader/waveformrenderer.cpp

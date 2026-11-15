@@ -211,7 +211,7 @@ Popup {
             width: 80
             height: 17
             text: "Hotcue #" + root.hotcueNumber
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 14
             color: LateNightTheme.primaryDeckTextColor
             verticalAlignment: Text.AlignVCenter
@@ -223,7 +223,7 @@ Popup {
             width: 46
             height: 17
             text: root.formatHotcueTime()
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 14
             color: LateNightTheme.primaryDeckTextColor
             horizontalAlignment: Text.AlignRight
@@ -243,7 +243,7 @@ Popup {
             placeholderTextColor: "#77716c"
             selectByMouse: true
             color: LateNightTheme.primaryDeckTextColor
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 13
             verticalAlignment: TextInput.AlignVCenter
             leftPadding: 4

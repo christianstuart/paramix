@@ -96,7 +96,7 @@ Item {
                 height: 24
                 color: root.displayColor
                 font.bold: true
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 18
                 horizontalAlignment: Text.AlignHCenter
                 text: bpmProxy.value.toFixed(2)
@@ -109,7 +109,7 @@ Item {
                 anchors.topMargin: 24
                 height: 18
                 color: root.displayColor
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
                 text: ((rateRatioProxy.value - 1) * 100).toFixed(2)

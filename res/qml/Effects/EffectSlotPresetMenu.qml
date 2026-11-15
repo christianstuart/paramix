@@ -15,7 +15,7 @@ Menu {
     property color disabledTextColor: Theme.textMuted
     property string fontFamily: Theme.fontFamily
     property int fontPixelSize: Theme.fontSizeMd
-    property color hoverColor: Qt.alpha(Theme.accent, 0.22)
+    property color hoverColor: Qt.alpha(Theme.accent, 0.12)
     property color hoverTextColor: Theme.textPrimary
     property color separatorColor: Theme.border
     // Legacy aliases kept for the LateNightQML skin.

@@ -22,11 +22,37 @@ Item {
         West
     }
 
+    enum Pane {
+        Move = 0,
+        Cue = 1,
+        Grid = 2
+    }
+
     readonly property var currentTrack: deckPlayer.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
     property bool editMode: false
     required property string group
     property bool minimized: false
+    /// Height shared by the MOVE / CUE / GRID pane stack. The strip is constant
+    /// so switching panes never reflows the transport above it, and it is a
+    /// full-width band below that row, exactly like the reference. 112 px is
+    /// the smallest height that keeps the 2 x 4 hotcue grid and the stem lanes
+    /// usable; the waveform row above absorbs whatever is left.
+    readonly property int paneHeight: Mixxx.Config.paramixCompactDecks ? 96 : 112
+    /// The tab stack is the same height as the loop card so the two line up in
+    /// the transport row and neither overlaps the other: 3 x 28 px tabs plus
+    /// 2 x 4 px gaps.
+    readonly property int paneTabsHeight: 92
+    /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
+    property int activePane: Deck.Pane.Cue
+    /// Persisted per deck so the chosen pane survives a restart.
+    readonly property string paneControlKey: "deck" + group.replace(/[^0-9]/g, "") + "_pane"
+
+    function showPane(pane) {
+        root.activePane = pane;
+        if (paneControl.initialized)
+            paneControl.value = pane;
+    }
 
     signal toggleFocus
 
@@ -76,7 +102,11 @@ Item {
                                     "type": "waveformOverview"
                                 },
                                 {
-                                    "type": "row",
+                                    // Transport row: play/cue on the left, then
+                                    // the toolbar over the loop card, with the
+                                    // MOVE/CUE/GRID selector pinned to the right
+                                    // edge of that same row.
+                                    "type": "transport",
                                     "items": [
                                         {
                                             "type": "column",
@@ -99,26 +129,33 @@ Item {
                                                     "type": "row",
                                                     "items": [
                                                         {
-                                                            "type": "hotcueAndStem",
-                                                            "minWidth": 520
-                                                        },
-                                                        {
-                                                            "type": "beatjump",
-                                                            "minWidth": 650
+                                                            "type": "spacer"
                                                         },
                                                         {
                                                             "type": "loop"
+                                                        },
+                                                        {
+                                                            "type": "paneTabs"
                                                         }
                                                     ]
                                                 }
                                             ]
                                         }
                                     ]
+                                },
+                                {
+                                    // Exactly one full-width strip directly
+                                    // below the transport row; the tab stack
+                                    // above it ends on the same right edge.
+                                    "type": "deckPane"
                                 }
                             ]
                         },
                         {
                             "type": "column",
+                            // The spinny needs the full deck minimum: main
+                            // column, spinny/FX column and tempo strip. Below
+                            // this the tempo fader is pushed over the mixer.
                             "minWidth": 800,
                             "items": [
                                 {
@@ -173,13 +210,44 @@ Item {
 
     Skin.SectionBackground {
         anchors.fill: parent
-        radius: Theme.radiusLg
+        radius: Theme.radiusSm
     }
     Mixxx.ControlProxy {
         id: trackLoadedControl
 
         group: root.group
         key: "track_loaded"
+    }
+
+    // Persisted pane selection: a [Skin] ControlPushButton per deck (0 = move,
+    // 1 = cue, 2 = grid) that the skin control creator makes on first use, so
+    // the choice survives a restart without touching C++. `persist` writes it
+    // to the user config under [Skin].
+    Mixxx.SkinControlCreator {
+        id: paneControlCreator
+
+        defaultValue: Deck.Pane.Cue
+        group: "[Skin]"
+        key: root.paneControlKey
+        persist: true
+    }
+    Mixxx.ControlProxy {
+        id: paneControl
+
+        group: "[Skin]"
+        key: paneControlCreator.key
+
+        onValueChanged: pane => {
+            const index = Math.round(pane);
+            if (index >= Deck.Pane.Move && index <= Deck.Pane.Grid)
+                root.activePane = index;
+        }
+    }
+    Mixxx.ControlProxy {
+        id: bpmlockControl
+
+        group: root.group
+        key: "bpmlock"
     }
     MouseArea {
         id: dragArea
@@ -206,7 +274,7 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.minimized ? 28 : Theme.deckHeaderHeight
+                Layout.preferredHeight: root.minimized ? 28 : (Mixxx.Config.paramixCompactDecks ? 44 : Theme.deckHeaderHeight)
                 editOverlay.visible: false
 
                 DeckComponent.InfoBar {
@@ -228,10 +296,12 @@ Item {
             roleValue: "loop"
 
             LayoutItem {
-                Layout.fillWidth: true
+                // Fixed width card: the spacer before it absorbs the slack, so
+                // the loop sits flush against the pane selector on the right.
                 Layout.maximumHeight: 92
                 Layout.maximumWidth: 185
-                Layout.minimumWidth: 120
+                Layout.minimumWidth: 140
+                Layout.preferredWidth: 185
                 Layout.alignment: Qt.AlignVCenter
                 editLabel.color: Theme.textPrimary
                 editLabel.font.capitalization: Font.AllUppercase
@@ -246,21 +316,106 @@ Item {
             }
         }
         DelegateChoice {
-            roleValue: "beatjump"
+            roleValue: "deckPane"
 
             LayoutItem {
-                Layout.preferredWidth: 120
-                Layout.maximumHeight: 92
+                Layout.fillWidth: true
+                Layout.minimumHeight: root.paneHeight
+                Layout.minimumWidth: 200
+                Layout.preferredHeight: root.paneHeight
                 Layout.alignment: Qt.AlignVCenter
+                blurRadius: 4
                 editLabel.color: Theme.textPrimary
-                editLabel.font.capitalization: Font.AllUppercase
-                editLabel.text: qsTr("Beatjump")
-                editOverlay.color: Theme.surface2
-                height: 92
+                editLabel.font.pixelSize: Theme.fontSizeLg
+                editLabel.text: qsTr("Move / Cue / Grid panes")
+                editOverlay.color: Theme.scrim
+                height: root.paneHeight
 
-                DeckComponent.BeatJump {
+                // One stacked host keeps the pane band at a constant height, so
+                // switching tabs never reflows the transport above it.
+                //
+                // The three panes live inside one wrapper item: the layout item
+                // can only own a single content child, and stacking them here
+                // keeps the host geometry independent of the active tab.
+                Item {
+                    id: paneStack
+
                     anchors.fill: parent
-                    group: root.group
+
+                    // The band itself. Each pane paints its own plate on top of
+                    // this, but the host keeps a frame visible if a pane is ever
+                    // hidden, so the strip cannot read as a hole in the deck.
+                    Rectangle {
+                        anchors.fill: parent
+                        border.color: Theme.border
+                        border.width: 1
+                        color: Theme.surface1
+                        radius: Theme.radiusMd
+                    }
+                    DeckComponent.BeatJump {
+                        id: movePane
+
+                        anchors.fill: parent
+                        group: root.group
+                        visible: root.activePane === Deck.Pane.Move
+
+                        Skin.FadeBehavior on visible {
+                            fadeTarget: movePane
+                        }
+                    }
+                    DeckComponent.HotcueAndStem {
+                        id: cuePane
+
+                        anchors.fill: parent
+                        currentTrack: root.currentTrack
+                        group: root.group
+                        // Cue is the fallback pane: it stays visible unless the
+                        // selector explicitly asks for another tab, so the
+                        // strip is never empty for an out-of-range selection.
+                        visible: root.activePane !== Deck.Pane.Move
+                                 && root.activePane !== Deck.Pane.Grid
+
+                        Skin.FadeBehavior on visible {
+                            fadeTarget: cuePane
+                        }
+                    }
+                    DeckComponent.GridPane {
+                        id: gridPane
+
+                        anchors.fill: parent
+                        group: root.group
+                        visible: root.activePane === Deck.Pane.Grid
+
+                        Skin.FadeBehavior on visible {
+                            fadeTarget: gridPane
+                        }
+                    }
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "paneTabs"
+
+            LayoutItem {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.maximumHeight: root.paneTabsHeight
+                Layout.maximumWidth: 34
+                Layout.minimumHeight: root.paneTabsHeight
+                Layout.minimumWidth: 34
+                Layout.preferredHeight: root.paneTabsHeight
+                Layout.preferredWidth: 34
+                blurRadius: 4
+                editLabel.color: Theme.textPrimary
+                editOverlay.color: Theme.surface2
+                height: root.paneTabsHeight
+                width: 34
+
+                DeckComponent.DeckPaneTabs {
+                    anchors.fill: parent
+                    activePane: root.activePane
+                    gridLocked: bpmlockControl.value > 0
+
+                    onSelected: pane => root.showPane(pane)
                 }
             }
         }
@@ -309,6 +464,8 @@ Item {
 
             LayoutItem {
                 Layout.fillHeight: true
+                Layout.maximumWidth: 75
+                Layout.minimumWidth: 75
                 Layout.preferredWidth: 75
                 blurRadius: 4
                 editLabel.color: Theme.textPrimary
@@ -390,6 +547,36 @@ Item {
             }
         }
         DelegateChoice {
+            roleValue: "transport"
+
+            // The transport row is content driven: play/cue next to the loop
+            // card and the pane tabs. It must not grow, otherwise it steals
+            // height from the waveform and pushes the pane off the deck.
+            LayoutContainer {
+                Layout.fillHeight: false
+                Layout.fillWidth: true
+                disposition: GridLayout.LeftToRight
+            }
+        }
+        DelegateChoice {
+            roleValue: "spacer"
+
+            // Pushes the loop card and the pane selector to the right edge of
+            // the transport row without adding a visible part.
+            LayoutItem {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: 0
+                editOverlay.visible: false
+
+                // A single, input-transparent filler keeps the layout item's
+                // content slot populated without drawing anything.
+                Item {
+                    anchors.fill: parent
+                }
+            }
+        }
+        DelegateChoice {
             roleValue: "column"
 
             LayoutContainer {
@@ -416,32 +603,12 @@ Item {
                 }
             }
         }
-        DelegateChoice {
-            roleValue: "hotcueAndStem"
-
-            LayoutItem {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 300
-                blurRadius: 4
-                editLabel.color: Theme.textPrimary
-                editLabel.font.pixelSize: Theme.fontSizeLg
-                editLabel.text: qsTr("Hotcues & Stems")
-                editOverlay.color: Theme.scrim
-                height: 132
-
-                DeckComponent.HotcueAndStem {
-                    anchors.fill: parent
-                    currentTrack: root.currentTrack
-                    group: root.group
-                }
-            }
-        }
     }
     ColumnLayout {
         id: grid
 
         anchors.fill: parent
-        anchors.margins: Theme.space1
+        anchors.margins: Mixxx.Config.paramixCompactDecks ? 2 : Theme.space1
         visible: !root.minimized
 
         FadeBehavior on visible {
@@ -457,7 +624,7 @@ Item {
         id: minimizedGrid
 
         anchors.fill: parent
-        anchors.margins: Theme.space1
+        anchors.margins: Mixxx.Config.paramixCompactDecks ? 2 : Theme.space1
         visible: root.minimized
 
         FadeBehavior on visible {
@@ -857,6 +1024,7 @@ Item {
                 id: labelItem
 
                 anchors.centerIn: parent
+                font.family: Theme.fontFamily
                 visible: !!text.length
             }
             LayoutMouseArea {

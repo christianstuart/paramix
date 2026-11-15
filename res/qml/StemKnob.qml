@@ -3,8 +3,12 @@ import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import "Theme"
 
-/// Compact stem control card: colour chip, mute status, volume knob,
+/// Compact stem control card: colour key, mute toggle, volume knob,
 /// QuickFX enable toggle, super knob and chain preset selector.
+///
+/// The stem colour key doubles as the mute button: it is lit while the stem is
+/// audible and hollow when muted, so state is visible without a separate pill.
+/// A small square LED next to the label reports QuickFX enable.
 Rectangle {
     id: root
 
@@ -15,14 +19,21 @@ Rectangle {
     required property color stemColor
 
     readonly property string fxGroup: `[QuickEffectRack1_${stemGroup}]`
+    readonly property bool muted: statusControl.value != 0
 
     border.color: Theme.border
     border.width: 1
-    color: Theme.surface2
-    height: 56
-    opacity: statusControl.value ? 0.6 : 1
-    radius: Theme.radiusMd
-    width: 56
+    color: Theme.surface1
+    height: 72
+    opacity: root.muted ? 0.76 : 1
+    radius: Theme.radiusSm
+    width: 72
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: Theme.motionFast
+        }
+    }
 
     Mixxx.ControlProxy {
         id: statusControl
@@ -38,116 +49,140 @@ Rectangle {
         key: "enabled"
     }
 
-    // Stem colour chip. Identity is always paired with the text label.
+    // Stem colour key and mute toggle. Identity is always paired with the
+    // text label; colour is never the only signal.
     Rectangle {
         id: colorChip
 
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 4
+        anchors.bottom: colorSelector.top
+        anchors.bottomMargin: Theme.space1
         anchors.left: parent.left
-        anchors.leftMargin: 4
+        anchors.leftMargin: Theme.space1
         anchors.top: parent.top
-        anchors.topMargin: 4
-        color: root.stemColor
-        radius: 2
-        width: 4
-    }
-
-    Rectangle {
-        id: statusButton
-
-        anchors.left: colorChip.right
-        anchors.leftMargin: 4
-        anchors.top: root.top
-        anchors.topMargin: 4
-        border.color: statusControl.value ? Theme.danger : Theme.borderStrong
+        anchors.topMargin: Theme.space1
+        border.color: root.muted ? Theme.borderStrong : root.stemColor
         border.width: 1
-        color: statusControl.value ? Theme.danger : "transparent"
-        height: 8
-        radius: width / 2
+        color: root.muted ? "transparent" : root.stemColor
+        radius: Theme.radiusXs
         width: 8
 
         Accessible.checkable: true
-        Accessible.checked: statusControl.value != 0
+        Accessible.checked: root.muted
         Accessible.name: qsTr("Mute %1").arg(root.label)
         Accessible.role: Accessible.CheckBox
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
+        }
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
+        }
 
         TapHandler {
             onTapped: statusControl.value = !statusControl.value
         }
+        HoverHandler {
+            cursorShape: Qt.PointingHandCursor
+        }
     }
 
-    Text {
-        id: stemLabel
+    Row {
+        id: header
 
-        anchors.left: statusButton.right
-        anchors.leftMargin: 4
-        anchors.right: root.right
-        anchors.rightMargin: 4
-        anchors.top: root.top
-        anchors.topMargin: 2
-        color: Theme.textPrimary
-        elide: Text.ElideRight
-        font.bold: true
-        font.capitalization: Font.AllUppercase
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeXs
-        text: root.label
+        anchors.left: colorChip.right
+        anchors.leftMargin: Theme.space1
+        anchors.right: parent.right
+        anchors.rightMargin: Theme.space1
+        anchors.top: parent.top
+        anchors.topMargin: Theme.space1
+        height: 12
+        spacing: Theme.space1
+
+        Text {
+            id: stemLabel
+
+            anchors.verticalCenter: parent.verticalCenter
+            color: root.muted ? Theme.textMuted : Theme.textPrimary
+            elide: Text.ElideRight
+            font.capitalization: Font.MixedCase
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
+            height: parent.height
+            text: root.label
+            verticalAlignment: Text.AlignVCenter
+            width: Math.max(0, parent.width - fxButton.width - parent.spacing)
+        }
+
+        Rectangle {
+            id: fxButton
+
+            anchors.verticalCenter: parent.verticalCenter
+            border.color: fxControl.value ? Theme.accent : Theme.borderStrong
+            border.width: 1
+            color: fxControl.value ? Theme.accent : "transparent"
+            height: 8
+            radius: Theme.radiusXs
+            width: 8
+
+            Accessible.checkable: true
+            Accessible.checked: fxControl.value != 0
+            Accessible.name: qsTr("%1 QuickFX enabled").arg(root.label)
+            Accessible.role: Accessible.CheckBox
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionFast
+                }
+            }
+            Behavior on border.color {
+                ColorAnimation {
+                    duration: Theme.motionFast
+                }
+            }
+
+            TapHandler {
+                onTapped: fxControl.value = !fxControl.value
+            }
+            HoverHandler {
+                cursorShape: Qt.PointingHandCursor
+            }
+        }
     }
 
     Skin.ControlKnob {
         id: volume
 
         anchors.left: colorChip.right
-        anchors.leftMargin: 4
-        anchors.top: statusButton.bottom
-        anchors.topMargin: 2
+        anchors.leftMargin: Theme.space1
+        anchors.top: header.bottom
+        anchors.topMargin: Theme.space1
         color: Theme.accent
         group: root.stemGroup
-        height: 30
+        height: 28
         key: "volume"
-        width: 30
+        width: 28
 
         Accessible.name: qsTr("%1 volume").arg(root.label)
 
         arcStart: 0
     }
 
-    Rectangle {
-        id: fxButton
-
-        anchors.right: root.right
-        anchors.rightMargin: 4
-        anchors.top: stemLabel.bottom
-        anchors.topMargin: 2
-        border.color: fxControl.value ? Theme.accent : Theme.borderStrong
-        border.width: 1
-        color: fxControl.value ? Theme.accent : "transparent"
-        height: 8
-        radius: width / 2
-        width: 8
-
-        Accessible.checkable: true
-        Accessible.checked: fxControl.value != 0
-        Accessible.name: qsTr("%1 QuickFX enabled").arg(root.label)
-        Accessible.role: Accessible.CheckBox
-
-        TapHandler {
-            onTapped: fxControl.value = !fxControl.value
-        }
-    }
-
     Skin.ControlMiniKnob {
         id: effectSuperKnob
 
-        anchors.bottom: effectSelector.top
-        anchors.bottomMargin: 2
+        anchors.bottom: colorSelector.top
+        anchors.bottomMargin: Theme.space1
         anchors.left: volume.right
-        anchors.leftMargin: 2
+        anchors.leftMargin: Theme.space1
         anchors.right: root.right
-        anchors.rightMargin: 2
-        anchors.top: fxButton.bottom
-        anchors.topMargin: 2
+        anchors.rightMargin: Theme.space1
+        anchors.top: header.bottom
+        anchors.topMargin: Theme.space1
         arcStart: Knob.ArcStart.Minimum
         color: fxControl.value ? Theme.accent : Theme.textMuted
         group: root.fxGroup
@@ -164,17 +199,18 @@ Rectangle {
     }
 
     Skin.ComboBox {
-        id: effectSelector
+        id: colorSelector
 
         anchors.bottom: root.bottom
-        anchors.bottomMargin: 2
+        anchors.bottomMargin: Theme.space1
         anchors.left: root.left
-        anchors.leftMargin: 2
+        anchors.leftMargin: Theme.space1
         anchors.right: root.right
-        anchors.rightMargin: 2
+        anchors.rightMargin: Theme.space1
         clip: true
         currentIndex: fxSelect.value == -1 ? 0 : fxSelect.value
         font.pixelSize: Theme.fontSizeXs
+        height: 16
         indicator.width: 0
         model: Mixxx.EffectsManager.quickChainPresetModel
         opacity: fxControl.value ? 1 : 0.6

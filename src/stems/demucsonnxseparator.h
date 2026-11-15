@@ -1,13 +1,24 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "util/types.h"
 
 namespace mixxx::stems {
+
+/// Default bound for the ONNX Runtime intra-op and DSP worker pools. Keeping
+/// the separation runtime off most cores leaves room for the audio callback,
+/// the GUI and batch analysis. Exposed for the startup audit log.
+inline int boundedOnnxThreadCount() {
+    const int hardwareThreads =
+            static_cast<int>(std::thread::hardware_concurrency());
+    return std::max(1, std::min(4, hardwareThreads / 2));
+}
 
 /// Configuration for the vendored demucs-onnx runtime.
 struct DemucsOnnxConfig {

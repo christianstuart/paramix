@@ -228,7 +228,7 @@ void WOverview::setup(const QDomNode& node, const SkinContext& context) {
     m_pPassthroughLabel->setText(tr("Passthrough"));
     m_pPassthroughLabel->setStyleSheet(
             QStringLiteral("QLabel{"
-                           "font-family: 'Open Sans';"
+                           "font-family: 'Helvetica Neue';"
                            "font-size: %1px;"
                            "font-weight: bold;"
                            "color: %2;"

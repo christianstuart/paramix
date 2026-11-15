@@ -1,6 +1,8 @@
 #include "library/analysis/analysisfeature.h"
 
+#include <algorithm>
 #include <QList>
+#include <QThread>
 #include <QtDebug>
 
 #include "analyzer/analyzerscheduledtrack.h"
@@ -10,6 +12,7 @@
 #include "library/trackcollectionmanager.h"
 #include "moc_analysisfeature.cpp"
 #include "sources/soundsourceproxy.h"
+#include "track/track.h"
 #include "util/dnd.h"
 #include "util/logger.h"
 #include "widget/wlibrary.h"
@@ -19,14 +22,6 @@ namespace {
 const mixxx::Logger kLogger("AnalysisFeature");
 
 const QString kViewName = QStringLiteral("Analysis");
-
-// Utilize all available cores for batch analysis of tracks
-const int kNumberOfAnalyzerThreads = math_max(1, QThread::idealThreadCount());
-
-inline
-int numberOfAnalyzerThreads() {
-    return kNumberOfAnalyzerThreads;
-}
 
 inline
 AnalyzerModeFlags getAnalyzerModeFlags(
@@ -44,6 +39,16 @@ AnalyzerModeFlags getAnalyzerModeFlags(
 }
 
 } // anonymous namespace
+
+// static
+int AnalysisFeature::analyzerThreadCount() {
+    // Batch analysis is background work. Capping the workers at half of the
+    // available cores (and at most 8) leaves headroom for the audio callback,
+    // stem separation and the GUI. Every analyzer thread is additionally
+    // started with QThread::LowPriority, so even these workers yield to
+    // latency-sensitive work.
+    return qMax(1, qMin(8, QThread::idealThreadCount() / 2));
+}
 
 AnalysisFeature::AnalysisFeature(
         Library* pLibrary,
@@ -141,15 +146,19 @@ void AnalysisFeature::activate() {
 }
 
 void AnalysisFeature::analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks) {
-    if (!m_pTrackAnalysisScheduler) {
-        const int numAnalyzerThreads = numberOfAnalyzerThreads();
+    const bool startingAnalysis = !m_pTrackAnalysisScheduler;
+    if (startingAnalysis) {
+        const int numAnalyzerThreads = analyzerThreadCount();
         kLogger.info()
                 << "Starting analysis using"
                 << numAnalyzerThreads
-                << "analyzer threads";
+                << "low-priority analyzer threads";
         m_pTrackAnalysisScheduler = m_pLibrary->createTrackAnalysisScheduler(
                 numAnalyzerThreads,
                 getAnalyzerModeFlags(m_pConfig));
+        // The scheduler starts its workers suspended and only runs them after
+        // the first resume().
+        m_suspendApplied = true;
 
         connect(m_pTrackAnalysisScheduler.get(),
                 &TrackAnalysisScheduler::progress,
@@ -175,29 +184,76 @@ void AnalysisFeature::analyzeTracks(const QList<AnalyzerScheduledTrack>& tracks)
                 &TrackAnalysisScheduler::trackProgress,
                 this,
                 &AnalysisFeature::trackProgress);
+        // Track the title of the currently analyzed track for the QML UI.
+        connect(m_pTrackAnalysisScheduler.get(),
+                &TrackAnalysisScheduler::trackProgress,
+                this,
+                &AnalysisFeature::onTrackAnalysisProgress);
+    }
 
+    const int scheduledCount = m_pTrackAnalysisScheduler->scheduleTracks(tracks);
+    if (scheduledCount <= 0) {
+        if (startingAnalysis) {
+            // Nothing was scheduled, so the scheduler would never emit
+            // progress or finished. Don't leave it behind in a running state.
+            m_pTrackAnalysisScheduler.reset();
+        }
+        return;
+    }
+
+    if (startingAnalysis) {
+        m_analysisTitleCache.clear();
+        m_analysisTrackId = TrackId();
+        m_analysisTrackTitle.clear();
+        m_analysisCurrent = 0;
+        m_analysisTotal = scheduledCount;
+        m_analysisProgress = 0;
+        m_analysisActive = true;
+        emit analysisActiveChanged();
+        emit analysisProgressChanged();
         emit analysisActive(true);
     }
-
-    if (m_pTrackAnalysisScheduler->scheduleTracks(tracks) > 0) {
-        resumeAnalysis();
-    }
+    resumeAnalysis();
 }
 
 void AnalysisFeature::suspendAnalysis() {
-    if (!m_pTrackAnalysisScheduler) {
-        return; // inactive
-    }
-    kLogger.info() << "Suspending analysis";
-    m_pTrackAnalysisScheduler->suspend();
+    m_userSuspended = true;
+    applySuspension();
 }
 
 void AnalysisFeature::resumeAnalysis() {
+    m_userSuspended = false;
+    applySuspension();
+}
+
+void AnalysisFeature::setBackgroundSuspended(bool suspended) {
+    if (m_backgroundSuspended == suspended) {
+        return;
+    }
+    m_backgroundSuspended = suspended;
+    applySuspension();
+}
+
+void AnalysisFeature::applySuspension() {
     if (!m_pTrackAnalysisScheduler) {
         return; // inactive
     }
-    kLogger.info() << "Resuming analysis";
-    m_pTrackAnalysisScheduler->resume();
+    const bool suspend = m_userSuspended || m_backgroundSuspended;
+    if (m_suspendApplied == suspend) {
+        return;
+    }
+    m_suspendApplied = suspend;
+    kLogger.info() << (suspend ? "Suspending" : "Resuming")
+                   << "analysis (explicit suspend:"
+                   << (m_userSuspended ? "yes" : "no")
+                   << ", background suspend:"
+                   << (m_backgroundSuspended ? "yes" : "no")
+                   << ")";
+    if (suspend) {
+        m_pTrackAnalysisScheduler->suspend();
+    } else {
+        m_pTrackAnalysisScheduler->resume();
+    }
 }
 
 void AnalysisFeature::stopAnalysis() {
@@ -209,18 +265,44 @@ void AnalysisFeature::stopAnalysis() {
 }
 
 void AnalysisFeature::onTrackAnalysisSchedulerProgress(
-        AnalyzerProgress /*currentTrackProgress*/,
+        AnalyzerProgress currentTrackProgress,
         int currentTrackNumber,
         int totalTracksCount) {
     // Ignore any delayed progress updates after the analysis
     // has already been stopped.
     if (!m_pTrackAnalysisScheduler) {
-        return; // inactive
+        return;
     }
     if (totalTracksCount > 0) {
         setTitleProgress(currentTrackNumber, totalTracksCount);
     } else {
         resetTitle();
+    }
+
+    const int previousCurrent = m_analysisCurrent;
+    const int previousTotal = m_analysisTotal;
+    const int previousProgress = m_analysisProgress;
+
+    m_analysisCurrent = std::max(0, currentTrackNumber);
+    m_analysisTotal = std::max(0, totalTracksCount);
+    if (m_analysisTotal > 0) {
+        // `currentTrackNumber` is 1-based, `currentTrackProgress` is the
+        // fraction of that track that is already done. Together they form the
+        // aggregate progress over all scheduled tracks.
+        double completedTracks = std::max(0, m_analysisCurrent - 1);
+        if (currentTrackProgress >= 0.0) {
+            completedTracks += std::clamp(currentTrackProgress, 0.0, 1.0);
+        }
+        m_analysisProgress = std::clamp(
+                static_cast<int>(completedTracks * 100.0 / m_analysisTotal), 0, 100);
+    } else {
+        m_analysisProgress = 0;
+    }
+
+    if (previousCurrent != m_analysisCurrent ||
+            previousTotal != m_analysisTotal ||
+            previousProgress != m_analysisProgress) {
+        emit analysisProgressChanged();
     }
 }
 
@@ -238,7 +320,50 @@ void AnalysisFeature::onTrackAnalysisSchedulerFinished() {
         m_pTrackAnalysisScheduler.reset();
     }
     resetTitle();
+
+    m_analysisActive = false;
+    if (m_analysisTotal > 0 && m_analysisCurrent >= m_analysisTotal) {
+        // Only a run that reached the last track reports 100%. A stopped run
+        // keeps its last aggregate value.
+        m_analysisProgress = 100;
+    }
+    m_analysisTrackTitle.clear();
+    m_analysisTrackId = TrackId();
+    m_analysisTitleCache.clear();
+    emit analysisProgressChanged();
+    emit analysisActiveChanged();
     emit analysisActive(false);
+}
+
+void AnalysisFeature::onTrackAnalysisProgress(
+        TrackId trackId, AnalyzerProgress /*analyzerProgress*/) {
+    if (!trackId.isValid() || trackId == m_analysisTrackId) {
+        return;
+    }
+    m_analysisTrackId = trackId;
+    const QString title = analysisTitleForTrack(trackId);
+    if (m_analysisTrackTitle == title) {
+        return;
+    }
+    m_analysisTrackTitle = title;
+    emit analysisProgressChanged();
+}
+
+QString AnalysisFeature::analysisTitleForTrack(TrackId trackId) {
+    const auto it = m_analysisTitleCache.constFind(trackId);
+    if (it != m_analysisTitleCache.constEnd()) {
+        return it.value();
+    }
+    QString title;
+    if (m_pLibrary) {
+        const TrackPointer pTrack =
+                m_pLibrary->trackCollectionManager()->getTrackById(trackId);
+        if (pTrack) {
+            title = pTrack->getTitle();
+        }
+    }
+    m_analysisTitleCache.insert(trackId, title);
+    return title;
 }
 
 bool AnalysisFeature::dropAccept(const QList<QUrl>& urls, QObject* pSource) {

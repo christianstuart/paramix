@@ -39,12 +39,18 @@ Rectangle {
         return data;
     }
     Drag.supportedActions: Qt.CopyAction
-    border.color: Theme.border
+    border.color: dragArea.containsMouse ? Theme.borderStrong : Theme.border
     border.width: 1
     color: Theme.surface1
     implicitHeight: root.minimized ? 50 : 170
     implicitWidth: 230
     radius: Theme.radiusMd
+
+    Behavior on border.color {
+        ColorAnimation {
+            duration: Theme.motionFast
+        }
+    }
 
     // Track colour as a thin accent instead of tinting the whole card.
     Rectangle {
@@ -64,6 +70,7 @@ Rectangle {
 
         anchors.fill: parent
         drag.target: root
+        hoverEnabled: true
     }
     Item {
         id: summary
@@ -88,7 +95,7 @@ Rectangle {
             anchors.margins: Theme.space1
             anchors.right: parent.right
             anchors.top: parent.top
-            color: Theme.accent
+            color: Theme.textPrimary
             group: root.group
             height: 36
             key: "pregain"
@@ -124,12 +131,12 @@ Rectangle {
             anchors.right: bpmLabel.left
             anchors.rightMargin: Theme.space1
             anchors.top: embedded.top
-            color: Theme.textPrimary
+            color: root.currentTrack ? Theme.textPrimary : Theme.textMuted
             elide: Text.ElideRight
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSm
             font.weight: Theme.fontWeightDemiBold
-            text: root.currentTrack?.title ?? ""
+            text: root.currentTrack?.title || qsTr("Empty")
         }
         Text {
             id: bpmLabel
@@ -159,7 +166,7 @@ Rectangle {
             anchors.top: parent.top
             group: root.group
             key: "vu_meter"
-            width: 4
+            width: 3
         }
     }
     ColumnLayout {

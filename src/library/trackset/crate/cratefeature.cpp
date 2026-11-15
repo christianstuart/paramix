@@ -419,7 +419,9 @@ void CrateFeature::slotCreateCrate() {
     CrateId crateId =
             CrateFeatureHelper(m_pTrackCollection, m_pConfig)
                     .createEmptyCrate();
-    if (crateId.isValid()) {
+    // The sidebar widget only exists in the legacy QWidget library.
+    // In QML builds bindSidebarWidget() is never called.
+    if (crateId.isValid() && m_pSidebarWidget) {
         // expand Crates and scroll to new crate
         m_pSidebarWidget->selectChildIndex(indexFromCrateId(crateId), false);
     }

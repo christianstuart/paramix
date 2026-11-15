@@ -22,7 +22,15 @@ Item {
             root.sidebar.tracklist.search(searchField.text);
         }
     }
+    function clearSearch() {
+        searchField.text = "";
+        // A clear should not wait for the debounce interval.
+        searchDebounce.stop();
+        root.applySearch();
+        searchField.forceActiveFocus(Qt.ShortcutFocusReason);
+    }
     function focusSearch() {
+        searchDebounce.stop();
         root.applySearch();
         searchField.forceActiveFocus(Qt.ShortcutFocusReason);
         searchField.selectAll();
@@ -37,14 +45,21 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        color: Theme.surface1
+        color: Theme.surface2
         height: Theme.toolbarHeight
 
         Rectangle {
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            color: Theme.border
+            color: Theme.borderStrong
+            height: 1
+        }
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            color: Theme.topHighlight
             height: 1
         }
         RowLayout {
@@ -55,9 +70,11 @@ Item {
 
             Text {
                 Layout.alignment: Qt.AlignVCenter
-                color: Theme.textPrimary
+                color: Theme.textSecondary
+                font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeMd
+                font.letterSpacing: Theme.letterSpacingCaps
+                font.pixelSize: Theme.fontSizeXs
                 font.weight: Theme.fontWeightDemiBold
                 text: qsTr("Library")
                 verticalAlignment: Text.AlignVCenter
@@ -71,17 +88,67 @@ Item {
             Item {
                 Layout.fillWidth: true
             }
-            TextField {
-                id: searchField
+            Item {
+                id: searchBox
 
                 Layout.alignment: Qt.AlignVCenter
                 Layout.maximumWidth: 320
                 Layout.preferredWidth: 280
-                Accessible.name: qsTr("Search the library")
-                Accessible.role: Accessible.EditableText
-                placeholderText: qsTranslate("WSearchLineEdit", "Search...")
+                implicitHeight: searchField.implicitHeight
 
-                onTextChanged: root.applySearch()
+                TextField {
+                    id: searchField
+
+                    anchors.fill: parent
+                    Accessible.name: qsTr("Search the library")
+                    Accessible.role: Accessible.EditableText
+                    placeholderText: qsTranslate("WSearchLineEdit", "Search...")
+                    rightPadding: Theme.space3 + clearButton.width + Theme.space1
+
+                    onTextChanged: searchDebounce.restart()
+                }
+                Item {
+                    id: clearButton
+
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.space2
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 16
+                    visible: searchField.text.length > 0
+                    width: 16
+
+                    Accessible.name: qsTr("Clear search")
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.clearSearch()
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: clearMouseArea.containsMouse ? Theme.surfaceHover : "transparent"
+                        radius: Theme.radiusXs
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        color: clearMouseArea.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        height: 1
+                        rotation: 45
+                        width: 8
+                    }
+                    Rectangle {
+                        anchors.centerIn: parent
+                        color: clearMouseArea.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        height: 1
+                        rotation: -45
+                        width: 8
+                    }
+                    MouseArea {
+                        id: clearMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+
+                        onClicked: root.clearSearch()
+                    }
+                }
             }
         }
     }
@@ -154,6 +221,7 @@ Item {
                 SplitView.maximumHeight: 200
                 SplitView.minimumHeight: 100
                 SplitView.preferredHeight: 100
+                visible: Mixxx.Config.paramixShowPreview
             }
         }
         LibraryComponent.TrackList {
@@ -162,6 +230,24 @@ Item {
             // FIXME: this is necessary to prevent the header label to render outside of the table when horizontally scrolling: https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-3311914346
             clip: true
             model: root.sidebar.tracklist
+        }
+    }
+
+    Timer {
+        id: searchDebounce
+
+        interval: 300
+        repeat: false
+
+        onTriggered: root.applySearch()
+    }
+    Connections {
+        target: root.sidebar
+
+        function onTracklistChanged() {
+            // The search text is shared by all sources, so it has to be
+            // re-applied whenever the sidebar loads another track list.
+            root.applySearch();
         }
     }
 }

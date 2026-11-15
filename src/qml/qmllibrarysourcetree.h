@@ -15,13 +15,17 @@
 namespace mixxx {
 namespace qml {
 
+/// Exposes the library sidebar, i.e. all sources of the real library
+/// (tracks, playlists, crates, AutoDJ, browse, recordings, ...), to QML.
+///
+/// The set of sources is not configured in QML: it mirrors the features of the
+/// library so that the QML library pane and the legacy QWidget library always
+/// offer the same views. Only the track table columns are configured in QML.
 class QmlLibrarySourceTree : public QQuickItem {
     Q_OBJECT
     Q_INTERFACES(QQmlParserStatus)
-    Q_PROPERTY(QQmlListProperty<mixxx::qml::QmlLibraryAbstractSource> sources READ sources)
     Q_PROPERTY(QQmlListProperty<mixxx::qml::QmlLibraryTrackListColumn> defaultColumns READ
                     defaultColumns CONSTANT)
-    Q_CLASSINFO("DefaultProperty", "sources")
     QML_NAMED_ELEMENT(LibrarySourceTree)
 
   public:
@@ -35,29 +39,12 @@ class QmlLibrarySourceTree : public QQuickItem {
         return {this, &m_defaultColumns};
     }
 
-    QQmlListProperty<mixxx::qml::QmlLibraryAbstractSource> sources();
     Q_INVOKABLE mixxx::qml::QmlSidebarModelProxy* sidebar() const {
         return m_model.get();
-    };
+    }
     Q_INVOKABLE mixxx::qml::QmlLibraryTrackListModel* allTracks() const;
 
   private:
-    static void append_source(QQmlListProperty<QmlLibraryAbstractSource>* list,
-            QmlLibraryAbstractSource* slice);
-    static qsizetype count_source(QQmlListProperty<QmlLibraryAbstractSource>* p) {
-        return reinterpret_cast<QList<QmlLibraryAbstractSource*>*>(p->data)->size();
-    }
-    static QmlLibraryAbstractSource* at_source(
-            QQmlListProperty<QmlLibraryAbstractSource>* p, qsizetype idx) {
-        return reinterpret_cast<QList<QmlLibraryAbstractSource*>*>(p->data)->at(idx);
-    }
-    static void clear_source(QQmlListProperty<QmlLibraryAbstractSource>* p);
-    static void replace_source(QQmlListProperty<QmlLibraryAbstractSource>* p,
-            qsizetype idx,
-            QmlLibraryAbstractSource* v);
-    static void removeLast_source(QQmlListProperty<QmlLibraryAbstractSource>* p);
-
-    QList<QmlLibraryAbstractSource*> m_sources;
     parented_ptr<QmlSidebarModelProxy> m_model;
     QList<QmlLibraryTrackListColumn*> m_defaultColumns;
 };

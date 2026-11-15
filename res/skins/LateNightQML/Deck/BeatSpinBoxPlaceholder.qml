@@ -42,7 +42,7 @@ Item {
             Layout.fillWidth: true
             color: LateNightTheme.deckBeatSpinBoxTextColor
             font.bold: true
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
             text: root.valueText

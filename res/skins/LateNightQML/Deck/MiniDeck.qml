@@ -153,7 +153,7 @@ Controls.Panel {
                     Layout.fillWidth: true
                     color: root.deckTextColor
                     elide: Text.ElideRight
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 14
                     text: root.isLoaded ? (root.currentTrack?.title || qsTr("Unknown Title")) : ""
                     verticalAlignment: Text.AlignVCenter
@@ -161,7 +161,7 @@ Controls.Panel {
                 Text {
                     Layout.preferredWidth: 46
                     color: LateNightTheme.deckTimeTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignRight
                     text: root.isLoaded ? root.formatPosition() : ""
@@ -185,7 +185,7 @@ Controls.Panel {
                     Layout.fillWidth: true
                     color: root.deckTextColor
                     elide: Text.ElideRight
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 13
                     text: root.isLoaded ? (root.currentTrack?.artist || qsTr("Unknown Artist")) : ""
                     verticalAlignment: Text.AlignVCenter
@@ -209,7 +209,7 @@ Controls.Panel {
                     Text {
                         Layout.fillWidth: true
                         color: root.deckTextColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 12
                         horizontalAlignment: Text.AlignHCenter
                         text: root.miniKeyText
@@ -219,7 +219,7 @@ Controls.Panel {
                 Text {
                     Layout.preferredWidth: 50
                     color: root.deckTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignRight
                     text: root.isLoaded ? bpmProxy.value.toFixed(2) : ""

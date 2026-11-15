@@ -5,68 +5,93 @@ import QtQuick 2.12
 /// Paramix design tokens.
 ///
 /// This singleton is the single source of truth for color, type, spacing,
-/// radius, motion and layout metrics in the QML skin. New components should
-/// use the semantic names (`surface1`, `textSecondary`, `accent`, ...); the
-/// legacy Mixxx names (`darkGray`, `white`, `buttonNormalColor`, ...) are kept
-/// as aliases so existing components keep working while they are migrated.
+/// radius, motion and layout metrics in the QML skin. The semantic names
+/// (`surface1`, `textSecondary`, `accent`, ...) are preferred; the legacy
+/// Mixxx names (`darkGray`, `white`, `buttonNormalColor`, ...) are aliases kept
+/// so un-migrated components keep working.
 ///
-/// The palette is selected by `scheme`; switch it at runtime to change every
-/// semantic color token at once. Individual tokens are read-only so components
-/// cannot drift from the palette.
+/// The values are injected from `Mixxx.Config` by `main.qml`, which keeps this
+/// singleton loadable by the QML tests without the C++ module. A skin or the
+/// customizer can switch the scheme, accent, font and motion scale at runtime.
 QtObject {
     id: theme
 
-    // ── Named color schemes ────────────────────────────────────────────────
-    // "Paramix Dark" is the default. "Paramix Midnight" is a lower-contrast
-    // variant for dim rooms. "Paramix High Contrast" uses the Okabe-Ito
-    // color-blind-safe palette for the stem colors.
+    // ── Runtime overrides (bound in main.qml) ──────────────────────────────
     property string scheme: "Paramix Dark"
+    property string accentOverride: ""
+    property string fontFamilyOverride: ""
+    property real fontScale: 1.0
+    property real motionScale: 1.0
 
+    // ── Contrast helpers ───────────────────────────────────────────────────
+    // WCAG 2.1 relative luminance and contrast ratio. Used to pick the label
+    // colour that stays legible on a user-chosen accent, instead of guessing
+    // from a luminance threshold (which put white on signal blue at 3.9:1).
+    function srgbToLinear(channel) {
+        return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+    }
+    function relativeLuminance(color) {
+        return 0.2126 * srgbToLinear(color.r)
+                + 0.7152 * srgbToLinear(color.g)
+                + 0.0722 * srgbToLinear(color.b);
+    }
+    function contrastRatio(colorA, colorB) {
+        const a = relativeLuminance(colorA);
+        const b = relativeLuminance(colorB);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    }
+
+    // ── Named color schemes ────────────────────────────────────────────────
+    // Traktor stage: neutral near-black canvas, flat matte panels with
+    // hairline frames. No blue-tinted surfaces. Deck identity comes from
+    // the deckA–D tokens, never from tinting whole cards.
     readonly property var palette: {
         switch (scheme) {
         case "Paramix Midnight":
             return {
-                "surface0": "#07080B",
-                "surface1": "#0D1016",
-                "surface2": "#141924",
-                "surface3": "#1E2635",
-                "border": "#232C3B",
-                "borderStrong": "#33405A",
-                "textPrimary": "#EAF0FA",
-                "textSecondary": "#A8B4C9",
-                "textMuted": "#6E7A91",
-                "accent": "#5B9DFF",
-                "accentHover": "#7FB4FF",
-                "accentPressed": "#3B7BE0",
-                "textOnAccent": "#06101F",
-                "positive": "#3DDC97",
-                "warning": "#FFC857",
-                "danger": "#FF5C6C",
-                "focusRing": "#8FC0FF",
-                "stemDrums": "#E85D4A",
-                "stemBass": "#7A5AF8",
-                "stemVocals": "#2BB673",
-                "stemOther": "#F2C94C"
+                "surface0": "#030303",
+                "surface1": "#0A0A0A",
+                "surface2": "#131313",
+                "surface3": "#1B1B1B",
+                "surfaceHover": "#222222",
+                "border": "#1C1C1C",
+                "borderStrong": "#2E2E2E",
+                "textPrimary": "#E8E8E8",
+                "textSecondary": "#9A9A9A",
+                "textMuted": "#8A8A8A",
+                "accent": "#2F80ED",
+                "accentHover": "#5A9BF2",
+                "accentPressed": "#1E63C6",
+                "textOnAccent": "#08101C",
+                "positive": "#33D17A",
+                "warning": "#FFB224",
+                "danger": "#FF4D5E",
+                "focusRing": "#B5B5B5",
+                "stemDrums": "#FF5A52",
+                "stemBass": "#7C5CFF",
+                "stemVocals": "#2ED47A",
+                "stemOther": "#FFC53D"
             };
         case "Paramix High Contrast":
             // Okabe-Ito color-blind-safe palette.
             return {
                 "surface0": "#000000",
-                "surface1": "#101010",
-                "surface2": "#1C1C1C",
+                "surface1": "#0E0E0E",
+                "surface2": "#1B1B1B",
                 "surface3": "#2A2A2A",
+                "surfaceHover": "#333333",
                 "border": "#3A3A3A",
-                "borderStrong": "#5A5A5A",
+                "borderStrong": "#5C5C5C",
                 "textPrimary": "#FFFFFF",
-                "textSecondary": "#D0D0D0",
-                "textMuted": "#9A9A9A",
+                "textSecondary": "#D4D4D4",
+                "textMuted": "#A6A6A6",
                 "accent": "#FFB000",
                 "accentHover": "#FFC64D",
-                "accentPressed": "#E09B00",
+                "accentPressed": "#D99400",
                 "textOnAccent": "#000000",
                 "positive": "#00C2A8",
                 "warning": "#FFD166",
-                "danger": "#FF4D4D",
+                "danger": "#FF5252",
                 "focusRing": "#FFD166",
                 "stemDrums": "#E69F00",
                 "stemBass": "#56B4E9",
@@ -74,28 +99,32 @@ QtObject {
                 "stemOther": "#CC79A7"
             };
         default:
+            // Paramix Dark: Traktor near-black stage. Neutral matte
+            // surfaces, restrained signal-blue accent, Pioneer-style
+            // channel coding, warm performance-pad hues.
             return {
-                "surface0": "#0E1014",
-                "surface1": "#151922",
-                "surface2": "#1D2330",
-                "surface3": "#273040",
-                "border": "#2A3344",
-                "borderStrong": "#3A465C",
-                "textPrimary": "#F3F6FC",
-                "textSecondary": "#B7C0D4",
-                "textMuted": "#7C879E",
-                "accent": "#4C8DFF",
-                "accentHover": "#6BA2FF",
-                "accentPressed": "#2F6FE0",
-                "textOnAccent": "#0B1220",
-                "positive": "#3DDC97",
-                "warning": "#FFC857",
-                "danger": "#FF5C6C",
-                "focusRing": "#7FB2FF",
-                "stemDrums": "#E85D4A",
-                "stemBass": "#7A5AF8",
-                "stemVocals": "#2BB673",
-                "stemOther": "#F2C94C"
+                "surface0": "#060606",
+                "surface1": "#0D0D0D",
+                "surface2": "#161616",
+                "surface3": "#1E1E1E",
+                "surfaceHover": "#242424",
+                "border": "#1F1F1F",
+                "borderStrong": "#303030",
+                "textPrimary": "#EAEAEA",
+                "textSecondary": "#A3A3A3",
+                "textMuted": "#8C8C8C",
+                "accent": "#2F80ED",
+                "accentHover": "#5A9BF2",
+                "accentPressed": "#1E63C6",
+                "textOnAccent": "#08101C",
+                "positive": "#33D17A",
+                "warning": "#FFB224",
+                "danger": "#FF4D5E",
+                "focusRing": "#B5B5B5",
+                "stemDrums": "#FF5A52",
+                "stemBass": "#7C5CFF",
+                "stemVocals": "#2ED47A",
+                "stemOther": "#FFC53D"
             };
         }
     }
@@ -106,24 +135,40 @@ QtObject {
     readonly property color surface2: palette.surface2
     readonly property color surface3: palette.surface3
     readonly property color surfaceRaised: palette.surface3
+    readonly property color surfaceHover: palette.surfaceHover
     readonly property color border: palette.border
     readonly property color borderStrong: palette.borderStrong
-    readonly property color scrim: Qt.rgba(0, 0, 0, 0.55)
+    readonly property color scrim: Qt.rgba(0, 0, 0, 0.6)
+    readonly property color topHighlight: Qt.rgba(255, 255, 255, 0.03)
+    readonly property color accentSoft: Qt.alpha(accent, 0.16)
+    readonly property color shadow: Qt.rgba(0, 0, 0, 0.55)
 
     // ── Text ───────────────────────────────────────────────────────────────
     readonly property color textPrimary: palette.textPrimary
     readonly property color textSecondary: palette.textSecondary
     readonly property color textMuted: palette.textMuted
-    readonly property color textOnAccent: palette.textOnAccent
 
     // ── Accents and states ─────────────────────────────────────────────────
-    readonly property color accent: palette.accent
-    readonly property color accentHover: palette.accentHover
-    readonly property color accentPressed: palette.accentPressed
+    readonly property bool hasCustomAccent: accentOverride.length > 0
+    readonly property color customAccent: hasCustomAccent ? accentOverride : "transparent"
+    readonly property color accent: hasCustomAccent ? customAccent : palette.accent
+    readonly property color accentHover: hasCustomAccent
+            ? Qt.lighter(accent, 1.18)
+            : palette.accentHover
+    readonly property color accentPressed: hasCustomAccent
+            ? Qt.darker(accent, 1.22)
+            : palette.accentPressed
+    readonly property color textOnAccent: hasCustomAccent
+            ? (contrastRatio(customAccent, "#08101C") >= contrastRatio(customAccent, "#FFFFFF")
+               ? "#08101C"
+               : "#FFFFFF")
+            : palette.textOnAccent
+    readonly property color focusRing: hasCustomAccent
+            ? Qt.lighter(accent, 1.3)
+            : palette.focusRing
     readonly property color positive: palette.positive
     readonly property color warning: palette.warning
     readonly property color danger: palette.danger
-    readonly property color focusRing: palette.focusRing
 
     // ── Stem palette ───────────────────────────────────────────────────────
     // Never encode stem identity by color alone; pair it with a label.
@@ -132,7 +177,26 @@ QtObject {
     readonly property color stemVocals: palette.stemVocals
     readonly property color stemOther: palette.stemOther
     readonly property color stemMuted: Qt.rgba(1, 1, 1, 0.35)
-    readonly property color stemSolo: palette.accent
+    readonly property color stemSolo: accent
+
+    // ── Deck identity (Rekordbox/Traktor per-deck coding) ────────────────
+    // Thin top strips, badges and active meters — never full panel tints.
+    readonly property color deckA: "#00A3FF"
+    readonly property color deckB: "#FF8B00"
+    readonly property color deckC: "#B16CFF"
+    readonly property color deckD: "#00D1A1"
+
+    // ── Performance pads (Rekordbox 8-pad hues) ──────────────────────────
+    readonly property var hotcueColors: [
+        "#00C2FF", "#FF2E63", "#FFD60A", "#00E676",
+        "#7C5CFF", "#FF6D00", "#00E5FF", "#FF4081"
+    ]
+
+    // ── Meters ───────────────────────────────────────────────────────────
+    readonly property color vuGreen: palette.positive
+    readonly property color vuYellow: palette.warning
+    readonly property color vuRed: palette.danger
+    readonly property color vuRail: "#101010"
 
     // ── Phrase palette (Rekordbox-style phrase labels) ─────────────────────
     readonly property color phraseIntro: "#5B8DEF"
@@ -144,21 +208,25 @@ QtObject {
     readonly property color phraseOutro: "#7C879E"
 
     // ── Typography ─────────────────────────────────────────────────────────
-    readonly property string fontFamily: "Open Sans"
-    readonly property string fontFamilyDisplay: "Open Sans"
-    readonly property string fontFamilyMono: "monospace"
-    readonly property int fontSizeXs: 10
-    readonly property int fontSizeSm: 11
-    readonly property int fontSizeMd: 13
-    readonly property int fontSizeLg: 16
-    readonly property int fontSizeXl: 22
-    readonly property int fontSizeXxl: 28
+    // Helvetica Neue throughout. The override lets the user choose another
+    // Helvetica variant (Helvetica) from the customization panel.
+    readonly property string fontFamily: fontFamilyOverride.length > 0
+            ? fontFamilyOverride
+            : "Helvetica Neue"
+    readonly property string fontFamilyDisplay: fontFamily
+    readonly property string fontFamilyMono: "Helvetica Neue"
+    readonly property int fontSizeXs: Math.round(9 * fontScale)
+    readonly property int fontSizeSm: Math.round(10 * fontScale)
+    readonly property int fontSizeMd: Math.round(12 * fontScale)
+    readonly property int fontSizeLg: Math.round(15 * fontScale)
+    readonly property int fontSizeXl: Math.round(20 * fontScale)
+    readonly property int fontSizeXxl: Math.round(26 * fontScale)
     readonly property int fontWeightRegular: Font.Normal
     readonly property int fontWeightMedium: Font.Medium
     readonly property int fontWeightDemiBold: Font.DemiBold
     readonly property int fontWeightBold: Font.Bold
-    readonly property real letterSpacingCaps: 0.8
-    readonly property real lineHeight: 1.25
+    readonly property real letterSpacingCaps: 1.1
+    readonly property real lineHeight: 1.15
 
     // ── Spacing (4 px base grid) ───────────────────────────────────────────
     readonly property int space1: 4
@@ -171,24 +239,28 @@ QtObject {
     readonly property int space8: 64
 
     // ── Radius ─────────────────────────────────────────────────────────────
-    readonly property int radiusXs: 2
-    readonly property int radiusSm: 4
-    readonly property int radiusMd: 6
-    readonly property int radiusLg: 10
-    readonly property int radiusXl: 16
+    // Traktor-sharp: hardware panels carry a tight 3 px round, keys 2 px.
+    // Only pills stay fully round.
+    readonly property int radiusXs: 1
+    readonly property int radiusSm: 2
+    readonly property int radiusMd: 3
+    readonly property int radiusLg: 4
+    readonly property int radiusXl: 6
     readonly property int radiusPill: 999
 
     // ── Motion ─────────────────────────────────────────────────────────────
-    readonly property int motionFast: 90
-    readonly property int motionNormal: 160
-    readonly property int motionSlow: 280
-    readonly property int motionSpringDuration: 500
+    // Fast feedback, no overshoot. `motionScale` is user-adjustable in the
+    // customizer (snappy → relaxed).
+    readonly property int motionFast: Math.round(60 * motionScale)
+    readonly property int motionNormal: Math.round(100 * motionScale)
+    readonly property int motionSlow: Math.round(160 * motionScale)
+    readonly property int motionSpringDuration: Math.round(260 * motionScale)
 
     // ── Layout ─────────────────────────────────────────────────────────────
     readonly property int toolbarHeight: 44
     readonly property int deckHeaderHeight: 56
-    readonly property int stemLaneMinWidth: 54
-    readonly property int stemLaneHeight: 120
+    readonly property int stemLaneMinWidth: 58
+    readonly property int stemLaneHeight: 110
     readonly property int minWindowWidth: 1280
     readonly property int minWindowHeight: 720
 

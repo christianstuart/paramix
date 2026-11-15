@@ -4,6 +4,7 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QStorageInfo>
 #include <algorithm>
 #include <utility>
@@ -130,22 +131,37 @@ bool StemService::queueExport(const StemExportRequest& request) {
     m_waitCondition.wakeAll();
     if (!isRunning()) {
         // Low priority keeps the GUI, waveform and audio callback responsive.
-        start(QThread::LowPriority);
+        start(kWorkerPriority);
     }
     return true;
 }
 
 void StemService::pause() {
+    m_userPaused = true;
     m_paused = true;
 }
 
 void StemService::resume() {
-    m_paused = false;
+    m_userPaused = false;
+    // A background pause (e.g. audio overload) survives an explicit resume.
+    m_paused = m_backgroundPaused.load();
     m_waitCondition.wakeAll();
 }
 
 bool StemService::isPaused() const {
     return m_paused.load();
+}
+
+void StemService::setBackgroundPaused(bool paused) {
+    m_backgroundPaused = paused;
+    m_paused = m_userPaused.load() || paused;
+    if (!m_paused.load()) {
+        m_waitCondition.wakeAll();
+    }
+}
+
+bool StemService::hasPendingWork() const {
+    return m_busy.load();
 }
 
 void StemService::cancelAll() {
@@ -245,6 +261,8 @@ QString StemService::lastMessageForTrack(TrackId trackId) const {
 
 void StemService::setStatus(
         TrackId trackId, Status status, int progress, const QString& message) {
+    bool busyChangedNow = false;
+    bool busy = false;
     {
         QMutexLocker locker(&m_mutex);
         if (status == Status::NotSeparated) {
@@ -253,8 +271,38 @@ void StemService::setStatus(
             m_statuses.insert(trackId, status);
         }
         m_messages.insert(trackId, message);
+        busy = std::any_of(m_statuses.cbegin(),
+                m_statuses.cend(),
+                [](Status trackStatus) {
+                    return trackStatus == Status::Queued ||
+                            trackStatus == Status::Separating;
+                });
+        busyChangedNow = busy != m_busy.load();
+        m_busy = busy;
     }
     emit trackStatusChanged(trackId, status, progress, message);
+    if (busyChangedNow) {
+        emit busyChanged(busy);
+    }
+}
+
+QSet<TrackId> StemService::trackIdsWithStemSets() const {
+    QSet<TrackId> trackIds;
+    if (!m_pDbConnectionPool) {
+        return trackIds;
+    }
+    const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
+    if (!database.isOpen()) {
+        return trackIds;
+    }
+    QSqlQuery query(database);
+    if (!query.exec(QStringLiteral("SELECT DISTINCT track_id FROM stem_set"))) {
+        return trackIds;
+    }
+    while (query.next()) {
+        trackIds.insert(TrackId(query.value(0)));
+    }
+    return trackIds;
 }
 
 QString StemService::modelPath() const {

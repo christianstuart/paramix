@@ -81,10 +81,21 @@ class Library : public QObject {
     /// Needed for exposing models to QML
     LibraryTableModel* trackTableModel() const;
 
+    /// The model backing the legacy sidebar widget.
+    /// Used by the QML library to mirror the available library features.
+    SidebarModel* sidebarModel() const {
+        return m_pSidebarModel.get();
+    }
+
     bool isTrackIdInCurrentLibraryView(const TrackId& trackId);
 
     int getTrackTableRowHeight() const {
         return m_iTrackTableRowHeight;
+    }
+
+    /// Exposes the progress of batch analysis to the QML library proxy.
+    AnalysisFeature* analysisFeature() const {
+        return m_pAnalysisFeature.get();
     }
 
     const QFont& getTrackTableFont() const {

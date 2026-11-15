@@ -36,7 +36,7 @@ ComboBox {
     }
 
     currentIndex: -1
-    font.family: "Open Sans"
+    font.family: "Helvetica Neue"
     font.pixelSize: LateNightTheme.isClassic ? 12 : 14
     font.weight: LateNightTheme.isClassic ? Font.Bold : Font.Medium
     implicitHeight: 18

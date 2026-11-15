@@ -10,6 +10,8 @@ Category {
     id: root
 
     property bool dirty: false
+    property string modelPath: ""
+    property string outputDirectory: ""
     readonly property list<string> fileFormats: ["flac", "alac", "aac"]
     readonly property bool aacSelected: root.fileFormats[formatInput.currentIndex] === "aac"
 
@@ -19,6 +21,8 @@ Category {
         const formatIndex = root.fileFormats.indexOf(Mixxx.Config.stemFileFormat);
         formatInput.currentIndex = formatIndex >= 0 ? formatIndex : 0;
         bitrateInput.value = Mixxx.Config.stemAacBitrate;
+        root.modelPath = Mixxx.Config.stemModelPath;
+        root.outputDirectory = Mixxx.Config.stemOutputDirectory;
         root.dirty = false;
     }
     function markDirty() {
@@ -29,11 +33,15 @@ Category {
     function reset() {
         formatInput.currentIndex = 0;
         bitrateInput.value = 256;
+        root.modelPath = "";
+        root.outputDirectory = "";
         root.dirty = true;
     }
     function save() {
         Mixxx.Config.stemFileFormat = root.fileFormats[formatInput.currentIndex];
         Mixxx.Config.stemAacBitrate = bitrateInput.value;
+        Mixxx.Config.stemModelPath = root.modelPath;
+        Mixxx.Config.stemOutputDirectory = root.outputDirectory;
         root.load();
     }
 
@@ -163,18 +171,27 @@ Category {
                 }
                 StemsValueField {
                     Layout.preferredWidth: 280
-                    enabled: false
-                    text: qsTr("Managed by the library")
+                    text: root.outputDirectory.length > 0 ? root.outputDirectory : qsTr("Default (%1)").arg(qsTr("Settings folder") + "/Stems")
+                }
+                Setting.FormButton {
+                    activeColor: Theme.textOnAccent
+                    backgroundColor: Theme.surface2
+                    text: qsTr("Browse…")
+
+                    onPressed: {
+                        const directory = Mixxx.Config.chooseDirectory(qsTr("Select stem output directory"), root.outputDirectory);
+                        if (directory.length > 0) {
+                            root.outputDirectory = directory;
+                            root.markDirty();
+                        }
+                    }
                 }
             }
-            // TODO(stem-service): There is no `[Stems]` folder key yet, so this page
-            // must not write one. Replace the read-only field above with a folder
-            // picker once the background stem service owns the stem cache location.
             Text {
                 Layout.fillWidth: true
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontSizeMd
-                text: qsTr("Stem files are stored next to the library database. Choosing a custom folder arrives together with the background stem service.")
+                text: qsTr("Separated stem sets are written to this folder. Leave it empty to use the Stems folder inside the settings directory.")
                 wrapMode: Text.WordWrap
             }
             Rectangle {
@@ -184,16 +201,40 @@ Category {
             }
             Text {
                 Layout.fillWidth: true
-                color: Theme.textMuted
+                color: Theme.textPrimary
                 font.pixelSize: Theme.fontSizeLg
                 font.weight: Theme.fontWeightDemiBold
-                text: qsTr("Model quality")
+                text: qsTr("Separation model")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+
+                StemsSettingParameter {
+                    label: qsTr("ONNX model")
+                }
+                StemsValueField {
+                    Layout.preferredWidth: 280
+                    text: root.modelPath.length > 0 ? root.modelPath : qsTr("Not configured")
+                }
+                Setting.FormButton {
+                    activeColor: Theme.textOnAccent
+                    backgroundColor: Theme.surface2
+                    text: qsTr("Browse…")
+
+                    onPressed: {
+                        const file = Mixxx.Config.chooseFile(qsTr("Select stem separation model"), root.modelPath, qsTr("ONNX models (*.onnx);;All files (*)"));
+                        if (file.length > 0) {
+                            root.modelPath = file;
+                            root.markDirty();
+                        }
+                    }
+                }
             }
             Text {
                 Layout.fillWidth: true
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontSizeMd
-                text: qsTr("Disabled. Model download and selection arrive with the background stem service.")
+                text: qsTr("Generate Stems uses this ONNX model (for example htdemucs.onnx). Without a model the separation job fails with an explanatory message.")
                 wrapMode: Text.WordWrap
             }
         }

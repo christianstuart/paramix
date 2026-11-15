@@ -4,7 +4,8 @@ import "Theme"
 
 /// Compact action button used in dialogs and the library context menu.
 /// `Category` keeps the semantic color (danger/action) but the shape and
-/// typography come from the design tokens.
+/// typography come from the design tokens. The category tints the label and
+/// border only; the surface stays neutral so a row of actions reads calmly.
 AbstractButton {
     id: root
 
@@ -17,6 +18,9 @@ AbstractButton {
     property var category: ActionButton.Category.None
     property alias label: labelField
 
+    readonly property bool danger: root.category === ActionButton.Category.Danger
+    readonly property bool action: root.category === ActionButton.Category.Action
+
     Accessible.role: Accessible.Button
     Accessible.name: labelField.text
 
@@ -24,10 +28,10 @@ AbstractButton {
     implicitHeight: 28
 
     background: Rectangle {
-        border.color: root.category === ActionButton.Category.Danger
-                ? Theme.danger
-                : root.category === ActionButton.Category.Action
-                  ? Theme.accentHover
+        border.color: root.danger
+                ? Qt.alpha(Theme.danger, 0.65)
+                : root.action
+                  ? Qt.alpha(Theme.accent, 0.65)
                   : root.hovered
                     ? Theme.borderStrong
                     : Theme.border
@@ -36,11 +40,7 @@ AbstractButton {
                ? Theme.surface3
                : root.hovered
                  ? Theme.surface2
-                 : root.category === ActionButton.Category.Danger
-                   ? Qt.alpha(Theme.danger, 0.18)
-                   : root.category === ActionButton.Category.Action
-                     ? Qt.alpha(Theme.accent, 0.22)
-                     : Theme.surface1
+                 : Theme.surface1
         radius: Theme.radiusSm
 
         Behavior on color {
@@ -48,24 +48,31 @@ AbstractButton {
                 duration: Theme.motionFast
             }
         }
-    }
-    contentItem: Item {
-        Label {
-            id: labelField
-
-            anchors.fill: parent
-            color: root.category === ActionButton.Category.Danger
-                   ? Theme.danger
-                   : root.category === ActionButton.Category.Action
-                     ? Theme.accent
-                     : Theme.textPrimary
-            font.bold: true
-            font.capitalization: Font.AllUppercase
-            font.family: Theme.fontFamily
-            font.letterSpacing: Theme.letterSpacingCaps
-            font.pixelSize: Theme.fontSizeXs
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
+    }
+    contentItem: Label {
+        id: labelField
+
+        anchors.fill: parent
+        color: root.danger
+               ? Theme.danger
+               : root.action
+                 ? Theme.accent
+                 : root.hovered
+                   ? Theme.textPrimary
+                   : Theme.textSecondary
+        elide: Text.ElideRight
+        font.capitalization: Font.MixedCase
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeSm
+        font.weight: Theme.fontWeightMedium
+        horizontalAlignment: Text.AlignHCenter
+        leftPadding: Theme.space2
+        rightPadding: Theme.space2
+        verticalAlignment: Text.AlignVCenter
     }
 }

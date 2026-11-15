@@ -62,7 +62,7 @@ Controls.Panel {
                 color: LateNightTheme.samplerTitleColor
                 elide: Text.ElideRight
                 font.bold: true
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 14
                 text: root.currentTrack?.title ?? ""
                 verticalAlignment: Text.AlignVCenter
@@ -76,7 +76,7 @@ Controls.Panel {
                 Text {
                     Layout.preferredWidth: 45
                     color: LateNightTheme.samplerBpmColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     font.weight: Font.Medium
                     horizontalAlignment: Text.AlignLeft

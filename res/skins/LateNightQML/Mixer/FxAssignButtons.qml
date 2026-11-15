@@ -55,7 +55,7 @@ Row {
                 anchors.centerIn: parent
                 color: cell.active ? (root.micAux || LateNightTheme.isClassic ? LateNightTheme.deckActiveButtonTextColor : LateNightTheme.mixerControlTextColor) : LateNightTheme.mixerFxAssignInactiveTextColor
                 font.bold: true
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: root.micAux ? 11 : 10
                 renderType: root.micAux ? Text.NativeRendering : Text.QtRendering
                 text: root.effectUnitCount === 4 ? (cell.index === 0 ? (root.micAux ? " FX 1" : "FX1") : cell.index + 1) : (root.micAux ? " FX" : "FX") + (cell.index + 1)

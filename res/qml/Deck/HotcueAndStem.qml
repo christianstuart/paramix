@@ -25,6 +25,12 @@ Rectangle {
 
     readonly property int stemCount: Math.max(0, Math.round(stemCountControl.value))
     readonly property int laneCount: stemLaneRepeater.count
+    readonly property bool showHotcues: Mixxx.Config.paramixShowHotcues
+    readonly property bool showStems: Mixxx.Config.paramixShowStems && stemCount > 0
+    /// True when the deck pane is squeezed by the compact deck layout. The
+    /// stem lanes drop the QuickFX preset selector so the fader, mute/solo and
+    /// knob stay usable instead of being clipped.
+    readonly property bool dense: root.height < 112
 
     /// `[ChannelN]` -> `[ChannelN_StemX]`
     function stemGroupFor(index) {
@@ -70,6 +76,13 @@ Rectangle {
         default:
             return Theme.stemOther;
         }
+    }
+    /// Choose dark or light text for a hotcue color so every pad stays legible.
+    function hotcueTextColorFor(color) {
+        if (!color || color.a <= 0)
+            return Theme.textMuted;
+        const luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+        return luminance > 0.6 ? "#08101C" : "#FFFFFF";
     }
     function resetSoloState() {
         root.soloLane = -1;
@@ -122,8 +135,8 @@ Rectangle {
         root.setComplementMute(true);
     }
 
-    color: Theme.surface0
-    radius: Theme.radiusSm
+    color: Theme.surface1
+    radius: Theme.radiusMd
     border.width: 1
     border.color: Theme.border
 
@@ -142,6 +155,34 @@ Rectangle {
 
         group: root.group
         key: "track_loaded"
+    }
+
+    // Empty state: without a track the tab bodies are hidden, so name what
+    // the panel is for instead of leaving a blank plate. The host fills the
+    // whole band, so the message stays centred whatever the stem/quickFX
+    // column does and cannot drift under the pane tabs.
+    Item {
+        id: emptyState
+
+        anchors.fill: parent
+        visible: trackLoadedControl.value == 0
+                 || (!root.showHotcues && !root.showStems)
+
+        Text {
+            anchors.centerIn: parent
+            color: Theme.textMuted
+            font.capitalization: Font.AllUppercase
+            font.family: Theme.fontFamily
+            font.letterSpacing: Theme.letterSpacingCaps
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
+            horizontalAlignment: Text.AlignHCenter
+            text: (!root.showHotcues && !root.showStems)
+                  ? qsTr("Cue pads are hidden in the interface settings")
+                  : qsTr("Load a track to use hotcues and stems")
+            width: Math.max(80, Math.min(parent.width - 2 * Theme.space4, 260))
+            wrapMode: Text.WordWrap
+        }
     }
 
     states: [
@@ -170,7 +211,8 @@ Rectangle {
         },
         State {
             name: "hotcue"
-            when: hotcueTabButton.checked || stemCountControl.value == 0
+            when: trackLoadedControl.value != 0 && root.showHotcues
+                  && (hotcueTabButton.checked || !root.showStems)
 
             PropertyChanges {
                 target: hotcueTab
@@ -183,7 +225,8 @@ Rectangle {
         },
         State {
             name: "stem"
-            when: stemTabButton.checked && stemCountControl.value != 0
+            when: trackLoadedControl.value != 0 && root.showStems
+                  && (stemTabButton.checked || !root.showHotcues)
 
             PropertyChanges {
                 target: stemTab
@@ -196,17 +239,12 @@ Rectangle {
         }
     ]
 
-    anchors {
-        bottom: parent.bottom
-        left: parent.left
-        right: stemCountControl.value > 0 ? tabs.left : parent.right
-        rightMargin: stemCountControl.value > 0 ? Theme.space1 : 0
-        top: parent.top
-    }
     Item {
         id: hotcueTab
 
         anchors.fill: parent
+        anchors.right: tabs.left
+        anchors.rightMargin: Theme.space1
         visible: false
 
         Skin.FadeBehavior on visible {
@@ -246,10 +284,24 @@ Rectangle {
                         id: hotcueBackground
 
                         anchors.fill: parent
-                        border.color: hotcue.isSet ? Theme.borderStrong : Theme.border
-                        border.width: 1
-                        color: hotcue.isSet ? hotcue.color : Theme.surface2
+                        border.color: hotcue.isSet
+                                ? Qt.lighter(hotcue.color, 1.2)
+                                : Theme.border
+                        border.width: hotcue.isSet ? 1 : 1
+                        color: hotcue.isSet ? hotcue.color : Theme.surface1
                         radius: Theme.radiusSm
+
+                        // Lit top edge for the pad face.
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 1
+                            anchors.right: parent.right
+                            anchors.rightMargin: 1
+                            anchors.top: parent.top
+                            anchors.topMargin: 1
+                            color: hotcue.isSet ? Qt.rgba(255, 255, 255, 0.28) : Theme.topHighlight
+                            height: 1
+                        }
 
                         Behavior on color {
                             ColorAnimation {
@@ -269,16 +321,20 @@ Rectangle {
 
                         Text {
                             Layout.alignment: Qt.AlignHCenter
-                            color: hotcue.isSet ? Theme.textOnAccent : Theme.textMuted
-                            font.bold: true
+                            color: hotcue.isSet
+                                    ? root.hotcueTextColorFor(hotcueBackground.color)
+                                    : Theme.textMuted
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeLg
+                            font.weight: Theme.fontWeightDemiBold
                             horizontalAlignment: Text.AlignHCenter
                             text: `${index + 1}`
                         }
                         Text {
                             Layout.alignment: Qt.AlignHCenter
-                            color: hotcue.isSet ? Theme.textOnAccent : Theme.textMuted
+                            color: hotcue.isSet
+                                    ? root.hotcueTextColorFor(hotcueBackground.color)
+                                    : Theme.textMuted
                             elide: Text.ElideRight
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeXs
@@ -294,6 +350,8 @@ Rectangle {
         id: stemTab
 
         anchors.fill: parent
+        anchors.right: tabs.left
+        anchors.rightMargin: Theme.space1
         visible: false
 
         Skin.FadeBehavior on visible {
@@ -317,12 +375,12 @@ Rectangle {
                 // yet, so this badge will bind to it once Stems 4 (the
                 // background separation queue) lands.
                 Rectangle {
-                    Layout.preferredHeight: 16
+                    Layout.preferredHeight: 18
                     Layout.preferredWidth: badgeContent.implicitWidth + Theme.space3
                     border.color: Theme.border
                     border.width: 1
-                    color: Theme.surface2
-                    radius: Theme.radiusPill
+                    color: Theme.surface1
+                    radius: Theme.radiusSm
 
                     RowLayout {
                         id: badgeContent
@@ -389,7 +447,7 @@ Rectangle {
         anchors.rightMargin: Theme.space1
         anchors.top: parent.top
         spacing: Theme.space2
-        width: stemCountControl.value > 0 ? 36 : 0
+        width: (root.showHotcues || root.showStems) ? 36 : 0
 
         Behavior on width {
             SpringAnimation {
@@ -403,6 +461,7 @@ Rectangle {
             id: hotcueTabButton
 
             Layout.fillWidth: true
+            visible: root.showHotcues
             Layout.margins: 0
             activeColor: Theme.textOnAccent
             checked: true
@@ -457,6 +516,7 @@ Rectangle {
             id: stemTabButton
 
             Layout.fillWidth: true
+            visible: root.showStems
             Layout.margins: 0
             activeColor: Theme.textOnAccent
             implicitHeight: 30
@@ -685,6 +745,7 @@ Rectangle {
                 bar.width: 3
 
                 background: Rectangle {
+                    anchors.fill: parent
                     color: "transparent"
 
                     Rectangle {
@@ -715,11 +776,11 @@ Rectangle {
             ColumnLayout {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                spacing: Theme.space1
+                spacing: 2
 
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 12
+                    Layout.preferredHeight: 10
                     spacing: Theme.space1
 
                     Rectangle {
@@ -732,10 +793,10 @@ Rectangle {
                         Layout.fillWidth: true
                         color: lane.muted ? Theme.textMuted : Theme.textPrimary
                         elide: Text.ElideRight
-                        font.bold: true
-                        font.capitalization: Font.AllUppercase
+                        font.capitalization: Font.MixedCase
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeXs
+                        font.weight: Theme.fontWeightMedium
                         text: lane.displayLabel
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -787,8 +848,8 @@ Rectangle {
                         id: fxKnob
 
                         Layout.alignment: Qt.AlignVCenter
-                        Layout.preferredHeight: 26
-                        Layout.preferredWidth: 26
+                        Layout.preferredHeight: 24
+                        Layout.preferredWidth: 24
                         color: lane.fxEnabled ? Theme.accent : Theme.textMuted
                         group: lane.fxGroup
                         key: "super1"
@@ -835,7 +896,7 @@ Rectangle {
                     id: fxPreset
 
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 16
+                    Layout.preferredHeight: 14
                     clip: true
                     currentIndex: fxSelect.value == -1 ? 0 : fxSelect.value
                     font.pixelSize: Theme.fontSizeXs
@@ -844,6 +905,7 @@ Rectangle {
                     popupMaxItem: 8
                     popupWidth: 120
                     textRole: "display"
+                    visible: !root.dense
 
                     Accessible.name: qsTr("%1 QuickFX preset").arg(lane.displayLabel)
 

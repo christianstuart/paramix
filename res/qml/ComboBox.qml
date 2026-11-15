@@ -12,21 +12,26 @@ ComboBox {
     property int popupMaxItem: 6
     property alias popupWidth: popupItem.width
 
+    readonly property int itemHeight: 28
+
     signal activateFooter(int index)
 
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontSizeSm
+    font.weight: Theme.fontWeightRegular
     hoverEnabled: true
-    indicator.width: 18
+    implicitHeight: 26
+    leftPadding: Theme.space2
+    rightPadding: Theme.space2
 
     background: Rectangle {
         border.color: root.activeFocus
                 ? Theme.focusRing
-                : root.hovered
+                : root.hovered || root.popup.visible
                   ? Theme.borderStrong
                   : Theme.border
         border.width: 1
-        color: root.hovered ? Theme.surface2 : Theme.surface1
+        color: root.hovered || root.popup.visible ? Theme.surface2 : Theme.surface1
         radius: Theme.radiusSm
 
         Behavior on color {
@@ -41,27 +46,57 @@ ComboBox {
         }
     }
     contentItem: Text {
+        rightPadding: root.indicator.width + Theme.space1
         clip: root.clip
         color: Theme.textPrimary
         elide: root.clip ? Text.ElideNone : Text.ElideRight
         font: root.font
-        leftPadding: Theme.space2
+        leftPadding: Theme.space1
         text: root.displayText
         verticalAlignment: Text.AlignVCenter
+    }
+    indicator: Item {
+        height: root.height
+        width: 18
+
+        Shape {
+            anchors.centerIn: parent
+            height: 6
+            visible: parent.width > 0
+            width: 10
+
+            ShapePath {
+                fillColor: "transparent"
+                startX: 1
+                startY: 1
+                strokeColor: root.popup.visible ? Theme.textPrimary : Theme.textSecondary
+                strokeWidth: 1.4
+
+                PathLine {
+                    x: 5
+                    y: 5
+                }
+                PathLine {
+                    x: 9
+                    y: 1
+                }
+            }
+        }
     }
     delegate: ItemDelegate {
         id: itemDlgt
 
         required property int index
 
-        highlighted: root.highlightedIndex === this.index
-        padding: Theme.space2
-        text: root.textAt(this.index)
+        highlighted: root.highlightedIndex === itemDlgt.index
+        implicitHeight: root.itemHeight
+        padding: 0
+        text: root.textAt(itemDlgt.index)
         width: root.width
 
         background: Rectangle {
             color: itemDlgt.highlighted
-                   ? Qt.alpha(Theme.accent, 0.22)
+                   ? Qt.alpha(Theme.accent, 0.16)
                    : itemDlgt.hovered
                      ? Theme.surface3
                      : "transparent"
@@ -71,6 +106,8 @@ ComboBox {
             color: itemDlgt.highlighted ? Theme.accent : Theme.textPrimary
             elide: Text.ElideRight
             font: root.font
+            leftPadding: Theme.space2
+            rightPadding: Theme.space2
             text: itemDlgt.text
             verticalAlignment: Text.AlignVCenter
         }
@@ -78,11 +115,11 @@ ComboBox {
     popup: Popup {
         id: popupItem
 
-        height: root.contentItem.height * (Math.min(root.popupMaxItem, Math.max(root.count, 1)) + 1)
+        height: root.itemHeight * (Math.min(root.popupMaxItem, Math.max(root.count, 1)) + 1)
         padding: 0
         width: root.width
         x: root.width - width
-        y: root.height - 4
+        y: root.height - 2
 
         background: Rectangle {
             border.color: Theme.borderStrong
@@ -113,7 +150,7 @@ ComboBox {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         color: "transparent"
-                        height: root.contentItem.height
+                        height: root.itemHeight
 
                         Item {
                             anchors.fill: parent
@@ -132,8 +169,9 @@ ComboBox {
                                 anchors.bottom: parent.bottom
                                 anchors.right: parent.right
                                 anchors.top: parent.top
-                                color: Theme.textSecondary
-                                font.pixelSize: Theme.fontSizeMd
+                                color: Theme.textMuted
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
                                 text: modelData?.suffix || ''
                             }
                         }

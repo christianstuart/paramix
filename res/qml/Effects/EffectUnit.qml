@@ -21,7 +21,7 @@ Item {
         anchors.margins: Theme.space1
         anchors.right: effectUnitControlsFrame.left
         anchors.top: parent.top
-        height: root.expanded ? 160 : 60
+        height: root.expanded ? 160 : 84
 
         EffectSlot {
             id: effect1
@@ -93,7 +93,7 @@ Item {
                     activeColor: Theme.textOnAccent
                     height: 24
                     text: qsTr("FX %1").arg(root.unitNumber)
-                    width: 56
+                    width: 44
 
                     onClicked: presetPopup.open()
                 }
@@ -120,16 +120,20 @@ Item {
                     width: 40
                 }
                 Skin.ControlKnob {
+                    Accessible.name: qsTr("Effect unit dry/wet")
+                    Accessible.role: Accessible.Slider
                     arcStart: Skin.Knob.ArcStart.Minimum
-                    color: Theme.warning
+                    color: Theme.textPrimary
                     group: root.group
                     height: 40
                     key: "mix"
                     width: 40
                 }
                 Skin.ControlKnob {
+                    Accessible.name: qsTr("Effect unit super knob")
+                    Accessible.role: Accessible.Slider
                     arcStart: Skin.Knob.ArcStart.Minimum
-                    color: Theme.warning
+                    color: Theme.textSecondary
                     group: root.group
                     height: 40
                     key: "super1"

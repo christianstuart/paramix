@@ -1365,7 +1365,7 @@ Rectangle {
                 }
                 Text {
                     color: LateNightTheme.toolbarSettingsTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 13
                     text: "decks"
                 }
@@ -1378,7 +1378,7 @@ Rectangle {
 
                 Text {
                     color: LateNightTheme.toolbarSettingsTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     text: "Deck Size:"
                 }
@@ -1401,7 +1401,7 @@ Rectangle {
                         anchors.leftMargin: 4
                         anchors.verticalCenter: parent.verticalCenter
                         color: hideMixerMouseArea.containsMouse ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarSettingsTextColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 12
                         text: "hide mixer to select"
                     }
@@ -1687,7 +1687,7 @@ Rectangle {
                     }
                     Text {
                         color: LateNightTheme.toolbarSettingsTextColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 13
                         text: "units"
                     }
@@ -1807,7 +1807,7 @@ Rectangle {
                     Text {
                         Layout.leftMargin: 5
                         color: LateNightTheme.toolbarSettingsTextColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 13
                         text: "sample decks"
                     }
@@ -1844,7 +1844,7 @@ Rectangle {
                         id: loadBankText
                         anchors.fill: parent
                         color: loadBankMouseArea.containsMouse ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarSettingsTextColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 12
                         horizontalAlignment: Text.AlignHCenter
                         text: "Load"
@@ -1867,7 +1867,7 @@ Rectangle {
                     Layout.preferredHeight: 18
                     Layout.preferredWidth: 6
                     color: LateNightTheme.toolbarSettingsTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     text: "/"
@@ -1890,7 +1890,7 @@ Rectangle {
                         id: saveBankText
                         anchors.fill: parent
                         color: saveBankMouseArea.containsMouse ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarSettingsTextColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 12
                         horizontalAlignment: Text.AlignHCenter
                         text: "Save"
@@ -1912,7 +1912,7 @@ Rectangle {
                     id: samplerBankText
                     Layout.alignment: Qt.AlignVCenter
                     color: LateNightTheme.toolbarSettingsTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignLeft
                     text: "Sampler Bank"
@@ -2001,7 +2001,7 @@ Rectangle {
         Layout.alignment: Qt.AlignVCenter
         Layout.preferredWidth: 82
         color: LateNightTheme.toolbarClockTextColor
-        font.family: "Open Sans"
+        font.family: "Helvetica Neue"
         font.pixelSize: 16
         horizontalAlignment: Text.AlignHCenter
         text: "--:-- --"
@@ -2169,7 +2169,7 @@ Rectangle {
             Text {
                 color: LateNightTheme.toolbarLatencyLabelColor
                 font.bold: LateNightTheme.isClassic
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: LateNightTheme.isClassic ? 10 : 8
                 height: 10
                 horizontalAlignment: Text.AlignHCenter
@@ -2211,7 +2211,7 @@ Rectangle {
                 Layout.fillWidth: true
                 color: recordingIndicator.active ? LateNightTheme.toolbarButtonActiveTextColor : LateNightTheme.toolbarButtonInactiveTextColor
                 elide: Text.ElideRight
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 16
                 horizontalAlignment: Text.AlignHCenter
                 text: recordingIndicator.status === 2.0 || recordingIndicator.status === 3.0 ? recordingIndicator.durationText : "REC"
@@ -2286,7 +2286,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             color: appMenuTabMouseArea.containsMouse || appMenuTab.selected || appMenuTab.activeFocus ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarMenuTextColor
             elide: Text.ElideRight
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 12
             text: appMenuTab.text
             width: parent.width - anchors.leftMargin
@@ -2406,7 +2406,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             color: appMenuActionMouseArea.containsMouse || appMenuAction.selected || appMenuAction.activeFocus ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarMenuTextColor
             elide: Text.ElideRight
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 12
             text: appMenuAction.text
         }
@@ -2417,7 +2417,7 @@ Rectangle {
             anchors.rightMargin: 6
             anchors.verticalCenter: parent.verticalCenter
             color: appMenuActionMouseArea.containsMouse || appMenuAction.selected || appMenuAction.activeFocus ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarMenuTextColor
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 10
             text: appMenuAction.shortcut
             visible: text.length > 0
@@ -2458,7 +2458,7 @@ Rectangle {
 
             anchors.centerIn: parent
             color: inlineMouseArea.containsMouse ? LateNightTheme.toolbarMenuHoverTextColor : (inlineChoice.checked ? LateNightTheme.toolbarSettingsTextColor : LateNightTheme.toolbarMenuDisabledTextColor)
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 13
             font.underline: inlineChoice.checked && !inlineMouseArea.containsMouse
             text: inlineChoice.text
@@ -2480,7 +2480,7 @@ Rectangle {
             Layout.fillWidth: true
             color: LateNightTheme.toolbarSettingsTextColor
             elide: Text.ElideRight
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 13
             text: section.title
             visible: section.showTitle
@@ -2491,7 +2491,7 @@ Rectangle {
         property bool hovered: false
 
         color: hovered ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarSettingsTextColor
-        font.family: "Open Sans"
+        font.family: "Helvetica Neue"
         font.pixelSize: 13
         horizontalAlignment: Text.AlignHCenter
         text: checked ? "\u2714" : "\u2610"
@@ -2554,7 +2554,7 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 color: headerToggleMouseArea.containsMouse ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarSettingsTextColor
                 elide: Text.ElideRight
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 13
                 text: sectionToggle.title
                 width: parent.width - anchors.leftMargin
@@ -2609,7 +2609,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             color: menuToggleMouseArea.containsMouse ? LateNightTheme.toolbarMenuHoverTextColor : LateNightTheme.toolbarSettingsTextColor
             elide: Text.ElideRight
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 13
             text: parent.text
             width: parent.width - anchors.leftMargin

@@ -145,7 +145,7 @@ Item {
                     width: parent.width
                     height: 24
                     text: bpmProxy.value.toFixed(2)
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 20
                     font.bold: true
                     color: root.bpmTextColor
@@ -158,7 +158,7 @@ Item {
                     width: parent.width
                     height: 18
                     text: ((rateRatioProxy.value - 1) * 100).toFixed(2)
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 13
                     color: root.rateTextColor
                     horizontalAlignment: Text.AlignHCenter
@@ -264,7 +264,7 @@ Item {
                     x: 3
                     y: root.rateRangeTopLabelY(height)
                     text: "-"
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     color: root.rateTextColor
                     horizontalAlignment: Text.AlignHCenter
@@ -277,7 +277,7 @@ Item {
                     x: 35
                     y: root.rateRangeTopLabelY(height) + 1
                     text: (rateRangeProxy.value * 100).toFixed(0)
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 10
                     color: root.rateTextColor
                     horizontalAlignment: Text.AlignHCenter
@@ -290,7 +290,7 @@ Item {
                     x: 3
                     y: root.rateRangeBottomLabelY(height)
                     text: "+"
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 12
                     color: root.rateTextColor
                     horizontalAlignment: Text.AlignHCenter
@@ -303,7 +303,7 @@ Item {
                     x: 35
                     y: root.rateRangeBottomLabelY(height)
                     text: (rateRangeProxy.value * 100).toFixed(0)
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 10
                     color: root.rateTextColor
                     horizontalAlignment: Text.AlignHCenter

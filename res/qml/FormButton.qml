@@ -5,7 +5,8 @@ import "Theme"
 
 /// Segmented/selector button used across the settings pages. It keeps the
 /// `backgroundColor` and highlight API of the legacy control but draws a flat,
-/// token-driven surface.
+/// token-driven surface. Idle buttons are neutral; only the selected segment
+/// takes the accent fill.
 AbstractButton {
     id: root
 
@@ -15,22 +16,28 @@ AbstractButton {
     property color normalColor: Theme.textPrimary
     property color pressedColor: Theme.textOnAccent
 
+    readonly property bool activeState: root.checked || root.highlight
+
     Accessible.role: Accessible.Button
-    Accessible.name: text
+    Accessible.name: root.text
 
     hoverEnabled: true
     implicitHeight: 26
     implicitWidth: 98
 
     background: Rectangle {
-        border.color: root.checked || root.highlight
-                ? Theme.accentHover
-                : root.hovered
-                  ? Theme.borderStrong
-                  : Theme.border
+        border.color: root.activeState
+                ? Theme.accent
+                : root.activeFocus
+                  ? Theme.focusRing
+                  : root.hovered
+                    ? Theme.borderStrong
+                    : Theme.border
         border.width: 1
-        color: root.checked || root.highlight
-               ? Theme.accent
+        color: root.activeState
+               ? root.pressed
+                 ? Theme.accentPressed
+                 : Theme.accent
                : root.pressed
                  ? Theme.surface3
                  : root.hovered
@@ -43,24 +50,27 @@ AbstractButton {
                 duration: Theme.motionFast
             }
         }
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
+        }
     }
     contentItem: Item {
-        anchors.fill: parent
-
         Label {
             id: label
 
             anchors.fill: parent
-            color: root.checked || root.highlight
+            color: root.activeState
                    ? root.activeColor
                    : root.pressed
                      ? root.pressedColor
                      : root.normalColor
-            font.bold: true
-            font.capitalization: Font.AllUppercase
+            elide: Text.ElideRight
+            font.capitalization: Font.MixedCase
             font.family: Theme.fontFamily
-            font.letterSpacing: Theme.letterSpacingCaps
-            font.pixelSize: Theme.buttonFontPixelSize
+            font.pixelSize: Theme.fontSizeSm
+            font.weight: Theme.fontWeightMedium
             horizontalAlignment: Text.AlignHCenter
             text: root.text
             verticalAlignment: Text.AlignVCenter
@@ -80,7 +90,7 @@ AbstractButton {
         ColorOverlay {
             anchors.fill: image
             antialiasing: true
-            color: root.checked || root.highlight ? root.activeColor : root.normalColor
+            color: root.activeState ? root.activeColor : root.normalColor
             source: image
             visible: root.icon.source != null && root.icon.source != ""
         }

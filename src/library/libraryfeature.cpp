@@ -28,7 +28,9 @@ LibraryFeature::LibraryFeature(
           m_pConfig(pConfig),
           m_iconName(iconName) {
     if (!m_iconName.isEmpty()) {
+        // Must match the resource path used for the QWidget skins.
         m_icon = QIcon(kIconPath.arg(m_iconName));
+        m_iconUrl = QUrl(QStringLiteral("qrc") + kIconPath.arg(m_iconName));
     }
 }
 

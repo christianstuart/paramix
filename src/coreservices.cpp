@@ -5,6 +5,7 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QStandardPaths>
+#include <QThread>
 #include <QtGlobal>
 #include <gsl/pointers>
 
@@ -21,6 +22,7 @@
 #ifdef __RUBBERBAND__
 #include "engine/bufferscalers/rubberbandworkerpool.h"
 #endif
+#include "library/analysis/analysisfeature.h"
 #include "library/coverartcache.h"
 #include "library/library.h"
 #include "library/library_decl.h"
@@ -52,6 +54,8 @@
 #endif
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
+#include "stems/demucsonnxseparator.h"
+#include "stems/stemanalysiscoordinator.h"
 #include "stems/stemcache.h"
 #include "stems/stemservice.h"
 #include "util/clipboard.h"
@@ -601,6 +605,23 @@ void CoreServices::initialize() {
                 m_pLibrary->scheduleAnalysis(tracks);
             });
 
+    // Batch analysis yields to stem separation and stem separation yields to
+    // an overloaded audio callback. Both pauses compose with user pauses.
+    m_pStemAnalysisCoordinator =
+            std::make_unique<mixxx::stems::StemAnalysisCoordinator>(
+                    pStemService, m_pLibrary->analysisFeature());
+
+    kLogger.info() << QStringLiteral(
+            "Thread separation audit: analyzer workers=%1 (priority=low), "
+            "stem worker priority=%2, onnx threads=%3 (dsp workers bounded "
+            "likewise), audio callback=dedicated real-time device thread")
+                              .arg(AnalysisFeature::analyzerThreadCount())
+                              .arg(mixxx::stems::StemService::kWorkerPriority ==
+                                                      QThread::LowPriority
+                                              ? QStringLiteral("low")
+                                              : QStringLiteral("other"))
+                              .arg(mixxx::stems::boundedOnnxThreadCount());
+
     OverviewCache* pOverviewCache = OverviewCache::createInstance(pConfig, m_pDbConnectionPool);
     connect(&(m_pTrackCollectionManager->internalCollection()->getTrackDAO()),
             &TrackDAO::waveformSummaryUpdated,
@@ -896,6 +917,9 @@ void CoreServices::finalize() {
     qDebug() << t.elapsed(false).debugMillisWithUnit() << "stopping pending Library tasks";
     m_pTrackCollectionManager->stopLibraryScan();
     m_pLibrary->stopPendingTasks();
+    // Stop polling the audio latency control before the engine and the stem
+    // worker are torn down.
+    m_pStemAnalysisCoordinator.reset();
     mixxx::stems::StemService::destroy();
 
     qDebug() << t.elapsed(false).debugMillisWithUnit() << "saving configuration";

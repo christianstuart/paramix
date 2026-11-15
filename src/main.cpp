@@ -34,6 +34,10 @@
 #include "util/cmdlineargs.h"
 #include "util/console.h"
 #include "util/logging.h"
+#ifdef Q_OS_MACOS
+#include "util/macprocessname.h"
+#include "util/darkappearance.h"
+#endif
 #include "util/sandbox.h"
 #include "util/versionstore.h"
 
@@ -262,6 +266,10 @@ int main(int argc, char* argv[]) {
     adjustScaleFactor(&args);
 
     MixxxApplication app(argc, argv);
+#ifdef Q_OS_MACOS
+    mixxx::setMacProcessName(VersionStore::applicationName());
+    forceDarkAppearance();
+#endif
 
 #if defined(Q_OS_WIN)
     // The Mixxx style is based on Qt's WindowsVista style

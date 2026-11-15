@@ -41,6 +41,13 @@ class LibraryFeature : public QObject {
         return m_iconName;
     }
 
+    /// Returns the QRC URL of the icon, suitable for a QML Image.
+    ///
+    /// Empty if this feature has no icon.
+    QUrl iconUrl() const {
+        return m_iconUrl;
+    }
+
     /// Returns the icon.
     ///
     /// This is used by legacy QWidget skins that display a QIcon directly.
@@ -182,5 +189,6 @@ class LibraryFeature : public QObject {
     QStringList getPlaylistFiles(QFileDialog::FileMode mode) const;
 
     QString m_iconName;
+    QUrl m_iconUrl;
     QIcon m_icon;
 };

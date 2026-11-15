@@ -5,19 +5,23 @@ import QtQuick.Layouts
 import "../Theme"
 
 /// Deck FX unit assignment buttons (FX1..FX4).
+///
+/// A 12 px eyebrow over one row of 24 px toggles. Inactive units share the
+/// neutral surface treatment; assigned units fill with the accent token.
 Item {
     id: root
 
     required property string group
 
-    height: 35
+    height: 40
     width: 135
 
     Text {
-        anchors.horizontalCenter: parent.horizontalCenter
+        id: heading
+
+        anchors.left: parent.left
         anchors.top: parent.top
-        color: Theme.textSecondary
-        font.bold: true
+        color: Theme.textMuted
         font.capitalization: Font.AllUppercase
         font.family: Theme.fontFamily
         font.letterSpacing: Theme.letterSpacingCaps
@@ -39,12 +43,13 @@ Item {
                 required property int index
 
                 Layout.fillHeight: true
-                Layout.maximumWidth: 30
+                Layout.fillWidth: true
+                Layout.maximumWidth: 32
                 Layout.minimumWidth: 22
-                Layout.preferredHeight: 22
+                Layout.preferredHeight: 24
                 activeColor: Theme.textOnAccent
                 group: `[EffectRack1_EffectUnit${index + 1}]`
-                implicitHeight: 22
+                implicitHeight: 24
                 key: `group_${root.group}_enable`
                 text: `${index + 1}`
                 toggleable: true

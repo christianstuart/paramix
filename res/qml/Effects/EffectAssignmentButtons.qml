@@ -8,7 +8,7 @@ import "../Theme"
 Row {
     id: root
 
-    property color activeColor: Theme.effectUnitColor
+    property color activeColor: Theme.textOnAccent
     required property string channelGroup
     property color inactiveColor: Theme.knobBackgroundColor
     property bool showFourUnits: showFourUnitsControl.value > 0

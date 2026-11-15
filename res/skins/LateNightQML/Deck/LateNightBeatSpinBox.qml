@@ -240,7 +240,7 @@ Item {
 
             Layout.fillWidth: true
             text: root.valueText
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 13
             font.bold: true
             color: LateNightTheme.deckBeatSpinBoxTextColor

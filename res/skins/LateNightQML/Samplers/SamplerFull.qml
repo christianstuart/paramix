@@ -64,7 +64,7 @@ Controls.Panel {
                     Layout.rightMargin: 3
                     color: LateNightTheme.samplerTitleColor
                     elide: Text.ElideRight
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 16
                     font.weight: Font.Medium
                     text: root.currentTrack?.title ?? ""
@@ -97,7 +97,7 @@ Controls.Panel {
                         anchors.rightMargin: 1
                         anchors.top: parent.top
                         color: LateNightTheme.samplerBpmColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 14
                         font.weight: Font.Medium
                         horizontalAlignment: Text.AlignHCenter

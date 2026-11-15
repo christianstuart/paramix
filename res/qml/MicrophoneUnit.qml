@@ -7,6 +7,9 @@ import QtQuick.Layouts 1.12
 import "Theme"
 
 /// Microphone strip: pregain, PFL, talkover and FX assignments.
+///
+/// Matches the auxiliary strip so the row above the crossfader reads as one
+/// bank of input channels.
 Row {
     id: root
 
@@ -39,7 +42,7 @@ Row {
                 group: root.group
                 height: parent.height
                 key: "vu_meter"
-                width: 4
+                width: 3
             }
             Rectangle {
                 border.color: Theme.border
@@ -52,7 +55,7 @@ Row {
                 Skin.ControlKnob {
                     anchors.centerIn: parent
                     arcStart: Knob.ArcStart.Minimum
-                    color: Theme.accent
+                    color: Theme.textPrimary
                     group: root.group
                     height: parent.height - 2 * Theme.space1
                     key: "pregain"
@@ -63,13 +66,14 @@ Row {
                 spacing: Theme.space1
 
                 Skin.SectionText {
-                    height: 26
-                    text: qsTr("MIC %1").arg(root.unitNumber)
+                    height: 22
+                    text: qsTr("Mic %1").arg(root.unitNumber)
                     width: 52
                 }
                 Skin.ControlButton {
                     activeColor: Theme.textOnAccent
                     group: root.group
+                    implicitHeight: 24
                     key: "pfl"
                     text: qsTr("PFL")
                     toggleable: true
@@ -81,7 +85,7 @@ Row {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: 0
+                    spacing: 1
 
                     Skin.ControlButton {
                         Layout.fillHeight: true
@@ -97,7 +101,7 @@ Row {
 
                         Layout.fillHeight: true
                         Layout.fillWidth: true
-                        spacing: 0
+                        spacing: 1
 
                         Repeater {
                             model: Math.max(0, root.fxUnitCount)
@@ -105,6 +109,7 @@ Row {
                             Skin.ControlButton {
                                 required property int index
 
+                                Accessible.name: qsTr("Assign microphone %1 to effect unit %2").arg(root.unitNumber).arg(index + 1)
                                 Layout.fillHeight: true
                                 Layout.fillWidth: true
                                 activeColor: Theme.textOnAccent
@@ -134,11 +139,12 @@ Row {
                 text: qsTr("Mic %1").arg(root.unitNumber)
                 width: 80
             }
-            Skin.ControlButton {
-                group: root.group
-                key: "talkover"
+            Skin.Button {
+                Accessible.name: qsTr("Configure microphone %1 input").arg(root.unitNumber)
                 text: qsTr("Configure")
                 width: 80
+
+                onClicked: Mixxx.PreferencesDialog.show()
             }
         }
     }

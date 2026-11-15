@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "control/controlobject.h"
+#include "library/analysis/analysisfeature.h"
 #include "library/dao/analysisdao.h"
 #include "library/library.h"
 #include "library/library_prefs.h"
@@ -141,6 +142,8 @@ QmlLibraryScannerProxy::QmlLibraryScannerProxy(LibraryScanner* libraryScanner,
             [this]() {
                 m_cancelling = false;
                 m_running = true;
+                emit cancellingChanged();
+                emit runningChanged();
                 emit stateChanged();
             });
     connect(libraryScanner,
@@ -149,6 +152,8 @@ QmlLibraryScannerProxy::QmlLibraryScannerProxy(LibraryScanner* libraryScanner,
             [this]() {
                 m_cancelling = false;
                 m_running = false;
+                emit cancellingChanged();
+                emit runningChanged();
                 emit stateChanged();
             });
 }
@@ -178,6 +183,18 @@ QmlLibraryProxy::QmlLibraryProxy(QObject* parent)
                 deliverPendingLibraryScanSummary();
             });
     deliverPendingLibraryScanSummary();
+
+    AnalysisFeature* pAnalysisFeature = s_pLibrary->analysisFeature();
+    if (pAnalysisFeature) {
+        connect(pAnalysisFeature,
+                &AnalysisFeature::analysisActiveChanged,
+                this,
+                &QmlLibraryProxy::analysisActiveChanged);
+        connect(pAnalysisFeature,
+                &AnalysisFeature::analysisProgressChanged,
+                this,
+                &QmlLibraryProxy::analysisProgressChanged);
+    }
 #ifdef __ENGINEPRIME__
     m_pLibraryExporter = s_pLibrary->makeLibraryExporter(nullptr);
     connect(s_pLibrary.get(),
@@ -196,6 +213,36 @@ QmlLibraryProxy::QmlLibraryProxy(QObject* parent)
 }
 
 QmlLibraryProxy::~QmlLibraryProxy() = default;
+
+bool QmlLibraryProxy::analysisActive() const {
+    const AnalysisFeature* pAnalysisFeature =
+            s_pLibrary ? s_pLibrary->analysisFeature() : nullptr;
+    return pAnalysisFeature && pAnalysisFeature->isAnalysisActive();
+}
+
+int QmlLibraryProxy::analysisProgress() const {
+    const AnalysisFeature* pAnalysisFeature =
+            s_pLibrary ? s_pLibrary->analysisFeature() : nullptr;
+    return pAnalysisFeature ? pAnalysisFeature->analysisProgress() : 0;
+}
+
+int QmlLibraryProxy::analysisCurrent() const {
+    const AnalysisFeature* pAnalysisFeature =
+            s_pLibrary ? s_pLibrary->analysisFeature() : nullptr;
+    return pAnalysisFeature ? pAnalysisFeature->analysisCurrent() : 0;
+}
+
+int QmlLibraryProxy::analysisTotal() const {
+    const AnalysisFeature* pAnalysisFeature =
+            s_pLibrary ? s_pLibrary->analysisFeature() : nullptr;
+    return pAnalysisFeature ? pAnalysisFeature->analysisTotal() : 0;
+}
+
+QString QmlLibraryProxy::analysisTrackTitle() const {
+    const AnalysisFeature* pAnalysisFeature =
+            s_pLibrary ? s_pLibrary->analysisFeature() : nullptr;
+    return pAnalysisFeature ? pAnalysisFeature->analysisTrackTitle() : QString();
+}
 
 void QmlLibraryProxy::refreshWaveformCacheDiskUsage() {
     VERIFY_OR_DEBUG_ASSERT(s_pLibrary && QmlConfigProxy::get()) {
@@ -294,9 +341,9 @@ void QmlLibraryProxy::deliverPendingLibraryScanSummary() {
 }
 
 QmlLibraryTrackListModel* QmlLibraryProxy::model() const {
-    return make_qml_owned<QmlLibraryTrackListModel>(
-            QList<QmlLibraryTrackListColumn*>{}, s_pLibrary->trackTableModel())
-            .get();
+    // Same instance as the `model` property. Creating a new model on every
+    // call would hand out models QML may keep referencing.
+    return m_pModelProperty;
 }
 void QmlLibraryProxy::analyze(const QmlTrackProxy* track) const {
     VERIFY_OR_DEBUG_ASSERT(track && track->internal()) {

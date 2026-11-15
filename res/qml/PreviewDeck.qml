@@ -1,7 +1,10 @@
+import "." as Skin
 import QtQuick
 import "Theme"
 
-/// Placeholder for the preview deck pane below the library source tree.
+/// Preview deck placeholder: a slim header eyebrow over a flat, recessed
+/// surface. The real preview waveform can replace the centered hint without
+/// changing the surrounding chrome.
 Rectangle {
     id: root
 
@@ -10,23 +13,36 @@ Rectangle {
     color: Theme.surface1
     radius: Theme.radiusMd
 
-    Text {
-        anchors.horizontalCenter: parent.horizontalCenter
+    Item {
+        id: header
+
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.top: parent.top
-        anchors.topMargin: Theme.space2
-        color: Theme.textSecondary
-        font.capitalization: Font.AllUppercase
-        font.family: Theme.fontFamily
-        font.letterSpacing: Theme.letterSpacingCaps
-        font.pixelSize: Theme.fontSizeXs
-        font.weight: Theme.fontWeightDemiBold
-        text: qsTr("Preview")
+        height: 22
+
+        Skin.SectionText {
+            anchors.fill: parent
+            anchors.leftMargin: Theme.space2
+            anchors.rightMargin: Theme.space2
+            horizontalAlignment: Text.AlignLeft
+            text: qsTr("Preview")
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            color: Theme.border
+            height: 1
+        }
     }
     Text {
         anchors.centerIn: parent
         color: Theme.textMuted
+        elide: Text.ElideRight
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeSm
-        text: qsTr("Preview deck placeholder")
+        horizontalAlignment: Text.AlignHCenter
+        text: qsTr("Drop a track here to preview")
     }
 }

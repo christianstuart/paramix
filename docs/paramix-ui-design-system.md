@@ -1,9 +1,9 @@
 # Paramix QML design system
 
 The Paramix QML skin (`res/qml`) is being modernized in place toward a
-Rekordbox/Traktor-inspired look. This note describes the token layer and the
-rules new components follow. It is a living document; update it when a token
-group changes.
+Rekordbox/Traktor-inspired pro console look. This note describes the token
+layer and the rules new components follow. It is a living document; update it
+when a token group changes.
 
 ## 1. Where the tokens live
 
@@ -23,14 +23,17 @@ the legacy names; migrate call sites opportunistically.
 
 | Group | Tokens | Notes |
 |---|---|---|
-| Surfaces | `surface0`..`surface3`, `surfaceRaised`, `border`, `borderStrong`, `scrim` | `surface0` is the app background, `surface3` is the most raised panel. |
+| Surfaces | `surface0`..`surface3`, `surfaceHover`, `surfaceRaised`, `border`, `borderStrong`, `topHighlight`, `accentSoft`, `shadow`, `scrim` | `surface0` is the app stage, `surface3` is the most raised panel. `topHighlight` is the 1 px lit edge on raised plates. |
 | Text | `textPrimary`, `textSecondary`, `textMuted`, `onAccent` | `onAccent` is for text/icons drawn on `accent`. |
 | Accents | `accent`, `accentHover`, `accentPressed`, `positive`, `warning`, `danger`, `focusRing` | `focusRing` is for keyboard focus only. |
 | Stems | `stemDrums`, `stemBass`, `stemVocals`, `stemOther`, `stemMuted`, `stemSolo` | Never encode stem identity by color alone; always pair with a label. |
+| Decks | `deckA`..`deckD` | Thin top strips, badges, meters — never full panel tints. |
+| Pads | `hotcueColors[0..7]` | Rekordbox 8-pad hues for set hotcues; unset pads stay recessed. |
+| Meters | `vuGreen`, `vuYellow`, `vuRed`, `vuRail` | Segmented ladder on a recessed rail. |
 | Phrases | `phraseIntro`, `phraseUp`, `phraseDown`, `phraseVerse`, `phraseBridge`, `phraseChorus`, `phraseOutro` | Reserved for the Rekordbox-style phrase display once beatgrid phrase storage lands. |
 | Type | `fontFamily`, `fontFamilyDisplay`, `fontFamilyMono`, `fontSizeXs`..`fontSizeXxl`, `fontWeight*`, `letterSpacingCaps`, `lineHeight` | Use `fontSizeXs` + uppercase + `letterSpacingCaps` for section labels. |
 | Spacing | `space1`..`space8` | 4 px base grid: 4, 8, 12, 16, 24, 32, 48, 64. |
-| Radius | `radiusXs`..`radiusXl`, `radiusPill` | Panels use `radiusMd`; buttons use `radiusSm`. |
+| Radius | `radiusXs`..`radiusXl`, `radiusPill` | Traktor-sharp: panels `radiusSm` (2 px), keys `radiusSm`; only pills stay round. |
 | Motion | `motionFast`, `motionNormal`, `motionSlow`, `motionSpringDuration` | Hover/press is `motionFast`; layout springs use `motionSpringDuration`. |
 | Layout | `toolbarHeight`, `deckHeaderHeight`, `stemLaneMinWidth`, `stemLaneHeight`, `minWindowWidth`, `minWindowHeight` | Minimum window is 1280×720 (`res/qml/skin.ini`). |
 
@@ -38,13 +41,18 @@ the legacy names; migrate call sites opportunistically.
 
 `Theme.scheme` selects one of three palettes:
 
-- **Paramix Dark** (default): cool neutral surfaces, blue accent.
+- **Paramix Dark** (default): neutral near-black surfaces, blue accent.
 - **Paramix Midnight**: lower-contrast variant for dim rooms.
 - **Paramix High Contrast**: Okabe-Ito color-blind-safe stem colors.
 
 The palette is exposed as `Theme.palette` and every semantic token reads from
 it. A skin can switch schemes at runtime by assigning `Theme.scheme`; keep
 contrast in mind and check all three schemes when adding a color.
+
+`textMuted` is tuned to at least 4.5:1 on the panel surfaces it labels, and
+`textOnAccent` is chosen by WCAG contrast ratio (`Theme.contrastRatio`) rather
+than a luminance threshold, so white-on-blue is no longer used where it fails
+AA. Both are token-level fixes; do not override them per component.
 
 ## 4. Base controls
 
@@ -74,13 +82,49 @@ public properties stable because call sites still set them.
    `docs/qml-i18n-a11y-notes.md`.
 4. **Keep control bindings intact.** The design work must not change any
    `ControlProxy` group/key, model role, or signal wiring.
-5. **Prefer flat surfaces.** Use `Rectangle` + `border` + `radiusSm`/`radiusMd`
-   instead of the legacy nine-slice images. The images remain until the last
-   control is migrated.
-6. **Motion is optional but consistent.** Hover and press feedback uses
+5. **Prefer console plates.** `SectionBackground` + 1 px `border` frame in flat
+   matte black. No glossy top highlight except the faint `topHighlight`
+   hairline kept for recessed wells (fader tracks, waveform rails).
+6. **Transport colour language.** Play is signal-green backlit, cue is amber
+   backlit, sync/active states are signal-blue. Never swap them.
+7. **Motion is optional but consistent.** Hover and press feedback uses
    `Theme.motionFast`; do not invent new durations.
 
-## 6. Scope and status
+## 6. Runtime customization
+
+The skin is customizable at runtime without reloading. `res/qml/main.qml` binds
+the `Theme` singleton to the persisted `[Paramix]` values through `Mixxx.Config`:
+
+| Property | Default | Meaning |
+|---|---|---|
+| `paramixColorScheme` | `Paramix Dark` | `Paramix Dark`, `Paramix Midnight` or `Paramix High Contrast` |
+| `paramixAccentColor` | empty | CSS color string; empty uses the scheme accent |
+| `paramixFontFamily` | `Inter` | Interface font; Inter is bundled in `res/fonts` |
+| `paramixFontScale` | `1.0` | 0.85–1.35 type scale |
+| `paramixMotionScale` | `1.0` | 0.5–1.5 animation scale (snappy → relaxed) |
+| `paramixShowWaveforms` | `true` | Main waveform stack |
+| `paramixShowCoverArt` | `true` | Deck header cover art |
+| `paramixShowStems` | `true` | Deck stem strip tab |
+| `paramixShowHotcues` | `true` | Deck hotcue grid |
+| `paramixShowLibrary` | `true` | Library pane |
+| `paramixShowPreview` | `true` | Preview deck below the library |
+| `paramixCompactDecks` | `false` | Tighter deck header and margins |
+
+Waveform playhead position, waveform style and stem lane stacking use the
+existing `[Waveform]` settings (`PlayMarkerPosition`, `WaveformType`,
+`StemSplitTracks`).
+
+The **Customize Paramix** panel (`res/qml/ParamixCustomize.qml`, opened from the
+toolbar sliders button) exposes all of the above. The toolbar gear now opens the
+native Mixxx Preferences dialog, which remains the place for audio, library,
+controllers, analysis and stem export settings. The old QML settings popup is no
+longer instantiated.
+
+The panel also offers **Switch to classic Mixxx interface**, which restarts the
+app without `--new-ui`. The native Help menu has the reverse action, **Use
+Paramix QML Interface**, which restarts with `--new-ui`.
+
+## 7. Scope and status
 
 The QML skin is currently **developer-only**: `src/skin/qml/qmlskin.cpp` is only
 discovered when the app runs in developer mode, and macOS x64 CI builds with
@@ -88,9 +132,9 @@ discovered when the app runs in developer mode, and macOS x64 CI builds with
 the skin is feature-complete.
 
 Follow-up: the `Settings/` helper controls (`FormButton`, `SpinBox`, `Slider`,
-`InfoBubble`, `Category`) still use the legacy bitmap look. The new Stems page
-uses them so it matches the other settings pages; migrating those helpers to the
-tokens above is a separate change.
+`InfoBubble`, `Category`) still use the legacy bitmap look. They are only used by
+the retired QML settings popup; the native Mixxx Preferences dialog is the
+primary settings surface. Migrating or removing them is a separate cleanup.
 
 Stem-specific UI (4-lane stem strip, acapella/instrumental complement buttons,
 separation status) is described in `docs/paramix-stem-beatgrid-ui-plan.md`

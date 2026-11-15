@@ -1,5 +1,7 @@
 #include "qml/qmlapplicationproxy.h"
 
+#include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 
 #include "config.h"
@@ -10,6 +12,7 @@
 #include "util/cmdlineargs.h"
 #include "util/experiment.h"
 #include "util/menubarhelper.h"
+#include "util/restartapplication.h"
 #include "util/versionstore.h"
 
 namespace {
@@ -186,6 +189,14 @@ void QmlApplicationProxy::reloadSkin() {
     if (s_reloadCallback) {
         s_reloadCallback();
     }
+}
+
+void QmlApplicationProxy::restartApplication(bool useQml) {
+    if (!mixxx::restartApplication(useQml)) {
+        qWarning() << "Failed to restart Paramix";
+        return;
+    }
+    QCoreApplication::quit();
 }
 
 QmlApplicationProxy* QmlApplicationProxy::create(
