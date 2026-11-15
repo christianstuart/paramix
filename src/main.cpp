@@ -34,6 +34,10 @@
 #include "util/cmdlineargs.h"
 #include "util/console.h"
 #include "util/logging.h"
+#ifdef Q_OS_MACOS
+#include "util/darkappearance.h"
+#include "util/macprocessname.h"
+#endif
 #include "util/sandbox.h"
 #include "util/versionstore.h"
 
@@ -208,12 +212,12 @@ Java_org_qtproject_qt_android_QtNativeAccessibility_accessibilitySupported(JNIEn
 }
 #endif
 
-int main(int argc, char * argv[]) {
+int main(int argc, char* argv[]) {
     Console console;
 
     // These need to be set early on (not sure how early) in order to trigger
     // logic in the OS X appstore support patch from QTBUG-16549.
-    QCoreApplication::setOrganizationDomain("mixxx.org");
+    QCoreApplication::setOrganizationDomain("paramix.org");
 
 #ifdef MIXXX_USE_QOPENGL
     QApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
@@ -226,15 +230,16 @@ int main(int argc, char * argv[]) {
 
 #ifdef __LINUX__
     // Needed by Wayland compositors to set proper app_id and window icon
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.mixxx.Mixxx"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("org.paramix.Paramix"));
 #endif
 
     // Setting the organization name results in a QDesktopStorage::DataLocation
-    // of "$HOME/Library/Application Support/Mixxx/Mixxx" on OS X. Leave the
-    // organization name blank.
-    //QCoreApplication::setOrganizationName("Mixxx");
+    // of "$HOME/Library/Application Support/Paramix/Paramix" on OS X. Leave
+    // the organization name blank.
+    // QCoreApplication::setOrganizationName("Paramix");
 
     QCoreApplication::setApplicationName(VersionStore::applicationName());
+    QGuiApplication::setApplicationDisplayName(VersionStore::applicationName());
     QCoreApplication::setApplicationVersion(VersionStore::version());
 
     // Construct a list of strings based on the command line arguments
@@ -261,6 +266,10 @@ int main(int argc, char * argv[]) {
     adjustScaleFactor(&args);
 
     MixxxApplication app(argc, argv);
+#ifdef Q_OS_MACOS
+    mixxx::setMacProcessName(VersionStore::applicationName());
+    forceDarkAppearance();
+#endif
 
 #if defined(Q_OS_WIN)
     // The Mixxx style is based on Qt's WindowsVista style
@@ -290,7 +299,7 @@ int main(int argc, char * argv[]) {
     // and too early to log errors and give users advises in their system language.
     // Calling this from main.cpp before the QApplication is initialized may cause a crash
     // due to potential QMessageBox invocations within migrateOldSettings().
-    // Solution: Start Mixxx with default settings, migrate the preferences, and then restart
+    // Solution: Start Paramix with default settings, migrate the preferences, and then restart
     // immediately.
     if (!args.getSettingsPathSet()) {
         CmdlineArgs::Instance().setSettingsPath(Sandbox::migrateOldSettings());
@@ -319,7 +328,7 @@ int main(int argc, char * argv[]) {
 
     int exitCode = runMixxx(&app, args);
 
-    qDebug() << "Mixxx shutdown complete with code" << exitCode;
+    qDebug() << "Paramix shutdown complete with code" << exitCode;
 
     mixxx::Logging::shutdown();
 

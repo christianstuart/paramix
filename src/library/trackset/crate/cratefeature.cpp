@@ -205,9 +205,9 @@ QString CrateFeature::formatRootViewHtml() const {
     html.append(QStringLiteral("<p>%1</p>").arg(cratesSummary));
     html.append(QStringLiteral("<p>%1</p>").arg(cratesSummary2));
     html.append(QStringLiteral("<p>%1</p>").arg(cratesSummary3));
-    //Colorize links in lighter blue, instead of QT default dark blue.
-    //Links are still different from regular text, but readable on dark/light backgrounds.
-    //https://github.com/mixxxdj/mixxx/issues/9103
+    // Colorize links in lighter blue, instead of QT default dark blue.
+    // Links are still different from regular text, but readable on dark/light backgrounds.
+    // https://github.com/mixxxdj/mixxx/issues/9103
     html.append(
             QStringLiteral("<a style=\"color:#0496FF;\" href=\"create\">%1</a>")
                     .arg(createCrateLink));
@@ -374,7 +374,7 @@ void CrateFeature::onRightClick(const QPoint& globalPos) {
 
 void CrateFeature::onRightClickChild(
         const QPoint& globalPos, const QModelIndex& index) {
-    //Save the model index so we can get it in the action slots...
+    // Save the model index so we can get it in the action slots...
     m_lastRightClickedIndex = index;
     CrateId crateId(crateIdFromIndex(index));
     if (!crateId.isValid()) {
@@ -419,7 +419,9 @@ void CrateFeature::slotCreateCrate() {
     CrateId crateId =
             CrateFeatureHelper(m_pTrackCollection, m_pConfig)
                     .createEmptyCrate();
-    if (crateId.isValid()) {
+    // The sidebar widget only exists in the legacy QWidget library.
+    // In QML builds bindSidebarWidget() is never called.
+    if (crateId.isValid() && m_pSidebarWidget) {
         // expand Crates and scroll to new crate
         m_pSidebarWidget->selectChildIndex(indexFromCrateId(crateId), false);
     }
@@ -639,7 +641,7 @@ QModelIndex CrateFeature::indexFromCrateId(CrateId crateId) const {
 }
 
 void CrateFeature::slotImportPlaylist() {
-    //qDebug() << "slotImportPlaylist() row:" ; //<< m_lastRightClickedIndex.data();
+    // qDebug() << "slotImportPlaylist() row:" ; //<< m_lastRightClickedIndex.data();
 
     QString playlistFile = getPlaylistFile();
     if (playlistFile.isEmpty()) {

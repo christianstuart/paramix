@@ -57,7 +57,7 @@ Item {
                         id: configuredLabel
 
                         color: LateNightTheme.micAuxLabelTextColor
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 14
                         font.weight: LateNightTheme.isClassic ? Font.Bold : Font.Medium
                         height: 20
@@ -187,7 +187,7 @@ Item {
                 anchors.top: parent.top
                 anchors.topMargin: 4
                 color: LateNightTheme.micAuxUnconfiguredTextColor
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 14
                 font.weight: LateNightTheme.isClassic ? Font.Bold : Font.Medium
                 height: 21

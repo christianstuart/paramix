@@ -1,8 +1,11 @@
 import QtQuick
 import QtQuick.Controls 2.12
-import Qt5Compat.GraphicalEffects
 import "Theme"
 
+/// Compact action button used in dialogs and the library context menu.
+/// `Category` keeps the semantic color (danger/action) but the shape and
+/// typography come from the design tokens. The category tints the label and
+/// border only; the surface stays neutral so a row of actions reads calmly.
 AbstractButton {
     id: root
 
@@ -15,40 +18,61 @@ AbstractButton {
     property var category: ActionButton.Category.None
     property alias label: labelField
 
+    readonly property bool danger: root.category === ActionButton.Category.Danger
+    readonly property bool action: root.category === ActionButton.Category.Action
+
     Accessible.role: Accessible.Button
     Accessible.name: labelField.text
 
-    implicitHeight: 24
+    hoverEnabled: true
+    implicitHeight: 28
 
-    background: Item {
-        Rectangle {
-            id: content
+    background: Rectangle {
+        border.color: root.danger
+                ? Qt.alpha(Theme.danger, 0.65)
+                : root.action
+                  ? Qt.alpha(Theme.accent, 0.65)
+                  : root.hovered
+                    ? Theme.borderStrong
+                    : Theme.border
+        border.width: 1
+        color: root.pressed
+               ? Theme.surface3
+               : root.hovered
+                 ? Theme.surface2
+                 : Theme.surface1
+        radius: Theme.radiusSm
 
-            anchors.fill: parent
-            color: root.category == ActionButton.Category.Action ? '#2D4EA1' : root.category == ActionButton.Category.Danger ? '#7D3B3B' : Theme.darkGray3
-            radius: 4
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
-        DropShadow {
-            anchors.fill: parent
-            color: "#80000000"
-            horizontalOffset: 0
-            radius: 8.0
-            source: content
-            verticalOffset: 0
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
     }
-    contentItem: Item {
-        Label {
-            id: labelField
+    contentItem: Label {
+        id: labelField
 
-            anchors.fill: parent
-            color: Theme.white
-            font.bold: true
-            font.capitalization: Font.AllUppercase
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.buttonFontPixelSize
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
+        anchors.fill: parent
+        color: root.danger
+               ? Theme.danger
+               : root.action
+                 ? Theme.accent
+                 : root.hovered
+                   ? Theme.textPrimary
+                   : Theme.textSecondary
+        elide: Text.ElideRight
+        font.capitalization: Font.MixedCase
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeSm
+        font.weight: Theme.fontWeightMedium
+        horizontalAlignment: Text.AlignHCenter
+        leftPadding: Theme.space2
+        rightPadding: Theme.space2
+        verticalAlignment: Text.AlignVCenter
     }
 }

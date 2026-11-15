@@ -282,7 +282,7 @@ Item {
                 color: LateNightTheme.textColor
                 selectedTextColor: LateNightTheme.deckActiveButtonTextColor
                 selectionColor: LateNightTheme.textColor
-                font.family: "Open Sans"
+                font.family: "Helvetica Neue"
                 font.pixelSize: 14
                 font.weight: Font.Medium
                 horizontalAlignment: TextInput.AlignHCenter

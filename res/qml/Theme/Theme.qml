@@ -1,88 +1,355 @@
 pragma Singleton
+
 import QtQuick 2.12
 
+/// Paramix design tokens.
+///
+/// This singleton is the single source of truth for color, type, spacing,
+/// radius, motion and layout metrics in the QML skin. The semantic names
+/// (`surface1`, `textSecondary`, `accent`, ...) are preferred; the legacy
+/// Mixxx names (`darkGray`, `white`, `buttonNormalColor`, ...) are aliases kept
+/// so un-migrated components keep working.
+///
+/// The values are injected from `Mixxx.Config` by `main.qml`, which keeps this
+/// singleton loadable by the QML tests without the C++ module. A skin or the
+/// customizer can switch the scheme, accent, font and motion scale at runtime.
 QtObject {
-    property color accentColor: "#3a60be"
-    property color backgroundColor: "#1e1e20"
-    property color blue: "#01dcfc"
-    property color bpmSliderBarColor: blue
-    property color buttonActiveColor: white
-    property color buttonDisableColor: lightGray
-    property int buttonFontPixelSize: 10
-    property color buttonNormalColor: midGray
-    property color crossfaderBarColor: blue
-    property color crossfaderOrientationColor: lightGray
-    property color darkGray: "#0f0f0f"
-    property color darkGray2: "#2e2e2e"
-    property color darkGray3: "#3F3F3F"
-    property color darkGray4: "#202020"
-    property color deckActiveColor: white
-    property color deckBackgroundColor: darkGray
-    property color deckBeatjumpBackgroundColor: midGray3
-    property color deckBeatjumpLabelColor: darkGray3
-    property color deckEmptyCoverArt: darkGray3
-    property color deckInfoBarBackgroundColor: '#0e0e0e'
-    property color deckLineColor: darkGray2
-    property color deckLoopBackgroundColor: midGray3
-    property color deckLoopLabelColor: darkGray3
-    property color deckTextColor: lightGray2
-    property color effectColor: yellow
-    property color effectUnitColor: red
-    property color embeddedBackgroundColor: "#a0000000"
-    property color eqFxColor: red
-    property color eqHighColor: white
-    property color eqLowColor: white
-    property color eqMidColor: white
-    property string fontFamily: "Open Sans"
-    property color gainKnobColor: blue
-    property color green: "#85c85b"
-    property string imgBpmSliderBackground: "images/slider_bpm.svg"
-    property string imgButton: "images/button.svg"
-    property string imgButtonPressed: "images/button_pressed.svg"
-    property string imgCrossfaderBackground: "images/slider_crossfader.svg"
-    property string imgCrossfaderHandle: "images/slider_handle_crossfader.svg"
-    property string imgKnob: "images/knob.svg"
-    property string imgKnobMini: "images/miniknob.svg"
-    property string imgKnobMiniShadow: "images/miniknob_shadow.svg"
-    property string imgKnobShadow: "images/knob_shadow.svg"
-    property string imgMicDuckingSlider: "images/slider_micducking.svg"
-    property string imgMicDuckingSliderHandle: "images/slider_handle_micducking.svg"
-    property string imgPopupBackground: imgButton
-    property string imgSectionBackground: "images/section.svg"
-    property string imgSliderHandle: "images/slider_handle.svg"
-    property string imgVolumeSliderBackground: "images/slider_volume.svg"
-    property color knobBackgroundColor: "#262626"
-    property color libraryPanelSplitterBackground: "#1e1e1e"
-    property color libraryPanelSplitterHandle: "#5f5f5f"
-    property color libraryPanelSplitterHandleActive: "#7a7a7a"
-    property color lightGray: "#747474"
-    property color lightGray2: "#b0b0b0"
-    property color lightGray3: "#939393"
-    property color midGray: "#696969"
-    property color midGray2: "#676767"
-    property color midGray3: "#626262"
-    property color panelSplitterBackground: backgroundColor
-    property color panelSplitterHandle: midGray
-    property color panelSplitterHandleActive: lightGray2
-    property color pflActiveButtonColor: blue
-    property color red: "#ea2a4e"
-    property color samplerColor: blue
-    property color sunkenBackgroundColor: "#0C0C0C"
-    property color textColor: lightGray2
-    property int textFontPixelSize: 14
-    property color toolbarActiveColor: white
-    property color toolbarBackgroundColor: darkGray2
-    property color volumeSliderBarColor: blue
-    property color warningColor: "#7D3B3B"
-    property color waveformBeatColor: lightGray
-    property color waveformCursorColor: white
-    property color waveformMarkerDefault: '#ff7a01'
-    property color waveformMarkerIntroOutroColor: '#2c5c9a'
-    property color waveformMarkerLabel: Qt.rgba(255, 255, 255, 0.8)
-    property color waveformMarkerLoopColor: '#00b400'
-    property color waveformMarkerLoopColorDisabled: '#FFFFFF'
-    property color waveformPostrollColor: midGray
-    property color waveformPrerollColor: midGray
-    property color white: "#D9D9D9"
-    property color yellow: "#fca001"
+    id: theme
+
+    // ── Runtime overrides (bound in main.qml) ──────────────────────────────
+    property string scheme: "Paramix Dark"
+    property string accentOverride: ""
+    property string fontFamilyOverride: ""
+    property real fontScale: 1.0
+    property real motionScale: 1.0
+
+    // ── Contrast helpers ───────────────────────────────────────────────────
+    // WCAG 2.1 relative luminance and contrast ratio. Used to pick the label
+    // colour that stays legible on a user-chosen accent, instead of guessing
+    // from a luminance threshold (which put white on signal blue at 3.9:1).
+    function srgbToLinear(channel) {
+        return channel <= 0.04045 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+    }
+    function relativeLuminance(color) {
+        return 0.2126 * srgbToLinear(color.r)
+                + 0.7152 * srgbToLinear(color.g)
+                + 0.0722 * srgbToLinear(color.b);
+    }
+    function contrastRatio(colorA, colorB) {
+        const a = relativeLuminance(colorA);
+        const b = relativeLuminance(colorB);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    }
+
+    // ── Named color schemes ────────────────────────────────────────────────
+    // Traktor stage: neutral near-black canvas, flat matte panels with
+    // hairline frames. No blue-tinted surfaces. Deck identity comes from
+    // the deckA–D tokens, never from tinting whole cards.
+    readonly property var palette: {
+        switch (scheme) {
+        case "Paramix Midnight":
+            return {
+                "surface0": "#030303",
+                "surface1": "#0A0A0A",
+                "surface2": "#131313",
+                "surface3": "#1B1B1B",
+                "surfaceHover": "#222222",
+                "border": "#1C1C1C",
+                "borderStrong": "#2E2E2E",
+                "textPrimary": "#E8E8E8",
+                "textSecondary": "#9A9A9A",
+                "textMuted": "#8A8A8A",
+                "accent": "#2F80ED",
+                "accentHover": "#5A9BF2",
+                "accentPressed": "#1E63C6",
+                "textOnAccent": "#08101C",
+                "positive": "#33D17A",
+                "warning": "#FFB224",
+                "danger": "#FF4D5E",
+                "focusRing": "#B5B5B5",
+                "stemDrums": "#FF5A52",
+                "stemBass": "#7C5CFF",
+                "stemVocals": "#2ED47A",
+                "stemOther": "#FFC53D"
+            };
+        case "Paramix High Contrast":
+            // Okabe-Ito color-blind-safe palette.
+            return {
+                "surface0": "#000000",
+                "surface1": "#0E0E0E",
+                "surface2": "#1B1B1B",
+                "surface3": "#2A2A2A",
+                "surfaceHover": "#333333",
+                "border": "#3A3A3A",
+                "borderStrong": "#5C5C5C",
+                "textPrimary": "#FFFFFF",
+                "textSecondary": "#D4D4D4",
+                "textMuted": "#A6A6A6",
+                "accent": "#FFB000",
+                "accentHover": "#FFC64D",
+                "accentPressed": "#D99400",
+                "textOnAccent": "#000000",
+                "positive": "#00C2A8",
+                "warning": "#FFD166",
+                "danger": "#FF5252",
+                "focusRing": "#FFD166",
+                "stemDrums": "#E69F00",
+                "stemBass": "#56B4E9",
+                "stemVocals": "#009E73",
+                "stemOther": "#CC79A7"
+            };
+        default:
+            // Paramix Dark: Traktor near-black stage. Neutral matte
+            // surfaces, restrained signal-blue accent, Pioneer-style
+            // channel coding, warm performance-pad hues.
+            return {
+                "surface0": "#060606",
+                "surface1": "#0D0D0D",
+                "surface2": "#161616",
+                "surface3": "#1E1E1E",
+                "surfaceHover": "#242424",
+                "border": "#1F1F1F",
+                "borderStrong": "#303030",
+                "textPrimary": "#EAEAEA",
+                "textSecondary": "#A3A3A3",
+                "textMuted": "#8C8C8C",
+                "accent": "#2F80ED",
+                "accentHover": "#5A9BF2",
+                "accentPressed": "#1E63C6",
+                "textOnAccent": "#08101C",
+                "positive": "#33D17A",
+                "warning": "#FFB224",
+                "danger": "#FF4D5E",
+                "focusRing": "#B5B5B5",
+                "stemDrums": "#FF5A52",
+                "stemBass": "#7C5CFF",
+                "stemVocals": "#2ED47A",
+                "stemOther": "#FFC53D"
+            };
+        }
+    }
+
+    // ── Surfaces ───────────────────────────────────────────────────────────
+    readonly property color surface0: palette.surface0
+    readonly property color surface1: palette.surface1
+    readonly property color surface2: palette.surface2
+    readonly property color surface3: palette.surface3
+    readonly property color surfaceRaised: palette.surface3
+    readonly property color surfaceHover: palette.surfaceHover
+    readonly property color border: palette.border
+    readonly property color borderStrong: palette.borderStrong
+    readonly property color scrim: Qt.rgba(0, 0, 0, 0.6)
+    readonly property color topHighlight: Qt.rgba(255, 255, 255, 0.03)
+    readonly property color accentSoft: Qt.alpha(accent, 0.16)
+    readonly property color shadow: Qt.rgba(0, 0, 0, 0.55)
+
+    // ── Text ───────────────────────────────────────────────────────────────
+    readonly property color textPrimary: palette.textPrimary
+    readonly property color textSecondary: palette.textSecondary
+    readonly property color textMuted: palette.textMuted
+
+    // ── Accents and states ─────────────────────────────────────────────────
+    readonly property bool hasCustomAccent: accentOverride.length > 0
+    readonly property color customAccent: hasCustomAccent ? accentOverride : "transparent"
+    readonly property color accent: hasCustomAccent ? customAccent : palette.accent
+    readonly property color accentHover: hasCustomAccent
+            ? Qt.lighter(accent, 1.18)
+            : palette.accentHover
+    readonly property color accentPressed: hasCustomAccent
+            ? Qt.darker(accent, 1.22)
+            : palette.accentPressed
+    readonly property color textOnAccent: hasCustomAccent
+            ? (contrastRatio(customAccent, "#08101C") >= contrastRatio(customAccent, "#FFFFFF")
+               ? "#08101C"
+               : "#FFFFFF")
+            : palette.textOnAccent
+    readonly property color focusRing: hasCustomAccent
+            ? Qt.lighter(accent, 1.3)
+            : palette.focusRing
+    readonly property color positive: palette.positive
+    readonly property color warning: palette.warning
+    readonly property color danger: palette.danger
+
+    // ── Stem palette ───────────────────────────────────────────────────────
+    // Never encode stem identity by color alone; pair it with a label.
+    readonly property color stemDrums: palette.stemDrums
+    readonly property color stemBass: palette.stemBass
+    readonly property color stemVocals: palette.stemVocals
+    readonly property color stemOther: palette.stemOther
+    readonly property color stemMuted: Qt.rgba(1, 1, 1, 0.35)
+    readonly property color stemSolo: accent
+
+    // ── Deck identity (Rekordbox/Traktor per-deck coding) ────────────────
+    // Thin top strips, badges and active meters — never full panel tints.
+    readonly property color deckA: "#00A3FF"
+    readonly property color deckB: "#FF8B00"
+    readonly property color deckC: "#B16CFF"
+    readonly property color deckD: "#00D1A1"
+
+    // ── Performance pads (Rekordbox 8-pad hues) ──────────────────────────
+    readonly property var hotcueColors: [
+        "#00C2FF", "#FF2E63", "#FFD60A", "#00E676",
+        "#7C5CFF", "#FF6D00", "#00E5FF", "#FF4081"
+    ]
+
+    // ── Meters ───────────────────────────────────────────────────────────
+    readonly property color vuGreen: palette.positive
+    readonly property color vuYellow: palette.warning
+    readonly property color vuRed: palette.danger
+    readonly property color vuRail: "#101010"
+
+    // ── Phrase palette (Rekordbox-style phrase labels) ─────────────────────
+    readonly property color phraseIntro: "#5B8DEF"
+    readonly property color phraseUp: "#3DDC97"
+    readonly property color phraseDown: "#FF7A59"
+    readonly property color phraseVerse: "#B07CFF"
+    readonly property color phraseBridge: "#F2C94C"
+    readonly property color phraseChorus: "#FF4D8D"
+    readonly property color phraseOutro: "#7C879E"
+
+    // ── Typography ─────────────────────────────────────────────────────────
+    // Helvetica Neue throughout. The override lets the user choose another
+    // Helvetica variant (Helvetica) from the customization panel.
+    readonly property string fontFamily: fontFamilyOverride.length > 0
+            ? fontFamilyOverride
+            : "Helvetica Neue"
+    readonly property string fontFamilyDisplay: fontFamily
+    readonly property string fontFamilyMono: "Helvetica Neue"
+    readonly property int fontSizeXs: Math.round(9 * fontScale)
+    readonly property int fontSizeSm: Math.round(10 * fontScale)
+    readonly property int fontSizeMd: Math.round(12 * fontScale)
+    readonly property int fontSizeLg: Math.round(15 * fontScale)
+    readonly property int fontSizeXl: Math.round(20 * fontScale)
+    readonly property int fontSizeXxl: Math.round(26 * fontScale)
+    readonly property int fontWeightRegular: Font.Normal
+    readonly property int fontWeightMedium: Font.Medium
+    readonly property int fontWeightDemiBold: Font.DemiBold
+    readonly property int fontWeightBold: Font.Bold
+    readonly property real letterSpacingCaps: 1.1
+    readonly property real lineHeight: 1.15
+
+    // ── Spacing (4 px base grid) ───────────────────────────────────────────
+    readonly property int space1: 4
+    readonly property int space2: 8
+    readonly property int space3: 12
+    readonly property int space4: 16
+    readonly property int space5: 24
+    readonly property int space6: 32
+    readonly property int space7: 48
+    readonly property int space8: 64
+
+    // ── Radius ─────────────────────────────────────────────────────────────
+    // Traktor-sharp: hardware panels carry a tight 3 px round, keys 2 px.
+    // Only pills stay fully round.
+    readonly property int radiusXs: 1
+    readonly property int radiusSm: 2
+    readonly property int radiusMd: 3
+    readonly property int radiusLg: 4
+    readonly property int radiusXl: 6
+    readonly property int radiusPill: 999
+
+    // ── Motion ─────────────────────────────────────────────────────────────
+    // Fast feedback, no overshoot. `motionScale` is user-adjustable in the
+    // customizer (snappy → relaxed).
+    readonly property int motionFast: Math.round(60 * motionScale)
+    readonly property int motionNormal: Math.round(100 * motionScale)
+    readonly property int motionSlow: Math.round(160 * motionScale)
+    readonly property int motionSpringDuration: Math.round(260 * motionScale)
+
+    // ── Layout ─────────────────────────────────────────────────────────────
+    readonly property int toolbarHeight: 44
+    readonly property int deckHeaderHeight: 56
+    readonly property int stemLaneMinWidth: 58
+    readonly property int stemLaneHeight: 110
+    readonly property int minWindowWidth: 1280
+    readonly property int minWindowHeight: 720
+
+    // ── Legacy Mixxx aliases ───────────────────────────────────────────────
+    // Keep these until every component uses the semantic names above.
+    readonly property color accentColor: accent
+    readonly property color backgroundColor: surface0
+    readonly property color blue: accent
+    readonly property color bpmSliderBarColor: accent
+    readonly property color buttonActiveColor: textPrimary
+    readonly property color buttonDisableColor: textMuted
+    readonly property int buttonFontPixelSize: fontSizeSm
+    readonly property color buttonNormalColor: textSecondary
+    readonly property color crossfaderBarColor: accent
+    readonly property color crossfaderOrientationColor: textMuted
+    readonly property color darkGray: surface0
+    readonly property color darkGray2: surface1
+    readonly property color darkGray3: surface2
+    readonly property color darkGray4: surface0
+    readonly property color deckActiveColor: accent
+    readonly property color deckBackgroundColor: surface0
+    readonly property color deckBeatjumpBackgroundColor: surface2
+    readonly property color deckBeatjumpLabelColor: textSecondary
+    readonly property color deckEmptyCoverArt: surface3
+    readonly property color deckInfoBarBackgroundColor: surface1
+    readonly property color deckLineColor: border
+    readonly property color deckLoopBackgroundColor: surface2
+    readonly property color deckLoopLabelColor: textSecondary
+    readonly property color deckTextColor: textPrimary
+    readonly property color effectColor: warning
+    readonly property color effectUnitColor: danger
+    readonly property color embeddedBackgroundColor: surface1
+    readonly property color eqFxColor: warning
+    readonly property color eqHighColor: textPrimary
+    readonly property color eqLowColor: textPrimary
+    readonly property color eqMidColor: textPrimary
+    readonly property color gainKnobColor: accent
+    readonly property color green: positive
+    readonly property color knobBackgroundColor: surface2
+    readonly property color libraryPanelSplitterBackground: surface0
+    readonly property color libraryPanelSplitterHandle: borderStrong
+    readonly property color libraryPanelSplitterHandleActive: accent
+    readonly property color lightGray: textMuted
+    readonly property color lightGray2: textSecondary
+    readonly property color lightGray3: textMuted
+    readonly property color midGray: borderStrong
+    readonly property color midGray2: border
+    readonly property color midGray3: surface3
+    readonly property color panelSplitterBackground: surface0
+    readonly property color panelSplitterHandle: border
+    readonly property color panelSplitterHandleActive: accent
+    readonly property color pflActiveButtonColor: accent
+    readonly property color red: danger
+    readonly property color samplerColor: accent
+    readonly property color sunkenBackgroundColor: surface0
+    readonly property color textColor: textPrimary
+    readonly property int textFontPixelSize: fontSizeMd
+    readonly property color toolbarActiveColor: accent
+    readonly property color toolbarBackgroundColor: surface1
+    readonly property color volumeSliderBarColor: accent
+    readonly property color warningColor: danger
+    readonly property color waveformBeatColor: textMuted
+    readonly property color waveformCursorColor: textPrimary
+    readonly property color waveformMarkerDefault: "#ff7a01"
+    readonly property color waveformMarkerIntroOutroColor: "#2c5c9a"
+    readonly property color waveformMarkerLabel: Qt.rgba(255, 255, 255, 0.8)
+    readonly property color waveformMarkerLoopColor: positive
+    readonly property color waveformMarkerLoopColorDisabled: textPrimary
+    readonly property color waveformPostrollColor: textMuted
+    readonly property color waveformPrerollColor: textMuted
+    readonly property color white: textPrimary
+    readonly property color yellow: warning
+
+    // ── Legacy image assets ────────────────────────────────────────────────
+    // New components draw flat surfaces instead of these, but the images stay
+    // available until the last legacy control is migrated.
+    readonly property string imgBpmSliderBackground: "images/slider_bpm.svg"
+    readonly property string imgButton: "images/button.svg"
+    readonly property string imgButtonPressed: "images/button_pressed.svg"
+    readonly property string imgCrossfaderBackground: "images/slider_crossfader.svg"
+    readonly property string imgCrossfaderHandle: "images/slider_handle_crossfader.svg"
+    readonly property string imgKnob: "images/knob.svg"
+    readonly property string imgKnobMini: "images/miniknob.svg"
+    readonly property string imgKnobMiniShadow: "images/miniknob_shadow.svg"
+    readonly property string imgKnobShadow: "images/knob_shadow.svg"
+    readonly property string imgMicDuckingSlider: "images/slider_micducking.svg"
+    readonly property string imgMicDuckingSliderHandle: "images/slider_handle_micducking.svg"
+    readonly property string imgPopupBackground: imgButton
+    readonly property string imgSectionBackground: "images/section.svg"
+    readonly property string imgSliderHandle: "images/slider_handle.svg"
+    readonly property string imgVolumeSliderBackground: "images/slider_volume.svg"
 }

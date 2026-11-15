@@ -244,15 +244,15 @@ DlgPrefController::DlgPrefController(
             "may not work correctly. "
             "Please select another mapping or disable the "
             "controller.</b></font><br><br>"
-            "This mapping was designed for a newer Mixxx Controller Engine "
-            "and cannot be used on your current Mixxx installation.<br>"
-            "Your Mixxx installation has Controller Engine version %1. "
+            "This mapping was designed for a newer Paramix Controller Engine "
+            "and cannot be used on your current Paramix installation.<br>"
+            "Your Paramix installation has Controller Engine version %1. "
             "This mapping requires a Controller Engine version >= %2.<br><br>"
             "For more information visit the wiki page on "
             "<a "
             "href='https://mixxx.org/wiki/doku.php/"
             "controller_engine_versions'>Controller Engine Versions</a>.")
-                                       .arg("2", "1"));
+                    .arg("2", "1"));
 
     QIcon icon = style()->standardIcon(QStyle::SP_MessageBoxWarning);
     m_ui.labelWarningIcon->setPixmap(icon.pixmap(50));
@@ -489,7 +489,6 @@ QString DlgPrefController::mappingShortName(
     return mappingName;
 }
 
-
 QString DlgPrefController::mappingSupportLinks(
         const std::shared_ptr<LegacyControllerMapping> pMapping) const {
     if (!pMapping) {
@@ -502,7 +501,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!forumLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Forums",
+                "Controller&nbsp;Forums",
                 forumLink);
     }
 
@@ -510,7 +509,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!wikiLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Wiki",
+                "Wiki",
                 wikiLink);
     }
 
@@ -518,7 +517,7 @@ QString DlgPrefController::mappingSupportLinks(
     if (!manualLink.isEmpty()) {
         linkList << coloredLinkString(
                 m_pLinkColor,
-                "Mixxx&nbsp;Manual",
+                "Manual",
                 manualLink);
     }
 
@@ -597,7 +596,7 @@ void DlgPrefController::enumerateMappings(const QString& selectedMappingPath) {
     m_ui.comboBoxMapping->insertSeparator(m_ui.comboBoxMapping->count());
 
     // Enumerate system mappings
-    QIcon systemMappingIcon(iconsPath.filePath("ic_mixxx_symbolic.svg"));
+    QIcon systemMappingIcon(iconsPath.filePath("ic_paramix_symbolic.svg"));
     MappingInfo systemMappingsMatch = enumerateMappingsFromEnumerator(
             m_pControllerManager->getMainThreadSystemMappingEnumerator(),
             systemMappingIcon);
@@ -1035,8 +1034,8 @@ void DlgPrefController::initTableView(QTableView* pTable) {
     pTable->setCornerButtonEnabled(false);
     pTable->setSortingEnabled(true);
 
-    //Work around a Qt bug that lets you make your columns so wide you
-    //can't reach the divider to make them small again.
+    // Work around a Qt bug that lets you make your columns so wide you
+    // can't reach the divider to make them small again.
     pTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
 
     pTable->verticalHeader()->hide();
@@ -1291,10 +1290,10 @@ void DlgPrefController::addInputMapping() {
         m_pInputTableModel->addEmptyMapping();
         // Ensure the added row is visible.
         QModelIndex left = m_pInputProxyModel->mapFromSource(
-            m_pInputTableModel->index(m_pInputTableModel->rowCount() - 1, 0));
+                m_pInputTableModel->index(m_pInputTableModel->rowCount() - 1, 0));
         QModelIndex right = m_pInputProxyModel->mapFromSource(
-            m_pInputTableModel->index(m_pInputTableModel->rowCount() - 1,
-                                       m_pInputTableModel->columnCount() - 1));
+                m_pInputTableModel->index(m_pInputTableModel->rowCount() - 1,
+                        m_pInputTableModel->columnCount() - 1));
         m_ui.midiInputMappingTableView->selectionModel()->select(
                 QItemSelection(left, right),
                 QItemSelectionModel::Clear | QItemSelectionModel::Select);
@@ -1315,9 +1314,7 @@ void DlgPrefController::removeInputMappings() {
 
 void DlgPrefController::clearAllInputMappings() {
     if (QMessageBox::warning(
-            this, tr("Clear Input Mappings"),
-            tr("Are you sure you want to clear all input mappings?"),
-            QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Ok) {
+                this, tr("Clear Input Mappings"), tr("Are you sure you want to clear all input mappings?"), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Ok) {
         return;
     }
     if (m_pInputTableModel) {
@@ -1330,10 +1327,10 @@ void DlgPrefController::addOutputMapping() {
         m_pOutputTableModel->addEmptyMapping();
         // Ensure the added row is visible.
         QModelIndex left = m_pOutputProxyModel->mapFromSource(
-            m_pOutputTableModel->index(m_pOutputTableModel->rowCount() - 1, 0));
+                m_pOutputTableModel->index(m_pOutputTableModel->rowCount() - 1, 0));
         QModelIndex right = m_pOutputProxyModel->mapFromSource(
-            m_pOutputTableModel->index(m_pOutputTableModel->rowCount() - 1,
-                                       m_pOutputTableModel->columnCount() - 1));
+                m_pOutputTableModel->index(m_pOutputTableModel->rowCount() - 1,
+                        m_pOutputTableModel->columnCount() - 1));
         m_ui.midiOutputMappingTableView->selectionModel()->select(
                 QItemSelection(left, right),
                 QItemSelectionModel::Clear | QItemSelectionModel::Select);
@@ -1354,9 +1351,7 @@ void DlgPrefController::removeOutputMappings() {
 
 void DlgPrefController::clearAllOutputMappings() {
     if (QMessageBox::warning(
-            this, tr("Clear Output Mappings"),
-            tr("Are you sure you want to clear all output mappings?"),
-            QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Ok) {
+                this, tr("Clear Output Mappings"), tr("Are you sure you want to clear all output mappings?"), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Ok) {
         return;
     }
     if (m_pOutputTableModel) {

@@ -31,4 +31,5 @@ class DlgPrefStems : public DlgPreferencePage, public Ui::DlgStemsDlg {
     mixxx::stems::StemExportSettings m_settings;
     QString m_modelPath;
     QString m_outputDirectory;
+    bool m_gpuAcceleration = true;
 };

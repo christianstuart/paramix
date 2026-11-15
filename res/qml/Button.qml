@@ -3,86 +3,96 @@ import QtQuick 2
 import QtQuick.Controls 2
 import "Theme"
 
+/// Flat, token-driven hardware key. Rekordbox-style: raised face, hairline
+/// frame, lit top edge; active state fills with the signal-blue accent.
 AbstractButton {
     id: root
 
-    property color activeColor: Theme.buttonActiveColor
+    property color activeColor: Theme.textOnAccent
     property bool highlight: false
-    property color normalColor: Theme.buttonNormalColor
-    property color pressedColor: activeColor
+    property color normalColor: Theme.textSecondary
+    property color pressedColor: Theme.textPrimary
+
+    readonly property bool activeState: root.checked || root.highlight
+    readonly property color labelColor: root.activeState
+            ? root.activeColor
+            : root.pressed
+              ? root.pressedColor
+              : root.hovered
+                ? Theme.textPrimary
+                : root.normalColor
 
     Accessible.role: Accessible.Button
-    Accessible.name: text
+    Accessible.name: root.text
 
+    hoverEnabled: true
     implicitHeight: 26
-    implicitWidth: 52
+    // Auto-fit the label so toolbar text never elides at larger font scales;
+    // contentWidth is the text's natural width and doesn't depend on layout.
+    implicitWidth: Math.max(56, label.contentWidth + 12)
+    opacity: root.enabled ? 1.0 : 0.45
 
-    background: Item {
-        anchors.fill: parent
+    background: Rectangle {
+        border.color: root.activeState
+                ? Qt.lighter(Theme.accent, 1.12)
+                : root.activeFocus
+                  ? Theme.focusRing
+                  : root.hovered
+                    ? Theme.borderStrong
+                    : Theme.border
+        border.width: 1
+        color: root.activeState
+               ? root.pressed
+                 ? Theme.accentPressed
+                 : Theme.accent
+               : root.pressed
+                 ? Theme.surface3
+                 : root.hovered
+                   ? Theme.surfaceHover
+                   : Theme.surface2
+        radius: Theme.radiusSm
 
+        // Flat key face; active state is a solid fill, no gloss.
         Rectangle {
-            id: backgroundImage
-
-            anchors.fill: parent
-            color: '#2B2B2B'
-            radius: 2
+            anchors.left: parent.left
+            anchors.leftMargin: 1
+            anchors.right: parent.right
+            anchors.rightMargin: 1
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            color: root.activeState ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+            height: 1
         }
-        DropShadow {
-            id: effect1
 
-            anchors.fill: backgroundImage
-            color: "#80000000"
-            horizontalOffset: 0
-            radius: 1.0
-            source: backgroundImage
-            verticalOffset: 0
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
-        InnerShadow {
-            id: effect2
-
-            anchors.fill: backgroundImage
-            color: "#353535"
-            horizontalOffset: 1
-            radius: 1
-            samples: 16
-            source: effect1
-            verticalOffset: 1
-        }
-        InnerShadow {
-            anchors.fill: backgroundImage
-            color: "#353535"
-            horizontalOffset: -1
-            radius: 1
-            samples: 16
-            source: effect2
-            verticalOffset: -1
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
         }
     }
     contentItem: Item {
-        anchors.fill: parent
-
-        Glow {
-            id: labelGlow
-
-            anchors.fill: parent
-            color: label.color
-            radius: 1
-            source: label
-            spread: 0.1
-        }
-        Label {
+        Text {
             id: label
 
             anchors.fill: parent
-            color: root.normalColor
-            font.bold: true
+            anchors.leftMargin: 6
+            anchors.rightMargin: 6
+            color: root.labelColor
+            elide: Text.ElideRight
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.buttonFontPixelSize
+            font.letterSpacing: Theme.letterSpacingCaps
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: Text.AlignHCenter
             text: root.text
             verticalAlignment: Text.AlignVCenter
-            visible: root.text != null
+            visible: root.text != null && root.text.length > 0
         }
         Image {
             id: image
@@ -90,66 +100,17 @@ AbstractButton {
             anchors.centerIn: parent
             asynchronous: true
             fillMode: Image.PreserveAspectFit
-            height: icon.height
-            source: icon.source
+            height: root.icon.height
+            source: root.icon.source
             visible: false
-            width: icon.width
+            width: root.icon.width
         }
         ColorOverlay {
             anchors.fill: image
             antialiasing: true
-            color: root.normalColor
+            color: root.labelColor
             source: image
-            visible: icon.source != null
+            visible: root.icon.source != null && root.icon.source != ""
         }
     }
-    states: [
-        State {
-            name: "pressed"
-            when: root.pressed
-
-            PropertyChanges {
-                color: root.checked ? "#3a60be" : Theme.darkGray3
-                target: backgroundImage
-            }
-            PropertyChanges {
-                color: root.pressedColor
-                target: label
-            }
-            PropertyChanges {
-                target: labelGlow
-                visible: true
-            }
-        },
-        State {
-            name: "active"
-            when: (root.highlight || root.checked) && !root.pressed
-
-            PropertyChanges {
-                color: "#2D4EA1"
-                target: backgroundImage
-            }
-            PropertyChanges {
-                color: root.activeColor
-                target: label
-            }
-            PropertyChanges {
-                target: labelGlow
-                visible: true
-            }
-        },
-        State {
-            name: "inactive"
-            when: !root.checked && !root.highlight && !root.pressed
-
-            PropertyChanges {
-                color: root.normalColor
-                target: label
-            }
-            PropertyChanges {
-                target: labelGlow
-                visible: false
-            }
-        }
-    ]
 }

@@ -33,6 +33,10 @@ std::string DemucsOnnxSeparator::device() const {
     return std::string();
 }
 
+bool hasGpuInferenceProvider() {
+    return false;
+}
+
 std::string DemucsOnnxSeparator::lastError() const {
     return std::string();
 }

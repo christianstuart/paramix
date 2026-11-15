@@ -921,7 +921,7 @@ Category {
                             id: cueModeInput
 
                             implicitWidth: 200
-                            model: ["Mixxx", "Mixxx (no blinking)", "Pioneer", "Denon", "Numark", "CUP",]
+                            model: ["Paramix", "Paramix (no blinking)", "Pioneer", "Denon", "Numark", "CUP",]
 
                             onCurrentIndexChanged: decksTab.dirty = true
                         }

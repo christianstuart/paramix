@@ -41,10 +41,7 @@ class DemucsOnnxSeparator::Impl final {
         }
         // Keep the DSP pool off every core the engine and GUI need. ADR-001
         // bounds the workers at min(4, cores / 2); zero means this default.
-        const int hardwareThreads =
-                static_cast<int>(std::thread::hardware_concurrency());
-        const int boundedThreads =
-                std::max(1, std::min(4, hardwareThreads / 2));
+        const int boundedThreads = boundedOnnxThreadCount();
         options.session.threads =
                 config.threads > 0 ? config.threads : boundedThreads;
         options.dsp_threads = boundedThreads;
@@ -110,6 +107,19 @@ const std::vector<std::string>& DemucsOnnxSeparator::sources() const {
 
 std::string DemucsOnnxSeparator::device() const {
     return demucs::device_name(m_pImpl->m_separator->device());
+}
+
+bool hasGpuInferenceProvider() {
+    // The provider list is fixed for the lifetime of the loaded runtime.
+    static const bool kHasGpuProvider = [] {
+        for (const demucs::Device device : demucs::available_devices()) {
+            if (device != demucs::Device::Cpu && device != demucs::Device::Auto) {
+                return true;
+            }
+        }
+        return false;
+    }();
+    return kHasGpuProvider;
 }
 
 std::string DemucsOnnxSeparator::lastError() const {

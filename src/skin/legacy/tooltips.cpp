@@ -559,7 +559,7 @@ void Tooltips::addStandardTooltips() {
 
     // Reverse and reverseroll (censor)
     add("reverse")
-    << tr("Reverse")
+            << tr("Reverse")
             << QString("%1: %2").arg(leftClick, tr("Reverses track playback during regular playback."))
             << QString("%1: %2").arg(rightClick, tr("Puts a track into reverse while being held (Censor)."))
             << tr("Playback continues where the track would have been if it had not been temporarily reversed.");
@@ -580,7 +580,8 @@ void Tooltips::addStandardTooltips() {
     QString whilePreviewing = tr("(while previewing)");
     QString cueSet = tr("Places a cue point at the current position on the waveform.");
     QString cueWhilePlaying = tr("Stops track at cue point, OR go to cue point and play after release (CUP mode).");
-    QString cueWhileStopped = tr("Set cue point (Pioneer/Mixxx/Numark mode), set cue point and play after release (CUP mode) "
+    QString cueWhileStopped = tr(
+            "Set cue point (Pioneer/Paramix/Numark mode), set cue point and play after release (CUP mode) "
             "OR preview from it (Denon mode).");
     QString cueHint = tr("Hint: Change the default cue mode in Preferences -> Decks.");
     QString latchingPlay = tr("Is latching the playing state.");
@@ -622,7 +623,7 @@ void Tooltips::addStandardTooltips() {
             << cueHint
             << quantizeSnap;
 
-      add("pfl")
+    add("pfl")
             << tr("Headphone")
             << tr("Sends the selected channel's audio to the headphone output, "
                   "selected in Preferences -> Sound Hardware.");
@@ -791,7 +792,7 @@ void Tooltips::addStandardTooltips() {
              << tr("Red for when needle skip has been detected.");
     QStringList vcEnabled;
     vcEnabled << tr("Enable Vinyl Control")
-              << tr("When disabled, the track is controlled by Mixxx playback "
+              << tr("When disabled, the track is controlled by Paramix playback "
                     "controls.")
               << tr("When enabled, the track responds to external vinyl "
                     "control.");
@@ -822,19 +823,19 @@ void Tooltips::addStandardTooltips() {
     add("loop_in")
             << tr("Loop-In Marker")
             << QString("%1: %2").arg(leftClick + " " + loopInactive,
-                      tr("Sets the track Loop-In Marker to the current play position."))
+                       tr("Sets the track Loop-In Marker to the current play position."))
             << quantizeSnap
             << QString("%1: %2").arg(leftClick + " " + loopActive,
-                      tr("Press and hold to move Loop-In Marker."))
+                       tr("Press and hold to move Loop-In Marker."))
             << QString("%1: %2").arg(rightClick, tr("Jump to Loop-In Marker."));
 
     add("loop_out")
             << tr("Loop-Out Marker")
             << QString("%1: %2").arg(leftClick + " " + loopInactive,
-                      tr("Sets the track Loop-Out Marker to the current play position."))
+                       tr("Sets the track Loop-Out Marker to the current play position."))
             << quantizeSnap
             << QString("%1: %2").arg(leftClick + " " + loopActive,
-                      tr("Press and hold to move Loop-Out Marker."))
+                       tr("Press and hold to move Loop-Out Marker."))
             << QString("%1: %2").arg(rightClick, tr("Jump to Loop-Out Marker."));
 
     add("loop_halve")
@@ -860,7 +861,7 @@ void Tooltips::addStandardTooltips() {
     add("beatloop_double")
             << tr("Double the size of an existing beatloop, or double the size of the next beatloop set with the Beatloop button.");
 
-    //beatloop and beatlooproll
+    // beatloop and beatlooproll
     add("beatloop_activate")
             << tr("Beatloop")
             << QString("%1: %2").arg(leftClick, tr("Start a loop over the set number of beats."))
@@ -1081,7 +1082,8 @@ void Tooltips::addStandardTooltips() {
             << tr("Mix Mode")
             << tr("Adjust how the dry (input) signal is mixed with the wet (output) signal of the effect unit") + "\n"
             << tr("Dry/Wet mode (crossed lines): Mix knob crossfades between dry and wet\n"
-                  "Use this to change the sound of the track with EQ and filter effects.") + "\n"
+                  "Use this to change the sound of the track with EQ and filter effects.") +
+                    "\n"
             << tr("Dry+Wet mode (flat dry line): Mix knob adds wet to dry\n"
                   "Use this to change only the effected (wet) signal with EQ and filter effects.");
 
@@ -1181,7 +1183,7 @@ void Tooltips::addStandardTooltips() {
             << tr("Effect Focus Button")
             << QString("%1: %2").arg(leftClick, tr("Focuses this effect."))
             << QString("%1: %2").arg(rightClick, tr("Unfocuses this effect."))
-            << tr("Refer to the web page on the Mixxx wiki for your controller for more information.");
+            << tr("Refer to your controller's wiki page for more information.");
 
     add("EffectSlot_parameter")
             << tr("Effect Parameter")
@@ -1261,5 +1263,4 @@ void Tooltips::addStandardTooltips() {
 
     add("configure_input")
             << tr("Select and configure a hardware device for this input");
-
 }

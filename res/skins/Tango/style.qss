@@ -35,7 +35,7 @@ WLibraryTextBrowser,
 #LibraryFeatureControls QPushButton,
 #LibraryFeatureControls QLabel,
 #LibraryFeatureControls QRadioButton {
-  font-family: Ubuntu;
+  font-family: "Helvetica Neue";
   font-weight: normal;
   font-style: normal;
 }
@@ -74,7 +74,7 @@ WTrackPropertyEditor,
 /* With 'Ubuntu' font the header section titles would always be top-aligned... */
 WTrackTableViewHeader,
 WTrackTableViewHeader::section {
-  font-family: "Open Sans";
+  font-family: "Helvetica Neue";
   font-weight: normal;
   font-style: normal;
 }

@@ -19,7 +19,7 @@ LibraryScannerDlg::LibraryScannerDlg(QWidget* pParent)
 
     // This is the widest item initially so it sets the dialog's minimum width.
     auto pLabel = make_parented<QLabel>(
-            tr("It's taking Mixxx a minute to scan your music library, please wait..."),
+            tr("It's taking Paramix a minute to scan your music library, please wait..."),
             this);
 
     // Add some margin between label and progress bar
@@ -109,7 +109,7 @@ void LibraryScannerDlg::slotUpdate(const QString& path) {
     // qDebug() << "LibraryScannerDlg slotUpdate" <<
     // m_timer.elapsed().formatMillisWithUnit() << path;
     if (!m_bCancelled && m_timer.elapsed() > mixxx::Duration::fromSeconds(2)) {
-       setVisible(true);
+        setVisible(true);
     }
 
     m_tasksDone++;

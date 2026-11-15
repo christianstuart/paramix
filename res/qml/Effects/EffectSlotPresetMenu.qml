@@ -3,37 +3,41 @@ pragma ComponentBehavior: Bound
 import Mixxx 1.0 as Mixxx
 import QtQuick
 import QtQuick.Controls
+import "../Theme"
 
+/// Preset menu for a single effect slot.
 Menu {
     id: root
 
-    property color backgroundColor: "#151517"
-    property color borderColor: "#333333"
+    property color backgroundColor: Theme.surface2
+    property color borderColor: Theme.border
     property url checkedSource
-    property color disabledTextColor: "#494949"
-    property string fontFamily: "Open Sans"
-    property int fontPixelSize: 14
-    property color hoverColor: "#2c454f"
-    property color hoverTextColor: "#ffffff"
-    property color separatorBottomColor: "#333333"
-    property color separatorTopColor: "#000000"
+    property color disabledTextColor: Theme.textMuted
+    property string fontFamily: Theme.fontFamily
+    property int fontPixelSize: Theme.fontSizeMd
+    property color hoverColor: Qt.alpha(Theme.accent, 0.12)
+    property color hoverTextColor: Theme.textPrimary
+    property color separatorColor: Theme.border
+    // Legacy aliases kept for the LateNightQML skin.
+    property color separatorBottomColor: separatorColor
+    property color separatorTopColor: separatorColor
     required property Mixxx.EffectSlotProxy slot
     property url submenuArrowSource
-    property color textColor: "#c2b3a5"
+    property color textColor: Theme.textPrimary
 
-    bottomPadding: 5
+    bottomPadding: Theme.space1
     enabled: slot.loaded
-    leftPadding: 5
-    rightPadding: 5
+    leftPadding: Theme.space1
+    rightPadding: Theme.space1
     title: slot.number + ": " + slot.effectName
-    topPadding: 5
-    width: 160
+    topPadding: Theme.space1
+    width: 180
 
     background: Rectangle {
         border.color: root.borderColor
         border.width: 1
         color: root.backgroundColor
-        radius: 1
+        radius: Theme.radiusMd
     }
     delegate: EffectPresetMenuItem {
         checkedSource: root.checkedSource
@@ -73,8 +77,7 @@ Menu {
         onObjectRemoved: (index, object) => root.removeItem(object)
     }
     EffectPresetMenuSeparator {
-        bottomColor: root.separatorBottomColor
-        topColor: root.separatorTopColor
+        lineColor: root.separatorColor
     }
     EffectPresetMenuItem {
         checkedSource: root.checkedSource

@@ -1662,9 +1662,11 @@ add_library(
   src/stems/demucslimiter.cpp
   src/stems/demucsnormalization.cpp
   src/stems/demucsstft.cpp
+  src/stems/stemanalysiscoordinator.cpp
   src/stems/stemcache.cpp
   src/stems/stemfileformat.cpp
   src/stems/stemfilewriter.cpp
+  src/stems/stemgpudetect.cpp
   src/stems/stemresampler.cpp
   src/stems/stemseparation.cpp
   src/stems/stemservice.cpp
@@ -1732,6 +1734,7 @@ add_library(
   src/util/fileinfo.cpp
   src/util/filename.cpp
   src/util/font.cpp
+  src/util/restartapplication.cpp
   src/util/imagefiledata.cpp
   src/util/imagefiledata.cpp
   src/util/imageutils.cpp
@@ -2119,7 +2122,7 @@ target_include_directories(
 )
 if(UNIX AND NOT APPLE)
   target_sources(mixxx-lib PRIVATE src/util/rlimit.cpp)
-  set(MIXXX_SETTINGS_PATH ".mixxx/")
+  set(MIXXX_SETTINGS_PATH ".paramix/")
 endif()
 
 if(APPLE)
@@ -2135,7 +2138,7 @@ if(APPLE)
   # Apple's Metal API in the foreseeable future.
   target_compile_definitions(mixxx-lib PUBLIC GL_SILENCE_DEPRECATION)
 
-  target_sources(mixxx-lib PRIVATE src/util/appleosversion.mm)
+  target_sources(mixxx-lib PRIVATE src/util/appleosversion.mm src/util/macprocessname.mm)
 
   if(IOS)
     target_sources(
@@ -2335,13 +2338,13 @@ if(APPLE AND MACOS_BUNDLE)
   set(MIXXX_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
   set(
     MACOS_BUNDLE_NAME
-    Mixxx
+    Paramix
     CACHE STRING
     "The macOS app bundle and executable name"
   )
   set(
     MACOS_BUNDLE_IDENTIFIER
-    org.mixxx.mixxx
+    org.paramix.Paramix
     CACHE STRING
     "The macOS app bundle identifier"
   )
@@ -2353,19 +2356,19 @@ elseif(APPLE AND IOS)
   set(MIXXX_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
   set(
     IOS_BUNDLE_NAME
-    Mixxx
+    Paramix
     CACHE STRING
     "The iOS app bundle and executable name"
   )
   set(
     IOS_BUNDLE_IDENTIFIER
-    org.mixxx.mixxx
+    org.paramix.Paramix
     CACHE STRING
     "The iOS app bundle identifier"
   )
 elseif(UNIX)
   set(MIXXX_INSTALL_BINDIR "${CMAKE_INSTALL_BINDIR}")
-  set(MIXXX_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/${CMAKE_PROJECT_NAME}")
+  set(MIXXX_INSTALL_DATADIR "${CMAKE_INSTALL_DATADIR}/paramix")
   set(MIXXX_INSTALL_DOCDIR "${CMAKE_INSTALL_DOCDIR}")
   set(MIXXX_INSTALL_LICENSEDIR "${CMAKE_INSTALL_DOCDIR}")
 endif()
@@ -2438,7 +2441,7 @@ if(ANDROID)
     PUBLIC __STDC_CONSTANT_MACROS __STDC_LIMIT_MACROS __STDC_FORMAT_MACROS
   )
   set_property(TARGET mixxx-lib PROPERTY ANDROID_ABIS "arm64-v8a")
-  target_compile_definitions(mixxx-lib PUBLIC ANDROID_PACKAGE_NAME="org.mixxx")
+  target_compile_definitions(mixxx-lib PUBLIC ANDROID_PACKAGE_NAME="org.paramix")
   qt_add_executable(mixxx src/main.cpp MANUAL_FINALIZATION)
   set_property(
     TARGET mixxx
@@ -2446,7 +2449,7 @@ if(ANDROID)
       QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/packaging/android"
   )
   set_target_properties(mixxx PROPERTIES QT_ANDROID_ABIS "${ANDROID_ABI}")
-  set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "org.mixxx")
+  set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "org.paramix")
   set_target_properties(
     mixxx
     PROPERTIES QT_ANDROID_VERSION_NAME "${MIXXX_VERSION}"
@@ -2514,6 +2517,15 @@ if(ANDROID)
   target_link_libraries(mixxx PUBLIC omp)
 else()
   qt_add_executable(mixxx WIN32 src/main.cpp MANUAL_FINALIZATION)
+endif()
+
+# Keep the CMake target name stable, but name the binary `paramix` /
+# `paramix.exe`. A macOS app bundle uses its bundle name instead. A non-bundle
+# macOS build uses `Paramix` so the system menu bar shows the capitalized name.
+if(APPLE AND NOT MACOS_BUNDLE)
+  set_target_properties(mixxx PROPERTIES OUTPUT_NAME "Paramix")
+elseif(NOT ANDROID)
+  set_target_properties(mixxx PROPERTIES OUTPUT_NAME "paramix")
 endif()
 
 if(NOT QML)
@@ -2678,6 +2690,7 @@ install(
   FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
     "${CMAKE_CURRENT_SOURCE_DIR}/COPYING"
+    "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
   DESTINATION "${MIXXX_INSTALL_LICENSEDIR}"
 )
 
@@ -2688,9 +2701,9 @@ install(
     "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Keyboard-Shortcuts.pdf"
   DESTINATION "${MIXXX_INSTALL_DOCDIR}"
 )
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Manual.pdf")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/Paramix-Manual.pdf")
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/Mixxx-Manual.pdf"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/Paramix-Manual.pdf"
     DESTINATION "${MIXXX_INSTALL_DOCDIR}"
   )
 endif()
@@ -2699,7 +2712,7 @@ endif()
 if(UNIX AND NOT APPLE)
   # .desktop file for KDE/GNOME menu
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.desktop"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.paramix.Paramix.desktop"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/applications"
   )
 
@@ -2712,13 +2725,13 @@ if(UNIX AND NOT APPLE)
   install(
     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/res/images/icons/"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor"
-    # This file is for Windows.
-    PATTERN ic_mixxx.ico EXCLUDE
+    # Windows icon files are installed by the Windows-specific rules.
+    PATTERN "*.ico" EXCLUDE
   )
 
   # .metainfo.xml file for KDE/GNOME AppStream initiative
   install(
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.mixxx.Mixxx.metainfo.xml"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/res/linux/org.paramix.Paramix.metainfo.xml"
     DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
   )
 
@@ -3039,6 +3052,7 @@ if(BUILD_TESTING)
     src/test/stemcachetest.cpp
     src/test/stemresamplertest.cpp
     src/test/stemsetdaotest.cpp
+    src/test/stemgpudetecttest.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp
     src/test/stemseparationtest.cpp
@@ -4042,6 +4056,13 @@ if(QML)
 
   target_link_libraries(mixxx-qml-lib PRIVATE mixxx-qml-libplugin)
 
+  # The QML proxies check compile-time stem separation availability
+  # (mixxx::stems::isDemucsOnnxAvailable()). mixxx-qml-lib is linked into
+  # mixxx-lib, so it does not inherit mixxx-lib's PUBLIC definitions.
+  if(STEM_SEPARATION_ENABLED)
+    target_compile_definitions(mixxx-qml-lib PUBLIC __STEM_SEPARATION__)
+  endif()
+
   qt_add_library(mixxx-qml-mixxxcontrols STATIC)
   set_target_properties(mixxx-qml-mixxxcontrols PROPERTIES AUTOMOC ON)
   qt_add_qml_module(mixxx-qml-mixxxcontrols
@@ -4086,7 +4107,6 @@ if(QML)
       src/qml/qmlkeyutils.cpp
       src/qml/qmllegacylibraryitem.cpp
       src/qml/qmllibraryproxy.cpp
-      src/qml/qmllibrarysource.cpp
       src/qml/qmllibrarysourcetree.cpp
       src/qml/qmllibrarytracklistmodel.cpp
       src/qml/qmlmixxxcontrollerscreen.cpp
@@ -4097,6 +4117,7 @@ if(QML)
       src/qml/qmllibrarytracklistcolumn.cpp
       src/qml/qmltrackproxy.cpp
       src/qml/qmlspinnyposition.cpp
+      src/qml/qmlstemserviceproxy.cpp
       src/qml/qmlvinylsignalquality.cpp
       src/qml/qmlvisibleeffectsmodel.cpp
       src/qml/qmlwaveformdisplay.cpp
@@ -4107,6 +4128,7 @@ if(QML)
       src/qml/qmltrackproxy.cpp
       src/qml/qmlsoundmanagerproxy.cpp
       src/qml/qmlpreferencesproxy.cpp
+      src/qml/qmltrackmenuproxy.cpp
       src/waveform/renderers/allshader/digitsrenderer.cpp
       src/waveform/renderers/allshader/waveformrenderbeat.cpp
       src/waveform/renderers/allshader/waveformrenderer.cpp
@@ -4659,6 +4681,8 @@ if(APPLE)
       "-weak_framework CoreVideo"
       "-weak_framework IOSurface"
       "-weak_framework VideoToolbox"
+      # Stem separation GPU probe (IOAccelerator registry).
+      "-framework IOKit"
   )
   if(IOS)
     target_link_libraries(mixxx-lib PRIVATE "-weak_framework UIKit")
@@ -5556,25 +5580,26 @@ configure_file(
 )
 
 # Packaging
-set(CPACK_PACKAGE_NAME "Mixxx")
-set(CPACK_PACKAGE_VENDOR "Mixxx Project")
-# TODO: Split this into Maintainer field: core-team@mixxx.org for package issues
-# and Uploaders field for personal signing email per Debian Policy.
+set(CPACK_PACKAGE_NAME "paramix")
+set(CPACK_PACKAGE_VENDOR "Paramix Project")
+# TODO: Split this into a Maintainer field for package issues and an
+# Uploaders field for personal signing emails per Debian Policy.
 # https://www.debian.org/doc/debian-policy/ch-binary.html#the-maintainer-of-a-package
-set(CPACK_PACKAGE_CONTACT "Daniel Schürmann <daschuer@mixxx.org>")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Digital DJ Application")
+set(CPACK_PACKAGE_CONTACT "Paramix Project <https://github.com/christianstuart/paramix/issues>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Paramix digital DJ application")
 set(
   CPACK_PACKAGE_DESCRIPTION_FILE
   "${CMAKE_CURRENT_SOURCE_DIR}/packaging/CPackPackageDescription.txt"
 )
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "Mixxx")
-set(CPACK_PACKAGE_EXECUTABLES "mixxx;Mixxx")
-set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/res/images/mixxx_install_logo.bmp")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://www.mixxx.org/")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "Paramix")
+set(CPACK_WIX_PRODUCT_NAME "Paramix")
+set(CPACK_PACKAGE_EXECUTABLES "paramix;Paramix")
+set(CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/res/images/paramix_install_logo.bmp")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/christianstuart/paramix")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
 set(CPACK_STRIP_FILES ON)
-set(CPACK_CREATE_DESKTOP_LINKS "mixxx")
+set(CPACK_CREATE_DESKTOP_LINKS "paramix")
 set(CPACK_MIXXX_VERSION "${MIXXX_VERSION}")
 # Save GIT values just in case they have been set manual via cmake
 set(CPACK_GIT_DESCRIBE "${GIT_DESCRIBE}")
@@ -5681,12 +5706,12 @@ set(
 
 # Use WiX toolset version >= 4.0 for building Windows installers.
 set(CPACK_WIX_VERSION 4)
-set(CPACK_WIX_UPGRADE_GUID "921DC99C-4DCF-478D-B950-50685CB9E6BE")
+set(CPACK_WIX_UPGRADE_GUID "6F2C1A34-9B7E-4D21-8A6C-3E5D0B4A7C19")
 set(
   CPACK_WIX_LICENSE_RTF
   "${CMAKE_CURRENT_BINARY_DIR}/packaging/wix/LICENSE.rtf"
 )
-set(CPACK_WIX_PRODUCT_ICON "${CMAKE_SOURCE_DIR}/res/images/icons/ic_mixxx.ico")
+set(CPACK_WIX_PRODUCT_ICON "${CMAKE_SOURCE_DIR}/res/images/icons/ic_paramix.ico")
 set(CPACK_WIX_PROPERTY_ARPHELPLINK "${CPACK_PACKAGE_HOMEPAGE_URL}")
 set(
   CPACK_WIX_UI_BANNER

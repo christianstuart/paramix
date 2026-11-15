@@ -65,7 +65,7 @@ Controls.Panel {
     Text {
         anchors.centerIn: parent
         color: LateNightTheme.waveformNoStemLabelColor
-        font.family: "Open Sans"
+        font.family: "Helvetica Neue"
         font.pixelSize: 13
         font.weight: Font.DemiBold
         text: qsTr("Track has no STEMs")
@@ -107,7 +107,7 @@ Controls.Panel {
                         Layout.preferredWidth: 50
                         color: stem.stemColor
                         elide: Text.ElideRight
-                        font.family: "Open Sans"
+                        font.family: "Helvetica Neue"
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         text: stem.label

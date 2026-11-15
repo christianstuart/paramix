@@ -118,7 +118,7 @@ bool Sandbox::askForAccess(mixxx::FileInfo* pFileInfo) {
 
     const QString location = pFileInfo->location();
     const QString fileName = pFileInfo->fileName();
-    const QString title = QObject::tr("Mixxx Needs Access to: %1").arg(fileName);
+    const QString title = QObject::tr("Paramix Needs Access to: %1").arg(fileName);
     QMessageBox::information(nullptr,
             title,
             QObject::tr(
@@ -127,7 +127,7 @@ bool Sandbox::askForAccess(mixxx::FileInfo* pFileInfo) {
                     "\n\n%1\n\n"
                     "After clicking OK, you will see a file picker. "
                     "Please select '%2' to proceed or click Cancel if "
-                    "you don't want to grant Mixxx access and abort "
+                    "you don't want to grant Paramix access and abort "
                     "this action.")
                     .arg(location, fileName));
 
@@ -163,7 +163,7 @@ bool Sandbox::askForAccess(mixxx::FileInfo* pFileInfo) {
             qDebug() << "User selected the wrong file.";
         }
         QMessageBox::information(
-                nullptr, title, QObject::tr("You selected the wrong file. To grant Mixxx access, "
+                nullptr, title, QObject::tr("You selected the wrong file. To grant Paramix access, "
                                             "please select the file '%1'. If you do not want to "
                                             "continue, press Cancel.")
                                         .arg(fileName));
@@ -445,9 +445,9 @@ QString Sandbox::migrateOldSettings() {
     // automatically creates it.
     QString sandboxedParentPath = homePath +
             QLatin1String(
-                    "/Library/Containers/org.mixxx.mixxx/Data/Library/"
+                    "/Library/Containers/org.paramix.Paramix/Data/Library/"
                     "Application Support");
-    QString sandboxedPath = sandboxedParentPath + QLatin1String("/Mixxx");
+    QString sandboxedPath = sandboxedParentPath + QLatin1String("/Paramix");
     QDir sandboxedDir(sandboxedPath);
 
     QString legacySettingsPath = homePath + QLatin1String("/Library/Application Support/Mixxx");
@@ -464,22 +464,22 @@ QString Sandbox::migrateOldSettings() {
     // Sandbox::askForAccess cannot be used here because it depends on settings being
     // initialized. There is no need to store the bookmark anyway because this is a
     // one time process.
-    QString title = QObject::tr("Upgrading old Mixxx settings");
+    QString title = QObject::tr("Importing old Mixxx settings");
     QMessageBox::information(nullptr,
             title,
             QObject::tr(
-                    "Due to macOS sandboxing, Mixxx needs your permission "
+                    "Due to macOS sandboxing, Paramix needs your permission "
                     "to access your music library and settings from Mixxx "
                     "versions before 2.3.0. After clicking OK, you will see a "
                     "file selection dialog. "
                     "\n\n"
-                    "To allow Mixxx to use your old library and settings, "
+                    "To allow Paramix to use your old library and settings, "
                     "click the Open button in the file selection dialog. "
-                    "Mixxx will then move your old settings into the sandbox. "
+                    "Paramix will then move your old settings into the sandbox. "
                     "This only needs to be done once."
                     "\n\n"
-                    "If you do not want to grant Mixxx access, click Cancel "
-                    "on the file picker. Mixxx will create a new music library "
+                    "If you do not want to grant Paramix access, click Cancel "
+                    "on the file picker. Paramix will create a new music library "
                     "and use default settings."));
 
     QString result = QFileDialog::getExistingDirectory(
@@ -569,7 +569,7 @@ bool Sandbox::ensureSettingsPathAccessible(QString* pSettingsPath) {
         // If the path is outside the macOS sandbox container without a security-scoped bookmark,
         // it acts as a read-only filesystem, returning false here.
         // Thus, we do not need to explicitly string-match container paths like
-        // "/Library/Containers/org.mixxx.mixxx/" to check for sandbox compliance.
+        // "/Library/Containers/org.paramix.Paramix/" to check for sandbox compliance.
         return true;
     }
 
@@ -577,7 +577,7 @@ bool Sandbox::ensureSettingsPathAccessible(QString* pSettingsPath) {
             << "Settings path is not accessible:"
             << settingsDir.absolutePath();
 
-    QString title = QObject::tr("Mixxx needs access to the settings folder");
+    QString title = QObject::tr("Paramix needs access to the settings folder");
     QString result = QFileDialog::getExistingDirectory(
             nullptr,
             title,

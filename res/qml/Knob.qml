@@ -54,6 +54,7 @@ MixxxControls.Knob {
         anchors.top: parent.top
         fillMode: Image.PreserveAspectFit
         height: width * 7 / 6
+        opacity: 0.5
         source: root.shadowSource
         visible: root.showDefaultBackground
     }

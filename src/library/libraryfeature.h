@@ -24,7 +24,7 @@ class QAbstractItemModel;
 
 // pure virtual (abstract) class to provide an interface for libraryfeatures
 class LibraryFeature : public QObject {
-  Q_OBJECT
+    Q_OBJECT
   public:
     LibraryFeature(
             Library* pLibrary,
@@ -39,6 +39,13 @@ class LibraryFeature : public QObject {
     /// This is useful for QML skins that need to build a URL anyway and may use their own icon theme.
     QString iconName() const {
         return m_iconName;
+    }
+
+    /// Returns the QRC URL of the icon, suitable for a QML Image.
+    ///
+    /// Empty if this feature has no icon.
+    QUrl iconUrl() const {
+        return m_iconUrl;
     }
 
     /// Returns the icon.
@@ -80,8 +87,10 @@ class LibraryFeature : public QObject {
     }
     // Reimplement this to register custom views with the library widget.
     virtual void bindLibraryWidget(WLibrary* /* libraryWidget */,
-                            KeyboardEventFilter* /* keyboard */) {}
-    virtual void bindSidebarWidget(WLibrarySidebar* /* sidebar widget */) {}
+            KeyboardEventFilter* /* keyboard */) {
+    }
+    virtual void bindSidebarWidget(WLibrarySidebar* /* sidebar widget */) {
+    }
     virtual TreeItemModel* sidebarModel() const = 0;
 
     virtual bool hasTrackTable() {
@@ -163,7 +172,7 @@ class LibraryFeature : public QObject {
     // The second arg indicates if the feature should be "selected" when loading starts
     void featureIsLoading(LibraryFeature*, bool selectFeature);
     // emit this signal if the foreign music collection has been imported/parsed.
-    void featureLoadingFinished(LibraryFeature*s);
+    void featureLoadingFinished(LibraryFeature* s);
     // emit this signal to select pFeature
     void featureSelect(LibraryFeature* pFeature, const QModelIndex& index, bool scrollTo = true);
     // emit this signal to enable/disable the cover art widget
@@ -182,5 +191,6 @@ class LibraryFeature : public QObject {
     QStringList getPlaylistFiles(QFileDialog::FileMode mode) const;
 
     QString m_iconName;
+    QUrl m_iconUrl;
     QIcon m_icon;
 };

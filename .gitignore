@@ -79,3 +79,12 @@ res/qrc_mixxx.cc
 
 # Paramix: macOS Finder metadata
 .DS_Store
+
+# Local agent tooling and design references (converted copies live in docs/reference/)
+/.opencode/
+/Move.png
+/Cue.png
+/Grid.png
+/UI Reference.png
+# Unused Inter font files (the UI now uses Helvetica)
+/res/fonts/Inter*

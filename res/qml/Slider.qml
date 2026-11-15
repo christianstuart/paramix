@@ -62,6 +62,7 @@ RowLayout {
                             horizontalCenter: mark.left
                         }
                         color: Qt.alpha(Theme.white, 0.25)
+                        font.family: Theme.fontFamily
                         font.pixelSize: 9
                         text: modelData ?? ""
                     }
@@ -146,6 +147,7 @@ RowLayout {
                 anchors.margins: 3
                 focus: true
                 color: Qt.alpha(acceptableInput ? Theme.white : Theme.warningColor, root.enabled ? 1 : 0.5)
+                font.family: Theme.fontFamily
                 onAccepted: {
                     control.value = parseInt(text)
                 }
@@ -159,6 +161,7 @@ RowLayout {
                 anchors.margins: textInputSection.suffix.length > 0 ? 10 : 0
                 text: textInputSection.suffix
                 color: Qt.alpha(Theme.white, root.enabled ? 1 : 0.5)
+                font.family: Theme.fontFamily
                 TextMetrics  {
                     id: fontMetrics
                     font.family: inputField.font.family

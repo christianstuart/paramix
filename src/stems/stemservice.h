@@ -4,6 +4,7 @@
 #include <QMetaType>
 #include <QMutex>
 #include <QQueue>
+#include <QSet>
 #include <QThread>
 #include <QWaitCondition>
 #include <atomic>
@@ -57,6 +58,11 @@ class StemService : public QThread, public Singleton<StemService> {
     /// Appends a job to the queue and starts the worker if needed. Thread-safe.
     bool queueExport(const StemExportRequest& request);
 
+    /// Track ids with an exported stem set recorded in the database. Used by
+    /// the library to show a stems badge for tracks whose stem metadata has
+    /// not been loaded into the track cache yet. One query, GUI thread.
+    QSet<TrackId> trackIdsWithStemSets() const;
+
     /// Re-queues jobs that were still pending when the app exited. Must be
     /// called on the main thread, because it resolves tracks by id.
     void restoreQueuedJobs(TrackCollectionManager* pTrackCollectionManager);
@@ -66,9 +72,22 @@ class StemService : public QThread, public Singleton<StemService> {
     void removeStems(TrackId trackId);
 
     /// Stops dequeuing new jobs. A running job pauses at its next block.
+    /// This is the explicit/user pause; it composes with the background pause
+    /// below.
     void pause();
     void resume();
     bool isPaused() const;
+
+    /// Pauses or resumes separation on behalf of a background coordinator,
+    /// e.g. while the audio engine is overloaded. A background resume never
+    /// clears an explicit pause() and vice versa. Thread-safe.
+    void setBackgroundPaused(bool paused);
+
+    /// True while a job is queued or separating.
+    bool hasPendingWork() const;
+
+    /// Priority of the separation worker thread.
+    static constexpr QThread::Priority kWorkerPriority = QThread::LowPriority;
 
     /// Cancels the running job and clears the queue. The current output is
     /// discarded. Thread-safe.
@@ -92,6 +111,10 @@ class StemService : public QThread, public Singleton<StemService> {
     /// can now produce the per-stem data.
     void stemsReady(TrackId trackId);
 
+    /// Emitted when the service starts or stops having queued/running work.
+    /// Used to yield CPU to stem separation and to resume it afterwards.
+    void busyChanged(bool busy);
+
   protected:
     void run() override;
 
@@ -103,6 +126,8 @@ class StemService : public QThread, public Singleton<StemService> {
         QString outputDirectory;
         QString setName;
         QString modelPath;
+        // True when the job should ask the runtime for a GPU provider.
+        bool gpuAcceleration = false;
         StemExportSettings settings;
     };
 
@@ -113,6 +138,7 @@ class StemService : public QThread, public Singleton<StemService> {
     void processJob(Job& job,
             std::unique_ptr<DemucsOnnxSeparator>* ppSeparator,
             QString* pLoadedModelPath,
+            QString* pLoadedDevice,
             StemSetDao& dao);
     void setStatus(
             TrackId trackId, Status status, int progress, const QString& message = QString());
@@ -129,8 +155,18 @@ class StemService : public QThread, public Singleton<StemService> {
     QMap<TrackId, Status> m_statuses;
     QMap<TrackId, QString> m_messages;
     bool m_stopRequested = false;
+    // Effective pause state, read by the worker.
     std::atomic<bool> m_paused{false};
+    // Pause owners. Kept separate so neither side can clear the other's pause.
+    std::atomic<bool> m_userPaused{false};
+    std::atomic<bool> m_backgroundPaused{false};
+    // True while at least one job is queued or separating. Written under
+    // m_mutex, read lock-free for cheap polling.
+    std::atomic<bool> m_busy{false};
     std::atomic<bool> m_cancelRequested{false};
+    // Set after a GPU provider fails mid-job. The process then stays on CPU
+    // instead of paying the same failure on every later track (ADR-001 §2.3).
+    std::atomic<bool> m_gpuDisabled{false};
 };
 
 } // namespace mixxx::stems

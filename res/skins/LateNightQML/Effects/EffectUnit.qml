@@ -267,7 +267,7 @@ LateNightControls.Panel {
         }
         Text {
             color: controllerActive.value > 0 ? root.controllerColor : "#686666"
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: 16
             font.weight: Font.Medium
             height: parent.height

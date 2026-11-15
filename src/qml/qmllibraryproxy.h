@@ -10,10 +10,10 @@
 #include "library/dao/directorydao.h"
 #include "library/scanner/libraryscanner.h"
 #include "library/trackcollectionmanager.h"
-#include "qml/qmllibrarysource.h"
 #include "qml/qmllibrarytracklistmodel.h"
 #include "util/parented_ptr.h"
 
+class AnalysisFeature;
 class Library;
 class KeyboardEventFilter;
 
@@ -43,8 +43,8 @@ class QmlLibrarySource : public QObject {
 
 class QmlLibraryScannerProxy : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool running READ isRunning NOTIFY stateChanged)
-    Q_PROPERTY(bool cancelling READ isCancelling NOTIFY stateChanged)
+    Q_PROPERTY(bool running READ isRunning NOTIFY runningChanged)
+    Q_PROPERTY(bool cancelling READ isCancelling NOTIFY cancellingChanged)
     QML_NAMED_ELEMENT(LibraryScanner)
     QML_UNCREATABLE("Only accessible via Mixxx.Library.scanner")
   public:
@@ -64,11 +64,13 @@ class QmlLibraryScannerProxy : public QObject {
     Q_INVOKABLE void start() {
         m_running = true;
         m_pLibraryScanner->scan();
+        emit runningChanged();
         emit stateChanged();
     }
 
     Q_INVOKABLE void cancel() {
         m_cancelling = true;
+        emit cancellingChanged();
         emit stateChanged();
         emit requestCancel();
     }
@@ -78,7 +80,10 @@ class QmlLibraryScannerProxy : public QObject {
     void started();
     void finished();
 
+    /// Emitted whenever any of the state properties changed.
     void stateChanged();
+    void runningChanged();
+    void cancellingChanged();
 
     void requestStart();
     void requestCancel();
@@ -98,6 +103,13 @@ class QmlLibraryProxy : public QObject {
     Q_PROPERTY(bool enginePrimeExportAvailable READ enginePrimeExportAvailable CONSTANT)
     Q_PROPERTY(QString waveformCacheDiskUsage READ waveformCacheDiskUsage NOTIFY
                     waveformCacheDiskUsageChanged)
+    Q_PROPERTY(bool analysisActive READ analysisActive NOTIFY analysisActiveChanged)
+    // Percent, 0..100 aggregate over all scheduled tracks
+    Q_PROPERTY(int analysisProgress READ analysisProgress NOTIFY analysisProgressChanged)
+    Q_PROPERTY(int analysisCurrent READ analysisCurrent NOTIFY analysisProgressChanged)
+    Q_PROPERTY(int analysisTotal READ analysisTotal NOTIFY analysisProgressChanged)
+    Q_PROPERTY(QString analysisTrackTitle READ analysisTrackTitle NOTIFY
+                    analysisProgressChanged)
     QML_NAMED_ELEMENT(Library)
     QML_SINGLETON
 
@@ -151,6 +163,11 @@ class QmlLibraryProxy : public QObject {
     QString waveformCacheDiskUsage() const {
         return m_waveformCacheDiskUsage;
     }
+    bool analysisActive() const;
+    int analysisProgress() const;
+    int analysisCurrent() const;
+    int analysisTotal() const;
+    QString analysisTrackTitle() const;
     Q_INVOKABLE void refreshWaveformCacheDiskUsage();
     Q_INVOKABLE bool clearCachedWaveforms();
 
@@ -216,6 +233,8 @@ class QmlLibraryProxy : public QObject {
   signals:
     void libraryScanActiveChanged();
     void waveformCacheDiskUsageChanged();
+    void analysisActiveChanged();
+    void analysisProgressChanged();
     void libraryScanSummaryAvailable(
             const QString& title,
             const QString& text,

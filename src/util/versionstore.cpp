@@ -36,7 +36,7 @@ namespace {
 const QVersionNumber kMixxxVersionNumber = QVersionNumber(
         MIXXX_VERSION_MAJOR, MIXXX_VERSION_MINOR, MIXXX_VERSION_PATCH);
 const QString kMixxxVersionSuffix = QStringLiteral(MIXXX_VERSION_SUFFIX);
-const QString kMixxx = QStringLiteral("Mixxx");
+const QString kParamix = QStringLiteral("Paramix");
 const QString kBuildFlags = QStringLiteral(MIXXX_BUILD_FLAGS);
 
 QString ebur128Version() {
@@ -77,7 +77,7 @@ QDateTime VersionStore::date() {
 
 // static
 QString VersionStore::applicationName() {
-    return kMixxx;
+    return kParamix;
 }
 
 // MSVC doesn't properly evaluate #if in macro arguments (such as QStringLiteral)
@@ -91,7 +91,7 @@ QString VersionStore::applicationName() {
 #define OS_VERSION_STR "Linux"
 #elif defined(__WINDOWS__)
 #define OS_VERSION_STR "Windows"
-// Mixxx's CMakeLists.txt does not define this, but FreeBSD's ports system does.
+// Paramix's CMakeLists.txt does not define this, but FreeBSD's ports system does.
 #elif defined(__FREEBSD__)
 #define OS_VERSION_STR "FreeBSD"
 #elif defined(__BSD__)
@@ -170,7 +170,6 @@ QString VersionStore::buildFlags() {
 }
 
 QStringList VersionStore::dependencyVersions() {
-
     // WARNING: may be inaccurate since some come from compile-time header
     // definitions instead of the actual dynamically loaded library).
     return {// Should be accurate.
@@ -184,15 +183,15 @@ QStringList VersionStore::dependencyVersions() {
                     .arg(Pa_GetVersion())
                     .arg(Pa_GetVersionInfo()->versionText),
 #ifdef __RUBBERBAND__
-            // The version of the RubberBand headers Mixxx was compiled with.
+            // The version of the RubberBand headers Paramix was compiled with.
             QStringLiteral("RubberBand: " RUBBERBAND_VERSION),
 #endif
-            // The version of the SoundTouch headers Mixxx was compiled with.
+            // The version of the SoundTouch headers Paramix was compiled with.
             QStringLiteral("SoundTouch: " SOUNDTOUCH_VERSION),
-            // The version of the TagLib headers Mixxx was compiled with.
+            // The version of the TagLib headers Paramix was compiled with.
             QStringLiteral("TagLib: " STR(TAGLIB_MAJOR_VERSION) "." STR(
                     TAGLIB_MINOR_VERSION) "." STR(TAGLIB_PATCH_VERSION)),
-            // The version of the ChromaPrint headers Mixxx was compiled with.
+            // The version of the ChromaPrint headers Paramix was compiled with.
             QStringLiteral("ChromaPrint: " STR(CHROMAPRINT_VERSION_MAJOR) "." STR(
                     CHROMAPRINT_VERSION_MINOR) "." STR(CHROMAPRINT_VERSION_PATCH)),
             QStringLiteral("libebur128: %1").arg(ebur128Version()),
@@ -200,7 +199,7 @@ QStringList VersionStore::dependencyVersions() {
             QStringLiteral("Vorbis: %1").arg(vorbis_version_string()),
             // Should be accurate.
             QStringLiteral("libsndfile: %1").arg(sf_version_string()),
-            // The version of the FLAC headers Mixxx was compiled with.
+            // The version of the FLAC headers Paramix was compiled with.
             QStringLiteral("FLAC: %1").arg(FLAC__VERSION_STRING),
             QStringLiteral("libmp3lame: %1").arg(get_lame_version())};
 }
@@ -220,7 +219,7 @@ void VersionStore::logBuildDetails() {
     }
     QString buildInfoFormatted = QStringLiteral("(%1)").arg(buildInfo.join("; "));
 
-    // This is the first line in mixxx.log
+    // This is the first line in paramix.log
     qDebug().noquote() << applicationName() << version << buildInfoFormatted << "is starting...";
 
     const QStringList depVersions = dependencyVersions();

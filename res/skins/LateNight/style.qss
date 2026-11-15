@@ -34,7 +34,7 @@ WTrackTableViewHeader::section {
   as "Open Sans" and we need to set the `font-weight`.
   On Windows however, the semi-bold variant is identified as
   "Open Sans Semibold", so look for that first. */
-  font-family: "Open Sans Semibold", "Open Sans";
+  font-family: "Helvetica Neue";
   font-weight: 500; /* semi-bold */
   font-style: normal;
   text-transform: none;
@@ -59,7 +59,7 @@ WLabel#SamplerTitleMini,
 /* SKin settings & Library */
 WPushButton#SkinSettingsNumToggle[value="1"],
 QLabel#labelRecFilename {
-  font-family: "Open Sans";
+  font-family: "Helvetica Neue";
   font-weight: bold;
 }
 
@@ -94,7 +94,7 @@ QLineEdit QMenu,
 WCoverArtMenu,
 QLabel#labelRecPrefix,
 QLabel#labelRecStatistics {
-  font-family: "Open Sans";
+  font-family: "Helvetica Neue";
   font-weight: normal;
   font-style: normal;
 }
@@ -349,12 +349,12 @@ WTrackTableViewHeader::item {
   didn't find the magic number.. it's some unintuitive floating point value
   that aligns font pixels to screen pixels so the fonts look sharp.
 
-  font-family: "Acknowledge TT (BRK)";
-  font-family: "Bulky Pixels";
-  font-family: "Irresistor";
-  font-family: "Visitor TT1 BRK";
-  font-family: "Boxy Bold";
-  font-family: "Pixel Intv";
+  font-family: "Helvetica Neue";
+  font-family: "Helvetica Neue";
+  font-family: "Helvetica Neue";
+  font-family: "Helvetica Neue";
+  font-family: "Helvetica Neue";
+  font-family: "Helvetica Neue";
   font-size: 13px;
   color: #eee;
   */

@@ -8,8 +8,8 @@ if ! command -v inkscape &> /dev/null; then
     exit 1
 fi
 
-input_svg="res/images/icons/scalable/apps/mixxx_macos.svg"
-tmp_dir="$(mktemp -dt mixxx_icon)"
+input_svg="res/images/icons/scalable/apps/paramix_macos.svg"
+tmp_dir="$(mktemp -dt paramix_icon)"
 output_dir="$tmp_dir.iconset"
 output_icns=(
     "res/osx/application.icns"

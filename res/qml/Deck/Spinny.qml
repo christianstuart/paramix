@@ -5,6 +5,12 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import "../Theme"
 
+/// Platter with concentric rings, a rotating position tick and the live BPM /
+/// pitch readout in the centre.
+///
+/// The platter is deliberately matte: flat surface tokens, 1 px hairlines and
+/// no glow. The tick and hub only brighten when a track is loaded, so the
+/// control reads as idle hardware rather than a lit ornament.
 Item {
     id: root
 
@@ -19,19 +25,39 @@ Item {
     Rectangle {
         id: spinner
 
-        color: '#BDBDBD'
+        anchors.centerIn: parent
+        border.color: Theme.borderStrong
+        border.width: 1
+        color: Theme.surface2
         height: 140
         radius: width / 2
         width: 140
 
-        transform: Rotation {
-            angle: 45
-            origin.x: spinner.width / 2
-            origin.y: spinner.height / 2
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 6
+            border.color: Theme.border
+            border.width: 1
+            color: "transparent"
+            radius: width / 2
         }
+        Rectangle {
+            id: hub
 
-        anchors {
-            top: parent.top
+            anchors.centerIn: parent
+            border.color: Theme.border
+            border.width: 1
+            color: Theme.surface0
+            height: 64
+            opacity: trackLoadedControl.value ? 1 : 0.75
+            radius: width / 2
+            width: 64
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.motionNormal
+                }
+            }
         }
         MixxxControls.Spinny {
             id: spinnyIndicator
@@ -47,35 +73,33 @@ Item {
                 Rectangle {
                     id: tick
 
-                    color: '#0E0E0E'
-                    height: 70
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 16
+                    color: trackLoadedControl.value ? Theme.textSecondary : Theme.textMuted
+                    height: 16
+                    radius: 1
                     width: 2
 
-                    anchors {
-                        horizontalCenter: parent.horizontalCenter
-                        top: parent.top
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.motionFast
+                        }
                     }
                 }
             }
         }
     }
-    Rectangle {
+    Column {
         id: tempoInfo
 
         anchors.centerIn: spinner
-        clip: true
-        color: '#0E0E0E'
-        height: trackLoadedControl.value ? spinner.height / 4 : 0
-        radius: height / 2 - 5
-        width: spinner.width / 2 - 10
+        opacity: trackLoadedControl.value ? 1 : 0
+        spacing: 1
 
-        Behavior on height {
-            SpringAnimation {
-                id: heightAnimation
-
-                damping: 0.2
-                duration: 500
-                spring: 2
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.motionNormal
             }
         }
 
@@ -85,8 +109,16 @@ Item {
             readonly property real bpm: bpmControl.value
             readonly property int precision: 2
 
-            color: '#BDBDBD'
+            anchors.horizontalCenter: parent.horizontalCenter
+            color: Theme.textPrimary
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeLg
+            font.weight: Theme.fontWeightDemiBold
+            horizontalAlignment: Text.AlignHCenter
             text: `${Math.round(bpm)}.${((bpm % 1) * Math.pow(10, precision)).toFixed().padEnd(precision, "0")}`
+
+            Accessible.name: qsTr("%1 BPM").arg(tempo.text)
+            Accessible.role: Accessible.StaticText
 
             Mixxx.ControlProxy {
                 id: bpmControl
@@ -94,30 +126,27 @@ Item {
                 group: root.group
                 key: "bpm"
             }
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: parent.top
-                topMargin: 2
-            }
         }
         Label {
             id: pitchRatio
 
             readonly property real ratio: ((rateRatioControl.value - 1) * 100).toPrecision(2)
 
-            color: Theme.darkGray3
+            anchors.horizontalCenter: parent.horizontalCenter
+            color: Theme.textMuted
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeXs
+            horizontalAlignment: Text.AlignHCenter
             text: ((ratio > 0) ? "+" + ratio.toFixed(2) : ratio.toFixed(2)) + "%"
+
+            Accessible.name: qsTr("Pitch %1").arg(pitchRatio.text)
+            Accessible.role: Accessible.StaticText
 
             Mixxx.ControlProxy {
                 id: rateRatioControl
 
                 group: root.group
                 key: "rate_ratio"
-            }
-            anchors {
-                bottom: parent.bottom
-                bottomMargin: 2
-                horizontalCenter: parent.horizontalCenter
             }
         }
     }

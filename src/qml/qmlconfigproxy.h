@@ -319,6 +319,53 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     set_librarySeratoEnabled NOTIFY
                             librarySeratoEnabledChanged);
 
+    // Stems group
+    // {flac, alac, aac}
+    Q_PROPERTY(QString stemFileFormat READ stemFileFormat WRITE
+                    set_stemFileFormat NOTIFY stemFileFormatChanged);
+    // Kbps, 32..512
+    Q_PROPERTY(int stemAacBitrate READ stemAacBitrate WRITE set_stemAacBitrate
+                    NOTIFY stemAacBitrateChanged);
+    // Path to the stem separation model (ONNX). Empty means "not configured".
+    Q_PROPERTY(QString stemModelPath READ stemModelPath WRITE set_stemModelPath
+                    NOTIFY stemModelPathChanged);
+    // Directory where separated stem sets are written.
+    Q_PROPERTY(QString stemOutputDirectory READ stemOutputDirectory WRITE
+                    set_stemOutputDirectory NOTIFY stemOutputDirectoryChanged);
+    // Ask the separator for a GPU execution provider.
+    Q_PROPERTY(bool stemGpuAcceleration READ stemGpuAcceleration WRITE
+                    set_stemGpuAcceleration NOTIFY stemGpuAccelerationChanged);
+    // Hardware-independent default: true when a suitable GPU and a runtime
+    // provider were both detected. Constant for the process lifetime.
+    Q_PROPERTY(bool stemGpuAccelerationDefault READ stemGpuAccelerationDefault
+                    CONSTANT);
+
+    // Paramix interface customization
+    Q_PROPERTY(QString paramixColorScheme READ paramixColorScheme WRITE
+                    set_paramixColorScheme NOTIFY paramixColorSchemeChanged);
+    Q_PROPERTY(QString paramixAccentColor READ paramixAccentColor WRITE
+                    set_paramixAccentColor NOTIFY paramixAccentColorChanged);
+    Q_PROPERTY(QString paramixFontFamily READ paramixFontFamily WRITE
+                    set_paramixFontFamily NOTIFY paramixFontFamilyChanged);
+    Q_PROPERTY(double paramixFontScale READ paramixFontScale WRITE
+                    set_paramixFontScale NOTIFY paramixFontScaleChanged);
+    Q_PROPERTY(double paramixMotionScale READ paramixMotionScale WRITE
+                    set_paramixMotionScale NOTIFY paramixMotionScaleChanged);
+    Q_PROPERTY(bool paramixShowWaveforms READ paramixShowWaveforms WRITE
+                    set_paramixShowWaveforms NOTIFY paramixShowWaveformsChanged);
+    Q_PROPERTY(bool paramixShowCoverArt READ paramixShowCoverArt WRITE
+                    set_paramixShowCoverArt NOTIFY paramixShowCoverArtChanged);
+    Q_PROPERTY(bool paramixShowStems READ paramixShowStems WRITE
+                    set_paramixShowStems NOTIFY paramixShowStemsChanged);
+    Q_PROPERTY(bool paramixShowHotcues READ paramixShowHotcues WRITE
+                    set_paramixShowHotcues NOTIFY paramixShowHotcuesChanged);
+    Q_PROPERTY(bool paramixShowLibrary READ paramixShowLibrary WRITE
+                    set_paramixShowLibrary NOTIFY paramixShowLibraryChanged);
+    Q_PROPERTY(bool paramixShowPreview READ paramixShowPreview WRITE
+                    set_paramixShowPreview NOTIFY paramixShowPreviewChanged);
+    Q_PROPERTY(bool paramixCompactDecks READ paramixCompactDecks WRITE
+                    set_paramixCompactDecks NOTIFY paramixCompactDecksChanged);
+
     // Colors
     Q_PROPERTY(QVariantList hotcueColorPalette READ hotcueColorPalette NOTIFY
                     hotcueColorPaletteChanged);
@@ -351,6 +398,14 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     Q_INVOKABLE QVariantList colorPalette(const QString& paletteName) const;
 
     Q_INVOKABLE QStringList paletteNames() const;
+
+    // Native file pickers for settings pages. Return an empty string when the
+    // user cancels.
+    Q_INVOKABLE QString chooseDirectory(const QString& title,
+            const QString& initialPath = QString());
+    Q_INVOKABLE QString chooseFile(const QString& title,
+            const QString& initialPath = QString(),
+            const QString& filter = QString());
   signals:
     void hotcueColorPaletteChanged();
     void trackColorPaletteChanged();
@@ -477,6 +532,29 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(bool, libraryRekordboxEnabled);
     PROPERTY_DECL_ACCESSOR(bool, librarySeratoEnabled);
 
+    // Stems group
+    PROPERTY_DECL_ACCESSOR(QString, stemFileFormat);
+    // Paramix interface customization
+    PROPERTY_DECL_ACCESSOR(QString, paramixColorScheme);
+    PROPERTY_DECL_ACCESSOR(QString, paramixAccentColor);
+    PROPERTY_DECL_ACCESSOR(QString, paramixFontFamily);
+    PROPERTY_DECL_ACCESSOR(double, paramixFontScale);
+    PROPERTY_DECL_ACCESSOR(double, paramixMotionScale);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowWaveforms);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowCoverArt);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowStems);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowHotcues);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowLibrary);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowPreview);
+    PROPERTY_DECL_ACCESSOR(bool, paramixCompactDecks);
+
+    // Kbps, 32..512
+    PROPERTY_DECL_ACCESSOR(int, stemAacBitrate);
+    PROPERTY_DECL_ACCESSOR(QString, stemModelPath);
+    PROPERTY_DECL_ACCESSOR(QString, stemOutputDirectory);
+    PROPERTY_DECL_ACCESSOR(bool, stemGpuAcceleration);
+    bool stemGpuAccelerationDefault() const;
+
     static QmlConfigProxy* create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine);
     static inline void registerUserSettings(UserSettingsPointer pConfig) {
         s_pUserSettings = std::move(pConfig);
@@ -572,6 +650,26 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void libraryTraktorEnabledChanged();
     void libraryRekordboxEnabledChanged();
     void librarySeratoEnabledChanged();
+    // Stems group
+    void stemFileFormatChanged();
+    // Paramix interface customization
+    void paramixColorSchemeChanged();
+    void paramixAccentColorChanged();
+    void paramixFontFamilyChanged();
+    void paramixFontScaleChanged();
+    void paramixMotionScaleChanged();
+    void paramixShowWaveformsChanged();
+    void paramixShowCoverArtChanged();
+    void paramixShowStemsChanged();
+    void paramixShowHotcuesChanged();
+    void paramixShowLibraryChanged();
+    void paramixShowPreviewChanged();
+    void paramixCompactDecksChanged();
+
+    void stemAacBitrateChanged();
+    void stemModelPathChanged();
+    void stemOutputDirectoryChanged();
+    void stemGpuAccelerationChanged();
 
   private:
     template<typename Type, typename Signal>

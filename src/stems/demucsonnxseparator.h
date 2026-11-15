@@ -1,19 +1,30 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "util/types.h"
 
 namespace mixxx::stems {
 
+/// Default bound for the ONNX Runtime intra-op and DSP worker pools. Keeping
+/// the separation runtime off most cores leaves room for the audio callback,
+/// the GUI and batch analysis. Exposed for the startup audit log.
+inline int boundedOnnxThreadCount() {
+    const int hardwareThreads =
+            static_cast<int>(std::thread::hardware_concurrency());
+    return std::max(1, std::min(4, hardwareThreads / 2));
+}
+
 /// Configuration for the vendored demucs-onnx runtime.
 struct DemucsOnnxConfig {
     /// A graph (`*.onnx`), a bag manifest (`*.json`), or a bare model name.
     std::string modelPath;
-    /// auto, cpu, cuda, tensorrt, directml, coreml or rocm.
+    /// auto, cpu, cuda, tensorrt, directml, coreml, rocm or webgpu.
     std::string device = "auto";
     /// ONNX Runtime intra-op threads; zero uses a bounded default of
     /// min(4, max(1, hardware_concurrency() / 2)).
@@ -106,5 +117,11 @@ inline constexpr bool isDemucsOnnxAvailable() {
     return false;
 #endif
 }
+
+/// True when the linked ONNX Runtime exposes at least one GPU execution
+/// provider. False in builds without ONNX Runtime. This answers "could a GPU
+/// be used at all?", not "is the machine's GPU suitable?" — the latter is
+/// hasDedicatedGpu() in `stems/stemgpudetect.h`.
+bool hasGpuInferenceProvider();
 
 } // namespace mixxx::stems

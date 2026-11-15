@@ -3,6 +3,8 @@ import QtQuick
 import QtQuick.Layouts
 import "../Theme"
 
+/// One track list cell. Owns the row background (selection, hover, zebra
+/// stripes) and the drag image shown while dragging a track.
 Rectangle {
     id: root
 
@@ -15,8 +17,29 @@ Rectangle {
     }
     Drag.supportedActions: Qt.CopyAction
     anchors.fill: parent
-    color: selected ? Theme.accentColor : (row % 2 == 0 ? Theme.sunkenBackgroundColor : Theme.backgroundColor)
+    color: selected ? Qt.alpha(Theme.accent, 0.22) : hoverHandler.hovered ? Theme.surfaceHover : (row % 2 == 0 ? Theme.surface1 : Theme.surface0)
 
+    HoverHandler {
+        id: hoverHandler
+    }
+
+    // Accent marker on the left edge of the selected row + subtle bottom key.
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.top: parent.top
+        color: Theme.accent
+        visible: selected
+        width: 3
+    }
+    Rectangle {
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        color: selected ? Qt.alpha(Theme.accent, 0.35) : Theme.border
+        height: 1
+        opacity: selected ? 1.0 : 0.4
+    }
     Item {
         id: dragImageSource
 
@@ -25,24 +48,23 @@ Rectangle {
         width: 190
 
         Rectangle {
-            color: Theme.sunkenBackgroundColor
-            radius: 12
+            anchors.fill: parent
+            anchors.margins: Theme.space1
+            border.color: Theme.border
+            border.width: 1
+            color: Theme.surface2
+            radius: Theme.radiusMd
 
-            anchors {
-                bottom: parent.bottom
-                left: parent.left
-                margins: 5
-                right: parent.right
-                top: parent.top
-            }
             RowLayout {
                 anchors.fill: parent
+                anchors.margins: Theme.space2
+                spacing: Theme.space2
 
                 Image {
                     id: cover
 
                     Layout.fillHeight: true
-                    Layout.preferredWidth: cover_art ? 75 : 0
+                    Layout.preferredWidth: cover_art ? 60 : 0
                     asynchronous: true
                     clip: true
                     fillMode: Image.PreserveAspectFit
@@ -51,37 +73,25 @@ Rectangle {
                 ColumnLayout {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
+                    spacing: 0
 
                     Text {
-                        color: Theme.textColor
-                        text: track ? track.title : 'Unknown title'
+                        Layout.fillWidth: true
+                        color: Theme.textPrimary
+                        elide: Text.ElideRight
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm
+                        font.weight: Theme.fontWeightDemiBold
+                        text: track ? track.title : qsTr("Unknown title")
                     }
                     Text {
-                        color: Theme.midGray
-                        text: track ? track.artist : 'Unknown artist'
+                        Layout.fillWidth: true
+                        color: Theme.textSecondary
+                        elide: Text.ElideRight
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeXs
+                        text: track ? track.artist : qsTr("Unknown artist")
                     }
-                }
-            }
-            Rectangle {
-                width: 20
-
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-
-                    GradientStop {
-                        color: Theme.darkGray
-                        position: 1
-                    }
-                    GradientStop {
-                        color: 'transparent'
-                        position: 0
-                    }
-                }
-
-                anchors {
-                    bottom: parent.bottom
-                    right: parent.right
-                    top: parent.top
                 }
             }
         }
@@ -90,23 +100,11 @@ Rectangle {
         id: dragImageEffect
 
         anchors.fill: dragImageSource
-        color: "#80000000"
+        color: Qt.rgba(0, 0, 0, 0.5)
         horizontalOffset: 0
-        radius: 10.0
+        radius: 10
         source: dragImageSource
         verticalOffset: 0
         visible: false
-    }
-    Rectangle {
-        id: border
-
-        color: Theme.darkGray2
-        width: 1
-
-        anchors {
-            bottom: parent.bottom
-            right: parent.right
-            top: parent.top
-        }
     }
 }

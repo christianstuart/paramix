@@ -265,6 +265,43 @@ Current market patterns: Traktor Pro 4 uses right-click offline separation with 
 
 **Recommendation:** Option 1, staged S→M: first a tinted composite + 4-row stem strip (lowest risk, immediate value), then collapsible stacked lanes and per-stem FX sends. Define a color-blind-safe stem palette plus text labels (never color alone): drums `#E85D4A`, bass `#7A5AF8`, vocals `#2BB673`, other `#F2C94C`; validate contrast; add `qsTr()` and `Accessible.*` from day one.
 
+**Implementation status (2026-11-13, `feature/ui-overhaul`).** Option 1 is being built in
+`res/qml` (the QML skin source), not `res/skins/Paramix`: QML skins are discovered from
+`res/qml` when the app runs in developer mode, and `res/skins/Paramix` would not be found. The
+token layer and flat base controls are in `res/qml/Theme/Theme.qml` and the root QML controls,
+documented in `docs/paramix-ui-design-system.md`. The deck stem strip, mixer/library
+modernization and Settings → Stems page are landing on the same branch. The library stem-status
+column is deferred until a C++ track-list column exists; the Standard Bar vs. Rekordbox Phrase
+toggle is deferred until beatgrid phrase storage (ADR-003) is implemented; native engine stem
+solo is deferred, so the strip currently orchestrates mute at the QML level.
+
+**Implementation status (2026-11-15).** The QML skin now has feature parity with the classic UI for
+the parts this plan depends on:
+
+- **Stem generation is reachable from the UI.** The track context menu is rendered from the real
+  `WTrackMenu` action tree (`src/qml/qmltrackmenuproxy.*`), so Generate Stems / Remove Stems,
+  AutoDJ queueing, playlists, crates, BPM, metadata, clear/analyze and file operations behave
+  exactly like the classic menu. `Mixxx.StemService` exposes availability, model status, queue and
+  active counts, the current job title and live 0–100 % progress; a global task strip shows the
+  running job, the queue depth and a Cancel button, and Settings → Stems now edits the ONNX model
+  path and the output directory. The library shows a per-row stems badge backed by the exported
+  `stem_set` index, and refreshes when `stemsReady` fires.
+- **Background work is isolated.** Batch analysis uses at most `min(8, cores/2)` low-priority
+  workers; a coordinator suspends analysis while stems separate (without discarding the queue and
+  without overriding a user pause) and pauses separation when audio latency usage stays above 0.85.
+  The stem worker runs at low priority with a bounded ONNX thread pool
+  (`min(4, cores/2)`), and startup logs the thread layout for audit.
+- **Analysis progress is visible.** `AnalysisFeature` publishes an aggregate 0–100 % progress,
+  current/total count and the current track title, shown in the same task strip as stems.
+- **Deck layout follows the reference screenshots** (`docs/reference/traktor-Move.jpg`, `traktor-Cue.jpg`, `traktor-Grid.jpg`). A MOVE / CUE / GRID tab stack replaces the
+  always-visible beatjump and beatgrid rows: one constant 112 px (96 compact) pane band, persisted
+  per deck in `[Skin],deckN_pane`, CUE by default.
+- **Mixer parity.** Master (gain/balance/booth), headphone (gain/mix/split), main VU with clip LEDs
+  and a collapsible mic/aux strip; the section is width-responsive for the narrow mixer column.
+
+Not covered yet: CoreML execution provider (separation is CPU-only), `.stem.mp4` export from the
+generated sets, the model download manager, and a QML stem-status column (the badge replaces it).
+
 ### 5.9 Model hosting and distribution (decided: download-only via GitHub Releases)
 
 **What ships:** no model weights in git or in any installer. The app carries ONNX Runtime (the inference library) and a small **model manifest** (JSON) listing model id, version, URL, SHA-256, byte size, license, stem layout, sample rate and required ORT opset. The actual `htdemucs_ft` assets (~630 MB fp16) live as GitHub Releases assets on the dedicated **`paramix-models`** repository (decision 9).
@@ -438,6 +475,17 @@ class BeatDetector {
 - **Legal:** retain GPL-2.0 notices, upstream copyright headers and attribution to the Mixxx project; add a NOTICE explaining the fork. Do not use Mixxx trademarks as the product name.
 - **Data/compatibility decision (resolved 2026-11-11):** move to **`~/.paramix`** with a first-run migration wizard (decision 10). The wizard copies the library DB, settings and controller mappings, verifies the copy before switching, and leaves `~/.mixxx` untouched so a downgrade or a failed migration is recoverable. Internal `Mixxx` identifiers may stay where changing them would break file formats; user-visible paths, settings and branding become Paramix.
 - **Versioning:** `Paramix <fork-version>` surfaced in the UI, with the upstream Mixxx version recorded in About/diagnostics (e.g. "Paramix 1.0 (based on Mixxx 2.7.0)").
+
+**Implementation status (2026-11-14).** The user-visible identity is rebranded: application name,
+window/dialog titles, About dialog, menus, notifications, installer metadata, package IDs
+(`org.paramix.Paramix`), Linux desktop entry and AppStream metadata, macOS bundle identifier,
+Windows resource metadata and product/upgrade GUIDs, app/installer icons, and the QML/legacy skin
+logos. The installed executable is `paramix`/`paramix.exe` while the CMake target and internal
+`Mixxx` identifiers stay unchanged. Settings default to `~/.paramix` (Linux/BSD) and the matching
+app-data directory elsewhere. Upstream attribution (GPL notices, Mixxx Development Team, bundled
+effect credits, historical version references) is retained, and the About dialog states that
+Paramix is based on Mixxx. The first-run `~/.paramix` migration wizard and the Debian packaging
+rename are still open; see `docs/paramix-rebrand.md`.
 
 ---
 

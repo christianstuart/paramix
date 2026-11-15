@@ -1,42 +1,48 @@
 import "." as Skin
-import Mixxx 1.0 as Mixxx
-import Qt.labs.qmlmodels
-import QtQml
 import QtQuick
-import QtQml.Models
-import QtQuick.Layouts
-import QtQuick.Controls 2.15
-import QtQuick.Shapes 1.6
 import "Theme"
 
+/// Preview deck placeholder: a slim header eyebrow over a flat, recessed
+/// surface. The real preview waveform can replace the centered hint without
+/// changing the surrounding chrome.
 Rectangle {
     id: root
 
-    color: 'transparent'
+    border.color: Theme.border
+    border.width: 1
+    color: Theme.surface1
+    radius: Theme.radiusMd
 
-    Shape {
-        anchors.fill: parent
-        ShapePath {
-            strokeColor: Theme.midGray
-            strokeWidth: 1
-            fillColor: "transparent"
-            capStyle: ShapePath.RoundCap
+    Item {
+        id: header
 
-            startX: 0
-            startY: 0
-            PathLine { x: width; y: 0 }
-            PathLine { x: width; y: height }
-            PathLine { x: 0; y: height }
-            PathLine { x: 0; y: 0 }
-            PathLine { x: width; y: height }
-            PathLine { x: 0; y: height }
-            PathLine { x: width; y: 0 }
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 22
+
+        Skin.SectionText {
+            anchors.fill: parent
+            anchors.leftMargin: Theme.space2
+            anchors.rightMargin: Theme.space2
+            horizontalAlignment: Text.AlignLeft
+            text: qsTr("Preview")
+        }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            color: Theme.border
+            height: 1
         }
     }
-
     Text {
         anchors.centerIn: parent
-        color: 'white'
-        text: qsTr("PreviewDeck placeholder")
+        color: Theme.textMuted
+        elide: Text.ElideRight
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeSm
+        horizontalAlignment: Text.AlignHCenter
+        text: qsTr("Drop a track here to preview")
     }
 }

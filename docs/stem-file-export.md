@@ -37,10 +37,13 @@ FileFormat=flac      ; flac | alac | aac
 AacBitrate=256       ; kbps, clamped to 32..512
 ModelPath=           ; local ONNX graph or bag manifest
 OutputDirectory=     ; empty uses <settings>/Stems
+GpuAcceleration=     ; absent uses the detected default, 1/0 forces it
 ```
 
 These are read by `mixxx::stems::readStemExportSettings()` and written by
-`writeStemExportSettings()`. The Settings -> Stems UI will bind to the same keys.
+`writeStemExportSettings()`. `GpuAcceleration` is read and written by
+`mixxx::stems::isGpuAccelerationEnabled()` / `setGpuAccelerationEnabled()`
+(`src/stems/stemgpudetect.*`); Settings -> Stems binds to the same keys.
 
 ## Sidecar
 

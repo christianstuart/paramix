@@ -1,4 +1,5 @@
 import QtQuick 2.12
+import "Theme"
 
 Behavior {
     id: root
@@ -13,8 +14,8 @@ Behavior {
             property: "opacity"
             from: 1
             to: 0
-            easing.type: Easing.InQuad
-            duration: 150
+            easing.type: Easing.InCubic
+            duration: Theme.motionFast
         }
 
         // Actually change the property value (i.e. "visible")
@@ -27,8 +28,8 @@ Behavior {
             from: 0
             to: 1
             property: "opacity"
-            easing.type: Easing.OutQuad
-            duration: 150
+            easing.type: Easing.OutCubic
+            duration: Theme.motionFast
         }
     }
 }

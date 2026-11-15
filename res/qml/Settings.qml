@@ -284,6 +284,8 @@ Popup {
                     }
                     Settings.Waveform {
                     }
+                    Settings.Stems {
+                    }
                     Settings.MixerEffect {
                     }
                     Settings.AutoDJ {

@@ -156,7 +156,7 @@ Item {
         anchors.leftMargin: root.horizontalPadding
         anchors.rightMargin: root.horizontalPadding
         text: root.text
-        font.family: "Open Sans"
+        font.family: "Helvetica Neue"
         font.pixelSize: root.pixelSize
         font.weight: Font.Normal
         color: root.textColor
@@ -171,7 +171,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: Math.max(2, root.horizontalPadding)
         anchors.rightMargin: Math.max(2, root.horizontalPadding)
-        font.family: "Open Sans"
+        font.family: "Helvetica Neue"
         font.pixelSize: root.pixelSize
         color: root.textColor
         selectedTextColor: LateNightTheme.trackPropertySelectedTextColor

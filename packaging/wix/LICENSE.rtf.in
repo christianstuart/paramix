@@ -1,8 +1,8 @@
 {\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Courier New;}}
 {\colortbl ;\red0\green0\blue255;}
 {\*\generator Riched20 10.0.14393}\viewkind4\uc1
-\pard\qj\ul\b\f0\fs22\lang1036 Mixxx @CMAKE_PROJECT_VERSION@, Digital DJ'ing software.\ulnone\b0\fs24\par
-\fs22 Copyright (C) 2001-2026 Mixxx Development Team\par
+\pard\qj\ul\b\f0\fs22\lang1036 Paramix @CMAKE_PROJECT_VERSION@, Digital DJ'ing software.\ulnone\b0\fs24\par
+\fs22 Copyright (C) 2001-2026 Mixxx Development Team and Paramix contributors\par
 \par
 Promotional tracks are copyright their respective owners and\par
 distributed with permission.\par
@@ -11,11 +11,11 @@ Depending on your platform, you may receive a copy of PortAudio ({{\field{\*\fld
 \par
 This may also be in turn compiled with ASIO support, which is provided by the Steinberg ASIO SDK. The Steinberg ASIO SDK and Steinberg VST PlugIn SDK are Copyright Steinberg Media Technologies GmbH. ASIO and VST are trademarks of Steinberg Media Technologies GmbH. The license is available at {{\field{\*\fldinst{HYPERLINK http://www.steinberg.net/en/company/developer.html }}{\fldrslt{http://www.steinberg.net/en/company/developer.html\ul0\cf0}}}}\f0\fs22  .\par
 \par
-On Windows you may receive a copy of the Microsoft Visual Studio runtime libraries. These are distributed only for the purpose of allowing Mixxx to run as per the license agreement for Visual Studio and are copyright of Microsoft.\par
+On Windows you may receive a copy of the Microsoft Visual Studio runtime libraries. These are distributed only for the purpose of allowing Paramix to run as per the license agreement for Visual Studio and are copyright of Microsoft.\par
 \par
-This distribution of Mixxx may include skins that are licensed under a Creative Commons license. Full licensing information is available individually for each skin, located in their "skin.xml" file.\par
+This distribution of Paramix may include skins that are licensed under a Creative Commons license. Full licensing information is available individually for each skin, located in their "skin.xml" file.\par
 \par
-The source code for Mixxx itself is licensed under the GPL v2 and the GPL v2 with an App Store exception as follows:\par
+The source code for Paramix itself is licensed under the GPL v2 and the GPL v2 with an App Store exception as follows:\par
 \par
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.\par
 \par
@@ -23,7 +23,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 \par
 You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA\par
 \par
-Mixxx comes with ABSOLUTELY NO WARRANTY;\par
+Paramix comes with ABSOLUTELY NO WARRANTY;\par
 \par
 \par
 

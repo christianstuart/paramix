@@ -14,6 +14,7 @@
 #include "util/cmdlineargs.h"
 #include "util/desktophelper.h"
 #include "util/experiment.h"
+#include "util/restartapplication.h"
 #include "vinylcontrol/defs_vinylcontrol.h"
 
 namespace {
@@ -84,7 +85,7 @@ QUrl documentationUrl(
         return QUrl(docUrl);
     }
 }
-}  // namespace
+} // namespace
 
 WMainMenuBar::WMainMenuBar(QWidget* pParent,
         UserSettingsPointer pConfig,
@@ -111,19 +112,18 @@ void WMainMenuBar::initialize() {
     for (unsigned int deck = 0; deck < kMaxLoadToDeckActions; ++deck) {
         QString playerLoadStatusText = loadTrackStatusText.arg(QString::number(deck + 1));
         QAction* pFileLoadSongToPlayer = new QAction(
-            loadTrackText.arg(QString::number(deck + 1)), this);
+                loadTrackText.arg(QString::number(deck + 1)), this);
         m_pKeyboard->registerMenuBarActionSetShortcut(pFileLoadSongToPlayer,
                 ConfigKey(kKbdShortcutsGroup,
                         QStringLiteral("FileMenu_LoadDeck%1").arg(deck + 1)),
                 loadToDeckDefaultKeyBinding(deck));
         pFileLoadSongToPlayer->setStatusTip(playerLoadStatusText);
         pFileLoadSongToPlayer->setWhatsThis(
-            buildWhatsThis(openText, playerLoadStatusText));
+                buildWhatsThis(openText, playerLoadStatusText));
         // Visibility of load to deck actions is set in
         // WMainMenuBar::onNumberOfDecksChanged.
         pFileLoadSongToPlayer->setVisible(false);
-        connect(pFileLoadSongToPlayer, &QAction::triggered,
-                this, [this, deck] { emit loadTrackToDeck(deck + 1); });
+        connect(pFileLoadSongToPlayer, &QAction::triggered, this, [this, deck] { emit loadTrackToDeck(deck + 1); });
 
         pFileMenu->addAction(pFileLoadSongToPlayer);
         m_loadToDeckActions.push_back(pFileLoadSongToPlayer);
@@ -132,7 +132,7 @@ void WMainMenuBar::initialize() {
     pFileMenu->addSeparator();
 
     QString quitTitle = tr("&Exit");
-    QString quitText = tr("Quits Mixxx");
+    QString quitText = tr("Quits Paramix");
     auto* pFileQuit = new QAction(quitTitle, this);
     m_pKeyboard->registerMenuBarActionSetShortcut(
             pFileQuit,
@@ -291,7 +291,7 @@ void WMainMenuBar::initialize() {
 
     // Microphone Section
     QString showMicrophoneTitle = tr("Show Microphone Section");
-    QString showMicrophoneText = tr("Show the microphone section of the Mixxx interface.") +
+    QString showMicrophoneText = tr("Show the microphone section of the Paramix interface.") +
             " " + mayNotBeSupported;
     auto* pViewShowMicrophone = new QAction(showMicrophoneTitle, this);
     pViewShowMicrophone->setCheckable(true);
@@ -307,7 +307,7 @@ void WMainMenuBar::initialize() {
 
 #ifdef __VINYLCONTROL__
     QString showVinylControlTitle = tr("Show Vinyl Control Section");
-    QString showVinylControlText = tr("Show the vinyl control section of the Mixxx interface.") +
+    QString showVinylControlText = tr("Show the vinyl control section of the Paramix interface.") +
             " " + mayNotBeSupported;
     auto* pViewVinylControl = new QAction(showVinylControlTitle, this);
     pViewVinylControl->setCheckable(true);
@@ -323,7 +323,7 @@ void WMainMenuBar::initialize() {
 #endif
 
     QString showPreviewDeckTitle = tr("Show Preview Deck");
-    QString showPreviewDeckText = tr("Show the preview deck in the Mixxx interface.") +
+    QString showPreviewDeckText = tr("Show the preview deck in the Paramix interface.") +
             " " + mayNotBeSupported;
     auto* pViewShowPreviewDeck = new QAction(showPreviewDeckTitle, this);
     pViewShowPreviewDeck->setCheckable(true);
@@ -337,9 +337,8 @@ void WMainMenuBar::initialize() {
             ConfigKey(kSkinGroup, QStringLiteral("show_preview_decks")));
     pViewMenu->addAction(pViewShowPreviewDeck);
 
-
     QString showCoverArtTitle = tr("Show Cover Art");
-    QString showCoverArtText = tr("Show cover art in the Mixxx interface.") +
+    QString showCoverArtText = tr("Show cover art in the Paramix interface.") +
             " " + mayNotBeSupported;
     auto* pViewShowCoverArt = new QAction(showCoverArtTitle, this);
     pViewShowCoverArt->setCheckable(true);
@@ -402,7 +401,7 @@ void WMainMenuBar::initialize() {
     pViewMenu->addSeparator();
 
     QString fullScreenTitle = tr("&Full Screen");
-    QString fullScreenText = tr("Display Mixxx using the full screen");
+    QString fullScreenText = tr("Display Paramix using the full screen");
     auto* pViewFullScreen = new QAction(fullScreenTitle, this);
     QList<QKeySequence> shortcuts;
     // We use F11 _AND_ the OS shortcut only on Linux and Windows because on
@@ -445,7 +444,7 @@ void WMainMenuBar::initialize() {
 #ifdef __VINYLCONTROL__
     QMenu* pVinylControlMenu = new QMenu(tr("&Vinyl Control"), this);
     QString vinylControlText = tr(
-            "Use timecoded vinyls on external turntables to control Mixxx");
+            "Use timecoded vinyls on external turntables to control Paramix");
 
     for (int i = 0; i < kMaximumVinylControlInputs; ++i) {
         QString vinylControlTitle = tr("Enable Vinyl Control &%1").arg(i + 1);
@@ -466,9 +465,8 @@ void WMainMenuBar::initialize() {
         vc_checkbox->setVisible(false);
         vc_checkbox->setStatusTip(vinylControlText);
         vc_checkbox->setWhatsThis(buildWhatsThis(vinylControlTitle,
-                                                 vinylControlText));
-        connect(vc_checkbox, &QAction::triggered,
-                this, [this, i] { emit toggleVinylControl(i); });
+                vinylControlText));
+        connect(vc_checkbox, &QAction::triggered, this, [this, i] { emit toggleVinylControl(i); });
         pVinylControlMenu->addAction(vc_checkbox);
     }
     pOptionsMenu->addMenu(pVinylControlMenu);
@@ -542,7 +540,7 @@ void WMainMenuBar::initialize() {
     pOptionsMenu->addSeparator();
 
     QString preferencesTitle = tr("&Preferences");
-    QString preferencesText = tr("Change Mixxx settings (e.g. playback, MIDI, controls)");
+    QString preferencesText = tr("Change Paramix settings (e.g. playback, MIDI, controls)");
     auto* pOptionsPreferences = new QAction(preferencesTitle, this);
     m_pKeyboard->registerMenuBarActionSetShortcut(
             pOptionsPreferences,
@@ -597,7 +595,7 @@ void WMainMenuBar::initialize() {
 
         QString enableExperimentTitle = tr("Stats: &Experiment Bucket");
         QString enableExperimentToolsText = tr(
-            "Enables experiment mode. Collects stats in the EXPERIMENT tracking bucket.");
+                "Enables experiment mode. Collects stats in the EXPERIMENT tracking bucket.");
         auto* pDeveloperStatsExperiment = new QAction(enableExperimentTitle, this);
         m_pKeyboard->registerMenuBarActionSetShortcut(pDeveloperStatsExperiment,
                 ConfigKey(kKbdShortcutsGroup,
@@ -606,7 +604,7 @@ void WMainMenuBar::initialize() {
         pDeveloperStatsExperiment->setShortcutContext(Qt::ApplicationShortcut);
         pDeveloperStatsExperiment->setStatusTip(enableExperimentToolsText);
         pDeveloperStatsExperiment->setWhatsThis(buildWhatsThis(
-            enableExperimentTitle, enableExperimentToolsText));
+                enableExperimentTitle, enableExperimentToolsText));
         pDeveloperStatsExperiment->setCheckable(true);
         pDeveloperStatsExperiment->setChecked(Experiment::isExperiment());
         connect(pDeveloperStatsExperiment,
@@ -617,7 +615,7 @@ void WMainMenuBar::initialize() {
 
         QString enableBaseTitle = tr("Stats: &Base Bucket");
         QString enableBaseToolsText = tr(
-            "Enables base mode. Collects stats in the BASE tracking bucket.");
+                "Enables base mode. Collects stats in the BASE tracking bucket.");
         auto* pDeveloperStatsBase = new QAction(enableBaseTitle, this);
         m_pKeyboard->registerMenuBarActionSetShortcut(
                 pDeveloperStatsBase,
@@ -626,7 +624,7 @@ void WMainMenuBar::initialize() {
         pDeveloperStatsBase->setShortcutContext(Qt::ApplicationShortcut);
         pDeveloperStatsBase->setStatusTip(enableBaseToolsText);
         pDeveloperStatsBase->setWhatsThis(buildWhatsThis(
-            enableBaseTitle, enableBaseToolsText));
+                enableBaseTitle, enableBaseToolsText));
         pDeveloperStatsBase->setCheckable(true);
         pDeveloperStatsBase->setChecked(Experiment::isBase());
         connect(pDeveloperStatsBase,
@@ -678,7 +676,7 @@ void WMainMenuBar::initialize() {
 
     // Community Support
     QString supportTitle = tr("&Community Support") + externalLinkSuffix;
-    QString supportText = tr("Get help with Mixxx");
+    QString supportText = tr("Get help with Paramix");
     auto* pHelpSupport = new QAction(supportTitle, this);
     pHelpSupport->setStatusTip(supportText);
     pHelpSupport->setWhatsThis(buildWhatsThis(supportTitle, supportText));
@@ -694,7 +692,7 @@ void WMainMenuBar::initialize() {
     QString manualSuffix = manualUrl.isLocalFile() ? QString() : externalLinkSuffix;
 
     QString manualTitle = tr("&User Manual") + manualSuffix;
-    QString manualText = tr("Read the Mixxx user manual.");
+    QString manualText = tr("Read the user manual.");
     auto* pHelpManual = new QAction(manualTitle, this);
     pHelpManual->setStatusTip(manualText);
     pHelpManual->setWhatsThis(buildWhatsThis(manualTitle, manualText));
@@ -726,7 +724,7 @@ void WMainMenuBar::initialize() {
     // User Settings Directory
     const QString& settingsDirPath = m_pConfig->getSettingsPath();
     QString settingsDirTitle = tr("&Settings directory");
-    QString settingsDirText = tr("Open the Mixxx user settings directory.");
+    QString settingsDirText = tr("Open the Paramix user settings directory.");
     auto* pHelpSettingsDir = new QAction(settingsDirTitle, this);
     pHelpSettingsDir->setMenuRole(QAction::NoRole);
     pHelpSettingsDir->setStatusTip(settingsDirText);
@@ -746,6 +744,21 @@ void WMainMenuBar::initialize() {
         slotVisitUrl(QUrl(MIXXX_TRANSLATION_URL));
     });
     pHelpMenu->addAction(pHelpTranslation);
+
+    // Restart into the Paramix QML interface. The reverse switch lives in the
+    // QML interface's customizer.
+    QString qmlInterfaceTitle = tr("Use &Paramix QML Interface");
+    QString qmlInterfaceText = tr("Restart in the Paramix QML interface.");
+    auto* pHelpQmlInterface = new QAction(qmlInterfaceTitle, this);
+    pHelpQmlInterface->setStatusTip(qmlInterfaceText);
+    pHelpQmlInterface->setWhatsThis(
+            buildWhatsThis(qmlInterfaceTitle, qmlInterfaceText));
+    connect(pHelpQmlInterface, &QAction::triggered, this, [] {
+        if (mixxx::restartApplication(true)) {
+            QCoreApplication::quit();
+        }
+    });
+    pHelpMenu->addAction(pHelpQmlInterface);
 
     pHelpMenu->addSeparator();
 
@@ -945,7 +958,7 @@ void WMainMenuBar::slotVisitUrl(const QUrl& url) {
 }
 
 void WMainMenuBar::createVisibilityControl(QAction* pAction,
-                                           const ConfigKey& key) {
+        const ConfigKey& key) {
     auto* pConnection = new VisibilityControlConnection(this, pAction, key);
     connect(this,
             &WMainMenuBar::internalOnNewSkinLoaded,
@@ -977,7 +990,7 @@ void WMainMenuBar::onNumberOfDecksChanged(int decks) {
 }
 
 VisibilityControlConnection::VisibilityControlConnection(
-    QObject* pParent, QAction* pAction, const ConfigKey& key)
+        QObject* pParent, QAction* pAction, const ConfigKey& key)
         : QObject(pParent),
           m_key(key),
           m_pAction(pAction) {

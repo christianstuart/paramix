@@ -1,10 +1,13 @@
 #pragma once
 #include <QIdentityProxyModel>
 #include <QQmlEngine>
+#include <QSet>
+#include <QTimer>
 
 #include "library/trackmodel.h"
 #include "qml/qmllibrarytracklistcolumn.h"
 #include "qml/qmltrackproxy.h"
+#include "track/trackid.h"
 
 namespace mixxx {
 namespace qml {
@@ -20,7 +23,8 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
         Track = Qt::UserRole,
         FileURL,
         CoverArt,
-        Delegate
+        Delegate,
+        HasStems,
     };
     Q_ENUM(Roles);
 
@@ -77,8 +81,29 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
             int role = Qt::DisplayRole) const override;
     Q_INVOKABLE void sort(int column, Qt::SortOrder order) override;
 
+  signals:
+    /// Emitted after a search was applied to the underlying track model so
+    /// that owners can remember the query and restore it later.
+    void searchRequested(const QString& searchText);
+
   private:
+    /// Connects to StemService::instance() once it exists. Start-up may create
+    /// the service after this model, so a bounded retry timer is used.
+    void ensureStemServiceConnected();
+
+    /// Re-emits the HasStems role for every row of `trackId`. When
+    /// `populateStemInfo` is true the cached stem metadata is attached to the
+    /// track first, mirroring what opening a cached stem source would do.
+    void refreshHasStems(TrackId trackId, bool populateStemInfo);
+    /// Track ids with an exported stem set. Used for the has_stems role so the
+    /// badge also shows before the stem metadata is loaded into the track.
+    QSet<TrackId> m_stemTrackIds;
+
     std::vector<parented_ptr<QmlLibraryTrackListColumn>> m_columns;
+
+    QTimer m_stemServiceRetryTimer;
+    bool m_stemServiceConnected = false;
+    int m_stemServiceRetryCount = 0;
 
     static void parent_qlist_append(
             QQmlListProperty<QmlLibraryTrackListColumn>* p,

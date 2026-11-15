@@ -197,7 +197,7 @@ Item {
     Text {
         anchors.centerIn: parent
         text: root.label
-        font.family: "Open Sans"
+        font.family: "Helvetica Neue"
         font.pixelSize: root.labelPixelSize
         font.bold: true
         color: root.labelColor

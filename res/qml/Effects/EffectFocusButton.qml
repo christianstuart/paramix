@@ -10,7 +10,7 @@ Skin.Button {
     required property string effectUnitGroup
     readonly property bool focused: Math.round(focusedEffectControl.value) === effectNumber
 
-    activeColor: Theme.effectColor
+    activeColor: Theme.textOnAccent
     highlight: focused
     text: qsTr("F")
     visible: showFocusControl.value > 0

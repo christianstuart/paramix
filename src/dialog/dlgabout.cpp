@@ -19,8 +19,10 @@ DlgAbout::DlgAbout()
     mixxx_icon->load(QString(MIXXX_ICON_PATH));
     mixxx_logo->load(QString(MIXXX_LOGO_PATH));
 
-    version_label->setText(VersionStore::applicationName() +
-            QStringLiteral(" ") + VersionStore::version());
+    version_label->setText(tr("%1 %2").arg(VersionStore::applicationName(),
+                                   VersionStore::version()) +
+            QStringLiteral("<br><span style=\"font-size:small\">") +
+            tr("Based on Mixxx, the free DJ software.") + QStringLiteral("</span>"));
     git_version_label->setText(VersionStore::gitVersion());
     qt_version_label->setText(VersionStore::qtVersion());
     platform_label->setText(VersionStore::platform());
@@ -35,11 +37,11 @@ DlgAbout::DlgAbout()
     }
 
     QString s_devTeam =
-            tr("Mixxx %1.%2 Development Team")
+            tr("Paramix %1.%2 Team")
                     .arg(QString::number(
                                  VersionStore::versionNumber().majorVersion()),
                             QString::number(VersionStore::versionNumber()
-                                                    .minorVersion()));
+                                            .minorVersion()));
     QString s_contributions = tr("With contributions from:");
     QString s_specialThanks = tr("And special thanks to:");
     QString s_pastDevs = tr("Past Developers");
@@ -484,18 +486,18 @@ DlgAbout::DlgAbout()
             << "John Last";
 
     QString sectionTemplate = QString(
-        "<p align=\"center\"><b>%1</b></p><p align=\"center\">%2</p>");
+            "<p align=\"center\"><b>%1</b></p><p align=\"center\">%2</p>");
     QStringList sections;
     sections << sectionTemplate.arg(s_devTeam,
-                                    thisReleaseDevelopers.join("<br>"))
+                        thisReleaseDevelopers.join("<br>"))
              << sectionTemplate.arg(s_contributions,
-                                    recentContributors.join("<br>"))
+                        recentContributors.join("<br>"))
              << sectionTemplate.arg(s_pastDevs,
-                                    pastDevelopers.join("<br>"))
+                        pastDevelopers.join("<br>"))
              << sectionTemplate.arg(s_pastContribs,
-                                    pastContributors.join("<br>"))
+                        pastContributors.join("<br>"))
              << sectionTemplate.arg(s_specialThanks,
-                                    specialThanks.join("<br>"));
+                        specialThanks.join("<br>"));
     textBrowser->setHtml(sections.join(""));
 
     textWebsiteLink->setText(
@@ -504,7 +506,7 @@ DlgAbout::DlgAbout()
                                  palette().text().color())
                                     .name(),
                             MIXXX_WEBSITE_URL,
-                            tr("Official Website")));
+                            tr("Paramix on GitHub")));
     if (std::rand() % 6) {
         if (!Color::isDimColor(palette().text().color())) {
             btnDonate->setIcon(QIcon(":/images/heart_icon_light.svg"));
@@ -514,7 +516,7 @@ DlgAbout::DlgAbout()
     } else {
         btnDonate->setIcon(QIcon(":/images/heart_icon_rainbow.svg"));
     }
-    btnDonate->setText(tr("Donate"));
+    btnDonate->setText(tr("Project page"));
     connect(btnDonate, &QPushButton::clicked, this, [] {
         mixxx::DesktopHelper::openUrl(QUrl(MIXXX_DONATE_URL));
     });

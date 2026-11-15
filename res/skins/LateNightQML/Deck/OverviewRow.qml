@@ -200,7 +200,7 @@ Item {
                             height: 10
                             text: hotcueMarker.hotcueNumber
                             color: LateNightTheme.overviewHotcueTextColor(hotcueMarker.markerColor)
-                            font.family: "Open Sans"
+                            font.family: "Helvetica Neue"
                             font.pixelSize: 10
                             font.bold: true
                             verticalAlignment: Text.AlignVCenter
@@ -260,7 +260,7 @@ Item {
                     anchors.topMargin: 2
                     text: "↻"
                     color: LateNightTheme.overviewMarkerTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 10
                     font.bold: true
                     visible: loopStartProxy.value >= 0
@@ -294,7 +294,7 @@ Item {
                     anchors.topMargin: 2
                     text: "C"
                     color: LateNightTheme.overviewMarkerTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 10
                     font.bold: true
                     visible: cuePointProxy.value >= 0
@@ -340,7 +340,7 @@ Item {
                     anchors.topMargin: 2
                     text: "◢"
                     color: LateNightTheme.overviewMarkerTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 10
                     font.bold: true
                     visible: introEndProxy.value >= 0 && showIntroOutroCuesProxy.value > 0
@@ -386,7 +386,7 @@ Item {
                     anchors.topMargin: 2
                     text: "◣"
                     color: LateNightTheme.overviewMarkerTextColor
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: 10
                     font.bold: true
                     visible: outroStartProxy.value >= 0 && showIntroOutroCuesProxy.value > 0
@@ -417,7 +417,7 @@ Item {
                     color: LateNightTheme.passthroughLabelColor
                     elide: Text.ElideRight
                     font.bold: true
-                    font.family: "Open Sans"
+                    font.family: "Helvetica Neue"
                     font.pixelSize: Math.max(1, Math.min(19, parent.height - 4))
                     text: qsTr("Passthrough")
                 }

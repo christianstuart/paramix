@@ -241,7 +241,7 @@ DlgPrefSound::DlgPrefSound(QWidget* pParent,
                     m_settingsModified = true;
                     QMessageBox::information(this,
                             tr("Information"),
-                            tr("Mixxx must be restarted for the PipeWire "
+                            tr("Paramix must be restarted for the PipeWire "
                                "API selection to take effect."));
                 });
 
@@ -497,7 +497,7 @@ DlgPrefSound::DlgPrefSound(QWidget* pParent,
                 tr("To enable Realtime scheduling (currently disabled), see the %1.")
                         .arg(coloredLinkString(
                                 m_pLinkColor,
-                                QStringLiteral("Mixxx Wiki"),
+                                QStringLiteral("Wiki"),
                                 MIXXX_WIKI_AUDIO_LATENCY_URL)));
     }
 #else
@@ -521,16 +521,16 @@ DlgPrefSound::DlgPrefSound(QWidget* pParent,
 
     hardwareGuide->setText(
             tr("The %1 lists sound cards and controllers you may want to "
-               "consider for using Mixxx.")
+               "consider for using Paramix.")
                     .arg(coloredLinkString(
                             m_pLinkColor,
-                            tr("Mixxx DJ Hardware Guide"),
+                            tr("DJ Hardware Guide"),
                             MIXXX_WIKI_HARDWARE_COMPATIBILITY_URL)));
 
     QString deckBusHintStr = deckBusHint->text();
     deckBusHintStr += " " +
             coloredLinkString(m_pLinkColor,
-                    tr("Find details in the Mixxx user manual"),
+                    tr("Find details in the user manual"),
                     MIXXX_MANUAL_OUTPUT_AND_INPUT_DEVICES);
     deckBusHint->setText(deckBusHintStr);
 
@@ -586,7 +586,7 @@ void DlgPrefSound::slotApply() {
                         keylockDualthreadedCheckBox->isEnabled())) {
             QMessageBox::information(this,
                     tr("Information"),
-                    tr("Mixxx must be restarted before the multi-threaded "
+                    tr("Paramix must be restarted before the multi-threaded "
                        "RubberBand setting change will take effect."));
         }
 #endif
@@ -732,19 +732,17 @@ void DlgPrefSound::connectSoundItem(DlgPrefSoundItem* pItem) {
             &DlgPrefSoundItem::updateDeviceChannels);
 }
 
-void DlgPrefSound::insertItem(DlgPrefSoundItem *pItem, QVBoxLayout *pLayout) {
+void DlgPrefSound::insertItem(DlgPrefSoundItem* pItem, QVBoxLayout* pLayout) {
     int pos;
     for (pos = 0; pos < pLayout->count() - 1; ++pos) {
-        DlgPrefSoundItem *pOther(qobject_cast<DlgPrefSoundItem*>(
-            pLayout->itemAt(pos)->widget()));
+        DlgPrefSoundItem* pOther(qobject_cast<DlgPrefSoundItem*>(
+                pLayout->itemAt(pos)->widget()));
         if (!pOther) { // not a sound item, skip
             continue;
         }
         if (pItem->type() < pOther->type()) {
             break;
-        } else if (pItem->type() == pOther->type()
-            && AudioPath::isIndexed(pItem->type())
-            && pItem->index() < pOther->index()) {
+        } else if (pItem->type() == pOther->type() && AudioPath::isIndexed(pItem->type()) && pItem->index() < pOther->index()) {
             break;
         }
     }
@@ -1038,9 +1036,9 @@ void DlgPrefSound::refreshDevices() {
         m_inputDevices.clear();
     } else {
         m_outputDevices =
-            m_pSoundManager->getDeviceList(m_config.getAPI(), true, false);
+                m_pSoundManager->getDeviceList(m_config.getAPI(), true, false);
         m_inputDevices =
-            m_pSoundManager->getDeviceList(m_config.getAPI(), false, true);
+                m_pSoundManager->getDeviceList(m_config.getAPI(), false, true);
     }
     emit refreshOutputDevices(m_outputDevices);
     emit refreshInputDevices(m_inputDevices);
@@ -1357,7 +1355,7 @@ void DlgPrefSound::checkLatencyCompensation() {
             latencyCompensationSpinBox->setEnabled(true);
             const QString lineBreak("<br/>");
             const QString kMicMonitorHintTrString =
-                    tr("Refer to the Mixxx User Manual for details.");
+                    tr("Refer to the User Manual for details.");
             // TODO(Be): Make the "User Manual" text link to the manual.
             if (m_pLatencyCompensation.get() == 0.0) {
                 latencyCompensationWarningLabel->setText(kWarningIconHtmlString +

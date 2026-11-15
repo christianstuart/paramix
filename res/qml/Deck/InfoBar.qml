@@ -1,6 +1,5 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
-import Qt5Compat.GraphicalEffects
 import QtQuick 2.12
 import QtQuick.Shapes
 import QtQuick.Layouts
@@ -8,6 +7,10 @@ import QtQml.Models // DelegateChoice for Qt >= 6.9
 import Qt.labs.qmlmodels // DelegateChooser
 import "../Theme"
 
+/// Deck header: track identity, metadata and rating on a flat strip.
+///
+/// Traktor-style: slim deck-colour edge, tight bold title, uppercase
+/// micro-labels for artist/meta. No card tinting.
 Rectangle {
     id: root
 
@@ -16,62 +19,99 @@ Rectangle {
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
     property bool editMode: false
     required property string group
-    property color lineColor: Theme.deckLineColor
+    property color lineColor: Theme.border
     property bool minimized: false
     required property int rightColumnWidth
 
-    radius: 5
+    // ── Density and artwork ────────────────────────────────────────────────
+    readonly property bool compact: Mixxx.Config.paramixCompactDecks === true
+    readonly property bool showCoverArt: Mixxx.Config.paramixShowCoverArt !== false && !root.minimized
+    readonly property int titleSize: root.minimized ? Theme.fontSizeSm : (root.compact ? Theme.fontSizeMd : Theme.fontSizeLg + 1)
+    readonly property int secondarySize: root.minimized ? Theme.fontSizeXs : (root.compact ? Theme.fontSizeXs : Theme.fontSizeSm)
+    readonly property int metaSize: Theme.fontSizeXs
 
-    gradient: Gradient {
-        orientation: Gradient.Horizontal
-
-        GradientStop {
-            color: {
-                const trackColor = root.currentTrack?.color;
-                if (!trackColor.valid)
-                    return Theme.deckInfoBarBackgroundColor;
-
-                return Qt.darker(root.currentTrack?.color, 2);
-            }
-            position: 0
-        }
-        GradientStop {
-            color: Theme.deckInfoBarBackgroundColor
-            position: 1
-        }
+    /// Valid track colour, or `null` when the track has none.
+    readonly property var trackColorValue: {
+        const value = root.currentTrack?.color;
+        return value && value.valid ? value : null;
     }
 
-    Image {
-        id: coverArt
+    border.color: Theme.borderStrong
+    border.width: 1
+    color: Theme.surface2
+    radius: Theme.radiusSm
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.leftMargin: 1
+        anchors.right: parent.right
+        anchors.rightMargin: 1
+        anchors.top: parent.top
+        anchors.topMargin: 1
+        color: {
+            if (group === "[Channel1]")
+                return Theme.deckA;
+            if (group === "[Channel2]")
+                return Theme.deckB;
+            if (group === "[Channel3]")
+                return Theme.deckC;
+            return Theme.deckD;
+        }
+        height: 2
+    }
+
+    // Slim track-colour edge: 4 px strip, square, hardware-like.
+    Rectangle {
+        id: trackAccent
 
         anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.space2
         anchors.left: parent.left
+        anchors.leftMargin: Theme.space1
         anchors.top: parent.top
-        asynchronous: true
-        source: root.currentTrack?.coverArtUrl
-        visible: false
-        width: height
+        anchors.topMargin: Theme.space2
+        color: root.trackColorValue ?? "transparent"
+        radius: 0
+        visible: root.showCoverArt
+        width: 4
     }
-    Rectangle {
-        id: coverArtCircle
 
-        anchors.fill: coverArt
-        color: Theme.deckEmptyCoverArt
-        radius: 4
-        visible: !root.deckPlayer?.isLoaded && !root.minimized
-    }
-    OpacityMask {
-        id: coverArtMask
+    Item {
+        id: coverArtFrame
 
-        anchors.fill: coverArt
-        maskSource: coverArtCircle
-        source: coverArt
-        visible: root.deckPlayer?.isLoaded && !root.minimized
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.minimized ? Theme.space1 : Theme.space2
+        anchors.left: trackAccent.right
+        anchors.leftMargin: Theme.space2
+        anchors.top: parent.top
+        anchors.topMargin: root.minimized ? Theme.space1 : Theme.space2 + 2
+        clip: true
+        visible: root.showCoverArt
+        width: root.showCoverArt ? height : 0
 
-        Skin.FadeBehavior on visible {
-            fadeTarget: coverArtMask
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.surface3
+            radius: Theme.radiusSm
+        }
+        Image {
+            id: coverArt
+
+            anchors.fill: parent
+            asynchronous: true
+            fillMode: Image.PreserveAspectCrop
+            source: root.currentTrack?.coverArtUrl
+            visible: status === Image.Ready
+        }
+        Rectangle {
+            anchors.fill: parent
+            border.color: Theme.borderStrong
+            border.width: 1
+            color: "transparent"
+            radius: Theme.radiusSm
         }
     }
+
     DelegateChooser {
         id: cellDelegate
 
@@ -81,8 +121,11 @@ Rectangle {
             roleValue: "title"
 
             Cell {
-                item.font.bold: false
-                item.font.weight: root.deckPlayer?.isLoaded ? Font.DemiBold : Font.Thin
+                item.color: root.deckPlayer?.isLoaded ? Theme.textPrimary : Theme.textMuted
+                item.font.family: Theme.fontFamilyDisplay
+                item.font.letterSpacing: -0.4
+                item.font.pixelSize: root.titleSize
+                item.font.weight: root.deckPlayer?.isLoaded ? Theme.fontWeightDemiBold : Theme.fontWeightRegular
                 item.text: root.deckPlayer?.isLoaded ? root.currentTrack?.title : qsTr("No track loaded")
                 item.visible: true
             }
@@ -91,6 +134,10 @@ Rectangle {
             roleValue: "artist"
 
             Cell {
+                item.color: Theme.textSecondary
+                item.font.capitalization: Font.AllUppercase
+                item.font.letterSpacing: Theme.letterSpacingCaps
+                item.font.pixelSize: root.secondarySize
                 item.text: root.currentTrack?.artist
             }
         }
@@ -98,6 +145,9 @@ Rectangle {
             roleValue: "year"
 
             Cell {
+                item.color: Theme.textMuted
+                item.font.pixelSize: root.metaSize
+                item.font.weight: Theme.fontWeightRegular
                 item.text: root.currentTrack?.year
                 visible: root.width > 500 && root.currentTrack?.year
             }
@@ -106,8 +156,13 @@ Rectangle {
             roleValue: "time"
 
             Cell {
-                visible: root.width > 450
+                item.color: Theme.textPrimary
+                item.font.family: Theme.fontFamilyMono
+                item.font.pixelSize: root.minimized ? root.metaSize : Theme.fontSizeMd
+                item.font.weight: Theme.fontWeightDemiBold
+                item.horizontalAlignment: Text.AlignRight
                 item.text: time.text
+                visible: root.width > 450
 
                 Mixxx.ControlProxy {
                     id: durationControl
@@ -126,6 +181,7 @@ Rectangle {
                     id: time
                     display: Mixxx.Config.controlPositionDisplay
                     elapsed: durationControl.value * playPositionControl.value
+                    font.pixelSize: root.metaSize
                     mode: Mixxx.Config.controlTimeFormat
                     remaining: durationControl.value * (1 - playPositionControl.value)
                     visible: false
@@ -142,6 +198,8 @@ Rectangle {
                 property real ratio: ((rateRatioControl.value - 1) * 100).toPrecision(2)
                 property bool showSeparator: index != parent.model.count - 1 && root.deckPlayer?.isLoaded
 
+                Accessible.name: qsTr("Track rating")
+                Accessible.role: Accessible.Button
                 Layout.fillHeight: true
                 Layout.fillWidth: index == 0
                 Layout.preferredWidth: index == 0 ? 0 : rightColumnWidth
@@ -173,7 +231,15 @@ Rectangle {
                             width: 16
 
                             ShapePath {
-                                fillColor: mouse.containsMouse && !(mouse.pressedButtons & Qt.RightButton) && mouse.mouseX > star.x + stars.x ? "#3a60be" : (!mouse.containsMouse || mouse.pressedButtons & Qt.RightButton) && root.currentTrack?.stars > index ? (mouse.containsMouse ? "#7D3B3B" : '#D9D9D9') : '#96d9d9d9'
+                                fillColor: {
+                                    const isFilled = root.currentTrack?.stars > index;
+                                    const rightPressed = mouse.containsMouse && (mouse.pressedButtons & Qt.RightButton);
+                                    if (rightPressed && isFilled)
+                                        return Theme.danger;
+                                    if (mouse.containsMouse && !rightPressed && mouse.mouseX > star.x + stars.x)
+                                        return Theme.accent;
+                                    return isFilled ? Theme.warning : Theme.surface3;
+                                }
                                 startX: 8
                                 startY: 0
                                 strokeColor: 'transparent'
@@ -250,7 +316,7 @@ Rectangle {
                     anchors.topMargin: 5
                     color: root.lineColor
                     visible: showSeparator
-                    width: 2
+                    width: 1
 
                     Skin.FadeBehavior on visible {
                         fadeTarget: separator
@@ -306,9 +372,13 @@ Rectangle {
     }
     ColumnLayout {
         anchors.bottom: root.bottom
-        anchors.left: coverArt.right
+        anchors.bottomMargin: 1
+        anchors.left: coverArtFrame.visible ? coverArtFrame.right : root.left
+        anchors.leftMargin: root.showCoverArt ? Theme.space3 : Theme.space2
         anchors.right: root.right
+        anchors.rightMargin: Theme.space2
         anchors.top: root.top
+        anchors.topMargin: 1
         spacing: 0
 
         RowLayout {
@@ -328,7 +398,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             color: root.lineColor
-            height: 2
+            height: 1
             visible: !root.minimized
         }
         RowLayout {
@@ -357,18 +427,23 @@ Rectangle {
 
         Layout.fillHeight: true
         Layout.fillWidth: index == 0
-        Layout.leftMargin: index == 0 ? 10 : 0
         Layout.preferredWidth: index == 0 ? 0 : rightColumnWidth
 
         Skin.EmbeddedText {
             id: data
 
             anchors.fill: parent
-            color: Theme.white
-            font.bold: isTop
-            font.pixelSize: isTop ? 18 : Theme.textFontPixelSize
+            color: isTop ? Theme.textPrimary : Theme.textSecondary
+            elide: Text.ElideRight
+            font.bold: false
+            font.capitalization: Font.MixedCase
+            font.family: Theme.fontFamily
+            font.letterSpacing: isTop ? -0.5 : Theme.letterSpacingCaps
+            font.pixelSize: isTop ? root.titleSize : root.secondarySize
+            font.weight: isTop ? Theme.fontWeightBold : Theme.fontWeightMedium
             horizontalAlignment: index == 0 ? Text.AlignLeft : Text.AlignHCenter
             visible: root.deckPlayer?.isLoaded
+            verticalAlignment: Text.AlignVCenter
 
             Skin.FadeBehavior on visible {
                 fadeTarget: data
@@ -384,7 +459,7 @@ Rectangle {
             anchors.topMargin: isTop ? 5 : 0
             color: root.lineColor
             visible: showSeparator
-            width: 2
+            width: 1
 
             Skin.FadeBehavior on visible {
                 fadeTarget: separator

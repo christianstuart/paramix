@@ -1,6 +1,7 @@
 import "." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQml
 import QtQuick.Controls
 import QtQuick.Window 2.12
 import "Theme"
@@ -11,6 +12,33 @@ ApplicationWindow {
     readonly property bool isMobile: Qt.platform.os === "android" || Qt.platform.os === "ios"
     readonly property int designWidth: 1792
     readonly property int designHeight: 1008
+
+    // Keep the design tokens in sync with the persisted customization.
+    Binding {
+        target: Theme
+        property: "scheme"
+        value: Mixxx.Config.paramixColorScheme
+    }
+    Binding {
+        target: Theme
+        property: "accentOverride"
+        value: Mixxx.Config.paramixAccentColor
+    }
+    Binding {
+        target: Theme
+        property: "fontFamilyOverride"
+        value: Mixxx.Config.paramixFontFamily
+    }
+    Binding {
+        target: Theme
+        property: "fontScale"
+        value: Mixxx.Config.paramixFontScale
+    }
+    Binding {
+        target: Theme
+        property: "motionScale"
+        value: Mixxx.Config.paramixMotionScale
+    }
 
     color: Theme.backgroundColor
     height: isMobile ? Screen.height : designHeight
@@ -47,7 +75,7 @@ ApplicationWindow {
         asynchronous: true
         onStatusChanged: {
             if (status === Loader.Error) {
-                console.error("Failed to load the Mixxx main window")
+                console.error("Failed to load the Paramix main window")
                 Qt.quit()
             }
         }
@@ -74,7 +102,6 @@ ApplicationWindow {
                 when: splash.ready && content.status != Loader.Ready
 
                 PropertyChanges {
-                    text.opacity: 1
                     logo.opacity: 1
                     logo.y: root.height / 2 - logo.height / 2
                 }
@@ -90,7 +117,7 @@ ApplicationWindow {
         Image {
             id: logo
             anchors.horizontalCenter: parent.horizontalCenter
-            source: "qrc:/images/mixxx-icon-logo-symbolic.svg"
+            source: "qrc:/images/paramix-icon-logo-symbolic.svg"
             // height: 64
             opacity: 0
             y: root.height / 2
@@ -101,22 +128,6 @@ ApplicationWindow {
 
             Behavior on y {
                 NumberAnimation { duration: 1500; easing.type: Easing.InOutQuad }
-            }
-        }
-        Text {
-            id: text
-            opacity: 0
-            y: logo.y + logo.height*2
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.topMargin: 20
-            font.pixelSize: 12
-            color: Theme.lightGray3
-            text: qsTr("DJ your way")
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: 1000 }
-                    NumberAnimation { duration: 500; easing.type: Easing.InOutQuad }
-                }
             }
         }
 

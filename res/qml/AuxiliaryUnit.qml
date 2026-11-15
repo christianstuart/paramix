@@ -6,6 +6,10 @@ import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import "Theme"
 
+/// Auxiliary input strip: pregain, PFL, routing and FX assignments.
+///
+/// The strip is a flat row of compact tiles: meter, knob well, label/PFL and a
+/// segmented routing block. It shares the same 1 px framing as the mixer.
 Row {
     id: root
 
@@ -16,7 +20,7 @@ Row {
 
     signal fxAssignmentChanged(int unitNumber, bool enabled)
 
-    spacing: 5
+    spacing: Theme.space1
 
     Loader {
         sourceComponent: root.inputConfigured ? configuredComponent : unconfiguredComponent
@@ -38,33 +42,38 @@ Row {
                 group: root.group
                 height: parent.height
                 key: "vu_meter"
-                width: 4
+                width: 3
             }
             Rectangle {
-                color: Theme.knobBackgroundColor
+                border.color: Theme.border
+                border.width: 1
+                color: Theme.surface2
                 height: 52
-                radius: 5
+                radius: Theme.radiusSm
                 width: 52
 
                 Skin.ControlKnob {
                     anchors.centerIn: parent
                     arcStart: Knob.ArcStart.Minimum
-                    color: Theme.gainKnobColor
+                    color: Theme.textPrimary
                     group: root.group
-                    height: 48
+                    height: parent.height - 2 * Theme.space1
                     key: "pregain"
-                    width: 48
+                    width: height
                 }
             }
             Column {
+                spacing: Theme.space1
+
                 Skin.SectionText {
-                    height: 26
-                    text: qsTr("AUX %1").arg(root.unitNumber)
+                    height: 22
+                    text: qsTr("Aux %1").arg(root.unitNumber)
                     width: 52
                 }
                 Skin.ControlButton {
-                    activeColor: Theme.pflActiveButtonColor
+                    activeColor: Theme.textOnAccent
                     group: root.group
+                    implicitHeight: 24
                     key: "pfl"
                     text: qsTr("PFL")
                     toggleable: true
@@ -76,24 +85,24 @@ Row {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: 0
+                    spacing: 1
 
                     RowLayout {
                         Layout.fillHeight: true
                         Layout.fillWidth: true
-                        spacing: 0
+                        spacing: 1
 
                         Skin.OrientationToggleButton {
                             Layout.fillHeight: true
                             Layout.fillWidth: true
-                            color: Theme.crossfaderOrientationColor
+                            color: Theme.textMuted
                             group: root.group
                             key: "orientation"
                         }
                         Skin.ControlButton {
                             Layout.fillHeight: true
                             Layout.fillWidth: true
-                            activeColor: Theme.deckActiveColor
+                            activeColor: Theme.textOnAccent
                             group: root.group
                             key: "main_mix"
                             text: qsTr("Main")
@@ -105,7 +114,7 @@ Row {
 
                         Layout.fillHeight: true
                         Layout.fillWidth: true
-                        spacing: 0
+                        spacing: 1
 
                         Repeater {
                             model: Math.max(0, root.fxUnitCount)
@@ -113,9 +122,10 @@ Row {
                             Skin.ControlButton {
                                 required property int index
 
+                                Accessible.name: qsTr("Assign auxiliary %1 to effect unit %2").arg(root.unitNumber).arg(index + 1)
                                 Layout.fillHeight: true
                                 Layout.fillWidth: true
-                                activeColor: Theme.effectUnitColor
+                                activeColor: Theme.textOnAccent
                                 group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
                                 implicitWidth: 28
                                 key: "group_" + root.group + "_enable"
@@ -134,19 +144,20 @@ Row {
         id: unconfiguredComponent
 
         Column {
-            spacing: 2
+            spacing: Theme.space1
 
             Skin.SectionText {
-                color: Theme.darkGray3
+                color: Theme.textMuted
                 height: 21
                 text: qsTr("Aux %1").arg(root.unitNumber)
                 width: 80
             }
-            Skin.ControlButton {
-                group: root.group
-                key: "main_mix"
+            Skin.Button {
+                Accessible.name: qsTr("Configure auxiliary %1 input").arg(root.unitNumber)
                 text: qsTr("Configure")
                 width: 80
+
+                onClicked: Mixxx.PreferencesDialog.show()
             }
         }
     }

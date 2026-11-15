@@ -4,6 +4,7 @@
 #include <QFileInfo>
 #include <QMap>
 #include <QSqlDatabase>
+#include <QSqlQuery>
 #include <QStorageInfo>
 #include <algorithm>
 #include <utility>
@@ -19,6 +20,7 @@
 #include "stems/demucslimiter.h"
 #include "stems/stemcache.h"
 #include "stems/stemfilewriter.h"
+#include "stems/stemgpudetect.h"
 #include "stems/stemresampler.h"
 #include "stems/stemseparatorfactory.h"
 #include "track/track.h"
@@ -125,28 +127,44 @@ bool StemService::queueExport(const StemExportRequest& request) {
                 outputDirectory,
                 setName,
                 modelPathValue,
+                isGpuAccelerationEnabled(m_pConfig) && !m_gpuDisabled.load(),
                 settings});
     }
     setStatus(trackId, Status::Queued, 0);
     m_waitCondition.wakeAll();
     if (!isRunning()) {
         // Low priority keeps the GUI, waveform and audio callback responsive.
-        start(QThread::LowPriority);
+        start(kWorkerPriority);
     }
     return true;
 }
 
 void StemService::pause() {
+    m_userPaused = true;
     m_paused = true;
 }
 
 void StemService::resume() {
-    m_paused = false;
+    m_userPaused = false;
+    // A background pause (e.g. audio overload) survives an explicit resume.
+    m_paused = m_backgroundPaused.load();
     m_waitCondition.wakeAll();
 }
 
 bool StemService::isPaused() const {
     return m_paused.load();
+}
+
+void StemService::setBackgroundPaused(bool paused) {
+    m_backgroundPaused = paused;
+    m_paused = m_userPaused.load() || paused;
+    if (!m_paused.load()) {
+        m_waitCondition.wakeAll();
+    }
+}
+
+bool StemService::hasPendingWork() const {
+    return m_busy.load();
 }
 
 void StemService::cancelAll() {
@@ -246,6 +264,8 @@ QString StemService::lastMessageForTrack(TrackId trackId) const {
 
 void StemService::setStatus(
         TrackId trackId, Status status, int progress, const QString& message) {
+    bool busyChangedNow = false;
+    bool busy = false;
     {
         QMutexLocker locker(&m_mutex);
         if (status == Status::NotSeparated) {
@@ -254,8 +274,38 @@ void StemService::setStatus(
             m_statuses.insert(trackId, status);
         }
         m_messages.insert(trackId, message);
+        busy = std::any_of(m_statuses.cbegin(),
+                m_statuses.cend(),
+                [](Status trackStatus) {
+                    return trackStatus == Status::Queued ||
+                            trackStatus == Status::Separating;
+                });
+        busyChangedNow = busy != m_busy.load();
+        m_busy = busy;
     }
     emit trackStatusChanged(trackId, status, progress, message);
+    if (busyChangedNow) {
+        emit busyChanged(busy);
+    }
+}
+
+QSet<TrackId> StemService::trackIdsWithStemSets() const {
+    QSet<TrackId> trackIds;
+    if (!m_pDbConnectionPool) {
+        return trackIds;
+    }
+    const QSqlDatabase database = mixxx::DbConnectionPooled(m_pDbConnectionPool);
+    if (!database.isOpen()) {
+        return trackIds;
+    }
+    QSqlQuery query(database);
+    if (!query.exec(QStringLiteral("SELECT DISTINCT track_id FROM stem_set"))) {
+        return trackIds;
+    }
+    while (query.next()) {
+        trackIds.insert(TrackId(query.value(0)));
+    }
+    return trackIds;
 }
 
 QString StemService::modelPath() const {
@@ -281,6 +331,7 @@ void StemService::run() {
 
     std::unique_ptr<DemucsOnnxSeparator> pSeparator;
     QString loadedModelPath;
+    QString loadedDevice;
 
     while (true) {
         Job job;
@@ -294,7 +345,7 @@ void StemService::run() {
             }
             job = m_jobs.dequeue();
         }
-        processJob(job, &pSeparator, &loadedModelPath, dao);
+        processJob(job, &pSeparator, &loadedModelPath, &loadedDevice, dao);
         // The job is finished either way; only a crash leaves the row for the
         // next start to resume.
         queueDao.remove(job.trackId);
@@ -304,6 +355,7 @@ void StemService::run() {
 void StemService::processJob(Job& job,
         std::unique_ptr<DemucsOnnxSeparator>* ppSeparator,
         QString* pLoadedModelPath,
+        QString* pLoadedDevice,
         StemSetDao& dao) {
     const TrackId trackId = job.trackId;
     const TrackPointer pTrack = job.request.track;
@@ -359,11 +411,17 @@ void StemService::processJob(Job& job,
                 QStringLiteral("No stem separation model is selected in Settings -> Stems."));
         return;
     }
-    if (!*ppSeparator || *pLoadedModelPath != path) {
+    // A GPU failure downgrades the rest of this process to CPU, including jobs
+    // that were queued before the failure.
+    const bool useGpu = job.gpuAcceleration && !m_gpuDisabled.load();
+    const std::string device = stemDeviceForGpuAcceleration(useGpu);
+    const QString deviceName = QString::fromStdString(device);
+    if (!*ppSeparator || *pLoadedModelPath != path || *pLoadedDevice != deviceName) {
         ppSeparator->reset();
         std::string error;
         DemucsOnnxConfig config;
         config.modelPath = path.toStdString();
+        config.device = device;
         *ppSeparator = createDemucsOnnxSeparator(config, &error);
         if (!*ppSeparator) {
             setStatus(trackId,
@@ -374,6 +432,9 @@ void StemService::processJob(Job& job,
             return;
         }
         *pLoadedModelPath = path;
+        *pLoadedDevice = deviceName;
+        kLogger.info() << "Stem separator ready for" << path << "on"
+                       << QString::fromStdString((*ppSeparator)->device());
     }
 
     const int modelSampleRate = (*ppSeparator)->sampleRate();
@@ -486,26 +547,62 @@ void StemService::processJob(Job& job,
             static_cast<std::size_t>(modelFrames) * kStemChannelCount, 0.0f);
     bool outputValid = true;
     SINT outputEnd = 0;
-    const bool completed = (*ppSeparator)->separate(pModelInput, modelFrames, [&](SINT offset, const CSAMPLE* pBuffer, SINT count) {
-                if (offset < 0 || count <= 0 || offset + count > modelFrames) {
-                    outputValid = false;
-                    return false;
-                }
-                outputEnd = std::max(outputEnd, offset + count);
-                std::copy(pBuffer,
-                        pBuffer + static_cast<std::size_t>(count) * kStemChannelCount,
-                        separated.begin() + static_cast<std::size_t>(offset) *
-                                        kStemChannelCount);
-                return true; }, [this, trackId](double progress) { setStatus(trackId,
-                                                                                                                                                                                   Status::Separating,
-                                                                                                                                                                                   static_cast<int>(std::clamp(progress, 0.0, 1.0) * 90.0)); }, [this]() {
-                if (m_cancelRequested.load()) {
-                    return true;
-                }
-                while (m_paused.load() && !m_cancelRequested.load()) {
-                    QThread::msleep(50);
-                }
-                return m_cancelRequested.load(); });
+    const auto runSeparation = [&]() {
+        outputValid = true;
+        outputEnd = 0;
+        return (*ppSeparator)->separate(pModelInput, modelFrames, [&](SINT offset, const CSAMPLE* pBuffer, SINT count) {
+                    if (offset < 0 || count <= 0 || offset + count > modelFrames) {
+                        outputValid = false;
+                        return false;
+                    }
+                    outputEnd = std::max(outputEnd, offset + count);
+                    std::copy(pBuffer,
+                            pBuffer + static_cast<std::size_t>(count) * kStemChannelCount,
+                            separated.begin() + static_cast<std::size_t>(offset) *
+                                            kStemChannelCount);
+                    return true; }, [this, trackId](double progress) { setStatus(trackId,
+                                                                                                                                                                       Status::Separating,
+                                                                                                                                                                       static_cast<int>(std::clamp(progress, 0.0, 1.0) * 90.0)); }, [this]() {
+                    if (m_cancelRequested.load()) {
+                        return true;
+                    }
+                    while (m_paused.load() && !m_cancelRequested.load()) {
+                        QThread::msleep(50);
+                    }
+                    return m_cancelRequested.load(); });
+    };
+    bool completed = runSeparation();
+    // A provider that initialized but cannot execute this graph (CoreML on the
+    // HTDemucs export, for example) fails on Run, not on session creation. Fall
+    // back to the CPU once for this job and for the rest of the process.
+    if (!completed && !m_cancelRequested.load() &&
+            (*ppSeparator)->device() != "cpu") {
+        kLogger.warning() << "Stem separation failed on provider"
+                          << QString::fromStdString((*ppSeparator)->device()) << "for track"
+                          << trackId << ":"
+                          << QString::fromStdString((*ppSeparator)->lastError())
+                          << "- retrying on the CPU";
+        m_gpuDisabled = true;
+        ppSeparator->reset();
+        std::string error;
+        DemucsOnnxConfig fallback;
+        fallback.modelPath = path.toStdString();
+        fallback.device = "cpu";
+        *ppSeparator = createDemucsOnnxSeparator(fallback, &error);
+        *pLoadedDevice = QStringLiteral("cpu");
+        if (!*ppSeparator) {
+            setStatus(trackId,
+                    Status::Failed,
+                    0,
+                    QStringLiteral("Stem separation failed and the CPU fallback "
+                                   "could not be loaded: %1")
+                            .arg(QString::fromStdString(error)));
+            return;
+        }
+        // The failed run may have filled part of the buffer before it threw.
+        std::fill(separated.begin(), separated.end(), 0.0f);
+        completed = runSeparation();
+    }
     if (!completed || !outputValid) {
         if (m_cancelRequested.load()) {
             setStatus(trackId, Status::NotSeparated, 0, QStringLiteral("Canceled."));

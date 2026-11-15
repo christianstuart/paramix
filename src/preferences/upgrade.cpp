@@ -167,13 +167,12 @@ VSyncThread::VSyncMode upgradeDeprecatedVSyncModes(int configVSyncMode) {
 // We return the UserSettings here because we have to make changes to the
 // configuration and the location of the file may change between releases.
 UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
-
-/*  Pre-1.7.0:
-*
-*   Since we didn't store version numbers in the config file prior to 1.7.0,
-*   we check to see if the user is upgrading if his config files are in the old location,
-*   since we moved them in 1.7.0. This code takes care of moving them.
-*/
+    /*  Pre-1.7.0:
+     *
+     *   Since we didn't store version numbers in the config file prior to 1.7.0,
+     *   we check to see if the user is upgrading if his config files are in the old location,
+     *   since we moved them in 1.7.0. This code takes care of moving them.
+     */
 
     QDir oldLocation = QDir(QDir::homePath());
 #ifdef __WINDOWS__
@@ -183,7 +182,6 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
 #endif
 
     if (pre170Config->exists()) {
-
         // Move the files to their new location
         QDir newLocation = QDir(settingsPath);
 
@@ -205,8 +203,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
         if (oldFile->exists()) {
             if (oldFile->copy(newFilePath)) {
                 oldFile->remove();
-            }
-            else {
+            } else {
                 if (oldFile->error() == 14) {
                     qDebug() << errorText.arg(
                                         "library", oldFilePath, newFilePath)
@@ -251,7 +248,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
         newFilePath = newLocation.filePath("MixxxMIDIBindings.xml");
         oldFile = new QFile(oldFilePath);
         if (oldFile->exists()) {
-            qWarning() << "The MIDI mapping file format has changed in this version of Mixxx. You will need to reconfigure your MIDI controller. See the Wiki for full details on the new format.";
+            qWarning() << "The MIDI mapping file format has changed in this version of Paramix. You will need to reconfigure your MIDI controller. See the Wiki for full details on the new format.";
             if (oldFile->copy(newFilePath)) {
                 oldFile->remove();
             } else {
@@ -297,64 +294,59 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
             }
         }
         delete oldFile;
-
     }
     // Tidy up
     delete pre170Config;
     // End pre-1.7.0 code
 
-
-/***************************************************************************
-*                           Post-1.7.0 upgrade code
-*
-*   Add entries to the IF ladder below if anything needs to change from the
-*   previous to the current version. This allows for incremental upgrades
-*   in case a user upgrades from a few versions prior.
-****************************************************************************/
+    /***************************************************************************
+     *                           Post-1.7.0 upgrade code
+     *
+     *   Add entries to the IF ladder below if anything needs to change from the
+     *   previous to the current version. This allows for incremental upgrades
+     *   in case a user upgrades from a few versions prior.
+     ****************************************************************************/
 
     // Read the config file from home directory
     UserSettingsPointer config(new ConfigObject<ConfigValue>(
             QDir(settingsPath).filePath(MIXXX_SETTINGS_FILE)));
 
-    QString configVersion = config->getValueString(ConfigKey("[Config]","Version"));
+    QString configVersion = config->getValueString(ConfigKey("[Config]", "Version"));
 
     if (configVersion.isEmpty()) {
-
 #ifdef __APPLE__
         qDebug() << "Config version is empty, trying to read pre-1.9.0 config";
         // Try to read the config from the pre-1.9.0 final directory on OS X (we moved it in 1.9.0 final)
         QScopedPointer<QFile> oldConfigFile(new QFile(QDir::homePath().append("/").append(".mixxx/mixxx.cfg")));
-        if (oldConfigFile->exists() && ! CmdlineArgs::Instance().getSettingsPathSet()) {
+        if (oldConfigFile->exists() && !CmdlineArgs::Instance().getSettingsPathSet()) {
             qDebug() << "Found pre-1.9.0 config for OS X";
             // Note: We changed MIXXX_SETTINGS_PATH in 1.9.0 final on OS X so
             // it must be hardcoded to ".mixxx" here for legacy.
             config = UserSettingsPointer(new ConfigObject<ConfigValue>(
-                QDir::homePath().append("/.mixxx/mixxx.cfg")));
+                    QDir::homePath().append("/.mixxx/mixxx.cfg")));
             // Just to be sure all files like logs and soundconfig go with mixxx.cfg
             // TODO(XXX) Trailing slash not needed anymore as we switches from String::append
             // to QDir::filePath elsewhere in the code. This is candidate for removal.
             CmdlineArgs::Instance().setSettingsPath(QDir::homePath().append("/.mixxx/"));
-            configVersion = config->getValueString(ConfigKey("[Config]","Version"));
-        }
-        else {
+            configVersion = config->getValueString(ConfigKey("[Config]", "Version"));
+        } else {
 #elif defined(__WINDOWS__)
         qDebug() << "Config version is empty, trying to read pre-1.12.0 config";
         // Try to read the config from the pre-1.12.0 final directory on Windows (we moved it in 1.12.0 final)
         QScopedPointer<QFile> oldConfigFile(new QFile(QDir::homePath().append("/Local Settings/Application Data/Mixxx/mixxx.cfg")));
-        if (oldConfigFile->exists() && ! CmdlineArgs::Instance().getSettingsPathSet()) {
+        if (oldConfigFile->exists() && !CmdlineArgs::Instance().getSettingsPathSet()) {
             qDebug() << "Found pre-1.12.0 config for Windows";
             // Note: We changed MIXXX_SETTINGS_PATH in 1.12.0 final on Windows
             // so it must be hardcoded to "Local Settings/Application
             // Data/Mixxx/" here for legacy.
             config = UserSettingsPointer(new ConfigObject<ConfigValue>(
-                QDir::homePath().append("/Local Settings/Application Data/Mixxx/mixxx.cfg")));
+                    QDir::homePath().append("/Local Settings/Application Data/Mixxx/mixxx.cfg")));
             // Just to be sure all files like logs and soundconfig go with mixxx.cfg
             // TODO(XXX) Trailing slash not needed anymore as we switches from String::append
             // to QDir::filePath elsewhere in the code. This is candidate for removal.
             CmdlineArgs::Instance().setSettingsPath(QDir::homePath().append("/Local Settings/Application Data/Mixxx/"));
-            configVersion = config->getValueString(ConfigKey("[Config]","Version"));
-        }
-        else {
+            configVersion = config->getValueString(ConfigKey("[Config]", "Version"));
+        } else {
 #endif
             // This must have been the first run... right? :)
 #ifdef MIXXX_USE_QML
@@ -418,15 +410,15 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
         // Upgrade tasks go here
         // Nothing to change, really
         configVersion = "1.8.0";
-        config->set(ConfigKey("[Config]","Version"), ConfigValue("1.8.0"));
+        config->set(ConfigKey("[Config]", "Version"), ConfigValue("1.8.0"));
     }
 
     if (configVersion.startsWith("1.8.0~beta1") ||
-        configVersion.startsWith("1.8.0~beta2")) {
+            configVersion.startsWith("1.8.0~beta2")) {
         qDebug() << "Upgrading from v1.8.0~beta...";
         // Upgrade tasks go here
         configVersion = "1.8.0";
-        config->set(ConfigKey("[Config]","Version"), ConfigValue("1.8.0"));
+        config->set(ConfigKey("[Config]", "Version"), ConfigValue("1.8.0"));
     }
     if (configVersion.startsWith("1.8") || configVersion.startsWith("1.9.0beta1")) {
         qDebug() << "Upgrading from" << configVersion << "...";
@@ -444,8 +436,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
 
         QListIterator<QPair<QString, QString>> dirIt(dirsToMove);
         QPair<QString, QString> curPair;
-        while (dirIt.hasNext())
-        {
+        while (dirIt.hasNext()) {
             curPair = dirIt.next();
             qDebug() << "Moving" << curPair.first << "to" << curPair.second;
             QDir oldSubDir(curPair.first);
@@ -456,14 +447,12 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
             QStringListIterator it(contents);
             QString cur;
             // Iterate over all the files in the source directory and copy them to the dest dir.
-            while (it.hasNext())
-            {
+            while (it.hasNext()) {
                 cur = it.next();
                 QString src = curPair.first + "/" + cur;
                 QString dest = curPair.second + "/" + cur;
                 qDebug() << "Copying" << src << "to" << dest;
-                if (!QFile::copy(src, dest))
-                {
+                if (!QFile::copy(src, dest)) {
                     qDebug() << "Failed to move file during upgrade.";
                 }
             }
@@ -477,7 +466,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
                 QDir(settingsPath).filePath(MIXXX_SETTINGS_FILE)));
 #endif
         configVersion = "1.9.0";
-        config->set(ConfigKey("[Config]","Version"), ConfigValue("1.9.0"));
+        config->set(ConfigKey("[Config]", "Version"), ConfigValue("1.9.0"));
     }
     if (configVersion.startsWith("1.9") || configVersion.startsWith("1.10")) {
         qDebug() << "Upgrading from v1.9.x/1.10.x...";
@@ -489,7 +478,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
         QString controllerPath = userMappingsPath(config);
         QDir oldDir(midiPath);
         QDir newDir(controllerPath);
-        newDir.mkpath(controllerPath);  // create the new directory
+        newDir.mkpath(controllerPath); // create the new directory
 
         QStringList contents = oldDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
         QStringListIterator it(contents);
@@ -518,8 +507,8 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
         if (successful) {
             qDebug() << "Upgrade Successful";
             configVersion = "1.11.0";
-            config->set(ConfigKey("[Config]","Version"),
-                        ConfigValue(configVersion));
+            config->set(ConfigKey("[Config]", "Version"),
+                    ConfigValue(configVersion));
         } else {
             qDebug() << "Upgrade Failed";
         }
@@ -573,7 +562,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
                 ConfigKey("[ReplayGain]", "InitialReplayGainBoost"), 6);
         int newReplayGain = math_max(-6, oldReplayGain - 6);
         config->set(ConfigKey("[ReplayGain]", "InitialReplayGainBoost"),
-                    ConfigValue(newReplayGain));
+                ConfigValue(newReplayGain));
 
         // if everything until here worked fine we can mark the configuration as
         // updated
@@ -581,8 +570,7 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
             configVersion = "1.12.0";
             config->set(ConfigKey("[Config]", "Version"),
                     ConfigValue(configVersion));
-        }
-        else {
+        } else {
             qDebug() << "Upgrade failed!\n";
         }
     }
@@ -657,11 +645,12 @@ UserSettingsPointer Upgrade::versionUpgrade(const QString& settingsPath) {
 bool Upgrade::askReScanLibrary() {
     QMessageBox msgBox;
     msgBox.setIconPixmap(QPixmap(MIXXX_ICON_PATH));
-    msgBox.setWindowTitle(QMessageBox::tr("Upgrading Mixxx"));
-    msgBox.setText(QMessageBox::tr("Mixxx now supports displaying cover art.\n"
-                      "Do you want to scan your library for cover files now?"));
+    msgBox.setWindowTitle(QMessageBox::tr("Upgrading Paramix"));
+    msgBox.setText(QMessageBox::tr(
+            "Paramix now supports displaying cover art.\n"
+            "Do you want to scan your library for cover files now?"));
     QPushButton* rescanButton = msgBox.addButton(
-        QMessageBox::tr("Scan"), QMessageBox::AcceptRole);
+            QMessageBox::tr("Scan"), QMessageBox::AcceptRole);
     msgBox.addButton(QMessageBox::tr("Later"), QMessageBox::RejectRole);
     msgBox.setDefaultButton(rescanButton);
     msgBox.exec();
@@ -671,19 +660,19 @@ bool Upgrade::askReScanLibrary() {
 
 bool Upgrade::askReanalyzeBeats() {
     QString windowTitle =
-            QMessageBox::tr("Upgrading Mixxx from v1.9.x/1.10.x.");
+            QMessageBox::tr("Upgrading Paramix from v1.9.x/1.10.x.");
     QString mainHeading =
-            QMessageBox::tr("Mixxx has a new and improved beat detector.");
+            QMessageBox::tr("Paramix has a new and improved beat detector.");
     QString paragraph1 = QMessageBox::tr(
-        "When you load tracks, Mixxx can re-analyze them "
-        "and generate new, more accurate beatgrids. This will make "
-        "automatic beatsync and looping more reliable.");
+            "When you load tracks, Paramix can re-analyze them "
+            "and generate new, more accurate beatgrids. This will make "
+            "automatic beatsync and looping more reliable.");
     QString paragraph2 = QMessageBox::tr(
-        "This does not affect saved cues, hotcues, playlists, or crates.");
+            "This does not affect saved cues, hotcues, playlists, or crates.");
     QString paragraph3 = QMessageBox::tr(
-        "If you do not want Mixxx to re-analyze your tracks, choose "
-        "\"Keep Current Beatgrids\". You can change this setting at any time "
-        "from the \"Beat Detection\" section of the Preferences.");
+            "If you do not want Paramix to re-analyze your tracks, choose "
+            "\"Keep Current Beatgrids\". You can change this setting at any time "
+            "from the \"Beat Detection\" section of the Preferences.");
     QString keepCurrent = QMessageBox::tr("Keep Current Beatgrids");
     QString generateNew = QMessageBox::tr("Generate New Beatgrids");
 
@@ -691,10 +680,10 @@ bool Upgrade::askReanalyzeBeats() {
     msgBox.setIconPixmap(QPixmap(MIXXX_ICON_PATH));
     msgBox.setWindowTitle(windowTitle);
     msgBox.setText(QString("<html><h2>%1</h2><p>%2</p><p>%3</p><p>%4</p></html>")
-                   .arg(mainHeading, paragraph1, paragraph2, paragraph3));
+                    .arg(mainHeading, paragraph1, paragraph2, paragraph3));
     msgBox.addButton(keepCurrent, QMessageBox::NoRole);
     QPushButton* OverwriteButton = msgBox.addButton(
-        generateNew, QMessageBox::YesRole);
+            generateNew, QMessageBox::YesRole);
     msgBox.setDefaultButton(OverwriteButton);
     msgBox.exec();
 

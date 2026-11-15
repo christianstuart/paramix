@@ -1,6 +1,7 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import "../Theme"
 
 Skin.EmbeddedText {
     id: root
@@ -24,6 +25,15 @@ Skin.EmbeddedText {
     property string group: "[Channel1]"
     property var mode: TrackTime.Mode.Traditional
     property double remaining: durationControl.value * (1 - playPositionControl.value)
+
+    Accessible.name: qsTr("Track time")
+    Accessible.role: Accessible.StaticText
+    color: Theme.textPrimary
+    font.capitalization: Font.MixedCase
+    font.family: Theme.fontFamilyMono
+    font.letterSpacing: 0
+    font.pixelSize: Theme.fontSizeMd
+    font.weight: Theme.fontWeightMedium
 
     function toTime(value) {
         if (!Number.isFinite(value)) {

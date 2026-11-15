@@ -1,5 +1,7 @@
 #include "qml/qmlconfigproxy.h"
 
+#include <QDir>
+#include <QFileDialog>
 #include <Qt>
 #include <algorithm>
 
@@ -10,6 +12,8 @@
 #include "moc_qmlconfigproxy.cpp"
 #include "preferences/colorpalettesettings.h"
 #include "preferences/constants.h"
+#include "stems/stemfileformat.h"
+#include "stems/stemgpudetect.h"
 #include "util/color/predefinedcolorpalettes.h"
 #include "waveform/waveformwidgetfactory.h"
 
@@ -48,6 +52,7 @@ const QString kWaveformGroup = QStringLiteral("[Waveform]");
 const QString kControlsGroup = QStringLiteral("[Controls]");
 const QString kLibraryGroup = QStringLiteral("[Library]");
 const QString kBpmGroup = QStringLiteral("[BPM]");
+const QString kStemsGroup = QStringLiteral("[Stems]");
 
 const QString kMultiSamplingKey = QStringLiteral("multi_sampling");
 const QString k3DHardwareAccelerationKey = QStringLiteral("force_hardware_acceleration");
@@ -134,6 +139,28 @@ const QString kResizableSkinKey = QStringLiteral("ResizableSkin");
 
 // BPM group
 const QString kSyncLockAlgorithmKey = QStringLiteral("sync_lock_algorithm");
+
+// Stems group
+const QString kStemFileFormatKey = QStringLiteral("FileFormat");
+const QString kStemAacBitrateKey = QStringLiteral("AacBitrate");
+const QString kStemModelPathKey = QStringLiteral("ModelPath");
+const QString kStemOutputDirectoryKey = QStringLiteral("OutputDirectory");
+const QString kStemGpuAccelerationKey = QStringLiteral("GpuAcceleration");
+
+// Paramix interface customization
+const QString kParamixGroup = QStringLiteral("[Paramix]");
+const QString kParamixColorSchemeKey = QStringLiteral("ColorScheme");
+const QString kParamixAccentColorKey = QStringLiteral("AccentColor");
+const QString kParamixFontFamilyKey = QStringLiteral("FontFamily");
+const QString kParamixFontScaleKey = QStringLiteral("FontScale");
+const QString kParamixMotionScaleKey = QStringLiteral("MotionScale");
+const QString kParamixShowWaveformsKey = QStringLiteral("ShowWaveforms");
+const QString kParamixShowCoverArtKey = QStringLiteral("ShowCoverArt");
+const QString kParamixShowStemsKey = QStringLiteral("ShowStems");
+const QString kParamixShowHotcuesKey = QStringLiteral("ShowHotcues");
+const QString kParamixShowLibraryKey = QStringLiteral("ShowLibrary");
+const QString kParamixShowPreviewKey = QStringLiteral("ShowPreview");
+const QString kParamixCompactDecksKey = QStringLiteral("CompactDecks");
 
 } // namespace
 
@@ -941,6 +968,170 @@ PROPERTY_IMPL(kBpmGroup,
         EngineSync::SyncLockAlgorithm,
         bpmSyncLockAlgorithm,
         EngineSync::SyncLockAlgorithm::PREFER_SOFT_LEADER);
+
+// Stems group
+PROPERTY_IMPL_GETTER(kStemsGroup,
+        kStemFileFormatKey,
+        QString,
+        stemFileFormat,
+        QStringLiteral("flac"));
+
+void QmlConfigProxy::set_stemFileFormat(
+        std::conditional_t<(sizeof(QString) <= 16), QString, const QString&> value) {
+    // Normalize to the names written by mixxx::stems::writeStemExportSettings()
+    // and fall back to FLAC for unknown values.
+    const QString sanitizedValue = mixxx::stems::stemFileFormatName(
+            mixxx::stems::parseStemFileFormat(value));
+    setConfigValueAndNotify<QString>(kStemsGroup,
+            kStemFileFormatKey,
+            sanitizedValue,
+            QStringLiteral("flac"),
+            &QmlConfigProxy::stemFileFormatChanged);
+}
+
+PROPERTY_IMPL_GETTER(kStemsGroup,
+        kStemAacBitrateKey,
+        int,
+        stemAacBitrate,
+        mixxx::stems::kDefaultAacBitrateKbps);
+
+void QmlConfigProxy::set_stemAacBitrate(int value) {
+    const int sanitizedValue = std::clamp(value,
+            mixxx::stems::kMinAacBitrateKbps,
+            mixxx::stems::kMaxAacBitrateKbps);
+    setConfigValueAndNotify<int>(kStemsGroup,
+            kStemAacBitrateKey,
+            sanitizedValue,
+            mixxx::stems::kDefaultAacBitrateKbps,
+            &QmlConfigProxy::stemAacBitrateChanged);
+}
+
+PROPERTY_IMPL(kStemsGroup,
+        kStemModelPathKey,
+        QString,
+        stemModelPath,
+        QString());
+
+PROPERTY_IMPL_GETTER(kStemsGroup,
+        kStemOutputDirectoryKey,
+        QString,
+        stemOutputDirectory,
+        QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")));
+
+void QmlConfigProxy::set_stemOutputDirectory(const QString& value) {
+    setConfigValueAndNotify<QString>(kStemsGroup,
+            kStemOutputDirectoryKey,
+            value,
+            QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")),
+            &QmlConfigProxy::stemOutputDirectoryChanged);
+}
+
+bool QmlConfigProxy::stemGpuAcceleration() const {
+    return mixxx::stems::isGpuAccelerationEnabled(m_pConfig);
+}
+
+void QmlConfigProxy::set_stemGpuAcceleration(bool value) {
+    // The default depends on the hardware, so the helpers decide whether the
+    // key is stored or removed; a stored value always wins over the probe.
+    mixxx::stems::setGpuAccelerationEnabled(m_pConfig, value);
+    emit stemGpuAccelerationChanged();
+}
+
+bool QmlConfigProxy::stemGpuAccelerationDefault() const {
+    return mixxx::stems::gpuAccelerationDefault();
+}
+
+QString QmlConfigProxy::chooseDirectory(
+        const QString& title, const QString& initialPath) {
+    return QFileDialog::getExistingDirectory(nullptr,
+            title,
+            initialPath.isEmpty() ? m_pConfig->getSettingsPath() : initialPath);
+}
+
+QString QmlConfigProxy::chooseFile(const QString& title,
+        const QString& initialPath,
+        const QString& filter) {
+    return QFileDialog::getOpenFileName(nullptr,
+            title,
+            initialPath.isEmpty() ? m_pConfig->getSettingsPath() : initialPath,
+            filter);
+}
+
+// Paramix interface customization
+PROPERTY_IMPL(kParamixGroup,
+        kParamixColorSchemeKey,
+        QString,
+        paramixColorScheme,
+        QStringLiteral("Paramix Dark"));
+PROPERTY_IMPL(kParamixGroup,
+        kParamixAccentColorKey,
+        QString,
+        paramixAccentColor,
+        QString());
+PROPERTY_IMPL(kParamixGroup,
+        kParamixFontFamilyKey,
+        QString,
+        paramixFontFamily,
+        QStringLiteral("Helvetica Neue"));
+PROPERTY_IMPL_GETTER(kParamixGroup,
+        kParamixFontScaleKey,
+        double,
+        paramixFontScale,
+        1.0);
+void QmlConfigProxy::set_paramixFontScale(double value) {
+    setConfigValueAndNotify<double>(kParamixGroup,
+            kParamixFontScaleKey,
+            std::clamp(value, 0.85, 1.35),
+            1.0,
+            &QmlConfigProxy::paramixFontScaleChanged);
+}
+PROPERTY_IMPL_GETTER(kParamixGroup,
+        kParamixMotionScaleKey,
+        double,
+        paramixMotionScale,
+        1.0);
+void QmlConfigProxy::set_paramixMotionScale(double value) {
+    setConfigValueAndNotify<double>(kParamixGroup,
+            kParamixMotionScaleKey,
+            std::clamp(value, 0.5, 1.5),
+            1.0,
+            &QmlConfigProxy::paramixMotionScaleChanged);
+}
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowWaveformsKey,
+        bool,
+        paramixShowWaveforms,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowCoverArtKey,
+        bool,
+        paramixShowCoverArt,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowStemsKey,
+        bool,
+        paramixShowStems,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowHotcuesKey,
+        bool,
+        paramixShowHotcues,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowLibraryKey,
+        bool,
+        paramixShowLibrary,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowPreviewKey,
+        bool,
+        paramixShowPreview,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixCompactDecksKey,
+        bool,
+        paramixCompactDecks,
+        false);
 
 // static
 QmlConfigProxy* QmlConfigProxy::create(QQmlEngine* pQmlEngine, QJSEngine*) {

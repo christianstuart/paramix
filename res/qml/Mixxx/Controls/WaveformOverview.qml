@@ -63,7 +63,7 @@ Mixxx.WaveformOverview {
                 root.analyzerStatusColor.g,
                 root.analyzerStatusColor.b,
                 0.5)
-        font.family: "Open Sans"
+        font.family: "Helvetica Neue"
         font.pixelSize: 13
         text: root.analyzerStatusText
         visible: text.length > 0

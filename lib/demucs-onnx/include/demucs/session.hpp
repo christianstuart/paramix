@@ -10,13 +10,13 @@
 
 #pragma once
 
+#include <onnxruntime_cxx_api.h>
+
 #include <algorithm>
 #include <cstdio>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include <onnxruntime_cxx_api.h>
 
 #ifdef DEMUCS_WITH_DML
 #include <dml_provider_factory.h>
@@ -27,29 +27,74 @@
 
 namespace demucs {
 
-enum class Device { Auto, Cpu, Cuda, TensorRT, DirectML, CoreML, Rocm };
+// Paramix: WebGPU is appended here, not upstream. It is the accelerator that
+// works with the exported HTDemucs graph on macOS, where CoreML refuses the
+// dynamic sequence-length reshape. The stock runtime declares it in the
+// generic provider API, so no extra header is required.
+enum class Device { Auto,
+    Cpu,
+    Cuda,
+    TensorRT,
+    DirectML,
+    CoreML,
+    Rocm,
+    WebGpu };
 
 inline const char* device_name(Device device) {
     switch (device) {
-        case Device::Auto: return "auto";
-        case Device::Cpu: return "cpu";
-        case Device::Cuda: return "cuda";
-        case Device::TensorRT: return "tensorrt";
-        case Device::DirectML: return "directml";
-        case Device::CoreML: return "coreml";
-        case Device::Rocm: return "rocm";
+    case Device::Auto:
+        return "auto";
+    case Device::Cpu:
+        return "cpu";
+    case Device::Cuda:
+        return "cuda";
+    case Device::TensorRT:
+        return "tensorrt";
+    case Device::DirectML:
+        return "directml";
+    case Device::CoreML:
+        return "coreml";
+    case Device::Rocm:
+        return "rocm";
+    case Device::WebGpu:
+        return "webgpu";
     }
     return "cpu";
 }
 
 inline bool parse_device(const std::string& text, Device& out) {
-    if (text == "auto") { out = Device::Auto; return true; }
-    if (text == "cpu") { out = Device::Cpu; return true; }
-    if (text == "cuda") { out = Device::Cuda; return true; }
-    if (text == "tensorrt" || text == "trt") { out = Device::TensorRT; return true; }
-    if (text == "directml" || text == "dml") { out = Device::DirectML; return true; }
-    if (text == "coreml") { out = Device::CoreML; return true; }
-    if (text == "rocm") { out = Device::Rocm; return true; }
+    if (text == "auto") {
+        out = Device::Auto;
+        return true;
+    }
+    if (text == "cpu") {
+        out = Device::Cpu;
+        return true;
+    }
+    if (text == "cuda") {
+        out = Device::Cuda;
+        return true;
+    }
+    if (text == "tensorrt" || text == "trt") {
+        out = Device::TensorRT;
+        return true;
+    }
+    if (text == "directml" || text == "dml") {
+        out = Device::DirectML;
+        return true;
+    }
+    if (text == "coreml") {
+        out = Device::CoreML;
+        return true;
+    }
+    if (text == "rocm") {
+        out = Device::Rocm;
+        return true;
+    }
+    if (text == "webgpu") {
+        out = Device::WebGpu;
+        return true;
+    }
     return false;
 }
 
@@ -62,14 +107,21 @@ inline std::vector<Device> available_devices() {
     };
 
     std::vector<Device> devices;
-    if (has("TensorrtExecutionProvider")) devices.push_back(Device::TensorRT);
-    if (has("CUDAExecutionProvider")) devices.push_back(Device::Cuda);
-    if (has("ROCMExecutionProvider")) devices.push_back(Device::Rocm);
+    if (has("TensorrtExecutionProvider"))
+        devices.push_back(Device::TensorRT);
+    if (has("CUDAExecutionProvider"))
+        devices.push_back(Device::Cuda);
+    if (has("ROCMExecutionProvider"))
+        devices.push_back(Device::Rocm);
+    if (has("WebGpuExecutionProvider"))
+        devices.push_back(Device::WebGpu);
 #ifdef DEMUCS_WITH_DML
-    if (has("DmlExecutionProvider")) devices.push_back(Device::DirectML);
+    if (has("DmlExecutionProvider"))
+        devices.push_back(Device::DirectML);
 #endif
 #ifdef DEMUCS_WITH_COREML
-    if (has("CoreMLExecutionProvider")) devices.push_back(Device::CoreML);
+    if (has("CoreMLExecutionProvider"))
+        devices.push_back(Device::CoreML);
 #endif
     devices.push_back(Device::Cpu);
     return devices;
@@ -78,89 +130,93 @@ inline std::vector<Device> available_devices() {
 struct SessionConfig {
     Device device = Device::Auto;
     int device_id = 0;
-    int threads = 0;                 // 0 -> hardware concurrency
-    bool fp16 = false;               // ask TensorRT for half precision
-    std::string cache_dir;           // TensorRT engine cache
+    int threads = 0;       // 0 -> hardware concurrency
+    bool fp16 = false;     // ask TensorRT for half precision
+    std::string cache_dir; // TensorRT engine cache
     bool verbose = false;
 };
 
 // Appends the accelerator for `device`. Returns the device that was actually
 // configured: on failure it reports the problem and falls back to CPU, because
 // a missing CUDA DLL should not stop the tool from running.
-inline Device append_provider(Ort::SessionOptions& options, const SessionConfig& config,
-                              Device device) {
+inline Device append_provider(Ort::SessionOptions& options, const SessionConfig& config, Device device) {
     try {
         switch (device) {
-            case Device::Cuda: {
-                OrtCUDAProviderOptions cuda{};
-                cuda.device_id = config.device_id;
-                // Every chunk has identical shapes, so paying once for an
-                // exhaustive convolution search is repaid from chunk two on.
-                cuda.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
-                cuda.do_copy_in_default_stream = 1;
-                options.AppendExecutionProvider_CUDA(cuda);
-                return Device::Cuda;
+        case Device::Cuda: {
+            OrtCUDAProviderOptions cuda{};
+            cuda.device_id = config.device_id;
+            // Every chunk has identical shapes, so paying once for an
+            // exhaustive convolution search is repaid from chunk two on.
+            cuda.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive;
+            cuda.do_copy_in_default_stream = 1;
+            options.AppendExecutionProvider_CUDA(cuda);
+            return Device::Cuda;
+        }
+        case Device::TensorRT: {
+            OrtTensorRTProviderOptions trt{};
+            trt.device_id = config.device_id;
+            trt.trt_fp16_enable = config.fp16 ? 1 : 0;
+            // Zero-initialising the struct leaves these at 0, which TensorRT rejects
+            // and then warns about on every session. These are its own defaults,
+            // said out loud.
+            trt.trt_max_partition_iterations = 1000;
+            trt.trt_min_subgraph_size = 1;
+            trt.trt_max_workspace_size = 0; // 0 lets TensorRT use what it needs
+            if (!config.cache_dir.empty()) {
+                trt.trt_engine_cache_enable = 1;
+                trt.trt_engine_cache_path = config.cache_dir.c_str();
             }
-            case Device::TensorRT: {
-                OrtTensorRTProviderOptions trt{};
-                trt.device_id = config.device_id;
-                trt.trt_fp16_enable = config.fp16 ? 1 : 0;
-                // Zero-initialising the struct leaves these at 0, which TensorRT rejects
-                // and then warns about on every session. These are its own defaults,
-                // said out loud.
-                trt.trt_max_partition_iterations = 1000;
-                trt.trt_min_subgraph_size = 1;
-                trt.trt_max_workspace_size = 0;   // 0 lets TensorRT use what it needs
-                if (!config.cache_dir.empty()) {
-                    trt.trt_engine_cache_enable = 1;
-                    trt.trt_engine_cache_path = config.cache_dir.c_str();
-                }
-                options.AppendExecutionProvider_TensorRT(trt);
-                return Device::TensorRT;
-            }
-            case Device::Rocm: {
-                OrtROCMProviderOptions rocm{};
-                rocm.device_id = config.device_id;
-                options.AppendExecutionProvider_ROCM(rocm);
-                return Device::Rocm;
-            }
+            options.AppendExecutionProvider_TensorRT(trt);
+            return Device::TensorRT;
+        }
+        case Device::Rocm: {
+            OrtROCMProviderOptions rocm{};
+            rocm.device_id = config.device_id;
+            options.AppendExecutionProvider_ROCM(rocm);
+            return Device::Rocm;
+        }
+        case Device::WebGpu: {
+            // The generic provider API takes the EP name; WebGPU has no
+            // typed factory in this runtime version.
+            options.AppendExecutionProvider("WebGPU", {});
+            return Device::WebGpu;
+        }
 #ifdef DEMUCS_WITH_DML
-            case Device::DirectML: {
-                // DirectML manages its own allocations; ORT's memory pattern
-                // planner has to be off or the two fight over buffers.
-                options.DisableMemPattern();
-                options.SetExecutionMode(ORT_SEQUENTIAL);
-                Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(
+        case Device::DirectML: {
+            // DirectML manages its own allocations; ORT's memory pattern
+            // planner has to be off or the two fight over buffers.
+            options.DisableMemPattern();
+            options.SetExecutionMode(ORT_SEQUENTIAL);
+            Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_DML(
                     options, config.device_id));
-                return Device::DirectML;
-            }
+            return Device::DirectML;
+        }
 #endif
 #ifdef DEMUCS_WITH_COREML
-            case Device::CoreML: {
-                Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(options, 0));
-                return Device::CoreML;
-            }
+        case Device::CoreML: {
+            Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(options, 0));
+            return Device::CoreML;
+        }
 #endif
-            default:
-                return Device::Cpu;
+        default:
+            return Device::Cpu;
         }
     } catch (const Ort::Exception& error) {
-        std::fprintf(stderr, "[warn] %s is unavailable (%s); falling back to CPU\n",
-                     device_name(device), error.what());
+        std::fprintf(stderr, "[warn] %s is unavailable (%s); falling back to CPU\n", device_name(device), error.what());
         return Device::Cpu;
     }
 }
 
 // Opens `model_path`. `chosen` receives the provider that ended up in charge.
-inline Ort::Session create_session(const Ort::Env& env, const std::string& model_path,
-                                   const SessionConfig& config, Device& chosen) {
+inline Ort::Session create_session(const Ort::Env& env, const std::string& model_path, const SessionConfig& config, Device& chosen) {
     auto fresh_options = [&] {
         Ort::SessionOptions options;
         options.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
         options.SetExecutionMode(ORT_SEQUENTIAL);
         options.SetInterOpNumThreads(1);
         options.SetIntraOpNumThreads(config.threads > 0 ? config.threads : 0);
-        if (config.verbose) options.SetLogSeverityLevel(ORT_LOGGING_LEVEL_INFO);
+        if (config.verbose)
+            options.SetLogSeverityLevel(ORT_LOGGING_LEVEL_INFO);
         return options;
     };
 
@@ -181,11 +237,24 @@ inline Ort::Session create_session(const Ort::Env& env, const std::string& model
     // through registering leaves them in no state to reuse.
     if (config.device == Device::Auto) {
         for (const Device candidate : available_devices()) {
-            if (candidate == Device::Cpu) break;
+            if (candidate == Device::Cpu)
+                break;
             Ort::SessionOptions options = fresh_options();
             if (append_provider(options, config, candidate) == candidate) {
-                chosen = candidate;
-                return open(options);
+                // Appending a provider can succeed while opening the session
+                // fails (a half-installed CUDA runtime, a WebGPU device that
+                // rejects the graph). That must degrade to the next provider,
+                // not fail the job.
+                try {
+                    chosen = candidate;
+                    return open(options);
+                } catch (const std::exception& error) {
+                    std::fprintf(stderr,
+                            "[warn] %s could not create a session (%s); trying the next provider\n",
+                            device_name(candidate),
+                            error.what());
+                    chosen = Device::Cpu;
+                }
             }
         }
         chosen = Device::Cpu;
@@ -199,4 +268,4 @@ inline Ort::Session create_session(const Ort::Env& env, const std::string& model
     return open(options);
 }
 
-}  // namespace demucs
+} // namespace demucs

@@ -225,9 +225,9 @@ TrackPointer BrowseTableModel::getTrackByRef(const TrackRef& trackRef) const {
             m_pRecordingManager->getRecordingLocation() ==
                     trackRef.getLocation()) {
         QMessageBox::critical(nullptr,
-                tr("Mixxx Library"),
+                tr("Paramix Library"),
                 tr("Could not load the following file because it is in use by "
-                   "Mixxx or another application.") +
+                   "Paramix or another application.") +
                         "\n" + trackRef.getLocation());
         return TrackPointer();
     }
@@ -373,7 +373,7 @@ void BrowseTableModel::slotInsert(const BrowseTableItems& rows,
     // receive items this object has 'ordered' from the BrowseThread (singleton)
     if (caller_object == this) {
         emit saveModelState();
-        //qDebug() << "BrowseTableModel::slotInsert";
+        // qDebug() << "BrowseTableModel::slotInsert";
         for (int i = 0; i < rows.size(); ++i) {
             appendRow(rows.at(i));
         }

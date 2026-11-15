@@ -1,14 +1,13 @@
 #include "qml/qmlsidebarmodelproxy.h"
 
-#include <qalgorithms.h>
-
-#include <QAbstractListModel>
+#include <QString>
 #include <QVariant>
-#include <QtDebug>
+#include <utility>
 
-#include "library/treeitem.h"
+#include "library/library.h"
+#include "library/trackmodel.h"
 #include "moc_qmlsidebarmodelproxy.cpp"
-#include "qml/qmllibrarysource.h"
+#include "qml/qmllibraryproxy.h"
 #include "util/assert.h"
 #include "util/parented_ptr.h"
 
@@ -18,12 +17,27 @@ namespace qml {
 namespace {
 const QHash<int, QByteArray> kRoleNames = {
         {Qt::DisplayRole, "label"},
-        {QmlSidebarModelProxy::IconRole, "icon"},
+        {QmlSidebarModelProxy::IconUrlRole, "icon"},
+        {SidebarModel::DataRole, "data"},
 };
 } // namespace
 
 QHash<int, QByteArray> QmlSidebarModelProxy::roleNames() const {
     return kRoleNames;
+}
+
+QVariant QmlSidebarModelProxy::data(const QModelIndex& index, int role) const {
+    if (role == IconUrlRole) {
+        if (index.isValid() && index.internalPointer() == this &&
+                index.row() >= 0 && index.row() < m_sFeatures.size()) {
+            // Return a string (not a QUrl) so that QML can test it with `!!icon`.
+            const QUrl iconUrl = m_sFeatures.at(index.row())->iconUrl();
+            return iconUrl.isValid() ? iconUrl.toString() : QString();
+        }
+        // Tree items use QIcon which cannot be rendered by QML directly.
+        return QVariant();
+    }
+    return SidebarModel::data(index, role);
 }
 
 QVariant QmlSidebarModelProxy::get(int row) const {
@@ -36,52 +50,170 @@ QVariant QmlSidebarModelProxy::get(int row) const {
 }
 
 void QmlSidebarModelProxy::activate(const QModelIndex& index) {
-    VERIFY_OR_DEBUG_ASSERT(index.isValid()) {
+    if (!index.isValid() || index.model() != this) {
         return;
     }
-    if (index.internalPointer() == this) {
-        VERIFY_OR_DEBUG_ASSERT(index.row() >= 0 && index.row() < m_sFeatures.length()) {
-            return;
-        }
-        m_sFeatures[index.row()]->activate();
-    } else {
-        TreeItem* pTreeItem = static_cast<TreeItem*>(index.internalPointer());
-        VERIFY_OR_DEBUG_ASSERT(pTreeItem != nullptr) {
-            return;
-        }
-        LibraryFeature* pFeature = pTreeItem->feature();
-        DEBUG_ASSERT(pFeature);
-        pFeature->activateChild(index);
-        pFeature->onLazyChildExpandation(index);
+    SidebarModel::clicked(index);
+}
+
+void QmlSidebarModelProxy::expand(const QModelIndex& index) {
+    if (!index.isValid() || index.model() != this) {
+        return;
     }
+    // Populates lazy child models (playlists, crates, folders, ...).
+    SidebarModel::doubleClicked(index);
 }
 
 QmlSidebarModelProxy::QmlSidebarModelProxy(QObject* parent)
         : SidebarModel(parent),
-          m_tracklist(nullptr) {
+          m_pTracklist(nullptr),
+          m_featuresUpdated(false) {
 }
 QmlSidebarModelProxy::~QmlSidebarModelProxy() = default;
 
-void QmlSidebarModelProxy::update(const QList<QmlLibraryAbstractSource*>& sources) {
+void QmlSidebarModelProxy::update() {
+    Library* pLibrary = QmlLibraryProxy::get();
+    VERIFY_OR_DEBUG_ASSERT(pLibrary) {
+        return;
+    }
+    SidebarModel* pLibrarySidebar = pLibrary->sidebarModel();
+    VERIFY_OR_DEBUG_ASSERT(pLibrarySidebar) {
+        return;
+    }
+    // Library features are added once during Library construction and never
+    // removed, so mirroring them more than once would duplicate connections.
+    if (m_featuresUpdated) {
+        return;
+    }
+    m_featuresUpdated = true;
+
     beginResetModel();
-    qDeleteAll(m_sFeatures);
-    for (const auto& librarySource : sources) {
-        VERIFY_OR_DEBUG_ASSERT(librarySource) {
+    for (LibraryFeature* pFeature : pLibrarySidebar->features()) {
+        VERIFY_OR_DEBUG_ASSERT(pFeature) {
             continue;
         }
-        connect(librarySource,
-                &QmlLibraryAbstractSource::requestTrackModel,
+        addLibraryFeature(pFeature);
+        connect(pFeature,
+                &LibraryFeature::showTrackModel,
                 this,
                 &QmlSidebarModelProxy::slotShowTrackModel);
-        auto* pLibrarySource = librarySource->internal();
-        addLibraryFeature(pLibrarySource);
     }
     endResetModel();
+
+    activateDefaultSelection();
 }
 
-void QmlSidebarModelProxy::slotShowTrackModel(std::shared_ptr<QmlLibraryTrackListModel> pModel) {
-    m_tracklist = pModel;
+void QmlSidebarModelProxy::activateDefaultSelection() {
+    if (m_pTracklist || m_sFeatures.isEmpty()) {
+        return;
+    }
+    const QModelIndex defaultIndex = index(0, 0);
+    VERIFY_OR_DEBUG_ASSERT(defaultIndex.isValid()) {
+        return;
+    }
+    // Show the default source (tracks) like the legacy library does when a
+    // skin is loaded.
+    SidebarModel::clicked(defaultIndex);
+}
+
+void QmlSidebarModelProxy::setColumns(
+        const QList<QmlLibraryTrackListColumn*>& columns) {
+    m_columns.clear();
+    m_columns.reserve(columns.size());
+    for (const auto* pColumn : columns) {
+        VERIFY_OR_DEBUG_ASSERT(pColumn) {
+            continue;
+        }
+        // Take a snapshot: the QML-owned template objects may be garbage
+        // collected whereas the models created later must stay intact.
+        m_columns.emplace_back(make_parented<QmlLibraryTrackListColumn>(this,
+                pColumn->label(),
+                pColumn->fillSpan(),
+                pColumn->columnIdx(),
+                pColumn->preferredWidth(),
+                pColumn->autoHideWidth(),
+                pColumn->delegate(),
+                pColumn->role()));
+    }
+}
+
+QmlLibraryTrackListModel* QmlSidebarModelProxy::trackListForModel(
+        QAbstractItemModel* pModel) {
+    for (const auto& entry : std::as_const(m_trackLists)) {
+        if (entry.pSourceModel.data() == pModel) {
+            return entry.pTrackList;
+        }
+    }
+
+    VERIFY_OR_DEBUG_ASSERT(dynamic_cast<TrackModel*>(pModel)) {
+        return nullptr;
+    }
+
+    QList<QmlLibraryTrackListColumn*> columns;
+    columns.reserve(m_columns.size());
+    for (const auto& column : std::as_const(m_columns)) {
+        columns.append(column.get());
+    }
+
+    auto* pTrackList = new QmlLibraryTrackListModel(columns, pModel, this);
+    // The model is owned by this proxy (QObject tree), not by the QML engine.
+    QQmlEngine::setObjectOwnership(pTrackList, QQmlEngine::CppOwnership);
+    connect(pTrackList,
+            &QmlLibraryTrackListModel::searchRequested,
+            this,
+            &QmlSidebarModelProxy::slotTrackListSearch);
+    m_trackLists.append(TrackListEntry{pModel, pTrackList});
+    return pTrackList;
+}
+
+void QmlSidebarModelProxy::slotShowTrackModel(QAbstractItemModel* pModel) {
+    VERIFY_OR_DEBUG_ASSERT(pModel) {
+        return;
+    }
+    QmlLibraryTrackListModel* pTrackList = trackListForModel(pModel);
+    if (!pTrackList) {
+        // Not a track table model (e.g. a feature that only provides a
+        // QWidget view which is not available in QML).
+        return;
+    }
+    // The search is shared between all sources: apply the remembered query if
+    // the model was prepared with a different one (or none at all).
+    auto* pTrackModel = dynamic_cast<TrackModel*>(pModel);
+    if (pTrackModel && pTrackModel->currentSearch() != m_searchText) {
+        pTrackList->search(m_searchText);
+    }
+    // Never destroy a model that has been exposed to QML: switching back to a
+    // previously shown source reuses the cached model.
+    if (m_pTracklist == pTrackList) {
+        return;
+    }
+    m_pTracklist = pTrackList;
     emit tracklistChanged();
+}
+
+void QmlSidebarModelProxy::setSearchText(const QString& searchText) {
+    if (m_searchText == searchText) {
+        return;
+    }
+    m_searchText = searchText;
+    emit searchTextChanged();
+    if (m_pTracklist) {
+        m_pTracklist->search(m_searchText);
+    }
+}
+
+void QmlSidebarModelProxy::search(const QString& searchText) {
+    setSearchText(searchText);
+}
+
+void QmlSidebarModelProxy::slotTrackListSearch(const QString& searchText) {
+    // The QML side applied the search directly on the current track list.
+    // Remember it so that it survives switching to another source.
+    if (m_searchText == searchText) {
+        return;
+    }
+    m_searchText = searchText;
+    emit searchTextChanged();
 }
 
 } // namespace qml

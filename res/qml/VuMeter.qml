@@ -1,16 +1,30 @@
 import Mixxx 1.0 as Mixxx
-import Qt5Compat.GraphicalEffects
 import QtQuick 2.12
 import "Theme"
 
+/// Flat, segmented level meter.
+///
+/// Rekordbox ladder: dim recessed rail, lit segments rising green / amber /
+/// red with 1 px gaps, rounded 1 px caps. The rail sits flush beside a fader
+/// so the strip reads as one hardware channel.
 Rectangle {
     id: root
 
     required property string group
     required property string key
 
-    radius: width / 2
-    color: "black"
+    /// Normalised level, 0.0 - 1.0.
+    readonly property real level: Math.max(0, Math.min(1, control.parameter))
+    /// One segment per 4 px of height keeps the meter readable at any size.
+    readonly property int segmentCount: Math.max(1, Math.floor(height / 4))
+    readonly property int segmentSpacing: 1
+    readonly property real segmentHeight: Math.max(1, (segments.height - (root.segmentCount - 1) * root.segmentSpacing) / root.segmentCount)
+
+    antialiasing: true
+    border.color: Theme.border
+    border.width: 1
+    color: Theme.vuRail
+    radius: 2
 
     Mixxx.ControlProxy {
         id: control
@@ -20,60 +34,33 @@ Rectangle {
     }
 
     Item {
-        id: meterMask
+        id: segments
 
         anchors.fill: parent
-        visible: false
+        clip: true
 
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.margins: 1
-            antialiasing: false // for performance reasons
-            height: control.parameter * (parent.height - 2 * anchors.margins)
-            radius: width / 2
-        }
-    }
+        Repeater {
+            model: root.segmentCount
 
-    Rectangle {
-        id: meterGradient
+            Rectangle {
+                required property int index
 
-        antialiasing: false // for performance reasons
-        anchors.fill: parent
-        visible: false
+                // index 0 is the top segment, the level fills from the bottom.
+                readonly property real position: 1 - (index + 0.5) / root.segmentCount
+                readonly property bool active: position < root.level
+                readonly property color activeColor: position > 0.9
+                        ? Theme.vuRed
+                        : position > 0.75
+                          ? Theme.vuYellow
+                          : Theme.vuGreen
 
-        gradient: Gradient {
-            GradientStop {
-                position: 0.1
-                color: Theme.red
-            }
-
-            GradientStop {
-                position: 0.15
-                color: Theme.yellow
-            }
-
-            GradientStop {
-                position: 0.25
-                color: Theme.yellow
-            }
-
-            GradientStop {
-                position: 0.3
-                color: Theme.green
-            }
-
-            GradientStop {
-                position: 1
-                color: Theme.green
+                antialiasing: false
+                color: active ? activeColor : Theme.surface2
+                height: root.segmentHeight
+                radius: 1
+                width: segments.width
+                y: index * (height + root.segmentSpacing)
             }
         }
-    }
-
-    OpacityMask {
-        anchors.fill: parent
-        source: meterGradient
-        maskSource: meterMask
     }
 }

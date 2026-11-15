@@ -2,78 +2,168 @@ import "." as Skin
 import QtQuick 2.12
 import "Theme"
 
+/// One mixer channel strip: channel tag, trim, level faders and cue.
+///
+/// Rekordbox-style hardware strip: deck-dot channel tag on top, recessed
+/// fader well with flush meter rails, amber cue key at the bottom.
 Item {
     id: root
 
     required property string group
+
+    readonly property color deckColor: {
+        if (group === "[Channel1]")
+            return Theme.deckA;
+        if (group === "[Channel2]")
+            return Theme.deckB;
+        if (group === "[Channel3]")
+            return Theme.deckC;
+        if (group === "[Channel4]")
+            return Theme.deckD;
+        return Theme.accent;
+    }
+    readonly property string channelLabel: {
+        if (group === "[Channel1]")
+            return "1";
+        if (group === "[Channel2]")
+            return "2";
+        if (group === "[Channel3]")
+            return "3";
+        return "4";
+    }
+
+    // Channel tag: deck dot + number in micro-type.
+    Item {
+        id: channelTag
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 14
+
+        Rectangle {
+            anchors.centerIn: parent
+            color: "transparent"
+            height: 14
+            width: 36
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                color: root.deckColor
+                height: 6
+                radius: 3
+                width: 6
+            }
+            Text {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.textMuted
+                font.family: Theme.fontFamily
+                font.letterSpacing: Theme.letterSpacingCaps
+                font.pixelSize: Theme.fontSizeXs
+                font.weight: Theme.fontWeightDemiBold
+                text: "CH " + root.channelLabel
+            }
+        }
+    }
 
     Rectangle {
         id: gainKnobFrame
 
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: parent.top
-        color: Theme.knobBackgroundColor
+        anchors.top: channelTag.bottom
+        border.width: 0
+        color: "transparent"
         height: width
-        radius: 5
+        radius: 0
 
         Skin.ControlKnob {
             id: gainKnob
 
             anchors.centerIn: parent
-            color: Theme.gainKnobColor
+            color: Theme.textPrimary
             group: root.group
-            height: 36
+            height: parent.height - 2 * Theme.space1
             key: "pregain"
-            width: 36
+            width: height
         }
     }
-    Item {
+    Rectangle {
+        id: faderFrame
+
         anchors.bottom: pflButton.top
-        anchors.bottomMargin: 5
+        anchors.bottomMargin: Theme.space1
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: gainKnobFrame.bottom
-        anchors.topMargin: 5
+        anchors.topMargin: Theme.space1
+        border.color: Theme.borderStrong
+        border.width: 1
+        color: Theme.surface0
+        radius: Theme.radiusSm
 
+        // Lit top edge inside the recessed well.
+        Rectangle {
+            anchors.left: parent.left
+            anchors.leftMargin: 1
+            anchors.right: parent.right
+            anchors.rightMargin: 1
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            color: Theme.topHighlight
+            height: 1
+        }
+
+        // Meter rails flank the fader, outside the handle travel.
         Skin.VuMeter {
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.space1
+            anchors.left: parent.left
+            anchors.leftMargin: 2
+            anchors.top: parent.top
+            anchors.topMargin: Theme.space1
             group: root.group
-            height: parent.height - 22
             key: "vu_meter_left"
-            width: 4
-            x: 15
-            y: (parent.height - height) / 2
+            width: 2
         }
         Skin.VuMeter {
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.space1
+            anchors.right: parent.right
+            anchors.rightMargin: 2
+            anchors.top: parent.top
+            anchors.topMargin: Theme.space1
             group: root.group
-            height: parent.height - 22
             key: "vu_meter_right"
-            width: 4
-            x: parent.width - width - 15
-            y: (parent.height - height) / 2
+            width: 2
         }
         Skin.ControlFader {
             id: volumeSlider
 
             anchors.fill: parent
-            bar.color: Theme.volumeSliderBarColor
+            anchors.margins: 2
+            bar.color: Theme.accent
             bg: Theme.imgVolumeSliderBackground
             group: root.group
             key: "volume"
 
             handleImage {
-                width: parent.width - 4
+                height: 8
+                width: 26
             }
         }
     }
     Skin.ControlButton {
         id: pflButton
 
-        activeColor: Theme.pflActiveButtonColor
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right
+        activeColor: Theme.textOnAccent
         group: root.group
+        height: 22
         key: "pfl"
         text: qsTr("PFL")
         toggleable: true

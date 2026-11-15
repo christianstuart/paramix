@@ -295,7 +295,7 @@ Item {
             anchors.centerIn: parent
             color: LateNightTheme.passthroughLabelColor
             font.bold: true
-            font.family: "Open Sans"
+            font.family: "Helvetica Neue"
             font.pixelSize: Math.max(1, Math.min(25, Math.floor(parent.height * 0.8)))
             text: qsTr("Passthrough")
         }

@@ -66,7 +66,10 @@ QString computeResourcePathImpl() {
             }
         }
 #if defined(__UNIX__) && !defined(__ANDROID__)
-        else if (mixxxDir.cd(QStringLiteral("../share/mixxx"))) {
+        else if (mixxxDir.cd(QStringLiteral("../share/paramix")) ||
+                mixxxDir.cd(QStringLiteral("../share/mixxx"))) {
+            // Prefer the Paramix install tree, but keep the upstream path as a
+            // fallback for in-place upgrades.
             qResourcePath = mixxxDir.absolutePath();
         }
 #elif defined(__WINDOWS__)

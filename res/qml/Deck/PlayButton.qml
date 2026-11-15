@@ -5,50 +5,110 @@ import QtQuick.Controls 2.12
 import ".." as Skin
 import "../Theme"
 
+/// Transport button for play/pause.
+///
+/// Pioneer-style transport: neutral raised face at rest, signal-green
+/// backlight while playing. The glyph switches between play and pause so the
+/// state reads by colour, shape and label at once.
 Skin.ControlButton {
     id: root
 
     property bool minimized: false
 
-    activeColor: Theme.deckActiveColor
+    activeColor: "#06130C"
     key: "play"
     toggleable: trackLoadedControl.value == 1
 
-    Accessible.name: qsTr("Play")
+    Accessible.name: root.highlight ? qsTr("Pause") : qsTr("Play")
 
+    background: Rectangle {
+        border.color: root.highlight ? Qt.lighter(Theme.positive, 1.15) : (root.hovered ? Theme.borderStrong : Theme.border)
+        border.width: 1
+        color: root.highlight ? Theme.positive : (root.pressed ? Theme.surface3 : (root.hovered ? Theme.surfaceHover : Theme.surface2))
+        radius: Theme.radiusSm
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.leftMargin: 1
+            anchors.right: parent.right
+            anchors.rightMargin: 1
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            color: root.highlight ? Qt.rgba(255, 255, 255, 0.28) : Theme.topHighlight
+            height: 1
+        }
+
+        Behavior on border.color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
+        }
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.motionFast
+            }
+        }
+    }
     contentItem: Item {
         id: content
 
-        Shape {
+        Item {
+            id: glyph
+
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: 6
-            antialiasing: true
-            height: 32
-            layer.enabled: true
-            layer.samples: 4
+            anchors.topMargin: 10
+            height: 22
             visible: !root.minimized
-            width: 30
+            width: 20
 
-            ShapePath {
-                capStyle: ShapePath.RoundCap
-                fillColor: trackLoadedControl.value > 0 ? Theme.buttonActiveColor : Theme.buttonDisableColor
-                fillRule: ShapePath.WindingFill
-                startX: 5
-                startY: 0
-                strokeColor: 'transparent'
+            Shape {
+                id: playGlyph
 
-                PathLine {
-                    x: 30
-                    y: 16
+                anchors.fill: parent
+                antialiasing: true
+                layer.enabled: true
+                layer.samples: 4
+                visible: !root.highlight
+
+                ShapePath {
+                    fillColor: trackLoadedControl.value > 0 ? Theme.textPrimary : Theme.textMuted
+                    startX: 3
+                    startY: 0
+                    strokeColor: 'transparent'
+
+                    PathLine {
+                        x: 19
+                        y: 11
+                    }
+                    PathLine {
+                        x: 3
+                        y: 22
+                    }
+                    PathLine {
+                        x: 3
+                        y: 0
+                    }
                 }
-                PathLine {
-                    x: 5
-                    y: 32
+            }
+            Row {
+                id: pauseGlyph
+
+                anchors.centerIn: parent
+                spacing: 4
+                visible: root.highlight
+
+                Rectangle {
+                    color: "#06130C"
+                    height: 20
+                    radius: 1
+                    width: 5
                 }
-                PathLine {
-                    x: 5
-                    y: 0
+                Rectangle {
+                    color: "#06130C"
+                    height: 20
+                    radius: 1
+                    width: 5
                 }
             }
         }
@@ -56,15 +116,16 @@ Skin.ControlButton {
             id: label
 
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 4
+            anchors.bottomMargin: 7
             anchors.horizontalCenter: parent.horizontalCenter
-            color: '#626262'
-            font.bold: true
+            color: root.highlight ? "#06130C" : Theme.textSecondary
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.buttonFontPixelSize
+            font.letterSpacing: Theme.letterSpacingCaps
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Play")
+            text: root.highlight ? qsTr("Pause") : qsTr("Play")
             verticalAlignment: Text.AlignVCenter
 
             states: [

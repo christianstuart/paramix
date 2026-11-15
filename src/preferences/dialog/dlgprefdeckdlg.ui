@@ -76,14 +76,14 @@ If this option is disabled, the intro start point is automatically placed at the
       <item row="0" column="1" colspan="2">
        <widget class="QComboBox" name="ComboBoxCueMode">
         <property name="toolTip">
-         <string>Mixxx mode:
+         <string>Paramix mode:
 - Cue button while pause at cue point = preview
 - Cue button while pause not at cue point = set cue point
 - Cue button while playing = pause at cue point
-Mixxx mode (no blinking):
-- Same as Mixxx mode but with no blinking indicators
+Paramix mode (no blinking):
+- Same as Paramix mode but with no blinking indicators
 Pioneer mode:
-- Same as Mixxx mode with a flashing play button
+- Same as Paramix mode with a flashing play button
 Denon mode:
 - Cue button at cue point = preview
 - Cue button not at cue point = pause at cue point

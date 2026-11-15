@@ -7,6 +7,7 @@
 #include <QSortFilterProxyModel>
 #include <QStandardItemModel>
 #include <QVariant>
+#include <QVector>
 
 #include "library/basetracktablemodel.h"
 #include "library/columncache.h"
@@ -15,13 +16,18 @@
 #include "qml/qmllibrarytracklistcolumn.h"
 #include "qml_owned_ptr.h"
 #include "qmltrackproxy.h"
+#include "stems/stemcache.h"
+#include "stems/stemservice.h"
 #include "track/track.h"
 #include "util/assert.h"
+#include "util/logger.h"
 #include "util/parented_ptr.h"
 
 namespace mixxx {
 namespace qml {
 namespace {
+const mixxx::Logger kLogger("QmlLibraryTrackListModel");
+
 const QHash<int, QByteArray> kRoleNames = {
         {Qt::DisplayRole, "display"},
         {Qt::DecorationRole, "decoration"},
@@ -29,6 +35,7 @@ const QHash<int, QByteArray> kRoleNames = {
         {QmlLibraryTrackListModel::Track, "track"},
         {QmlLibraryTrackListModel::FileURL, "file_url"},
         {QmlLibraryTrackListModel::CoverArt, "cover_art"},
+        {QmlLibraryTrackListModel::HasStems, "has_stems"},
 };
 
 QColor colorFromRgbCode(double colorValue) {
@@ -39,6 +46,9 @@ QColor colorFromRgbCode(double colorValue) {
     QRgb rgbValue = static_cast<QRgb>(colorValue) | 0xFF000000;
     return QColor(rgbValue);
 }
+
+constexpr int kStemServiceRetryIntervalMs = 1000;
+constexpr int kStemServiceMaxRetryCount = 30;
 } // namespace
 
 QmlLibraryTrackListModel::QmlLibraryTrackListModel(
@@ -65,6 +75,82 @@ QmlLibraryTrackListModel::QmlLibraryTrackListModel(
     }
     pTrackModel->select();
     setSourceModel(pModel);
+
+    m_stemServiceRetryTimer.setInterval(kStemServiceRetryIntervalMs);
+    connect(&m_stemServiceRetryTimer,
+            &QTimer::timeout,
+            this,
+            &QmlLibraryTrackListModel::ensureStemServiceConnected);
+    ensureStemServiceConnected();
+}
+
+void QmlLibraryTrackListModel::ensureStemServiceConnected() {
+    if (m_stemServiceConnected) {
+        m_stemServiceRetryTimer.stop();
+        return;
+    }
+    if (!mixxx::stems::StemService::isCreated()) {
+        ++m_stemServiceRetryCount;
+        if (m_stemServiceRetryCount >= kStemServiceMaxRetryCount) {
+            m_stemServiceRetryTimer.stop();
+            kLogger.debug() << "Giving up waiting for StemService";
+            return;
+        }
+        if (!m_stemServiceRetryTimer.isActive()) {
+            m_stemServiceRetryTimer.start();
+        }
+        return;
+    }
+
+    auto* pStemService = mixxx::stems::StemService::instance();
+    if (!pStemService) {
+        return;
+    }
+    m_stemServiceConnected = true;
+    m_stemServiceRetryTimer.stop();
+    m_stemTrackIds = pStemService->trackIdsWithStemSets();
+    // The service emits from its worker thread. The receiver context (`this`)
+    // disconnects automatically when the model is destroyed.
+    connect(pStemService, &mixxx::stems::StemService::stemsReady, this, [this](TrackId trackId) {
+                m_stemTrackIds.insert(trackId);
+                refreshHasStems(trackId, true); }, Qt::QueuedConnection);
+    connect(pStemService, &mixxx::stems::StemService::trackStatusChanged, this, [this](TrackId trackId, mixxx::stems::StemService::Status status, int /*progress*/, const QString& /*message*/) {
+                // Only the transition to Ready can change has_stems.
+                if (status == mixxx::stems::StemService::Status::Ready) {
+                    m_stemTrackIds.insert(trackId);
+                    refreshHasStems(trackId, false);
+                } }, Qt::QueuedConnection);
+}
+
+void QmlLibraryTrackListModel::refreshHasStems(
+        TrackId trackId, bool populateStemInfo) {
+    if (!trackId.isValid()) {
+        return;
+    }
+    auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());
+    if (pTrackModel == nullptr) {
+        return;
+    }
+    const int lastColumn = columnCount() - 1;
+    if (lastColumn < 0) {
+        return;
+    }
+    const int rows = rowCount();
+    for (int row = 0; row < rows; ++row) {
+        const auto pTrack = pTrackModel->getTrack(sourceModel()->index(row, 0));
+        if (!pTrack || pTrack->getId() != trackId) {
+            continue;
+        }
+        if (populateStemInfo && pTrack->getStemInfo().isEmpty()) {
+            // The stem metadata is normally imported when the cached source is
+            // opened. Separation finished in the background, so attach it here
+            // to make the row and the HasStems role reflect the new cache.
+            pTrack->setStemInfo(mixxx::stems::StemCache::stemInfo());
+        }
+        emit dataChanged(index(row, 0),
+                index(row, lastColumn),
+                QVector<int>{HasStems});
+    }
 }
 
 QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role) const {
@@ -128,6 +214,20 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
             return {};
         }
         return pTrackModel->getTrackUrl(QIdentityProxyModel::mapToSource(proxyIndex));
+    }
+    case HasStems: {
+        // Cheap check on the already loaded track. The stem service status is
+        // intentionally not queried per cell, because that may hit the database.
+        if (pTrackModel == nullptr) {
+            return false;
+        }
+        const auto pTrack = pTrackModel->getTrack(
+                QIdentityProxyModel::mapToSource(proxyIndex));
+        if (!pTrack) {
+            return false;
+        }
+        return !pTrack->getStemInfo().isEmpty() ||
+                m_stemTrackIds.contains(pTrack->getId());
     }
     case Delegate:
         return QVariant::fromValue(pColumn->delegate());
@@ -205,6 +305,7 @@ void QmlLibraryTrackListModel::search(const QString& searchText) {
         return;
     }
     pTrackModel->search(searchText);
+    emit searchRequested(searchText);
 }
 
 void QmlLibraryTrackListModel::sort(int column, Qt::SortOrder order) {

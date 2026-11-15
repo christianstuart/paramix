@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import QtQuick.Window
 import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
+import "Mixer" as MixerComponents
 import "Theme"
 
 Item {
@@ -20,10 +21,11 @@ Item {
     readonly property int numDecks: 4
     readonly property int numPreviewDecks: 1
     readonly property int numSamplers: 16
-    readonly property int waveformOverviewTypeRgb: 2
     readonly property bool show4decks: show4DecksButton.checked && show4DecksButton.visible
     property alias showEffects: showEffectsButton.checked
     property alias showSamplers: showSamplersButton.checked
+    readonly property bool showMicrophoneInputs: showMicrophonesControl.value > 0
+    readonly property int waveformOverviewTypeRgb: 2
 
     Loader {
         id: nativeApplicationMenuLoader
@@ -92,6 +94,28 @@ Item {
             value = root.waveformOverviewTypeRgb;
         }
     }
+    Mixxx.ControlProxy {
+        id: showMicrophonesControl
+
+        group: "[Skin]"
+        key: "show_microphones"
+
+        onValueChanged: {
+            if (showAuxButton) {
+                showAuxButton.checked = showMicrophonesControl.value > 0;
+            }
+        }
+    }
+    Mixxx.ControlProxy {
+        id: numMicrophones
+        group: "[App]"
+        key: "num_microphones"
+    }
+    Mixxx.ControlProxy {
+        id: numAuxiliaries
+        group: "[App]"
+        key: "num_auxiliaries"
+    }
     Column {
         id: content
 
@@ -99,7 +123,7 @@ Item {
 
         move: Transition {
             NumberAnimation {
-                duration: 150
+                duration: Theme.motionNormal
                 properties: "x,y"
             }
         }
@@ -107,28 +131,95 @@ Item {
         Rectangle {
             id: toolbar
 
-            color: Theme.toolbarBackgroundColor
-            height: 36
-            radius: 1
+            color: Theme.surface1
+            height: Theme.toolbarHeight
             width: parent.width
+
+            // Flat matte top plate with a 1 px hairline bottom separator.
+            Rectangle {
+                anchors.bottom: parent.bottom
+                color: Theme.border
+                height: 1
+                width: parent.width
+            }
 
             RowLayout {
                 anchors.fill: parent
+                anchors.leftMargin: Theme.space3
+                anchors.rightMargin: Theme.space2
+                spacing: Theme.space2
 
+                // Brand plate: signal bar, wordmark, deck status dots.
+                RowLayout {
+                    spacing: Theme.space2
+
+                    Rectangle {
+                        color: Theme.accent
+                        implicitHeight: 22
+                        implicitWidth: 3
+                        radius: 1
+                    }
+                    ColumnLayout {
+                        spacing: 0
+
+                        Text {
+                            color: Theme.textPrimary
+                            font.bold: true
+                            font.family: Theme.fontFamilyDisplay
+                            font.letterSpacing: 2.5
+                            font.pixelSize: Theme.fontSizeSm
+                            text: qsTr("PARAMIX")
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                    RowLayout {
+                        spacing: 4
+
+                        Layout.leftMargin: Theme.space2
+
+                        Repeater {
+                            model: [Theme.deckA, Theme.deckB, Theme.deckC, Theme.deckD]
+
+                            Rectangle {
+                                Layout.alignment: Qt.AlignVCenter
+                                color: modelData
+                                height: 6
+                                opacity: 0.9
+                                radius: 3
+                                width: 6
+                            }
+                        }
+                    }
+                    Item {
+                        implicitWidth: Theme.space2
+                    }
+                }
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    color: Theme.border
+                    implicitHeight: 20
+                    implicitWidth: 1
+                }
                 Skin.Button {
                     id: show4DecksButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.textOnAccent
+                    Layout.preferredWidth: 84
                     checkable: true
                     text: qsTr("4 Decks")
                     visible: root.height > 515
+
+                    Accessible.name: qsTr("Show four decks")
                 }
                 Skin.Button {
                     id: maximizeLibraryButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.textOnAccent
+                    Layout.preferredWidth: 84
                     checkable: true
                     text: qsTr("Library")
+
+                    Accessible.name: qsTr("Maximize library")
 
                     onCheckedChanged: () => {
                         showMaximizedLibrary.value = this.checked;
@@ -148,23 +239,35 @@ Item {
                 Skin.Button {
                     id: showEffectsButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.textOnAccent
+                    Layout.preferredWidth: 84
                     checkable: true
                     text: qsTr("Effects")
+
+                    Accessible.name: qsTr("Show effects")
                 }
                 Skin.Button {
                     id: showAuxButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.textOnAccent
+                    Layout.preferredWidth: 84
                     checkable: true
                     text: qsTr("Aux")
+
+                    Accessible.name: qsTr("Show microphone and auxiliary inputs")
+
+                    Component.onCompleted: checked = root.showMicrophoneInputs
+                    onCheckedChanged: showMicrophonesControl.value = showAuxButton.checked
                 }
                 Skin.Button {
                     id: showSamplersButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.textOnAccent
+                    Layout.preferredWidth: 84
                     checkable: true
                     text: qsTr("Sampler")
+
+                    Accessible.name: qsTr("Show samplers")
                 }
                 Item {
                     Layout.fillWidth: true
@@ -172,17 +275,23 @@ Item {
                 Skin.Button {
                     id: editDeckButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.textOnAccent
+                    Layout.preferredWidth: 84
                     checkable: true
                     text: qsTr("Edit")
+
+                    Accessible.name: qsTr("Edit deck layout")
                 }
                 Skin.Button {
                     id: showDevToolsButton
 
-                    activeColor: Theme.white
+                    activeColor: Theme.textOnAccent
+                    Layout.preferredWidth: 84
                     checkable: true
                     checked: devToolsWindow.visible
                     text: qsTr("Develop")
+
+                    Accessible.name: qsTr("Show developer tools")
 
                     onClicked: {
                         if (devToolsWindow.visible)
@@ -201,8 +310,7 @@ Item {
                 Skin.Button {
                     id: showPreferencesButton
 
-                    activeColor: Theme.white
-                    checked: settingsPopup.opened
+                    activeColor: Theme.textOnAccent
                     icon.height: 16
                     icon.source: "images/gear.svg"
                     icon.width: 16
@@ -210,14 +318,20 @@ Item {
 
                     Accessible.name: qsTr("Preferences")
 
-                    onClicked: {
-                        if (!settingsPopup.opened) {
-                            settingsPopup.open();
-                        }
-                    }
-                    onPressAndHold: {
-                        Mixxx.PreferencesDialog.show();
-                    }
+                    onClicked: Mixxx.PreferencesDialog.show()
+                }
+                Skin.Button {
+                    id: customizeInterfaceButton
+
+                    activeColor: Theme.textOnAccent
+                    icon.height: 16
+                    icon.source: "images/sliders.svg"
+                    icon.width: 16
+                    implicitWidth: implicitHeight
+
+                    Accessible.name: qsTr("Customize interface")
+
+                    onClicked: customizePopup.open()
                 }
             }
         }
@@ -231,16 +345,16 @@ Item {
             handle: Rectangle {
                 id: handleDelegate
 
-                property color handleColor: SplitHandle.pressed || SplitHandle.hovered ? Theme.libraryPanelSplitterHandleActive : Theme.libraryPanelSplitterHandle
+                property color handleColor: SplitHandle.pressed || SplitHandle.hovered ? Theme.libraryPanelSplitterHandleActive : Theme.borderStrong
                 property int handleSize: SplitHandle.pressed || SplitHandle.hovered ? 6 : 3
 
                 clip: true
-                color: Theme.libraryPanelSplitterBackground
-                implicitHeight: 4
-                implicitWidth: 8
+                color: Theme.surface0
+                implicitHeight: Theme.space1
+                implicitWidth: Theme.space2
 
                 containmentMask: Item {
-                    height: 8
+                    height: Theme.space2
                     width: splitView.width
                     x: (handleDelegate.width - width) / 2
                 }
@@ -264,9 +378,9 @@ Item {
             Item {
                 id: waveforms
 
-                SplitView.fillHeight: !library.active
+                SplitView.fillHeight: !library.active && Mixxx.Config.paramixShowWaveforms
                 SplitView.preferredHeight: library.active ? 120 : undefined
-                visible: !root.maximizeLibrary
+                visible: !root.maximizeLibrary && Mixxx.Config.paramixShowWaveforms
 
                 FadeBehavior on visible {
                     fadeTarget: waveforms
@@ -335,7 +449,7 @@ Item {
                         orientation: Gradient.Horizontal
 
                         GradientStop {
-                            color: Theme.darkGray
+                            color: Theme.surface0
                             position: 0
                         }
                         GradientStop {
@@ -361,7 +475,7 @@ Item {
                             position: 0
                         }
                         GradientStop {
-                            color: Theme.darkGray
+                            color: Theme.surface0
                             position: 1
                         }
                     }
@@ -374,9 +488,11 @@ Item {
                 }
             }
             Item {
-                SplitView.fillHeight: library.active
-                SplitView.maximumHeight: library.active ? undefined : mixer.height
-                SplitView.minimumHeight: mixer.height
+                SplitView.fillHeight: library.active || !Mixxx.Config.paramixShowWaveforms
+                SplitView.maximumHeight: (library.active || !Mixxx.Config.paramixShowWaveforms)
+                        ? undefined
+                        : mixer.height + outputBar.height
+                SplitView.minimumHeight: mixer.height + outputBar.height
 
                 Deck {
                     id: deck1
@@ -390,9 +506,9 @@ Item {
                         SpringAnimation {
                             id: deck1HeightAnimation
 
-                            damping: 0.2
-                            duration: 500
-                            spring: 2
+                            damping: 0.35
+                            duration: Theme.motionSpringDuration
+                            spring: 2.4
                         }
                     }
                     states: [
@@ -429,9 +545,9 @@ Item {
                         SpringAnimation {
                             id: mixerHeightAnimation
 
-                            damping: 0.2
-                            duration: 500
-                            spring: 2
+                            damping: 0.35
+                            duration: Theme.motionSpringDuration
+                            spring: 2.4
                         }
                     }
                     states: [
@@ -494,7 +610,7 @@ Item {
                     ]
                     transitions: Transition {
                         AnchorAnimation {
-                            duration: 200
+                            duration: Theme.motionNormal
                         }
                     }
                     FadeBehavior on visible {
@@ -513,9 +629,9 @@ Item {
                         SpringAnimation {
                             id: deck2HeightAnimation
 
-                            damping: 0.2
-                            duration: 500
-                            spring: 2
+                            damping: 0.35
+                            duration: Theme.motionSpringDuration
+                            spring: 2.4
                         }
                     }
                     states: [
@@ -551,9 +667,9 @@ Item {
                         SpringAnimation {
                             id: deck3HeightAnimation
 
-                            damping: 0.2
-                            duration: 500
-                            spring: 2
+                            damping: 0.35
+                            duration: Theme.motionSpringDuration
+                            spring: 2.4
                         }
                     }
                     sourceComponent: Component {
@@ -594,9 +710,9 @@ Item {
                         SpringAnimation {
                             id: deck4HeightAnimation
 
-                            damping: 0.2
-                            duration: 500
-                            spring: 2
+                            damping: 0.35
+                            duration: Theme.motionSpringDuration
+                            spring: 2.4
                         }
                     }
                     sourceComponent: Component {
@@ -626,28 +742,62 @@ Item {
                     }
                 }
 
-                // Skin.SamplerRow {
-                //     id: samplers
-                //     visible: root.showSamplers
-                //     width: parent.width
+                MixerComponents.OutputBar {
+                    id: outputBar
 
-                //     Skin.FadeBehavior on visible {
-                //         fadeTarget: samplers
-                //     }
-                // }
-                // Skin.EffectRow {
-                //     id: effects
-                //     visible: root.showEffects
-                //     width: parent.width
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: mixer.bottom
+                    height: visible ? implicitHeight : 0
+                    show4decks: root.show4decks
+                    visible: !root.maximizeLibrary
+                }
+                Loader {
+                    id: inputRack
 
-                //     Skin.FadeBehavior on visible {
-                //         fadeTarget: effects
-                //     }
-                // }
+                    active: root.showMicrophoneInputs &&
+                            (numMicrophones.value > 0 || numAuxiliaries.value > 0) &&
+                            !root.maximizeLibrary
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: outputBar.bottom
+                    visible: active
+                    sourceComponent: Component {
+                        MixerComponents.InputRack {
+                            auxiliaryCount: numAuxiliaries.value
+                            defaultCollapsed: library.active && root.height < 1000
+                            microphoneCount: numMicrophones.value
+                        }
+                    }
+                }
+                Loader {
+                    id: effects
+
+                    active: root.showEffects
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: inputRack.bottom
+                    sourceComponent: Component {
+                        Skin.EffectRow {
+                        }
+                    }
+                }
+                Loader {
+                    id: samplers
+
+                    active: root.showSamplers
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: effects.bottom
+                    sourceComponent: Component {
+                        Skin.SamplerRow {
+                        }
+                    }
+                }
                 Loader {
                     id: library
 
-                    active: root.maximizeLibrary || root.height - mixer.height >= 400
+                    active: (root.maximizeLibrary || root.height - mixer.height >= 400) && Mixxx.Config.paramixShowLibrary
                     width: parent.width
 
                     sourceComponent: Component {
@@ -684,41 +834,27 @@ Item {
 
                     anchors {
                         bottom: parent.bottom
-                        top: mixer.bottom
+                        top: samplers.bottom
                     }
                 }
             }
         }
     }
-    Skin.Settings {
-        id: settingsPopup
 
-        height: Math.min(840, parent.height)
-        modal: true
-        width: Math.min(1400, parent.width)
-        x: Math.round((parent.width - width) / 2)
-        y: Math.round((parent.height - height) / 2)
+    // Global job strip (stem separation, analysis). It overlays the top of the
+    // content area instead of taking part in the Column above, so a running
+    // job never reflows the decks or the library. It is invisible and zero
+    // height while idle.
+    Skin.TaskStatusStrip {
+        id: taskStatusStrip
 
-        Overlay.modal: Rectangle {
-            id: overlayModal
-
-            readonly property bool hasHardwareAcceleration: Mixxx.Config.useAcceleration
-            property real radius: 12
-
-            anchors.fill: parent
-            color: Qt.alpha('#00000010', hasHardwareAcceleration ? 1.0 : 0.6)
-
-            Repeater {
-                model: hasHardwareAcceleration ? 1 : 0
-
-                GaussianBlur {
-                    anchors.fill: overlayModal
-                    deviation: 4
-                    radius: Math.max(0, overlayModal.radius)
-                    samples: 16
-                    source: content
-                }
-            }
-        }
+        anchors.left: content.left
+        anchors.right: content.right
+        anchors.top: content.top
+        anchors.topMargin: toolbar.height
+        z: 2
+    }
+    Skin.ParamixCustomize {
+        id: customizePopup
     }
 }

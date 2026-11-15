@@ -3,7 +3,9 @@ pragma ComponentBehavior: Bound
 import "." as Skin
 import QtQuick 2.12
 import QtQuick.Layouts 1.12
+import "Theme"
 
+/// Row of sampler slots, laid out as flat cards with a small gutter.
 GridLayout {
     id: root
 
@@ -16,9 +18,9 @@ GridLayout {
     property bool showHotcues: true
     property bool showRateControl: true
 
-    columnSpacing: 0
+    columnSpacing: Theme.space1
     columns: Math.max(1, root.samplerCount)
-    rowSpacing: 0
+    rowSpacing: Theme.space1
 
     Repeater {
         model: Math.max(0, root.samplerCount)
