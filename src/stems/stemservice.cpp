@@ -21,6 +21,7 @@
 #include "stems/stemcache.h"
 #include "stems/stemfilewriter.h"
 #include "stems/stemgpudetect.h"
+#include "stems/stemresampler.h"
 #include "stems/stemseparatorfactory.h"
 #include "track/track.h"
 #include "util/db/dbconnectionpooled.h"
@@ -378,10 +379,12 @@ void StemService::processJob(Job& job,
 
     // Free-space preflight. The estimate is deliberately generous: FLAC and
     // ALAC are 24-bit, AAC scales with the requested bitrate.
-    constexpr int kExpectedModelSampleRate = 44100;
     qint64 estimatedBytes = 0;
     {
-        const double frames = pTrack->getDuration() * kExpectedModelSampleRate;
+        const int estimatedSampleRate = pTrack->getSampleRate().isValid()
+                ? pTrack->getSampleRate().value()
+                : 44100;
+        const double frames = pTrack->getDuration() * estimatedSampleRate;
         if (settings.format == StemFileFormat::Aac) {
             estimatedBytes = static_cast<qint64>(4.0 * frames * settings.aacBitrateKbps / 8.0);
         } else {
@@ -434,13 +437,14 @@ void StemService::processJob(Job& job,
                        << QString::fromStdString((*ppSeparator)->device());
     }
 
-    const int sampleRate = (*ppSeparator)->sampleRate();
+    const int modelSampleRate = (*ppSeparator)->sampleRate();
 
     setStatus(trackId, Status::Separating, 0);
     SoundSourceProxy proxy(pTrack);
     mixxx::AudioSource::OpenParams openParams;
     openParams.setChannelCount(mixxx::audio::ChannelCount::stereo());
-    openParams.setSampleRate(mixxx::audio::SampleRate(sampleRate));
+    // Open at the source's native rate; the resampler below brings it to the
+    // model rate and back, keeping the export/cache at the source rate.
     const mixxx::AudioSourcePointer pSource = proxy.openAudioSource(openParams);
     if (!pSource) {
         setStatus(trackId,
@@ -449,15 +453,12 @@ void StemService::processJob(Job& job,
                 QStringLiteral("Could not open the track for reading."));
         return;
     }
-    if (pSource->getSignalInfo().getSampleRate() != mixxx::audio::SampleRate(sampleRate)) {
+    const int sourceSampleRate = pSource->getSignalInfo().getSampleRate().value();
+    if (sourceSampleRate <= 0) {
         setStatus(trackId,
                 Status::Failed,
                 0,
-                QStringLiteral(
-                        "Stem separation needs %1 Hz audio; resampling from %2 Hz is "
-                        "not supported yet.")
-                        .arg(sampleRate)
-                        .arg(pSource->getSignalInfo().getSampleRate().value()));
+                QStringLiteral("The track has an invalid sample rate."));
         return;
     }
 
@@ -470,29 +471,29 @@ void StemService::processJob(Job& job,
         return;
     }
 
-    const SINT frames = pSource->frameLength();
-    if (frames <= 0) {
+    const SINT sourceFrames = pSource->frameLength();
+    if (sourceFrames <= 0) {
         setStatus(trackId,
                 Status::Failed,
                 0,
                 QStringLiteral("The track contains no audio."));
         return;
     }
-    kLogger.info() << "Separating track" << trackId << "at"
-                   << pSource->getSignalInfo().getSampleRate().value() << "Hz,"
-                   << frames << "frames; model expects" << sampleRate << "Hz";
+    kLogger.info() << "Separating track" << trackId << "at" << sourceSampleRate
+                   << "Hz," << sourceFrames << "frames; model expects"
+                   << modelSampleRate << "Hz";
 
     std::vector<float> planar(
-            static_cast<std::size_t>(2) * static_cast<std::size_t>(frames), 0.0f);
+            static_cast<std::size_t>(2) * static_cast<std::size_t>(sourceFrames), 0.0f);
     {
         mixxx::SampleBuffer chunk(static_cast<SINT>(
                 static_cast<std::size_t>(kReadBlockFrames) * channels));
-        for (SINT offset = 0; offset < frames;) {
+        for (SINT offset = 0; offset < sourceFrames;) {
             if (m_cancelRequested.load()) {
                 setStatus(trackId, Status::NotSeparated, 0, QStringLiteral("Canceled."));
                 return;
             }
-            const SINT count = std::min<SINT>(kReadBlockFrames, frames - offset);
+            const SINT count = std::min<SINT>(kReadBlockFrames, sourceFrames - offset);
             const auto readable = pSource->readSampleFrames(mixxx::WritableSampleFrames(
                     mixxx::IndexRange::forward(offset, count),
                     mixxx::SampleBuffer::WritableSlice(chunk)));
@@ -512,7 +513,7 @@ void StemService::processJob(Job& job,
                 // The separator takes planar [channels][frames], not interleaved
                 // stereo. Interleaving here time-squeezes the whole track.
                 planar[destinationIndex] = readable.readableData()[sourceIndex];
-                planar[frames + destinationIndex] = channels == 1
+                planar[sourceFrames + destinationIndex] = channels == 1
                         ? readable.readableData()[sourceIndex]
                         : readable.readableData()[sourceIndex + 1];
             }
@@ -521,15 +522,36 @@ void StemService::processJob(Job& job,
     }
     pSource->close();
 
+    std::vector<float> modelPlanar;
+    const float* pModelInput = planar.data();
+    SINT modelFrames = sourceFrames;
+    if (sourceSampleRate != modelSampleRate) {
+        if (!resamplePlanar(planar.data(),
+                    2,
+                    sourceFrames,
+                    sourceSampleRate,
+                    modelSampleRate,
+                    &modelPlanar,
+                    &modelFrames)) {
+            setStatus(trackId,
+                    Status::Failed,
+                    0,
+                    QStringLiteral("Could not resample the track for separation."));
+            return;
+        }
+        pModelInput = modelPlanar.data();
+        std::vector<float>().swap(planar);
+    }
+
     std::vector<CSAMPLE> separated(
-            static_cast<std::size_t>(frames) * kStemChannelCount, 0.0f);
+            static_cast<std::size_t>(modelFrames) * kStemChannelCount, 0.0f);
     bool outputValid = true;
     SINT outputEnd = 0;
     const auto runSeparation = [&]() {
         outputValid = true;
         outputEnd = 0;
-        return (*ppSeparator)->separate(planar.data(), frames, [&](SINT offset, const CSAMPLE* pBuffer, SINT count) {
-                    if (offset < 0 || count <= 0 || offset + count > frames) {
+        return (*ppSeparator)->separate(pModelInput, modelFrames, [&](SINT offset, const CSAMPLE* pBuffer, SINT count) {
+                    if (offset < 0 || count <= 0 || offset + count > modelFrames) {
                         outputValid = false;
                         return false;
                     }
@@ -593,25 +615,69 @@ void StemService::processJob(Job& job,
         }
         return;
     }
-    kLogger.info() << "Separator covered frames" << outputEnd << "of" << frames;
+    kLogger.info() << "Separator covered frames" << outputEnd << "of" << modelFrames;
+    std::vector<float>().swap(modelPlanar);
+
+    std::vector<CSAMPLE> finalStems;
+    if (sourceSampleRate != modelSampleRate) {
+        std::vector<float> modelPlanarOut(
+                static_cast<std::size_t>(modelFrames) * kStemChannelCount);
+        for (SINT frame = 0; frame < modelFrames; ++frame) {
+            for (int channel = 0; channel < kStemChannelCount; ++channel) {
+                modelPlanarOut[static_cast<std::size_t>(channel) * modelFrames +
+                        frame] =
+                        separated[static_cast<std::size_t>(frame) * kStemChannelCount +
+                                channel];
+            }
+        }
+        std::vector<float> sourcePlanar;
+        SINT sourceOutputFrames = 0;
+        if (!resamplePlanar(modelPlanarOut.data(),
+                    kStemChannelCount,
+                    modelFrames,
+                    modelSampleRate,
+                    sourceSampleRate,
+                    &sourcePlanar,
+                    &sourceOutputFrames)) {
+            setStatus(trackId,
+                    Status::Failed,
+                    0,
+                    QStringLiteral("Could not resample the separated stems."));
+            return;
+        }
+        finalStems.assign(
+                static_cast<std::size_t>(sourceFrames) * kStemChannelCount, 0.0f);
+        const SINT copyFrames = std::min(sourceFrames, sourceOutputFrames);
+        for (SINT frame = 0; frame < copyFrames; ++frame) {
+            for (int channel = 0; channel < kStemChannelCount; ++channel) {
+                finalStems[static_cast<std::size_t>(frame) * kStemChannelCount +
+                        channel] =
+                        sourcePlanar[static_cast<std::size_t>(channel) *
+                                        sourceOutputFrames +
+                                frame];
+            }
+        }
+    } else {
+        finalStems = std::move(separated);
+    }
 
     // One scalar gain over all stems and their sum keeps the mix reconstructible
     // and inside [-1, 1]; the writer then encodes without clipping.
-    const float gain = demucsLimiterGain(separated.data(), frames);
+    const float gain = demucsLimiterGain(finalStems.data(), sourceFrames);
     if (gain < 1.0f) {
-        demucsApplyGain(separated.data(), separated.size(), gain);
+        demucsApplyGain(finalStems.data(), finalStems.size(), gain);
     }
 
     setStatus(trackId, Status::Separating, 95);
     StemSetInfo info;
     info.baseName = setName;
     info.modelName = QFileInfo(path).completeBaseName();
-    info.sampleRate = sampleRate;
-    info.frames = frames;
+    info.sampleRate = sourceSampleRate;
+    info.frames = sourceFrames;
     info.format = settings.format;
     info.aacBitrateKbps = settings.aacBitrateKbps;
     QString error;
-    if (!writeStemSet(outputDirectory, info, separated.data(), &error)) {
+    if (!writeStemSet(outputDirectory, info, finalStems.data(), &error)) {
         setStatus(trackId, Status::Failed, 0, error);
         return;
     }
@@ -620,9 +686,9 @@ void StemService::processJob(Job& job,
     // decks and the waveform renderer consume.
     QString cacheError;
     if (!StemCache::writeCache(trackId,
-                separated.data(),
-                frames,
-                sampleRate,
+                finalStems.data(),
+                sourceFrames,
+                sourceSampleRate,
                 &cacheError)) {
         kLogger.warning() << "Stem export written but cache failed for track"
                           << trackId << cacheError;
@@ -636,8 +702,8 @@ void StemService::processJob(Job& job,
     record.directory = QDir(outputDirectory).absolutePath();
     record.format = stemFileFormatName(settings.format);
     record.model = info.modelName;
-    record.sampleRate = sampleRate;
-    record.frameCount = frames;
+    record.sampleRate = sourceSampleRate;
+    record.frameCount = sourceFrames;
     record.aacBitrateKbps = settings.format == StemFileFormat::Aac
             ? settings.aacBitrateKbps
             : 0;
