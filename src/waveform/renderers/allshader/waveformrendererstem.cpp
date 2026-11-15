@@ -25,6 +25,10 @@ const float kPixelPerStrip = 2;
 #else
 const float kPixelPerStrip = 1;
 #endif
+
+// Opacity of a muted stem in the single-lane overlay mode. It stays visible in
+// its own colour, but clearly dimmed.
+const float kDimmedStemOpacity = 0.3f;
 } // namespace
 
 using namespace rendergraph;
@@ -209,6 +213,13 @@ bool WaveformRendererStem::preprocessInner() {
             if (stemIdx >= stemInfo.size()) {
                 continue;
             }
+            // Muted (or solo-excluded) stems are hidden in the stacked lanes,
+            // but stay visible in their own colour at reduced opacity in the
+            // single-lane overlay.
+            const bool stemMuted = selectedStems
+                    ? !(selectedStems & 1 << stemIdx)
+                    : (!m_pStemMute.empty() && m_pStemMute[stemIdx]->toBool());
+            const bool dimMutedStem = !m_splitStemTracks && stemMuted;
             // Stem is drawn twice with different opacity level, this allow to
             // see the maximum signal by transparency
             for (int layerIdx = 0; layerIdx < 2; layerIdx++) {
@@ -217,6 +228,12 @@ bool WaveformRendererStem::preprocessInner() {
                       color_g = stemColor.greenF(),
                       color_b = stemColor.blueF(),
                       color_a = stemColor.alphaF() * (layerIdx ? m_opacity : m_outlineOpacity);
+                if (dimMutedStem) {
+                    // Draw a muted stem only once, dimmed.
+                    color_a = layerIdx
+                            ? stemColor.alphaF() * m_opacity * kDimmedStemOpacity
+                            : 0.f;
+                }
                 const int visualFrameStart = std::lround(xVisualFrame - maxSamplingRange);
                 const int visualFrameStop = std::lround(xVisualFrame + maxSamplingRange);
 
@@ -243,13 +260,11 @@ bool WaveformRendererStem::preprocessInner() {
 
                 // Apply the gains
                 if (layerIdx) {
-                    if (selectedStems) {
-                        max *= !(selectedStems & 1 << stemIdx)
-                                ? 0.f
-                                : 1.f;
-                    } else if (!m_pStemMute.empty() && m_pStemMute[stemIdx]->toBool()) {
-                        max = 0;
-                    } else {
+                    if (stemMuted) {
+                        if (m_splitStemTracks) {
+                            max = 0;
+                        }
+                    } else if (!selectedStems) {
                         float volume = m_pStemGain.empty()
                                 ? 1.f
                                 : static_cast<float>(m_pStemGain[stemIdx]->get());
