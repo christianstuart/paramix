@@ -1666,6 +1666,7 @@ add_library(
   src/stems/stemcache.cpp
   src/stems/stemfileformat.cpp
   src/stems/stemfilewriter.cpp
+  src/stems/stemgpudetect.cpp
   src/stems/stemseparation.cpp
   src/stems/stemservice.cpp
   src/stems/stemseparatorfactory.cpp
@@ -3049,6 +3050,7 @@ if(BUILD_TESTING)
     src/test/stemflactest.cpp
     src/test/stemcachetest.cpp
     src/test/stemsetdaotest.cpp
+    src/test/stemgpudetecttest.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp
     src/test/stemseparationtest.cpp
@@ -4677,6 +4679,8 @@ if(APPLE)
       "-weak_framework CoreVideo"
       "-weak_framework IOSurface"
       "-weak_framework VideoToolbox"
+      # Stem separation GPU probe (IOAccelerator registry).
+      "-framework IOKit"
   )
   if(IOS)
     target_link_libraries(mixxx-lib PRIVATE "-weak_framework UIKit")

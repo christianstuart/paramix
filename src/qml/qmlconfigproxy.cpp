@@ -14,6 +14,7 @@
 #include "preferences/colorpalettesettings.h"
 #include "preferences/constants.h"
 #include "stems/stemfileformat.h"
+#include "stems/stemgpudetect.h"
 #include "util/color/predefinedcolorpalettes.h"
 #include "waveform/waveformwidgetfactory.h"
 
@@ -145,6 +146,7 @@ const QString kStemFileFormatKey = QStringLiteral("FileFormat");
 const QString kStemAacBitrateKey = QStringLiteral("AacBitrate");
 const QString kStemModelPathKey = QStringLiteral("ModelPath");
 const QString kStemOutputDirectoryKey = QStringLiteral("OutputDirectory");
+const QString kStemGpuAccelerationKey = QStringLiteral("GpuAcceleration");
 
 // Paramix interface customization
 const QString kParamixGroup = QStringLiteral("[Paramix]");
@@ -1023,6 +1025,21 @@ void QmlConfigProxy::set_stemOutputDirectory(const QString& value) {
             value,
             QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")),
             &QmlConfigProxy::stemOutputDirectoryChanged);
+}
+
+bool QmlConfigProxy::stemGpuAcceleration() const {
+    return mixxx::stems::isGpuAccelerationEnabled(m_pConfig);
+}
+
+void QmlConfigProxy::set_stemGpuAcceleration(bool value) {
+    // The default depends on the hardware, so the helpers decide whether the
+    // key is stored or removed; a stored value always wins over the probe.
+    mixxx::stems::setGpuAccelerationEnabled(m_pConfig, value);
+    emit stemGpuAccelerationChanged();
+}
+
+bool QmlConfigProxy::stemGpuAccelerationDefault() const {
+    return mixxx::stems::gpuAccelerationDefault();
 }
 
 QString QmlConfigProxy::chooseDirectory(

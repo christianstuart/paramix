@@ -108,6 +108,16 @@
         </property>
        </widget>
       </item>
+      <item row="4" column="0" colspan="3">
+       <widget class="QCheckBox" name="checkBoxGpuAcceleration">
+        <property name="toolTip">
+         <string>Run stem separation on the GPU when one is available. Disable this to keep the GPU free for waveforms and other applications.</string>
+        </property>
+        <property name="text">
+         <string>Use GPU acceleration for stem separation</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
