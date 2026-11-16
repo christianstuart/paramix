@@ -9,6 +9,7 @@ AbstractButton {
     id: root
 
     property color activeColor: Theme.textOnAccent
+    property bool flat: false
     property bool highlight: false
     property color normalColor: Theme.textSecondary
     property color pressedColor: Theme.textPrimary
@@ -33,6 +34,8 @@ AbstractButton {
     opacity: root.enabled ? 1.0 : 0.45
 
     background: Rectangle {
+        readonly property bool showFrame: !root.flat || root.activeState || root.hovered || root.activeFocus
+
         border.color: root.activeState
                 ? Qt.lighter(Theme.accent, 1.12)
                 : root.activeFocus
@@ -40,7 +43,7 @@ AbstractButton {
                   : root.hovered
                     ? Theme.borderStrong
                     : Theme.border
-        border.width: 1
+        border.width: showFrame ? 1 : 0
         color: root.activeState
                ? root.pressed
                  ? Theme.accentPressed
@@ -49,7 +52,9 @@ AbstractButton {
                  ? Theme.surface3
                  : root.hovered
                    ? Theme.surfaceHover
-                   : Theme.surface2
+                   : root.flat
+                     ? "transparent"
+                     : Theme.surface2
         radius: Theme.radiusSm
 
         // Flat key face; active state is a solid fill, no gloss.
@@ -62,6 +67,7 @@ AbstractButton {
             anchors.topMargin: 1
             color: root.activeState ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
             height: 1
+            visible: !root.flat
         }
 
         Behavior on color {

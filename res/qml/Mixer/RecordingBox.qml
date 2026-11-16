@@ -69,8 +69,8 @@ Item {
     Column {
         id: ladder
 
-        anchors.left: parent.left
-        anchors.leftMargin: 70
+        anchors.left: legend.right
+        anchors.leftMargin: Theme.space4
         anchors.right: recButton.left
         anchors.rightMargin: Theme.space1 + 2
         anchors.verticalCenter: parent.verticalCenter
@@ -98,7 +98,7 @@ Item {
                 height: 8
                 key: "vu_meter_left"
                 muted: !root.recording
-                width: ladder.width - 8 - 3
+                width: ladder.width - 8 - 3 - 3 - 6
             }
         }
         Row {
@@ -123,7 +123,7 @@ Item {
                 height: 8
                 key: "vu_meter_right"
                 muted: !root.recording
-                width: ladder.width - 8 - 3
+                width: ladder.width - 8 - 3 - 3 - 6
             }
         }
     }

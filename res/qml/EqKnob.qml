@@ -3,6 +3,7 @@ import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import "Theme"
 
+/// One compact EQ knob: no tile, just the knob with 3 px of padding.
 Rectangle {
     id: root
 
@@ -10,36 +11,28 @@ Rectangle {
     property string statusGroup: root.knob.group
     required property string statusKey
 
-    border.color: Theme.border
-    border.width: 1
-    color: Theme.surface1
-    height: 44
+    border.width: 0
+    color: "transparent"
+    height: 32
     opacity: statusControl.value ? 0.45 : 1
-    radius: Theme.radiusSm
-    width: 44
+    radius: 0
+    width: 32
 
-    Rectangle {
-        anchors.left: parent.left
-        anchors.leftMargin: 1
-        anchors.right: parent.right
-        anchors.rightMargin: 1
-        anchors.top: parent.top
-        anchors.topMargin: 1
-        color: Theme.topHighlight
-        height: 1
-    }
+    // Right-click kills the band. It used to be double-click, but the knob
+    // underneath also handles double-click (reset), so one gesture both reset
+    // and killed the band.
+    MouseArea {
+        acceptedButtons: Qt.RightButton
+        anchors.fill: parent
 
-    TapHandler {
-        onDoubleTapped: {
-            statusControl.value = !statusControl.value;
-        }
+        onClicked: statusControl.value = statusControl.value ? 0 : 1
     }
     Skin.ControlKnob {
         id: knob
 
         anchors.centerIn: root
-        height: 36
-        width: 36
+        height: 27
+        width: 27
     }
     Mixxx.ControlProxy {
         id: statusControl

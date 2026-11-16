@@ -60,12 +60,12 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.space2
+        anchors.margins: Theme.space1
         spacing: Theme.space1
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 14
+            Layout.preferredHeight: 10
             spacing: Theme.space1
 
             Text {
@@ -81,10 +81,10 @@ Rectangle {
             Skin.Button {
                 id: undoButton
 
-                Layout.preferredHeight: 14
+                Layout.preferredHeight: 10
                 Layout.preferredWidth: 44
                 enabled: root.loaded && beatsUndoPossible.value > 0
-                implicitHeight: 14
+                implicitHeight: 10
                 implicitWidth: 44
                 normalColor: Theme.textMuted
                 text: qsTr("Undo")
@@ -98,7 +98,7 @@ Rectangle {
         RowLayout {
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 28
+            Layout.minimumHeight: 20
             spacing: Theme.space1
 
             ColumnLayout {
@@ -128,7 +128,7 @@ Rectangle {
             Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.minimumWidth: 0
-                Layout.preferredHeight: 24
+                Layout.preferredHeight: 18
                 Layout.preferredWidth: 48
                 border.color: Theme.border
                 border.width: 1
@@ -166,7 +166,7 @@ Rectangle {
 
                 Layout.alignment: Qt.AlignVCenter
                 Layout.minimumWidth: 0
-                Layout.preferredHeight: 24
+                Layout.preferredHeight: 18
                 Layout.preferredWidth: 42
                 activeColor: Theme.textOnAccent
                 group: root.group
@@ -181,7 +181,7 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 24
+            Layout.preferredHeight: 18
             spacing: Theme.space1
 
             Skin.ControlButton {

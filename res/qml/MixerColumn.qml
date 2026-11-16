@@ -86,7 +86,7 @@ Item {
             anchors.centerIn: parent
             color: Theme.textPrimary
             group: root.group
-            height: parent.height - 2 * Theme.space1
+            height: parent.height - 6
             key: "pregain"
             width: height
         }
@@ -95,64 +95,51 @@ Item {
         id: faderFrame
 
         anchors.bottom: cueIcon.top
-        anchors.bottomMargin: Theme.space1
+        anchors.bottomMargin: 1
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: gainKnobFrame.bottom
-        anchors.topMargin: Theme.space1
-        border.color: Theme.borderStrong
-        border.width: 1
-        color: Theme.surface0
-        radius: Theme.radiusSm
-
-        // Lit top edge inside the recessed well.
-        Rectangle {
-            anchors.left: parent.left
-            anchors.leftMargin: 1
-            anchors.right: parent.right
-            anchors.rightMargin: 1
-            anchors.top: parent.top
-            anchors.topMargin: 1
-            color: Theme.topHighlight
-            height: 1
-        }
+        anchors.topMargin: 1
+        border.width: 0
+        color: "transparent"
+        radius: 0
 
         // Meter rails flank the fader, outside the handle travel.
         Skin.VuMeter {
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.space1
+            anchors.bottomMargin: 1
             anchors.left: parent.left
-            anchors.leftMargin: 2
+            anchors.leftMargin: 1
             anchors.top: parent.top
-            anchors.topMargin: Theme.space1
+            anchors.topMargin: 1
             group: root.group
             key: "vu_meter_left"
-            width: 2
+            width: 3
         }
         Skin.VuMeter {
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.space1
+            anchors.bottomMargin: 1
             anchors.right: parent.right
-            anchors.rightMargin: 2
+            anchors.rightMargin: 1
             anchors.top: parent.top
-            anchors.topMargin: Theme.space1
+            anchors.topMargin: 1
             group: root.group
             key: "vu_meter_right"
-            width: 2
+            width: 3
         }
         Skin.ControlFader {
             id: volumeSlider
 
             anchors.fill: parent
-            anchors.margins: 2
+            anchors.margins: 1
             bar.color: Theme.accent
             bg: Theme.imgVolumeSliderBackground
             group: root.group
             key: "volume"
 
             handleImage {
-                height: 8
-                width: 26
+                height: 6
+                width: 20
             }
         }
     }
@@ -214,6 +201,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         activeColor: Theme.textOnAccent
+        flat: true
         group: root.group
         height: 22
         key: "pfl"

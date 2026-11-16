@@ -21,7 +21,21 @@ QtObject {
     property string accentOverride: ""
     property string fontFamilyOverride: ""
     property real fontScale: 1.0
+    /// Scales the spacing grid and the fixed layout metrics (bar heights, lane
+    /// widths) without touching type. Text stays on `fontScale`, so a compact
+    /// display is handled by lowering both independently.
+    property real uiScale: 1.0
     property real motionScale: 1.0
+
+    // ── Window size and breakpoints (bound in main.qml) ────────────────────
+    /// Window size in logical pixels, so the breakpoints below are a single
+    /// source of truth instead of each component inventing its own threshold.
+    property int windowWidth: 1792
+    property int windowHeight: 1008
+
+    /// The toolbar plus two mixer columns stop fitting side by side.
+    /// The waveform strip, deck band and library cannot all keep full height.
+    readonly property bool shortWindow: windowHeight < 900
 
     // ── Contrast helpers ───────────────────────────────────────────────────
     // WCAG 2.1 relative luminance and contrast ratio. Used to pick the label
@@ -208,13 +222,21 @@ QtObject {
     readonly property color phraseOutro: "#7C879E"
 
     // ── Typography ─────────────────────────────────────────────────────────
-    // Helvetica Neue throughout. The override lets the user choose another
-    // Helvetica variant (Helvetica) from the customization panel.
-    readonly property string fontFamily: fontFamilyOverride.length > 0
-            ? fontFamilyOverride
-            : "Helvetica Neue"
+    // Helvetica Neue throughout, where it exists. It is a macOS system font,
+    // so everywhere else Qt used to substitute whatever it liked (Tahoma on
+    // Windows) and the fixed-size boxes no longer fitted their labels. Resolve
+    // to an installed family with Helvetica metrics instead; Open Sans is
+    // bundled in res/fonts, so the list always ends in a match.
+    readonly property var fontFallbacks: ["Helvetica Neue", "Helvetica", "Arial",
+        "Liberation Sans", "Nimbus Sans", "Open Sans"]
+    readonly property string fontFamily: {
+        const installed = Qt.fontFamilies();
+        const wanted = fontFamilyOverride.length > 0 ? [fontFamilyOverride] : [];
+        return wanted.concat(fontFallbacks).find(family => installed.includes(family))
+                || "sans-serif";
+    }
     readonly property string fontFamilyDisplay: fontFamily
-    readonly property string fontFamilyMono: "Helvetica Neue"
+    readonly property string fontFamilyMono: fontFamily
     readonly property int fontSizeXs: Math.round(9 * fontScale)
     readonly property int fontSizeSm: Math.round(10 * fontScale)
     readonly property int fontSizeMd: Math.round(12 * fontScale)
@@ -228,15 +250,15 @@ QtObject {
     readonly property real letterSpacingCaps: 1.1
     readonly property real lineHeight: 1.15
 
-    // ── Spacing (4 px base grid) ───────────────────────────────────────────
-    readonly property int space1: 4
-    readonly property int space2: 8
-    readonly property int space3: 12
-    readonly property int space4: 16
-    readonly property int space5: 24
-    readonly property int space6: 32
-    readonly property int space7: 48
-    readonly property int space8: 64
+    // ── Spacing (4 px base grid, scaled by uiScale) ────────────────────────
+    readonly property int space1: Math.round(4 * uiScale)
+    readonly property int space2: Math.round(8 * uiScale)
+    readonly property int space3: Math.round(12 * uiScale)
+    readonly property int space4: Math.round(16 * uiScale)
+    readonly property int space5: Math.round(24 * uiScale)
+    readonly property int space6: Math.round(32 * uiScale)
+    readonly property int space7: Math.round(48 * uiScale)
+    readonly property int space8: Math.round(64 * uiScale)
 
     // ── Radius ─────────────────────────────────────────────────────────────
     // Traktor-sharp: hardware panels carry a tight 3 px round, keys 2 px.
@@ -257,12 +279,46 @@ QtObject {
     readonly property int motionSpringDuration: Math.round(260 * motionScale)
 
     // ── Layout ─────────────────────────────────────────────────────────────
-    readonly property int toolbarHeight: 44
-    readonly property int deckHeaderHeight: 56
-    readonly property int stemLaneMinWidth: 58
-    readonly property int stemLaneHeight: 110
+    readonly property int toolbarHeight: Math.round(44 * uiScale)
+    readonly property int deckHeaderHeight: Math.round(44 * uiScale)
+    readonly property int stemLaneMinWidth: Math.round(58 * uiScale)
+    /// Width a stem lane needs for its label to read as a word rather than an
+    /// elided fragment: colour chip, label, status dot, volume fader and the
+    /// mute/solo pair. Used to decide how many lanes go in one row, so the 58 px
+    /// hard minimum above never drives that choice on its own.
+    readonly property int stemLaneComfortWidth: Math.round(110 * uiScale)
+    readonly property int stemLaneHeight: Math.round(110 * uiScale)
     readonly property int minWindowWidth: 1280
     readonly property int minWindowHeight: 720
+
+    // Width gates for the toolbar's optional widgets, in the order they fit as
+    // the window widens. The main toolbar keeps only its transport and basics
+    // below the first one.
+    readonly property int masterTempoMinWidth: 1100
+    readonly property int recordingBoxMinWidth: 1200
+    readonly property int masterMeterMinWidth: 1400
+
+    /// Height the deck needs for its fixed parts: info bar, waveform overview,
+    /// pane and toolbar. The band uses it so the deck can never be clipped by a
+    /// shorter mixer, which is what made the panes read wrong.
+    /// 4 + 44 (header) + 134 (toolbar 22 + pane 112) + 4 + 46 (overview) = 232.
+    readonly property int deckMinHeight: Math.round(232 * uiScale)
+    /// Height of the MOVE / CUE / GRID / STEMS pane. 112 is the smallest height
+    /// that keeps a wrapped 2 x 2 stem lane usable.
+    readonly property int deckPaneHeight: Math.round(112 * uiScale)
+
+    // Deck-local width gates: the spinny/FX column hides first, then the tempo
+    // strip, each at its own deck width rather than the window's. The row is
+    // main column 490 + 5 + tempo 60 (+ 5 + spinny 140) + 8 of deck margin; a
+    // gate below that sum lets the row outgrow the deck, which clips it.
+    // The jog wheel is opt-in (Customize > Jog wheels). Between the first two
+    // gates there is room for it or the tempo strip, not both, and it wins.
+    readonly property int deckSpinnyMinWidth: 643
+    readonly property int deckFullRowMinWidth: 708
+    readonly property int deckTempoMinWidth: 563
+
+    /// Window width below which the focused deck keeps the centred mixer.
+    readonly property int focusedDeckMinWindowWidth: 1400
 
     // ── Legacy Mixxx aliases ───────────────────────────────────────────────
     // Keep these until every component uses the semantic names above.

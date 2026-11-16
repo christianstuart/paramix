@@ -23,16 +23,10 @@ Skin.Button {
         leaderControl.value = !leaderControl.value;
     }
 
-    activeColor: {
-        switch (mode) {
-            case SyncButton.SyncMode.ImplicitLeader:
-                return Theme.yellow;
-            case SyncButton.SyncMode.ExplicitLeader:
-                return Theme.red;
-            default:
-                return Theme.deckActiveColor;
-        }
-    }
+    // Sync/leader is an active state, so it uses the same signal blue as the
+    // header's master pill. Amber and red are reserved for cue and danger; the
+    // tempo strip read as a warning while leading.
+    activeColor: Theme.accent
     text: {
         switch (mode) {
             case SyncButton.SyncMode.ImplicitLeader:

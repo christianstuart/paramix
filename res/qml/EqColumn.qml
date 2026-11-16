@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import "." as Skin
 import QtQuick 2.12
 import QtQuick.Shapes 1.12
@@ -7,66 +9,73 @@ import "Theme"
 
 /// High / mid / low EQ plus the quick effect for a single channel.
 ///
-/// Rekordbox channel EQ: labelled micro-type knobs over a recessed preset
-/// well. Kill state dims the whole well; the filter knob carries the accent.
+/// Compact flat strip: a label under each knob, no tiles, tight spacing. Kill
+/// state dims the knob; the filter knob carries the accent.
 Column {
     id: root
 
     required property string group
-
-    spacing: Theme.space1
-
-    Text {
-        color: Theme.textMuted
-        elide: Text.ElideRight
-        font.family: Theme.fontFamily
-        font.letterSpacing: Theme.letterSpacingCaps
-        font.pixelSize: Theme.fontSizeXs
-        font.weight: Theme.fontWeightDemiBold
-        horizontalAlignment: Text.AlignHCenter
-        text: qsTr("HI")
-        width: parent.width
+    /// The fourth band exists only in the Biquad EQ (4 knobs); other mixing
+    /// equalizers expose 3 (isolators) or a different set (graphic/parametric),
+    /// so the extra knob stays hidden instead of controlling the wrong filter.
+    readonly property bool fourBand: Mixxx.Config.paramixFourBandEq === true
+                                      && eqParameterCount.value === 4
+    readonly property var bands: {
+        const bands = [{
+                "label": qsTr("HI"),
+                "key": "parameter3",
+                "statusKey": "button_parameter3"
+            }];
+        if (root.fourBand) {
+            bands.push({
+                "label": qsTr("M-HI"),
+                "key": "parameter4",
+                "statusKey": "button_parameter4"
+            });
+        }
+        bands.push({
+            "label": qsTr("MID"),
+            "key": "parameter2",
+            "statusKey": "button_parameter2"
+        }, {
+            "label": qsTr("LOW"),
+            "key": "parameter1",
+            "statusKey": "button_parameter1"
+        });
+        return bands;
     }
 
-    Skin.EqKnob {
-        knob.color: Theme.textPrimary
-        knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
-        knob.key: "parameter3"
-        statusKey: "button_parameter3"
+    spacing: 1
+
+    Mixxx.ControlProxy {
+        id: eqParameterCount
+
+        group: "[EqualizerRack1_" + root.group + "_Effect1]"
+        key: "num_parameters"
     }
-    Text {
-        color: Theme.textMuted
-        elide: Text.ElideRight
-        font.family: Theme.fontFamily
-        font.letterSpacing: Theme.letterSpacingCaps
-        font.pixelSize: Theme.fontSizeXs
-        font.weight: Theme.fontWeightDemiBold
-        horizontalAlignment: Text.AlignHCenter
-        text: qsTr("MID")
-        width: parent.width
-    }
-    Skin.EqKnob {
-        knob.color: Theme.textPrimary
-        knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
-        knob.key: "parameter2"
-        statusKey: "button_parameter2"
-    }
-    Text {
-        color: Theme.textMuted
-        elide: Text.ElideRight
-        font.family: Theme.fontFamily
-        font.letterSpacing: Theme.letterSpacingCaps
-        font.pixelSize: Theme.fontSizeXs
-        font.weight: Theme.fontWeightDemiBold
-        horizontalAlignment: Text.AlignHCenter
-        text: qsTr("LOW")
-        width: parent.width
-    }
-    Skin.EqKnob {
-        knob.color: Theme.textPrimary
-        knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
-        knob.key: "parameter1"
-        statusKey: "button_parameter1"
+
+    Repeater {
+        model: root.bands
+
+        Column {
+            id: band
+
+            required property var modelData
+
+            spacing: 1
+            width: root.width
+
+            Skin.EqKnob {
+                knob.color: Theme.textPrimary
+                knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
+                knob.key: band.modelData.key
+                statusKey: band.modelData.statusKey
+            }
+            EqLabel {
+                text: band.modelData.label
+                width: root.width
+            }
+        }
     }
     // The quick-effect preset dropdown takes the place of the old "FILTER"
     // caption: it names the effect (which is usually the filter) and frees the
@@ -86,7 +95,7 @@ Column {
         clip: true
         currentIndex: fxSelect.value == -1 ? 0 : fxSelect.value
         font.pixelSize: Theme.fontSizeXs
-        implicitHeight: 18
+        implicitHeight: 16
         indicator.width: 0
         model: Mixxx.EffectsManager.quickChainPresetModel
         popupMaxItem: 8
@@ -105,5 +114,15 @@ Column {
         knob.arcStyle: ShapePath.DashLine
         knob.arcStylePattern: [2, 2]
         knob.color: Theme.accent
+    }
+
+    component EqLabel: Text {
+        color: Theme.textMuted
+        elide: Text.ElideRight
+        font.family: Theme.fontFamily
+        font.letterSpacing: Theme.letterSpacingCaps
+        font.pixelSize: Theme.fontSizeXs
+        font.weight: Theme.fontWeightDemiBold
+        horizontalAlignment: Text.AlignHCenter
     }
 }

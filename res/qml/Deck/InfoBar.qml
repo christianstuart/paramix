@@ -309,6 +309,16 @@ Rectangle {
                 }
             }
         }
+        // The bottom row uses "none" as a gap filler between artist and rating;
+        // without a choice for it the DelegateChooser logs a warning per cell.
+        DelegateChoice {
+            roleValue: "none"
+
+            Item {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 0
+            }
+        }
     }
     ListModel {
         id: topRowModel
@@ -355,13 +365,11 @@ Rectangle {
             }
         }
     }
-    // The header used to fill its band edge to edge, which pushed the artist
-    // line onto the waveform below. The extra bottom inset lifts both rows; the
-    // title keeps a slightly larger share of the band so it stays optically
-    // centred in the upper half.
+    // The two text rows fill the header band; the old 20 px bottom inset was a
+    // workaround for the shorter band and left the lower half empty.
     ColumnLayout {
         anchors.bottom: root.bottom
-        anchors.bottomMargin: root.minimized ? 1 : 20
+        anchors.bottomMargin: root.minimized ? 1 : Theme.space1
         anchors.left: coverArtFrame.visible ? coverArtFrame.right : root.left
         anchors.leftMargin: root.showCoverArt ? Theme.space3 : Theme.space2
         anchors.right: root.right

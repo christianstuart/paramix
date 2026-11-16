@@ -26,6 +26,12 @@ Item {
     readonly property bool backgroundWorkActive: Mixxx.StemService.busy
             || Mixxx.StemService.queuedCount > 0
             || Mixxx.Library.analysisActive
+    /// Waveform update rate: the selected monitor rate, or the screen's own
+    /// rate for "Auto". Never faster than the panel, so every update lands on a
+    /// fresh present and the play head advances by one even step per frame.
+    readonly property int refreshRateLimit: Mixxx.Config.waveformRefreshRate > 0
+            ? Mixxx.Config.waveformRefreshRate
+            : Math.max(1, Mixxx.Config.displayRefreshRate)
 
     Connections {
         target: Mixxx.Config
@@ -60,8 +66,8 @@ Item {
         // vsync either way, so this reads as a steadier scroll, not a slower
         // one.
         frameRate: root.backgroundWorkActive
-                   ? Math.min(30, Mixxx.Config.waveformFrameRate)
-                   : Mixxx.Config.waveformFrameRate
+                   ? Math.min(30, root.refreshRateLimit)
+                   : root.refreshRateLimit
         group: root.group
         options: Mixxx.Config.waveformOptions
         visible: Mixxx.Config.waveformEnabled

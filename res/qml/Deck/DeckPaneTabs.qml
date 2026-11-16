@@ -58,7 +58,7 @@ ColumnLayout {
 
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 20
+            Layout.minimumHeight: 16
             highlight: tab.current
             normalColor: Theme.textMuted
 

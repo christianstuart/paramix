@@ -52,7 +52,10 @@ Popup {
         Mixxx.Config.paramixShowHotcues = true;
         Mixxx.Config.paramixShowLibrary = true;
         Mixxx.Config.paramixShowPreview = true;
+        Mixxx.Config.paramixShowJogWheels = false;
         Mixxx.Config.paramixCompactDecks = false;
+        Mixxx.Config.paramixFourBandEq = false;
+        Mixxx.Config.paramixBpmInJog = true;
         Mixxx.Config.waveformStemSplitTracks = false;
         Mixxx.Config.waveformPlayMarkerPosition = 0.5;
     }
@@ -377,11 +380,32 @@ Popup {
                         onChanged: Mixxx.Config.paramixShowPreview = !value
                     }
                     ToggleRow {
+                        label: qsTr("Jog wheels")
+                        hint: qsTr("Show a jog wheel on each deck. On narrow decks it replaces the tempo fader.")
+                        value: Mixxx.Config.paramixShowJogWheels
+
+                        onChanged: Mixxx.Config.paramixShowJogWheels = !value
+                    }
+                    ToggleRow {
                         label: qsTr("Compact decks")
                         hint: qsTr("Tighter deck header and margins for smaller screens.")
                         value: Mixxx.Config.paramixCompactDecks
 
                         onChanged: Mixxx.Config.paramixCompactDecks = !value
+                    }
+                    ToggleRow {
+                        label: qsTr("BPM in jog centre")
+                        hint: qsTr("Show the BPM and pitch in the centre of the jog wheel. Turn off to show them above the tempo fader.")
+                        value: Mixxx.Config.paramixBpmInJog
+
+                        onChanged: Mixxx.Config.paramixBpmInJog = !value
+                    }
+                    ToggleRow {
+                        label: qsTr("Mid-high EQ band")
+                        hint: qsTr("Add a fourth EQ knob between HIGH and MID. Requires the BQ EQ/ISO equalizer in Preferences -> Mixer.")
+                        value: Mixxx.Config.paramixFourBandEq
+
+                        onChanged: Mixxx.Config.paramixFourBandEq = !value
                     }
                 }
                 Hairline {
@@ -637,6 +661,7 @@ Popup {
             }
         }
         ToggleSwitch {
+            accessibleName: row.label
             checked: row.value
 
             onToggled: row.changed()

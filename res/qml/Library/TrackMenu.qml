@@ -59,7 +59,8 @@ Menu {
             item.enabled = node.enabled;
             item.checkable = node.checkable;
             item.checked = node.checkState === 2 ? true : node.checked;
-            item.text = node.text + (node.shortcut.length > 0 ? "    " + node.shortcut : "");
+            item.text = node.text;
+            item.nodeShortcut = node.shortcut;
             menu.addItem(item);
         }
     }
@@ -123,7 +124,9 @@ Menu {
         // The Basic style derives Menu.implicitWidth from the background's
         // implicit width. Without it the popup collapses to zero width and is
         // invisible, because the content ListView only reports a height.
-        implicitWidth: 220
+        // 320 px fits the longest classic entry (hotcue sorting) and leaves a
+        // right-aligned column for the shortcuts.
+        implicitWidth: 320
         border.color: Theme.border
         border.width: 1
         color: Theme.surface2
@@ -153,7 +156,35 @@ Menu {
             property int nodeCheckIndex: -1
             property int nodeIndex: -1
             property string nodeKind: "action"
+            property string nodeShortcut: ""
 
+            // Label and shortcut as two columns: gluing the shortcut into the
+            // label with spaces pushed long entries past the menu edge and had
+            // no right-aligned column.
+            contentItem: Item {
+                Text {
+                    id: actionLabel
+
+                    anchors.left: parent.left
+                    anchors.right: shortcutLabel.left
+                    anchors.rightMargin: actionItem.nodeShortcut.length > 0 ? 24 : 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: actionItem.enabled ? Theme.textPrimary : Theme.textMuted
+                    elide: Text.ElideRight
+                    font: actionItem.font
+                    text: actionItem.text
+                }
+                Text {
+                    id: shortcutLabel
+
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.textMuted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeXs
+                    text: actionItem.nodeShortcut
+                }
+            }
             onTriggered: root.triggerNode(actionItem)
         }
     }
@@ -199,7 +230,7 @@ Menu {
             }
 
             background: Rectangle {
-                implicitWidth: 220
+                implicitWidth: 320
                 border.color: Theme.border
                 border.width: 1
                 color: Theme.surface2

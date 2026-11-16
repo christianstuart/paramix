@@ -26,6 +26,15 @@ Item {
     readonly property int numPreviewDecks: 1
     readonly property int numSamplers: 16
     readonly property bool show4decks: fourDecksRequested && root.height > 515
+    /// Height the deck band reserves: the taller of the mixer and the deck, so a
+    /// short mixer can never clip the deck's panes.
+    readonly property int bandContentHeight: Math.max(mixer.implicitHeight, Theme.deckMinHeight)
+    /// The deck/mixer band may never reserve more height than the window leaves
+    /// under the toolbar. Without this the vertical split honours a minimum that
+    /// is larger than the window and paints the band past the bottom edge
+    /// instead of shrinking it.
+    readonly property int bandMinimumHeight: Math.min(root.bandContentHeight + outputBar.height,
+            Math.max(0, root.height - Theme.toolbarHeight))
     property bool showEffects: false
     property bool showSamplers: false
     readonly property bool showMicrophoneInputs: showMicrophonesControl.value > 0
@@ -40,7 +49,11 @@ Item {
     Loader {
         id: nativeApplicationMenuLoader
 
-        active: Qt.platform.os === "osx" || (Mixxx.Application.supportsGlobalMenuBar && root.applicationWindow.visibility !== Window.FullScreen)
+        // The classic UI uses the native WMainMenuBar; the QML skin has to carry
+        // its own menu, so build one on every desktop platform. Without this
+        // Windows and Linux (no AppMenu registrar) had no File/Library/Options
+        // menus at all.
+        active: Qt.platform.os !== "android" && Qt.platform.os !== "ios"
 
         sourceComponent: Skin.MainMenuBar {
             actions: applicationMenuActions
@@ -154,7 +167,7 @@ Item {
 
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.width >= 1100
+                visible: root.width >= Theme.masterTempoMinWidth
                 z: 1
             }
             // Master output level, left of the tempo readout. Hidden on narrow
@@ -163,7 +176,7 @@ Item {
                 anchors.right: masterTempo.left
                 anchors.rightMargin: Theme.space4
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.width >= 1400
+                visible: root.width >= Theme.masterMeterMinWidth
                 z: 1
             }
             // Recording output, right of the tempo readout.
@@ -171,7 +184,7 @@ Item {
                 anchors.left: masterTempo.right
                 anchors.leftMargin: Theme.space4
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.width >= 1200
+                visible: root.width >= Theme.recordingBoxMinWidth
                 z: 1
             }
             // Flat matte top plate with a 1 px hairline bottom separator.
@@ -333,6 +346,7 @@ Item {
                     checkable: true
                     checked: devToolsWindow.visible
                     text: qsTr("Develop")
+                    visible: Mixxx.Application.developerMode
 
                     Accessible.name: qsTr("Show developer tools")
 
@@ -422,7 +436,7 @@ Item {
                 id: waveforms
 
                 SplitView.fillHeight: !library.active && Mixxx.Config.paramixShowWaveforms
-                SplitView.preferredHeight: library.active ? 160 : undefined
+                SplitView.preferredHeight: library.active ? (Theme.shortWindow ? 96 : 160) : undefined
                 visible: !root.maximizeLibrary && Mixxx.Config.paramixShowWaveforms
 
                 // Only decks 1 and 2 get a waveform in the top strip. With four
@@ -495,15 +509,15 @@ Item {
                 SplitView.fillHeight: library.active || !Mixxx.Config.paramixShowWaveforms
                 SplitView.maximumHeight: (library.active || !Mixxx.Config.paramixShowWaveforms)
                         ? undefined
-                        : mixer.height + outputBar.height
-                SplitView.minimumHeight: mixer.height + outputBar.height
+                        : root.bandContentHeight + outputBar.height
+                SplitView.minimumHeight: root.bandMinimumHeight
 
                 Deck {
                     id: deck1
 
                     editMode: root.editDeck
                     group: "[Channel1]"
-                    height: root.maximizeLibrary ? 80 : root.show4decks ? mixer.height / 2 : mixer.height
+                    height: root.maximizeLibrary ? 80 : root.show4decks ? root.bandContentHeight / 2 : root.bandContentHeight
                     minimized: root.maximizeLibrary
                     states: [
                         State {
@@ -532,47 +546,45 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
                     groups: [deck1.group, deck2.group, deck3.group, deck4.group]
+                    // Span the band so no gap opens under a mixer that is
+                    // shorter than the decks beside it.
+                    height: root.bandContentHeight
                     show4decks: root.show4decks
                     visible: !root.maximizeLibrary
+                    // A focused deck at a narrow window takes the whole width with
+                    // the mixer and the other deck hidden. Otherwise the decks are
+                    // anchored to the mixer and their width follows the band.
                     states: [
                         State {
-                            when: root.focusedDeck === deck1 && root.width < 1400 && !root.maximizeLibrary
+                            when: root.focusedDeck === deck1 && root.width < Theme.focusedDeckMinWindowWidth && !root.maximizeLibrary
 
                             AnchorChanges {
-                                anchors.horizontalCenter: parent.right
-                                target: mixer
-                            }
-                            PropertyChanges {
+                                anchors.right: parent.right
                                 target: deck1
-                                width: root.width - (mixer.width / 2)
-                            }
-                        },
-                        State {
-                            when: root.focusedDeck === deck2 && root.width < 1400 && !root.maximizeLibrary
-
-                            AnchorChanges {
-                                anchors.horizontalCenter: parent.left
-                                target: mixer
                             }
                             PropertyChanges {
                                 target: deck2
-                                width: root.width - (mixer.width / 2)
+                                visible: false
+                            }
+                            PropertyChanges {
+                                target: mixer
+                                visible: false
                             }
                         },
                         State {
-                            when: (!root.focusedDeck || root.width > 1400) && !root.maximizeLibrary
+                            when: root.focusedDeck === deck2 && root.width < Theme.focusedDeckMinWindowWidth && !root.maximizeLibrary
 
                             AnchorChanges {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                target: mixer
+                                anchors.left: parent.left
+                                target: deck2
                             }
                             PropertyChanges {
                                 target: deck1
-                                width: (root.width - mixer.width) / 2
+                                visible: false
                             }
                             PropertyChanges {
-                                target: deck2
-                                width: (root.width - mixer.width) / 2
+                                target: mixer
+                                visible: false
                             }
                         },
                         State {
@@ -582,14 +594,6 @@ Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 target: mixer
                             }
-                            PropertyChanges {
-                                target: deck1
-                                width: root.width / 2
-                            }
-                            PropertyChanges {
-                                target: deck2
-                                width: root.width / 2
-                            }
                         }
                     ]
                 }
@@ -598,7 +602,7 @@ Item {
 
                     editMode: root.editDeck
                     group: "[Channel2]"
-                    height: root.maximizeLibrary ? 80 : root.show4decks ? mixer.height / 2 : mixer.height
+                    height: root.maximizeLibrary ? 80 : root.show4decks ? root.bandContentHeight / 2 : root.bandContentHeight
                     minimized: root.maximizeLibrary
                     states: [
                         State {
@@ -627,7 +631,7 @@ Item {
                     readonly property string group: "[Channel3]"
 
                     active: root.show4decks
-                    height: active ? (root.maximizeLibrary ? 80 : mixer.height / 2) : 0
+                    height: active ? (root.maximizeLibrary ? 80 : root.bandContentHeight / 2) : 0
                     sourceComponent: Component {
                         Deck {
                             anchors.fill: parent
@@ -659,7 +663,7 @@ Item {
                     readonly property string group: "[Channel4]"
 
                     active: root.show4decks
-                    height: active ? (root.maximizeLibrary ? 80 : mixer.height / 2) : 0
+                    height: active ? (root.maximizeLibrary ? 80 : root.bandContentHeight / 2) : 0
                     sourceComponent: Component {
                         Deck {
                             anchors.fill: parent
@@ -691,7 +695,11 @@ Item {
 
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: mixer.bottom
+                    anchors.top: parent.top
+                    // Below whichever is taller. Anchoring to the mixer alone
+                    // drew this bar over the decks' bottom rows whenever the
+                    // mixer came out shorter than Theme.deckMinHeight.
+                    anchors.topMargin: Math.max(mixer.height, deck1.height + deck3.height)
                     height: visible ? implicitHeight : 0
                     show4decks: root.show4decks
                     visible: !root.maximizeLibrary
@@ -710,7 +718,10 @@ Item {
                     sourceComponent: Component {
                         MixerComponents.InputRack {
                             auxiliaryCount: numAuxiliaries.value
-                            defaultCollapsed: library.active && root.height < 1000
+                            // Collapse to the header only when the window is
+                            // shorter than the design minimum; the old literal
+                            // 1000 collapsed it on every laptop display.
+                            defaultCollapsed: library.active && root.height < Theme.minWindowHeight
                             microphoneCount: numMicrophones.value
                         }
                     }
@@ -718,7 +729,7 @@ Item {
                 Loader {
                     id: effects
 
-                    active: root.showEffects
+                    active: root.showEffects && !root.maximizeLibrary
                     height: active ? implicitHeight : 0
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -731,7 +742,7 @@ Item {
                 Loader {
                     id: samplers
 
-                    active: root.showSamplers
+                    active: root.showSamplers && !root.maximizeLibrary
                     height: active ? implicitHeight : 0
                     anchors.left: parent.left
                     anchors.right: parent.right

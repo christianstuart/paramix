@@ -13,6 +13,7 @@ ComboBox {
     property alias popupWidth: popupItem.width
 
     readonly property int itemHeight: 28
+    readonly property real windowHeight: Window.height
 
     signal activateFooter(int index)
 
@@ -118,8 +119,13 @@ ComboBox {
         height: root.itemHeight * (Math.min(root.popupMaxItem, Math.max(root.count, 1)) + 1)
         padding: 0
         width: root.width
-        x: root.width - width
-        y: root.height - 2
+        // Right-aligned, but never past the left window edge (a narrow trigger
+        // such as the mixer's 36 px QuickFX selector opens a 100 px list).
+        x: Math.max(root.width - width, -root.mapToItem(null, 0, 0).x)
+        // Open upward when the list would fall off the bottom of the window;
+        // the mixer's dropdowns sit low on the screen.
+        y: (root.mapToItem(null, 0, 0).y + root.height + height > root.windowHeight
+            && root.mapToItem(null, 0, 0).y - height > 0) ? -height + 2 : root.height - 2
 
         background: Rectangle {
             border.color: Theme.borderStrong

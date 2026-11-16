@@ -2,6 +2,7 @@ import "." as Skin
 import Mixxx 1.0 as Mixxx
 import Mixxx.Controls 1.0 as MixxxControls
 import QtQuick 2.12
+import "Theme"
 
 Item {
     id: root
@@ -10,6 +11,9 @@ Item {
     required property string group
     required property string key
     property alias orientation: orientationSlider.value
+
+    Accessible.name: qsTr("Input orientation")
+    Accessible.role: Accessible.Slider
 
     implicitHeight: 26
     implicitWidth: 56
@@ -52,7 +56,7 @@ Item {
 
             Behavior on x {
                 NumberAnimation {
-                    duration: 150
+                    duration: Theme.motionFast
                 }
             }
         }

@@ -38,12 +38,12 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.space2
+        anchors.margins: Theme.space1
         spacing: Theme.space1
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 16
+            Layout.preferredHeight: 12
             spacing: Theme.space1
 
             Text {
@@ -62,7 +62,7 @@ Rectangle {
             Rectangle {
                 id: sizeField
 
-                Layout.preferredHeight: 16
+                Layout.preferredHeight: 12
                 Layout.preferredWidth: 52
                 border.color: sizeInput.activeFocus ? Theme.focusRing : Theme.border
                 border.width: 1
@@ -103,7 +103,7 @@ Rectangle {
         RowLayout {
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 24
+            Layout.minimumHeight: 18
             spacing: Theme.space1
 
             Skin.ControlButton {
@@ -111,9 +111,9 @@ Rectangle {
 
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 90
+                Layout.minimumWidth: 70
                 group: root.group
-                implicitHeight: 24
+                implicitHeight: 18
                 key: "beatjump_backward"
 
                 Accessible.description: qsTr("Jump back by the selected beat size")
@@ -192,9 +192,9 @@ Rectangle {
 
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 90
+                Layout.minimumWidth: 70
                 group: root.group
-                implicitHeight: 24
+                implicitHeight: 18
                 key: "beatjump_forward"
 
                 Accessible.description: qsTr("Jump forward by the selected beat size")
@@ -278,13 +278,17 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
                 Layout.maximumWidth: 340
-                Layout.minimumWidth: 200
+                Layout.minimumWidth: 0
                 Layout.preferredHeight: 32
                 Layout.preferredWidth: 300
                 border.color: Theme.border
                 border.width: 1
                 color: Theme.surface2
                 radius: Theme.radiusSm
+                // Below ~420 px the pane leaves the strip under 220 px, which
+                // would squeeze five size keys into slivers. The size field in
+                // the header still sets the jump size, so drop the strip.
+                visible: root.width >= 420
 
                 RowLayout {
                     id: sizeStrip
@@ -308,7 +312,7 @@ Rectangle {
 
                         Layout.fillHeight: true
                         Layout.preferredWidth: 22
-                        implicitHeight: 24
+                        implicitHeight: 18
                         implicitWidth: 22
 
                         Accessible.name: qsTr("Halve beatjump size")
@@ -411,7 +415,7 @@ Rectangle {
                             Layout.minimumWidth: 28
                             activeColor: Theme.textOnAccent
                             highlight: currentSize == beatjumpSize.value && trackLoadedControl.value > 0
-                            implicitHeight: 24
+                            implicitHeight: 18
                             implicitWidth: 30
                             text: beatjumpSize.formatBeatSize(currentSize)
 
@@ -427,7 +431,7 @@ Rectangle {
 
                         Layout.fillHeight: true
                         Layout.preferredWidth: 22
-                        implicitHeight: 24
+                        implicitHeight: 18
                         implicitWidth: 22
 
                         Accessible.name: qsTr("Double beatjump size")

@@ -35,7 +35,7 @@ the legacy names; migrate call sites opportunistically.
 | Spacing | `space1`..`space8` | 4 px base grid: 4, 8, 12, 16, 24, 32, 48, 64. |
 | Radius | `radiusXs`..`radiusXl`, `radiusPill` | Traktor-sharp: panels `radiusSm` (2 px), keys `radiusSm`; only pills stay round. |
 | Motion | `motionFast`, `motionNormal`, `motionSlow`, `motionSpringDuration` | Hover/press is `motionFast`; layout springs use `motionSpringDuration`. |
-| Layout | `toolbarHeight`, `deckHeaderHeight`, `stemLaneMinWidth`, `stemLaneHeight`, `minWindowWidth`, `minWindowHeight` | Minimum window is 1280×720 (`res/qml/skin.ini`). |
+| Layout | `toolbarHeight`, `deckHeaderHeight`, `deckMinHeight`, `deckPaneHeight`, `stemLaneMinWidth`, `stemLaneHeight`, `minWindowWidth`, `minWindowHeight` | Minimum window is 1280x720, enforced by `main.qml` and declared in `res/qml/skin.ini`. `deckMinHeight` is the deck's fixed-parts total; the waveform overview absorbs the rest of the band. |
 
 ## 3. Named color schemes
 
@@ -62,8 +62,6 @@ public properties stable because call sites still set them.
 | File | Purpose | Preserved API |
 |---|---|---|
 | `Button.qml` | Flat checkable/toggle button | `activeColor`, `normalColor`, `pressedColor`, `highlight`, `checked`, `icon` |
-| `ActionButton.qml` | Dialog/menu action button | `category` (`None`/`Danger`/`Action`), `label` |
-| `FormButton.qml` | Settings selector button | `backgroundColor`, `highlight`, `checked` |
 | `ComboBox.qml` | Flat dropdown | `footerItems`, `popupMaxItem`, `popupWidth`, `activateFooter()` |
 | `TextField.qml` | Flat text input | Standard `TextField` API |
 | `SectionBackground.qml` | Panel surface | Default `Rectangle` |
@@ -89,6 +87,9 @@ public properties stable because call sites still set them.
    backlit, sync/active states are signal-blue. Never swap them.
 7. **Motion is optional but consistent.** Hover and press feedback uses
    `Theme.motionFast`; do not invent new durations.
+8. **Gesture budget.** Double-click on a knob resets it (the Mixxx convention).
+   Band-level or destructive toggles go on right-click, so one gesture never
+   both resets and kills a band.
 
 ## 6. Runtime customization
 
@@ -109,6 +110,7 @@ the `Theme` singleton to the persisted `[Paramix]` values through `Mixxx.Config`
 | `paramixShowLibrary` | `true` | Library pane |
 | `paramixShowPreview` | `true` | Preview deck below the library |
 | `paramixCompactDecks` | `false` | Tighter deck header and margins |
+| `paramixBpmInJog` | `true` | BPM/pitch in the jog hub; `false` moves them above the tempo fader |
 
 Waveform playhead position, waveform style and stem lane stacking use the
 existing `[Waveform]` settings (`PlayMarkerPosition`, `WaveformType`,
@@ -131,10 +133,11 @@ discovered when the app runs in developer mode, and macOS x64 CI builds with
 `QML=OFF`. Making Paramix the default skin is a separate packaging decision once
 the skin is feature-complete.
 
-Follow-up: the `Settings/` helper controls (`FormButton`, `SpinBox`, `Slider`,
-`InfoBubble`, `Category`) still use the legacy bitmap look. They are only used by
-the retired QML settings popup; the native Mixxx Preferences dialog is the
-primary settings surface. Migrating or removing them is a separate cleanup.
+Follow-up: the retired QML settings popup (`res/qml/Settings.qml` and its
+`Settings/` pages) was deleted on 2026-11-16 together with the single-use
+helpers it kept alive (`FormButton`, `ActionPopup`, `ActionButton`,
+`InputField`). The native Mixxx Preferences dialog is the only settings
+surface. Do not add a second one.
 
 Stem-specific UI (4-lane stem strip, acapella/instrumental complement buttons,
 separation status) is described in `docs/paramix-stem-beatgrid-ui-plan.md`

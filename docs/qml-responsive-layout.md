@@ -1,0 +1,291 @@
+# QML responsive layout
+
+Status: stages 0-2 in progress. This file records the measurements the work is
+based on, because two earlier assumptions about the failing machine were wrong.
+
+## Measured window and screen
+
+From the live application on the 200 %-scaled laptop:
+
+```text
+window=1440x852  dpr=2  screen=1440x900  avail=1440x852
+```
+
+So the skin receives **1440x852 logical px**. `Screen.width` and
+`desktopAvailableWidth` already return logical pixels, and the window is
+correctly clamped to them by `main.qml`.
+
+The design target in `main.qml` is **1792x1008 logical**. The gap is therefore
+352 px wide and 156 px tall — a normal-size window on a scaled display, not a
+tiny one. Earlier estimates of "720x426 logical" came from applying the 2.0
+device pixel ratio to coordinates that were already logical, and are wrong.
+
+Practical consequence: the compact-layout breakpoints are relative to the
+design size, not to a mobile-sized window.
+
+| token (`Theme.qml`) | fires when | at 1440x852 |
+|---|---|---|
+| `shortWindow` | height < 900 | true |
+
+There is no global `narrow`/`compact` width token. Width gates are per band
+(`deckSpinnyMinWidth`, `masterTempoMinWidth`, ...) because each band has its own
+minimum; a single window-width breakpoint kept hiding controls that fitted.
+
+## Per-band minimum sizes
+
+Measured from the QML. "needs" is the smallest size the band can render at
+without clipping; every value is logical px.
+
+| Band | Needs | Set by |
+|---|---|---|
+| Toolbar | 44 high, ~390 wide | `Theme.toolbarHeight`; per-key 26x56 minimums |
+| Mixer | 152 wide, ~190 high | `Mixer.qml` `implicitWidth`; `EqColumn` sets the height |
+| Output bar | 54 high | `Mixer/OutputBar.qml` `implicitHeight` |
+| Deck | ~1265 wide with spinny, ~457 without, ~386 with tempo hidden; 232 high | `Theme.deckMinHeight`; `Deck.qml` DelegateChooser `minWidth` 620 / 270 / 200 |
+| Library | 358 wide, 120 high (228 with preview deck) | `Library.qml` sidebar 150 + browser 200 |
+| Waveform strip | no intrinsic minimum | two `WaveformDisplay`s at `height / 2` |
+
+At 1440x852 the width budget is 1440 for two decks plus a 196 mixer, so decks
+get ~622 each — above the 457 the deck needs with the spinny hidden. Vertically,
+44 + 299 (mixer + output) + 208 (library) + 301 (waveforms) exactly fills 852.
+
+## What already adapts
+
+These predate the responsive work and should be folded into the `Theme`
+breakpoints rather than duplicated:
+
+| Where | Condition | Effect |
+|---|---|---|
+| `MainWindow.qml:28` | `height > 515` | four-deck layout |
+| `MainWindow.qml:183/192/200` | `width >= 1100 / 1400 / 1200` | master tempo / output meters / record box |
+| `MainWindow.qml:773` | `height - mixer.height >= 400` | library shown |
+| `MainWindow.qml:565,577,589` | `width < 1400` | focused-deck placement |
+| `Deck.qml:163/175` | model `minWidth` 800 / 270 | hides spinny, then tempo strip |
+| `Deck/InfoBar.qml:152,165,206` | `width > 500 / 450 / 400` | hides year / time / rating |
+| `Deck/Loop.qml:296` | `(width - 56) / 40` | 1-4 loop-size buttons |
+| `Mixer/OutputBar.qml:19` | `width < 1200` | tile width 56 vs 64 |
+| `Deck/HotcueAndStem.qml` | `height < 112` | drops QuickFX preset |
+
+## Landed so far
+
+- **Stage 2 — breakpoints.** `Theme.windowWidth` / `windowHeight`, bound from
+  `main.qml`, plus `shortWindow`. Every existing width gate now comes from a
+  named `Theme` token instead of a literal in the component:
+  `masterTempoMinWidth` (1100), `recordingBoxMinWidth` (1200),
+  `masterMeterMinWidth` (1400), `focusedDeckMinWindowWidth` (1400),
+  `deckSpinnyMinWidth` (800), `deckTempoMinWidth` (270). Behaviour is
+  unchanged; only the source of the numbers moved.
+- **Stage 1 — structural floor.** `MainWindow.bandMinimumHeight` clamps the
+  deck band's `SplitView.minimumHeight` to `windowHeight - toolbarHeight`, so
+  the split can no longer reserve more than the window has.
+- **Stage 1 — waveform strip.** `SplitView.preferredHeight` drops 160 -> 96
+  when `shortWindow`, instead of a fixed 160.
+- **Stage 1 — bounds test.** `QmlResponsiveBoundsTest` in
+  `src/test/qml/qmlstartupsmoketest.cpp` starts the QML application, resizes
+  the `MainWindow` item to each target size, waits for the layout to go
+  quiescent, and fails listing every visible item whose mapped bounds escape
+  the window (items under a clipping ancestor are skipped).
+
+- **Stage 4 — `uiScale`.** `Theme.uiScale` (0.75-1.25, clamped in
+  `QmlConfigProxy::set_paramixUiScale`) multiplies the spacing grid
+  (`space1`-`space8`) and the fixed layout metrics (`toolbarHeight`,
+  `deckHeaderHeight`, `stemLaneMinWidth`, `stemLaneHeight`). Text stays on
+  `fontScale`, deliberately: they are two independent levers, so a compact
+  display can tighten the grid without shrinking its labels. Persisted as
+  `[Paramix] UiScale`; bound in `main.qml`. Covered by
+  `QmlThemeUiScaleTest.ScalingShrinksTheSpacingGrid`.
+
+- **Stage 5 — the harness matches the skin (2026-11-16).** The bounds test now
+  drives `Theme.windowWidth`/`windowHeight` from the size it sets on the
+  `MainWindow` item (before, it measured 1440x852 with the tokens still on the
+  real 1792x1008 window), asserts the design size as well, fails when the band
+  geometry never settles instead of silently measuring at the 3 s cap, and
+  flags (a) visible items collapsed to zero height inside a live parent,
+  (b) the deck FX-assign column below 30 px, and (c) the deck pane below
+  110 px. The settle check compares the top two layout levels only, because
+  waveform playheads and VU segments animate by design.
+
+## Overlap pass (2026-11-16)
+
+The bounds test passed while the skin visibly overlapped, because it only saw
+items leaving the *window*. Three root causes, none of them about window size:
+
+- **Output bar over the decks.** The bar was anchored to `mixer.bottom`, but the
+  decks are `max(mixer, Theme.deckMinHeight)` tall. With the mixer at 186 and
+  the deck at 232, the bar covered the bottom 46 px of both decks (CUE, pane
+  tabs, FX-assign keys) at every window size. It is now anchored below the
+  taller of the two, and the mixer spans the band (`Mixer.qml` stretches its
+  faders; `implicitHeight` stays the natural 186).
+- **The font differed per machine.** `Theme.fontFamily` asked for "Helvetica
+  Neue", which only macOS has. Windows substituted Tahoma, whose metrics the
+  fixed boxes were never sized for. `Theme.fontFallbacks` now resolves to an
+  installed Helvetica-metric family (Arial on Windows, Liberation Sans on
+  Linux) and ends in the bundled Open Sans.
+- **Gates below the real row width.** The deck row is main column 490 + 5 +
+  tempo 60 (+ 5 + spinny 140) + 8. `deckSpinnyMinWidth` was 620 and
+  `deckTempoMinWidth` 270, so the row outgrew the deck and `clip: true` cut the
+  right-hand end off. The tempo strip now needs a 563 px deck and the full row
+  (`deckFullRowMinWidth`) 708.
+- **Jog wheels are opt-in.** Customize > Jog wheels (`[Paramix] ShowJogWheels`,
+  off by default) decides whether a deck has one at all. When on, it shows from
+  a 643 px deck (`deckSpinnyMinWidth`, a 1440 px window) and takes the tempo
+  strip's place until the deck reaches 708, where both fit. The rule is
+  `Deck.rowItemShown()`. `PARAMIX_QML_JOG_WHEELS=1` makes the bounds test
+  measure that layout.
+
+Also: the library sidebar's source tree now shrinks to 120 px and the preview
+deck hides below a 228 px sidebar (was a fixed 308 px that painted past the
+window); the crossfader fits its slot and its unit no longer runs under the
+output tiles; `FXAssign` drops its eyebrow label in the 30 px slot.
+
+### Window fit
+
+- A screen smaller than the design size opens the window maximized. Before, the
+  client area was set to the whole available desktop and the frame hung off it.
+- Below `Theme.minWindowWidth` x `minWindowHeight` (1280x720) the skin is
+  scaled uniformly (`main.qml` `skinScale`, floor 0.5) instead of squeezed, so
+  the layout never sees less than the floor. Popups are not scaled.
+
+### Measuring
+
+`QmlResponsiveBoundsTest` now asserts 2560x1369, 1792x1008, 1440x852, 1280x800
+and 1280x720, requires a laid-out tree before it calls the layout settled, and
+re-applies its size until the Loader stops overriding it. For an audit:
+
+```bash
+cd build
+QT_QPA_FONTDIR=C:/Windows/Fonts PARAMIX_QML_DUMP_DIR=C:/tmp/dump   PARAMIX_QML_SIZES=1366x720,1920x1009 ./mixxx-test --gtest_filter='QmlResponsive*'
+python tools/qml_layout_audit.py C:/tmp/dump
+```
+
+Run it off-screen (the default). On the `windows` platform plugin the tree was
+measured at 0x0. `QT_QPA_FONTDIR` gives the off-screen font database the system
+fonts; without it only the bundled ones exist. The audit reports text over
+text, text larger than its box, short labels elided and children outside their
+parent. Knob art 3-5 px taller than its hit box is reported and intended.
+
+Not covered: four-deck mode, the effects and sampler rows, maximized library,
+and popups. The dump only sees the default two-deck layout.
+
+## Deck fixes after the first run
+
+Two problems reported on the 1440x852 window, both arithmetic rather than taste:
+
+- **Jog wheels hidden.** The spinny column was gated at 800 px deck width, but the
+  spinny alone only needs the main column, itself and the tempo strip (~600).
+  The FX-assign column beside it was what pushed the requirement to 800. Now
+  `deckSpinnyMinWidth` is 620 and the FX column carries its own
+  `deckFxColumnMinWidth` of 800, so the spinny returns and the FX column still
+  hides until there is room for it.
+- **Stem labels elided to "Dru...".** The stem pane is only ~365 px: the loop
+  card (185) and the pane tabs (34) share the same transport row. Four lanes
+  side by side were ~86 px each, so every label became a fragment. The wrap
+  decision now uses `stemLaneComfortWidth` (110) instead of the 58 px hard
+  minimum, which makes that pane 2x2 with ~180 px lanes. Four across now only
+  happens when each lane really gets the label width.
+
+Measured in the harness at 1440x852: deck width **644**, and 564 at 1280x800.
+
+## Deck height, second pass (2026-11-16)
+
+The 2026-11-15 compaction took the deck band to 192 px while the deck's fixed
+children still needed ~186 and the pane was told to render a 112 px stem layout
+in 78 px. That produced the overlapping panes: stems lanes 9-22 px tall, the
+FX-assign keys at 0 px, the loop card 62 px of content in a 58 px box, and the
+info bar's two rows sharing 24 px with 20 px left blank.
+
+| Element | Before | After |
+|---|---|---|
+| `Theme.deckMinHeight` | 192 | 232 |
+| `Theme.deckPaneHeight` (pane + tabs) | 78 | 112 |
+| Loop card | 58 fixed | 62 (= content) |
+| Info bar bottom inset | 20 | 4 |
+| Output bar | 46 | 54 (fits the 2x16 px crossfader keys) |
+
+The waveform overview absorbs the difference; at 1440x852 the band is
+232 + 54 = 286 of the 299 px the previous compaction budgeted. Stem lanes wrap
+to 2x2 at every current deck width, so a lane now hides its QuickFX row when it
+is shorter than 64 px instead of overflowing the card. `BeatJump` drops its
+size strip below a 420 px pane and keeps the header's size field.
+
+## Vertical compaction
+
+The deck's height is pinned to the mixer's (`MainWindow.qml:506`), so shrinking
+the deck alone only tightens it. Both bands had to come down together.
+
+| Element | Before | After |
+|---|---|---|
+| Info bar (`Theme.deckHeaderHeight`) | 56 | 44 |
+| Waveform overview | 50 | 40 |
+| Deck pane (hotcues / beatjump / grid / stems) | 92 | 72 |
+| Loop card | 92 | 58 |
+| Deck toolbar | 24 | 22 |
+| Tempo strip width | 75 | 60 |
+| Tempo fader / well | 20 / 14 | 16 / 10 |
+| Tempo and pitch buttons | 24 x 22 | 20 x 18 |
+| EQ knob | 36 (30 inner) | 32 (27 inner) |
+| QuickFX knob | 36 (30 inner) | 30 (25 inner) |
+| QuickFX preset selector | 18 | 16 |
+
+Loop took the deepest cut: internal rows 24 -> 18, eyebrow 14 -> 10, padding
+`space2` -> `space1`. The pane tabs dropped to a 16 px minimum so four tabs
+still fit the shorter pane.
+
+Deck content: 234 -> 190. Mixer: ~212 -> ~189. The deck therefore gets ~189
+instead of ~253, about 75 % of its previous height.
+
+**The pane cannot go much below 72:** BeatJump needs its eyebrow plus two rows,
+and the stems pane needs an 18 px header plus lane rows. Reaching a strict 2/3
+would clip both.
+
+## Still open
+
+- **Narrow-width mixer rules still deferred.** The sleek-mixer work landed, and
+  its EQ/QuickFX stack came down in height as part of the compaction above, but
+  the narrow-width rules (drop the EQ rows, columns 84 -> 56) are still not
+  written.
+- **No UI control for `uiScale` yet.** The setting and the binding exist, but
+  the control belongs in `ParamixCustomize.qml`. Until then it can only be set
+  in `paramix.cfg`.
+- **Below ~1200 px wide the split layout still oscillates** (see below). The
+  window minimum is now `Theme.minWindowWidth`/`minWindowHeight` (1280x720), so
+  a user cannot drag the window into the unstable range, but the binding cycle
+  itself is unfixed.
+
+## Known open issues found by the bounds test
+
+- **The layout does not converge below roughly 1200 px wide.** At 1024x768 the
+  geometry keeps changing: repeated runs of the bounds test either pass or
+  fail at that size, and a quiescence wait never settles. That is a real
+  oscillation (a binding cycle, most likely between the library's `active`
+  threshold, the split's minimum heights and the deck height derived from
+  `mixer.height`), not a measurement artefact. The test therefore asserts only
+  at 1792x1008, 1440x852 and 1280x800, which are stable, and this needs its own
+  fix before smaller sizes can be asserted.
+- **The `ApplicationWindow` cannot be resized from C++.** Its `width`/`height`
+  are bound to `Screen`-derived values in `main.qml`, so `QQuickWindow::resize`
+  and `setProperty("width", ...)` change the native window while the skin item
+  keeps its old size. The bounds test works around this by sizing the
+  `MainWindow` item directly.
+
+## Remaining
+
+1. **`narrow`/`compact` tokens do not exist.** Width gates are per band; the
+   earlier plan to fold them into one global pair was abandoned because each
+   band has its own minimum. Keep adding named per-band tokens.
+2. **No UI control for `uiScale`.** It can only be set in `paramix.cfg`.
+3. **Below ~1200 px wide the layout still oscillates.** The window minimum is
+   now 1280x720, so a user cannot reach it, but the binding cycle is unfixed.
+4. **Library column widths ignore `fontScale`** (`Library/SourceTree.qml`
+   preferred widths are fixed px) and elided titles have no tooltip.
+5. **Four-deck mode clips.** `bandContentHeight / 2` gives each deck ~116 px
+   while the deck's fixed parts need ~186. Four decks need either a taller
+   window or the minimized deck card; the toggle is currently a footgun.
+
+## Note on measuring
+
+A temporary `console.log` from `MainWindow.qml` root handlers did not appear in
+`paramix.log` even though removing `MainWindow.qml` provably breaks the app, so
+the file is the live one. Logging from `main.qml` works. Worth understanding
+before relying on QML-side instrumentation again; the numbers above were taken
+from `main.qml` and from reading the components.

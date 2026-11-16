@@ -8,7 +8,7 @@ import "../Theme"
 
 /// Loop section: set in/out, toggle/reloop and pick a beat size.
 ///
-/// Laid out as an eyebrow plus two 24 px control rows on a flat panel. A small
+/// Laid out as an eyebrow plus two 18 px control rows on a flat panel. A small
 /// status dot reports whether the loop is active without turning the panel
 /// into a coloured card.
 Rectangle {
@@ -78,12 +78,12 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.space2
+        anchors.margins: Theme.space1
         spacing: Theme.space1
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 14
+            Layout.preferredHeight: 10
 
             Text {
                 anchors.left: parent.left
@@ -119,7 +119,7 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 24
+            Layout.preferredHeight: 18
             spacing: Theme.space1
 
             Skin.ControlButton {
@@ -130,7 +130,7 @@ Rectangle {
                 Layout.minimumWidth: 28
                 activeColor: Theme.textOnAccent
                 group: root.group
-                implicitHeight: 24
+                implicitHeight: 18
                 key: "loop_in"
                 normalColor: root.buttonColor
                 text: qsTr("In")
@@ -169,7 +169,7 @@ Rectangle {
                 Layout.minimumWidth: 28
                 activeColor: Theme.textOnAccent
                 group: root.group
-                implicitHeight: 24
+                implicitHeight: 18
                 key: "loop_out"
                 normalColor: root.buttonColor
                 text: qsTr("Out")
@@ -208,7 +208,7 @@ Rectangle {
                 Layout.minimumWidth: 40
                 activeColor: Theme.textOnAccent
                 group: root.group
-                implicitHeight: 24
+                implicitHeight: 18
                 key: loopEnabled.value ? "loop_enabled" : "reloop_toggle"
                 normalColor: root.buttonColor
                 // "Rel" is the hardware shorthand; the full word elides to
@@ -221,7 +221,7 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 24
+            Layout.preferredHeight: 18
             spacing: Theme.space1
 
             WheelHandler {
@@ -239,7 +239,7 @@ Rectangle {
 
                 Layout.fillHeight: true
                 Layout.preferredWidth: 22
-                implicitHeight: 24
+                implicitHeight: 18
                 implicitWidth: 22
 
                 Accessible.name: qsTr("Halve loop")
@@ -353,7 +353,7 @@ Rectangle {
                     Layout.minimumWidth: 28
                     activeColor: Theme.textOnAccent
                     highlight: currentSize == beatloopSize.value && trackLoadedControl.value > 0
-                    implicitHeight: 24
+                    implicitHeight: 18
                     implicitWidth: 33
                     text: beatloopSize.formatBeatSize(currentSize)
 
@@ -380,7 +380,7 @@ Rectangle {
 
                 Layout.fillHeight: true
                 Layout.preferredWidth: 22
-                implicitHeight: 24
+                implicitHeight: 18
                 implicitWidth: 22
 
                 Accessible.name: qsTr("Double loop")
@@ -434,6 +434,6 @@ Rectangle {
     }
 
     component DeckButton: Skin.Button {
-        implicitHeight: 24
+        implicitHeight: 18
     }
 }
