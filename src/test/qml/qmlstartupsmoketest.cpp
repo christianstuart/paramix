@@ -13,6 +13,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQmlExpression>
@@ -358,8 +359,15 @@ QList<QSize> boundsTestSizes() {
 TEST(QmlThemeUiScaleTest, ScalingShrinksTheSpacingGrid) {
     QQmlEngine engine;
     engine.addImportPath(QStringLiteral(RESOURCE_FOLDER "/qml"));
-    QObject* pTheme = engine.singletonInstance<QObject*>(QStringLiteral("Theme"),
-            QStringLiteral("Theme"));
+    // singletonInstance(uri, typeName) only exists from Qt 6.5; reach the
+    // singleton through a component instead so this builds on Qt 6.4.
+    QQmlComponent component(&engine);
+    component.setData(
+            "import QtQml\nimport Theme\nQtObject { property var theme: Theme }\n",
+            QUrl());
+    const std::unique_ptr<QObject> pHolder(component.create());
+    ASSERT_NE(nullptr, pHolder) << qPrintable(component.errorString());
+    QObject* pTheme = pHolder->property("theme").value<QObject*>();
     ASSERT_NE(nullptr, pTheme);
 
     pTheme->setProperty("uiScale", 1.0);
