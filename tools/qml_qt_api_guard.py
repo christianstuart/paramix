@@ -373,7 +373,11 @@ def discover_qml_files(root):
         )
         names = [name for name in result.stdout.decode("utf-8", "replace").split("\0") if name]
         if names:
-            return sorted(os.path.join(root, name.replace("/", os.sep)) for name in names)
+            # A file that is staged for deletion is still in the index until the
+            # commit lands; skip it instead of failing the whole scan.
+            return sorted(os.path.join(root, name.replace("/", os.sep))
+                          for name in names
+                          if os.path.isfile(os.path.join(root, name.replace("/", os.sep))))
     except (OSError, subprocess.CalledProcessError):
         pass
     found = []

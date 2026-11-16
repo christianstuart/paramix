@@ -16,6 +16,10 @@ Item {
 
     required property string group
 
+    /// The BPM/pitch readout sits in the hub unless the user moved it above
+    /// the tempo fader in Customize Paramix.
+    readonly property bool bpmInJog: Mixxx.Config.paramixBpmInJog !== false
+
     Mixxx.ControlProxy {
         id: trackLoadedControl
 
@@ -94,7 +98,7 @@ Item {
         id: tempoInfo
 
         anchors.centerIn: spinner
-        opacity: trackLoadedControl.value ? 1 : 0
+        opacity: trackLoadedControl.value && root.bpmInJog ? 1 : 0
         spacing: 1
 
         Behavior on opacity {

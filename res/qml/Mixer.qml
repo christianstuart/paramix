@@ -19,10 +19,15 @@ Item {
     required property var groups
     property bool show4decks: false
 
-    readonly property int stripWidth: 44
+    /// Compact channel strips: 36 px wide with 30 px knobs.
+    readonly property int stripWidth: 36
 
-    implicitHeight: content.height
-    implicitWidth: 196
+    // Natural minimum; content grows beyond it when the host gives more height.
+    readonly property int naturalHeight: (root.show4decks ? eqDeck1.height * 2 : eqDeck1.height) + 4
+    readonly property int stripHeight: stripArea.height - (root.show4decks ? eqDeck1.height : 0)
+
+    implicitHeight: naturalHeight
+    implicitWidth: 152
 
     Skin.SectionBackground {
         anchors.fill: parent
@@ -33,14 +38,14 @@ Item {
         Item {
             id: content
 
-            height: (root.show4decks ? eqDeck1.height * 2 : eqDeck1.height) + 2 * Theme.space1
+            height: Math.max(root.naturalHeight, root.height)
             width: root.implicitWidth
 
             Item {
                 id: stripArea
 
                 anchors.fill: parent
-                anchors.margins: Theme.space1
+                anchors.margins: 2
 
                 states: [
                     State {
@@ -110,7 +115,7 @@ Item {
 
                     anchors {
                         left: parent.left
-                        leftMargin: root.show4decks ? Theme.space1 : 0
+                        leftMargin: root.show4decks ? 2 : 0
                         top: parent.top
                     }
                 }
@@ -118,7 +123,7 @@ Item {
                     id: mixerDeck3
 
                     group: root.groups[2]
-                    height: eqDeck2.height
+                    height: root.stripHeight
                     visible: root.show4decks
                     width: root.stripWidth
 
@@ -131,12 +136,12 @@ Item {
                     id: mixerDeck1
 
                     group: root.groups[0]
-                    height: eqDeck1.height
+                    height: root.stripHeight
                     width: root.stripWidth
 
                     anchors {
                         left: eqDeck1.right
-                        leftMargin: Theme.space1
+                        leftMargin: 2
                         top: parent.top
                     }
                 }
@@ -144,12 +149,12 @@ Item {
                     id: mixerDeck2
 
                     group: root.groups[1]
-                    height: eqDeck2.height
+                    height: root.stripHeight
                     width: root.stripWidth
 
                     anchors {
                         right: eqDeck2.left
-                        rightMargin: Theme.space1
+                        rightMargin: 2
                         top: parent.top
                     }
                 }
@@ -157,7 +162,7 @@ Item {
                     id: mixerDeck4
 
                     group: root.groups[3]
-                    height: eqDeck2.height
+                    height: root.stripHeight
                     visible: root.show4decks
                     width: root.stripWidth
 
@@ -174,7 +179,7 @@ Item {
 
                     anchors {
                         right: parent.right
-                        rightMargin: root.show4decks ? Theme.space1 : 0
+                        rightMargin: root.show4decks ? 2 : 0
                         top: parent.top
                     }
                 }

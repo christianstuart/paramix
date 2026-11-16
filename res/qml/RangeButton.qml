@@ -1,5 +1,6 @@
 import "." as Skin
 import Mixxx 1.0 as Mixxx
+import QtQuick 2.12
 import "Theme"
 
 Skin.Button {
@@ -23,8 +24,11 @@ Skin.Button {
         rangeControl.value = root.modes[(currentIdx + 1) % root.modes.length];
     }
 
-    text: qsTr("Range")
+    // Show the range the button selected: cycling eight values with a static
+    // "Range" label gave no feedback at all.
+    text: Math.round(rangeControl.value * 100) + "%"
 
+    Accessible.name: qsTr("Pitch range %1 percent").arg(Math.round(rangeControl.value * 100))
     onClicked: nextRange()
 
     Mixxx.ControlProxy {

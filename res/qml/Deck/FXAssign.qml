@@ -13,12 +13,14 @@ Item {
 
     required property string group
 
-    height: 40
-    width: 135
+    implicitHeight: 40
+    implicitWidth: 135
 
     Text {
         id: heading
 
+        // The deck slot is 30 px tall at the minimum deck height: keys only.
+        visible: root.height >= 40
         anchors.left: parent.left
         anchors.top: parent.top
         color: Theme.textMuted

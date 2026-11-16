@@ -42,7 +42,7 @@ Rectangle {
     border.color: dragArea.containsMouse ? Theme.borderStrong : Theme.border
     border.width: 1
     color: Theme.surface1
-    implicitHeight: root.minimized ? 50 : 170
+    implicitHeight: root.minimized ? 50 : 190
     implicitWidth: 230
     radius: Theme.radiusMd
 

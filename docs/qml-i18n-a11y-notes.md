@@ -4,6 +4,11 @@ Workstream W2 (accessibility and localization of the shared QML UI). This docume
 the conventions applied to `res/qml/**`, the coverage so far, and the strings that were
 deliberately left unwrapped.
 
+> **Status (2026-11-16):** the retired QML settings tree (`res/qml/Settings.qml`,
+> `res/qml/Settings/**`) was deleted with the rest of the dead skin components. References to
+> `Settings/*` below are historical; the native Mixxx Preferences dialog is the only settings
+> surface. The conventions in §1 still apply to every new component.
+
 ## 1. Conventions applied
 
 ### 1.1 `qsTr()` for user-visible strings

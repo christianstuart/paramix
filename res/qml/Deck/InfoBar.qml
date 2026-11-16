@@ -14,7 +14,7 @@ import "../Theme"
 Rectangle {
     id: root
 
-    property list<string> availableData: ["none", "title", "year", "time", "artist", "rating"]
+    property list<string> availableData: ["none", "title", "year", "time", "artist", "key", "rating"]
     readonly property var currentTrack: deckPlayer?.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
     property bool editMode: false
@@ -24,10 +24,9 @@ Rectangle {
     required property int rightColumnWidth
 
     // ── Density and artwork ────────────────────────────────────────────────
-    readonly property bool compact: Mixxx.Config.paramixCompactDecks === true
     readonly property bool showCoverArt: Mixxx.Config.paramixShowCoverArt !== false && !root.minimized
-    readonly property int titleSize: root.minimized ? Theme.fontSizeSm : (root.compact ? Theme.fontSizeMd : Theme.fontSizeLg + 1)
-    readonly property int secondarySize: root.minimized ? Theme.fontSizeXs : (root.compact ? Theme.fontSizeXs : Theme.fontSizeSm)
+    readonly property int titleSize: root.minimized ? Theme.fontSizeSm : Theme.fontSizeLg + 1
+    readonly property int secondarySize: root.minimized ? Theme.fontSizeXs : Theme.fontSizeSm
     readonly property int metaSize: Theme.fontSizeXs
 
     /// Valid track colour, or `null` when the track has none.
@@ -189,6 +188,27 @@ Rectangle {
             }
         }
         DelegateChoice {
+            roleValue: "key"
+
+            Cell {
+                item.color: Theme.textPrimary
+                item.font.family: Theme.fontFamilyMono
+                item.font.pixelSize: root.secondarySize + 1
+                item.font.weight: Theme.fontWeightDemiBold
+                item.text: Mixxx.KeyUtils.keyIsValid(keyControl.value)
+                        ? Mixxx.KeyUtils.keyToString(keyControl.value)
+                        : ""
+                visible: root.width > 450
+
+                Mixxx.ControlProxy {
+                    id: keyControl
+
+                    group: root.group
+                    key: "key"
+                }
+            }
+        }
+        DelegateChoice {
             roleValue: "rating"
 
             Item {
@@ -309,6 +329,16 @@ Rectangle {
                 }
             }
         }
+        // The bottom row uses "none" as a gap filler between artist and rating;
+        // without a choice for it the DelegateChooser logs a warning per cell.
+        DelegateChoice {
+            roleValue: "none"
+
+            Item {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 0
+            }
+        }
     }
     ListModel {
         id: topRowModel
@@ -330,7 +360,7 @@ Rectangle {
             type: "artist"
         }
         ListElement {
-            type: "none"
+            type: "key"
         }
         ListElement {
             type: "rating"
@@ -355,19 +385,17 @@ Rectangle {
             }
         }
     }
-    // The header used to fill its band edge to edge, which pushed the artist
-    // line onto the waveform below. The extra bottom inset lifts both rows; the
-    // title keeps a slightly larger share of the band so it stays optically
-    // centred in the upper half.
+    // The two text rows fill the header band; the old 20 px bottom inset was a
+    // workaround for the shorter band and left the lower half empty.
     ColumnLayout {
         anchors.bottom: root.bottom
-        anchors.bottomMargin: root.minimized ? 1 : 20
+        anchors.bottomMargin: root.minimized ? 1 : 6
         anchors.left: coverArtFrame.visible ? coverArtFrame.right : root.left
         anchors.leftMargin: root.showCoverArt ? Theme.space3 : Theme.space2
         anchors.right: root.right
-        anchors.rightMargin: Theme.space2
+        anchors.rightMargin: Theme.space3
         anchors.top: root.top
-        anchors.topMargin: 0
+        anchors.topMargin: root.minimized ? 0 : 6
         spacing: 0
 
         RowLayout {
@@ -376,8 +404,12 @@ Rectangle {
             readonly property bool isTop: true
             property var model: topRowModel
 
+            // Both rows fill, so the height is shared in proportion to these.
+            // Without them the title row took nearly everything and the row
+            // below was crushed onto the header's bottom border.
             Layout.fillHeight: true
             Layout.fillWidth: true
+            Layout.preferredHeight: 22
 
             Repeater {
                 delegate: root.editMode ? editCellDelegate : cellDelegate
@@ -399,6 +431,7 @@ Rectangle {
 
             Layout.fillHeight: true
             Layout.fillWidth: true
+            Layout.preferredHeight: 18
             visible: !root.minimized
 
             Repeater {

@@ -2,8 +2,11 @@
 
 #include <QDir>
 #include <QFileDialog>
+#include <QGuiApplication>
+#include <QScreen>
 #include <Qt>
 #include <algorithm>
+#include <cmath>
 
 #include "control/controlobject.h"
 #include "library/basetracktablemodel.h"
@@ -74,6 +77,7 @@ const QString kOverviewMinuteMarkersKey =
         QStringLiteral("draw_overview_minute_markers");
 const QString kDefaultZoomKey = QStringLiteral("DefaultZoom");
 const QString kFrameRateKey = QStringLiteral("FrameRate");
+const QString kRefreshRateKey = QStringLiteral("RefreshRate");
 const QString kPlayMarkerPositionKey = QStringLiteral("PlayMarkerPosition");
 const QString kUntilMarkShowBeatsKey = QStringLiteral("UntilMarkShowBeats");
 const QString kUntilMarkShowTimeKey = QStringLiteral("UntilMarkShowTime");
@@ -153,6 +157,7 @@ const QString kParamixColorSchemeKey = QStringLiteral("ColorScheme");
 const QString kParamixAccentColorKey = QStringLiteral("AccentColor");
 const QString kParamixFontFamilyKey = QStringLiteral("FontFamily");
 const QString kParamixFontScaleKey = QStringLiteral("FontScale");
+const QString kParamixUiScaleKey = QStringLiteral("UiScale");
 const QString kParamixMotionScaleKey = QStringLiteral("MotionScale");
 const QString kParamixShowWaveformsKey = QStringLiteral("ShowWaveforms");
 const QString kParamixShowCoverArtKey = QStringLiteral("ShowCoverArt");
@@ -160,7 +165,9 @@ const QString kParamixShowStemsKey = QStringLiteral("ShowStems");
 const QString kParamixShowHotcuesKey = QStringLiteral("ShowHotcues");
 const QString kParamixShowLibraryKey = QStringLiteral("ShowLibrary");
 const QString kParamixShowPreviewKey = QStringLiteral("ShowPreview");
-const QString kParamixCompactDecksKey = QStringLiteral("CompactDecks");
+const QString kParamixShowJogWheelsKey = QStringLiteral("ShowJogWheels");
+const QString kParamixFourBandEqKey = QStringLiteral("FourBandEq");
+const QString kParamixBpmInJogKey = QStringLiteral("BpmInJog");
 
 } // namespace
 
@@ -172,6 +179,29 @@ QmlConfigProxy::QmlConfigProxy(
         : QmlConfigProxyBase(pParent),
           m_pConfig(pConfig) {
     QmlConfigProxyBase::s_pInstance = this;
+
+    // The QML waveform follows the screen refresh rate by default. Track the
+    // primary screen so "Auto" notices a changed monitor mode.
+    // shortcut: primary screen only; other monitors need a manual rate.
+    const auto watchScreen = [this](QScreen* pScreen) {
+        if (pScreen) {
+            connect(pScreen,
+                    &QScreen::refreshRateChanged,
+                    this,
+                    &QmlConfigProxy::displayRefreshRateChanged,
+                    Qt::UniqueConnection);
+        }
+    };
+    if (qGuiApp) {
+        watchScreen(qGuiApp->primaryScreen());
+        connect(qGuiApp,
+                &QGuiApplication::primaryScreenChanged,
+                this,
+                [this, watchScreen](QScreen* pScreen) {
+                    watchScreen(pScreen);
+                    emit displayRefreshRateChanged();
+                });
+    }
 
     const ConfigKey overviewStereoKey(kWaveformGroup, kOverviewStereoKey);
     if (!ControlObject::exists(overviewStereoKey)) {
@@ -208,6 +238,7 @@ void QmlConfigProxy::notifyWaveformSettingsChanged() {
     emit pConfig->waveformPlayMarkerPositionChanged();
     emit pConfig->waveformEnabledChanged();
     emit pConfig->waveformFrameRateChanged();
+    emit pConfig->waveformRefreshRateChanged();
     emit pConfig->waveformUntilMarkShowBeatsChanged();
     emit pConfig->waveformUntilMarkShowTimeChanged();
     emit pConfig->waveformUntilMarkAlignChanged();
@@ -432,6 +463,21 @@ void QmlConfigProxy::set_waveformFrameRate(int frameRate) {
             sanitizedFrameRate,
             60,
             &QmlConfigProxy::waveformFrameRateChanged);
+}
+PROPERTY_IMPL_GETTER(kWaveformGroup, kRefreshRateKey, int, waveformRefreshRate, 0);
+void QmlConfigProxy::set_waveformRefreshRate(int refreshRate) {
+    setConfigValueAndNotify<int>(kWaveformGroup,
+            kRefreshRateKey,
+            std::clamp(refreshRate, 0, 240),
+            0,
+            &QmlConfigProxy::waveformRefreshRateChanged);
+}
+int QmlConfigProxy::displayRefreshRate() const {
+    const QScreen* pScreen = qGuiApp ? qGuiApp->primaryScreen() : nullptr;
+    if (!pScreen) {
+        return 60;
+    }
+    return std::max(1, static_cast<int>(std::lround(pScreen->refreshRate())));
 }
 PROPERTY_IMPL_GETTER(kWaveformGroup,
         kPlayMarkerPositionKey,
@@ -1078,6 +1124,20 @@ PROPERTY_IMPL_GETTER(kParamixGroup,
         double,
         paramixFontScale,
         1.0);
+/// Spacing/layout scale, kept separate from `paramixFontScale` so a compact
+// display can tighten the grid without shrinking its text.
+PROPERTY_IMPL_GETTER(kParamixGroup,
+        kParamixUiScaleKey,
+        double,
+        paramixUiScale,
+        1.0);
+void QmlConfigProxy::set_paramixUiScale(double value) {
+    setConfigValueAndNotify<double>(kParamixGroup,
+            kParamixUiScaleKey,
+            std::clamp(value, 0.75, 1.25),
+            1.0,
+            &QmlConfigProxy::paramixUiScaleChanged);
+}
 void QmlConfigProxy::set_paramixFontScale(double value) {
     setConfigValueAndNotify<double>(kParamixGroup,
             kParamixFontScaleKey,
@@ -1128,10 +1188,20 @@ PROPERTY_IMPL(kParamixGroup,
         paramixShowPreview,
         true);
 PROPERTY_IMPL(kParamixGroup,
-        kParamixCompactDecksKey,
+        kParamixShowJogWheelsKey,
         bool,
-        paramixCompactDecks,
+        paramixShowJogWheels,
         false);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixFourBandEqKey,
+        bool,
+        paramixFourBandEq,
+        false);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixBpmInJogKey,
+        bool,
+        paramixBpmInJog,
+        true);
 
 // static
 QmlConfigProxy* QmlConfigProxy::create(QQmlEngine* pQmlEngine, QJSEngine*) {

@@ -18,7 +18,7 @@ Item {
     readonly property int sideMargin: Theme.space3
     readonly property int tileWidth: root.width < 1200 ? 56 : 64
 
-    implicitHeight: 46
+    implicitHeight: 54
 
     Skin.SectionBackground {
         anchors.fill: parent
@@ -107,11 +107,15 @@ Item {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        height: 36
+        // Was 36, which clipped the 2 x 16 px deck-assignment keys inside the
+        // recessed well (28 px of usable height).
+        height: 44
         show4decks: root.show4decks
-        width: Math.max(160, Math.min(360,
-                root.width - leftControls.width - splitButton.width - monoButtons.width
-                        - 8 * root.sideMargin))
+        // Centered, so the free half-width is limited by whichever side group
+        // reaches closer to the middle; otherwise the keys sit under the tiles.
+        width: Math.max(160, Math.min(360, 2 * (Math.min(
+                root.width / 2 - leftControls.x - leftControls.width,
+                monoButtons.x - root.width / 2) - root.sideMargin)))
     }
 
     // Mono toggles, stacked to the left of the split key: master (and booth)

@@ -102,8 +102,7 @@ Item {
                 id: libraryBrowser
 
                 SplitView.fillHeight: true
-                SplitView.minimumHeight: 200
-                SplitView.preferredHeight: 500
+                SplitView.minimumHeight: 120
                 model: root.sidebar
 
                 onSearchEdited: searchDebounce.restart()
@@ -113,7 +112,11 @@ Item {
                 SplitView.maximumHeight: 200
                 SplitView.minimumHeight: 100
                 SplitView.preferredHeight: 100
+                // Hidden when the tree's minimum, this deck and the handle do
+                // not fit, instead of painting past the library's bottom.
                 visible: Mixxx.Config.paramixShowPreview
+                         && sideBarSplitView.height >= libraryBrowser.SplitView.minimumHeight
+                                                       + SplitView.minimumHeight + 8
             }
         }
         Item {

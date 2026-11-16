@@ -77,6 +77,18 @@ Item {
                         key: "orientation_left"
                         text: qsTr("%1").arg(index + 1)
                         toggleable: true
+
+                        // A 16 px key leaves 4 px after Button.qml's 6 px label
+                        // margins, so the digit was elided to nothing.
+                        contentItem: Text {
+                            color: deckButton.labelColor
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeXs
+                            font.weight: Theme.fontWeightDemiBold
+                            horizontalAlignment: Text.AlignHCenter
+                            text: deckButton.text
+                            verticalAlignment: Text.AlignVCenter
+                        }
                     }
                 }
             }
@@ -95,6 +107,8 @@ Item {
             bar.color: Theme.accent
             bar.start: 0.5
             bg: Theme.imgCrossfaderBackground
+            // The background image's own 41 px would overflow the 36 px slot.
+            height: parent.height - 2
             fg: Theme.imgCrossfaderHandle
             group: "[Master]"
             key: "crossfader"
@@ -135,6 +149,16 @@ Item {
                         key: "orientation_right"
                         text: qsTr("%1").arg(index + 1)
                         toggleable: true
+
+                        contentItem: Text {
+                            color: deckButtonRight.labelColor
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeXs
+                            font.weight: Theme.fontWeightDemiBold
+                            horizontalAlignment: Text.AlignHCenter
+                            text: deckButtonRight.text
+                            verticalAlignment: Text.AlignVCenter
+                        }
                     }
                 }
             }

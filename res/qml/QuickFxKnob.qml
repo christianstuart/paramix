@@ -10,10 +10,10 @@ Rectangle {
     property alias knob: knob
 
     color: Theme.knobBackgroundColor
-    height: 42
+    height: 30
     opacity: statusControl.value ? 1 : 0.4
     radius: 5
-    width: 42
+    width: 30
 
     Skin.ControlKnob {
         id: knob
@@ -21,16 +21,17 @@ Rectangle {
         anchors.horizontalCenter: root.horizontalCenter
         anchors.top: root.top
         group: root.group
-        height: 36
+        height: 25
         key: "super1"
-        width: 36
+        width: 25
     }
-    TapHandler {
-        acceptedButtons: Qt.LeftButton
+    // Right-click toggles the effect. Double-click belongs to the knob (reset),
+    // and nesting it here made one gesture do both.
+    MouseArea {
+        acceptedButtons: Qt.RightButton
+        anchors.fill: parent
 
-        onDoubleTapped: {
-            statusControl.value = !statusControl.value;
-        }
+        onClicked: statusControl.value = statusControl.value ? 0 : 1
     }
     Mixxx.ControlProxy {
         id: statusControl

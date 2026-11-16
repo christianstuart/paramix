@@ -15,7 +15,6 @@ Rectangle {
     border.width: 1
     clip: true
     color: Theme.surface0
-    height: 50
     radius: Theme.radiusSm
 
     Rectangle {

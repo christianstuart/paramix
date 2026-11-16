@@ -9,8 +9,8 @@ import "../Theme"
 /// Deck hotcue grid and the four-lane stem mixer.
 ///
 /// Both live in one component so the pane host stays at a constant height:
-/// `paneMode` 0 keeps the legacy in-pane Hotcues/Stems tabs, 1 shows hotcues
-/// only (the Cue pane) and 2 shows stems only (the Stems pane).
+/// `paneMode` 1 shows hotcues only (the Cue pane) and 2 shows stems only
+/// (the Stems pane).
 ///
 /// Solo is implemented in QML only: activating it mutes every other stem and
 /// the previous mute states are restored when it is cleared. A native engine
@@ -22,8 +22,8 @@ Rectangle {
     required property var currentTrack
     required property string group
 
-    /// 0 = legacy tabs, 1 = hotcues only, 2 = stems only.
-    property int paneMode: 0
+    /// 1 = hotcues only, 2 = stems only.
+    property int paneMode: 1
 
     /// Index of the lane that is currently soloed, or -1 when solo is off.
     property int soloLane: -1
@@ -58,10 +58,24 @@ Rectangle {
         return qsTr("Load a track to use hotcues and stems");
     }
 
-    /// True when the deck pane is squeezed by the compact deck layout. The
-    /// stem lanes drop the QuickFX preset selector so the fader, mute/solo and
-    /// knob stay usable instead of being clipped.
-    readonly property bool dense: root.height < 112
+    /// True when the deck pane is shorter than its design height, or when
+    /// the stem lanes wrap onto more than one row and each lane keeps only part
+    /// of the pane height. Either way the QuickFX preset selector is dropped so
+    /// the fader, mute/solo and knob stay usable instead of being clipped.
+    readonly property bool dense: root.height < 112 || root.stemColumns < root.laneCount
+
+    /// How many stem lanes fit in one row. Sized by the comfortable label width
+    /// rather than the hard 58 px minimum, otherwise four lanes stay side by side
+    /// at ~68 px each and every label degrades to "Dru...". Wrapping to two
+    /// columns is always allowed: one column would stack four lanes into the
+    /// 112 px pane and every lane would be a sliver.
+    readonly property int stemColumns: {
+        const perRow = Math.floor(stemTab.width
+                / (Theme.stemLaneComfortWidth + Theme.space1));
+        if (perRow >= root.laneCount)
+            return root.laneCount;
+        return Math.min(root.laneCount, 2);
+    }
 
     /// `[ChannelN]` -> `[ChannelN_StemX]`
     function stemGroupFor(index) {
@@ -170,6 +184,8 @@ Rectangle {
     radius: Theme.radiusMd
     border.width: 1
     border.color: Theme.border
+    // Nothing in a pane may paint over the loop card beside it.
+    clip: true
 
     onCurrentTrackChanged: root.resetSoloState()
 
@@ -191,7 +207,7 @@ Rectangle {
     // Empty state: without a track the tab bodies are hidden, so name what
     // the panel is for instead of leaving a blank plate. The host fills the
     // whole band, so the message stays centred whatever the stem/quickFX
-    // column does and cannot drift under the pane tabs.
+    // column does.
     Item {
         id: emptyState
 
@@ -214,67 +230,11 @@ Rectangle {
         }
     }
 
-    states: [
-        State {
-            name: "inactive"
-            when: trackLoadedControl.value == 0
-
-            PropertyChanges {
-                checked: false
-                opacity: 0.75
-                target: hotcueTabButton
-            }
-            PropertyChanges {
-                checked: false
-                opacity: 0.75
-                target: stemTabButton
-            }
-            PropertyChanges {
-                target: stemTab
-                visible: false
-            }
-            PropertyChanges {
-                target: hotcueTab
-                visible: false
-            }
-        },
-        State {
-            name: "hotcue"
-            when: trackLoadedControl.value != 0 && root.showHotcues
-                  && (hotcueTabButton.checked || !root.showStems)
-
-            PropertyChanges {
-                target: hotcueTab
-                visible: true
-            }
-            PropertyChanges {
-                target: stemTab
-                visible: false
-            }
-        },
-        State {
-            name: "stem"
-            when: trackLoadedControl.value != 0 && root.showStems
-                  && (stemTabButton.checked || !root.showHotcues)
-
-            PropertyChanges {
-                target: stemTab
-                visible: true
-            }
-            PropertyChanges {
-                target: hotcueTab
-                visible: false
-            }
-        }
-    ]
-
     Item {
         id: hotcueTab
 
         anchors.fill: parent
-        anchors.right: tabs.left
-        anchors.rightMargin: Theme.space1
-        visible: false
+        visible: trackLoadedControl.value != 0 && root.showHotcues
 
         Skin.FadeBehavior on visible {
             fadeTarget: hotcueTab
@@ -379,9 +339,7 @@ Rectangle {
         id: stemTab
 
         anchors.fill: parent
-        anchors.right: tabs.left
-        anchors.rightMargin: Theme.space1
-        visible: false
+        visible: trackLoadedControl.value != 0 && root.showStems
 
         Skin.FadeBehavior on visible {
             fadeTarget: stemTab
@@ -394,6 +352,10 @@ Rectangle {
 
             RowLayout {
                 id: stemHeader
+
+                /// With the jog wheel shown the pane is ~196 px, and the badge
+                /// plus two full-width keys (~260 px) ran under the loop card.
+                readonly property bool narrow: stemTab.width < 280
 
                 Layout.fillWidth: true
                 Layout.preferredHeight: 18
@@ -439,24 +401,29 @@ Rectangle {
                 Skin.Button {
                     Layout.preferredHeight: 16
                     Accessible.name: qsTr("Acapella: mute all non-vocal stems")
-                    implicitWidth: 74
-                    text: qsTr("Acapella")
+                    implicitWidth: stemHeader.narrow ? 40 : 74
+                    text: stemHeader.narrow ? qsTr("Aca") : qsTr("Acapella")
 
                     onClicked: root.applyAcapella()
                 }
                 Skin.Button {
                     Layout.preferredHeight: 16
                     Accessible.name: qsTr("Instrumental: mute the vocal stem")
-                    implicitWidth: 94
-                    text: qsTr("Instrumental")
+                    implicitWidth: stemHeader.narrow ? 40 : 94
+                    text: stemHeader.narrow ? qsTr("Inst") : qsTr("Instrumental")
 
                     onClicked: root.applyInstrumental()
                 }
             }
-            RowLayout {
+            // The pane can shrink to 200 px, which is narrower than four lanes
+            // at the comfortable label width. Wrap into two columns instead of
+            // letting the row spill out of the deck column.
+            GridLayout {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                spacing: Theme.space1
+                columnSpacing: Theme.space1
+                columns: root.stemColumns
+                rowSpacing: Theme.space1
 
                 Repeater {
                     id: stemLaneRepeater
@@ -468,194 +435,6 @@ Rectangle {
             }
         }
     }
-    ColumnLayout {
-        id: tabs
-
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        anchors.rightMargin: Theme.space1
-        anchors.top: parent.top
-        spacing: Theme.space2
-        visible: root.paneMode === 0
-        width: (root.paneMode === 0 && (root.showHotcues || root.showStems)) ? 36 : 0
-
-        Behavior on width {
-            SpringAnimation {
-                damping: 0.2
-                duration: 500
-                spring: 2
-            }
-        }
-
-        Skin.Button {
-            id: hotcueTabButton
-
-            Layout.fillWidth: true
-            visible: root.showHotcues
-            Layout.margins: 0
-            activeColor: Theme.textOnAccent
-            checked: true
-            implicitHeight: 30
-
-            Accessible.name: qsTr("Hotcues")
-
-            contentItem: Shape {
-                anchors.fill: parent
-                antialiasing: true
-                layer.enabled: true
-                layer.samples: 4
-
-                ShapePath {
-                    fillColor: hotcueTabButton.checked ? Theme.textOnAccent : Theme.textSecondary
-                    startX: 10
-                    startY: 4
-
-                    PathLine {
-                        x: 26
-                        y: 4
-                    }
-                    PathLine {
-                        x: 19.5
-                        y: 10
-                    }
-                    PathLine {
-                        x: 19.5
-                        y: 24
-                    }
-                    PathLine {
-                        x: 16.5
-                        y: 24
-                    }
-                    PathLine {
-                        x: 16.5
-                        y: 10
-                    }
-                    PathLine {
-                        x: 10
-                        y: 4
-                    }
-                }
-            }
-
-            onClicked: {
-                stemTabButton.checked = false;
-                hotcueTabButton.checked = trackLoadedControl.value == 1;
-            }
-        }
-        Skin.Button {
-            id: stemTabButton
-
-            Layout.fillWidth: true
-            visible: root.showStems
-            Layout.margins: 0
-            activeColor: Theme.textOnAccent
-            implicitHeight: 30
-
-            Accessible.name: qsTr("Stems")
-
-            contentItem: Item {
-                readonly property color iconColor: stemTabButton.checked ? Theme.textOnAccent : Theme.textSecondary
-
-                Rectangle {
-                    color: parent.iconColor
-                    height: 1
-
-                    anchors {
-                        left: parent.left
-                        leftMargin: 5
-                        right: parent.right
-                        rightMargin: 5
-                        top: parent.top
-                        topMargin: 6
-                    }
-                }
-                Rectangle {
-                    color: parent.iconColor
-                    height: 1
-
-                    anchors {
-                        left: parent.left
-                        leftMargin: 5
-                        right: parent.right
-                        rightMargin: 14
-                        top: parent.top
-                        topMargin: 12
-                    }
-                }
-                Rectangle {
-                    color: parent.iconColor
-                    height: 1
-
-                    anchors {
-                        bottom: parent.bottom
-                        bottomMargin: 12
-                        left: parent.left
-                        leftMargin: 5
-                        right: parent.right
-                        rightMargin: 22
-                    }
-                }
-                Rectangle {
-                    color: parent.iconColor
-                    height: 1
-
-                    anchors {
-                        bottom: parent.bottom
-                        bottomMargin: 13
-                        left: parent.left
-                        leftMargin: 22
-                        right: parent.right
-                        rightMargin: 5
-                    }
-                }
-                Rectangle {
-                    color: parent.iconColor
-                    height: 1
-
-                    anchors {
-                        bottom: parent.bottom
-                        bottomMargin: 6
-                        left: parent.left
-                        leftMargin: 5
-                        right: parent.right
-                        rightMargin: 26
-                    }
-                }
-                Rectangle {
-                    color: parent.iconColor
-                    height: 1
-
-                    anchors {
-                        bottom: parent.bottom
-                        bottomMargin: 6
-                        left: parent.left
-                        leftMargin: 14
-                        right: parent.right
-                        rightMargin: 15
-                    }
-                }
-                Rectangle {
-                    color: parent.iconColor
-                    height: 1
-
-                    anchors {
-                        bottom: parent.bottom
-                        bottomMargin: 6
-                        left: parent.left
-                        leftMargin: 26
-                        right: parent.right
-                        rightMargin: 5
-                    }
-                }
-            }
-
-            onClicked: {
-                stemTabButton.checked = trackLoadedControl.value == 1 && stemCountControl.value != 0;
-                hotcueTabButton.checked = !stemTabButton.checked;
-            }
-        }
-    }
-
     /// Compact M/S style toggle used by the stem lanes.
     component StemToggleButton: Skin.Button {
         id: control
@@ -713,6 +492,9 @@ Rectangle {
         readonly property bool muted: stemMute.value != 0
         readonly property bool soloed: root.soloLane === index
         readonly property string stemGroup: root.stemGroupFor(index)
+        /// True when the lane is too short for the QuickFX row (a wrapped
+        /// 2 x 2 pane gives each lane about 39 px).
+        readonly property bool compact: lane.height < 64
 
         function setMuted(value) {
             stemMute.value = value ? 1 : 0;
@@ -884,6 +666,10 @@ Rectangle {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
                     spacing: 3
+                    // A wrapped 2 x 2 pane leaves a lane ~39 px. The QuickFX
+                    // row needs 20 more, so drop it and keep label, M/S and
+                    // fader usable; the mixer has the same QuickFX control.
+                    visible: !lane.compact
 
                     Skin.ControlMiniKnob {
                         id: fxKnob
@@ -946,7 +732,7 @@ Rectangle {
                     popupMaxItem: 8
                     popupWidth: 120
                     textRole: "display"
-                    visible: !root.dense
+                    visible: !root.dense && !lane.compact
 
                     Accessible.name: qsTr("%1 QuickFX preset").arg(lane.displayLabel)
 

@@ -37,18 +37,35 @@ Item {
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
     property bool editMode: false
     required property string group
+
+    /// Whether a deck row item with the given width gate is shown.
+    function rowItemShown(type, minWidth) {
+        const jog = Mixxx.Config.paramixShowJogWheels;
+        if (type === "spinny") {
+            return jog;
+        }
+        if (root.width <= 0) {
+            return true;
+        }
+        // Room for the jog wheel column or the tempo strip, not both.
+        if (jog && root.width > Theme.deckSpinnyMinWidth && root.width <= Theme.deckFullRowMinWidth) {
+            if (type === "tempo") {
+                return false;
+            }
+            if (minWidth === Theme.deckFullRowMinWidth) {
+                return true;
+            }
+        }
+        return minWidth < root.width;
+    }
     property bool minimized: false
-    /// Height shared by the MOVE / CUE / GRID pane stack. The strip is constant
-    /// so switching panes never reflows the transport above it, and it is a
-    /// full-width band below that row, exactly like the reference. 112 px is
-    /// the smallest height that keeps the 2 x 4 hotcue grid and the stem lanes
-    /// usable; the waveform row above absorbs whatever is left.
-    /// Height shared by the MOVE / CUE / GRID pane, the loop card and the tab
-    /// stack: the pane sits beside the loop-size selector inside the transport
-    /// block, so all three line up top and bottom.
-    readonly property int paneHeight: 92
-    readonly property bool paneVisible: true
-    readonly property int paneTabsHeight: 92
+    /// Height shared by the MOVE / CUE / GRID / STEMS pane, the loop card and
+    /// the tab stack: the pane sits beside the loop-size selector inside the
+    /// transport block, so all three line up top and bottom. 112 px is the
+    /// smallest height that keeps a wrapped 2 x 2 stem lane usable; the
+    /// waveform row above absorbs whatever is left.
+    readonly property int paneHeight: Theme.deckPaneHeight
+    readonly property int paneTabsHeight: Theme.deckPaneHeight
     /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
     property int activePane: Deck.Pane.Cue
     /// Persisted per deck so the chosen pane survives a restart.
@@ -160,7 +177,7 @@ Item {
                             // The spinny needs the full deck minimum: main
                             // column, spinny/FX column and tempo strip. Below
                             // this the tempo fader is pushed over the mixer.
-                            "minWidth": 800,
+                            "minWidth": Theme.deckFullRowMinWidth,
                             "items": [
                                 {
                                     "type": "spinny"
@@ -172,7 +189,7 @@ Item {
                         },
                         {
                             "type": "tempo",
-                            "minWidth": 270
+                            "minWidth": Theme.deckTempoMinWidth
                         }
                     ]
                 }
@@ -278,7 +295,7 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.minimized ? 28 : (Mixxx.Config.paramixCompactDecks ? 44 : Theme.deckHeaderHeight)
+                Layout.preferredHeight: root.minimized ? 28 : Theme.deckHeaderHeight
                 editOverlay.visible: false
 
                 DeckComponent.InfoBar {
@@ -302,16 +319,15 @@ Item {
             LayoutItem {
                 // Fixed width card: the spacer before it absorbs the slack, so
                 // the loop sits flush against the pane selector on the right.
-                Layout.maximumHeight: 92
                 Layout.maximumWidth: 185
-                Layout.minimumWidth: 140
+                Layout.minimumWidth: 120
+                Layout.preferredHeight: 62
                 Layout.preferredWidth: 185
                 Layout.alignment: Qt.AlignVCenter
                 editLabel.color: Theme.textPrimary
                 editLabel.font.capitalization: Font.AllUppercase
                 editLabel.text: qsTr("Loop")
                 editOverlay.color: Theme.surface2
-                height: 92
 
                 DeckComponent.Loop {
                     anchors.fill: parent
@@ -325,7 +341,9 @@ Item {
             LayoutItem {
                 Layout.fillWidth: true
                 Layout.minimumHeight: root.paneHeight
-                Layout.minimumWidth: 200
+                // 196, not 200: the tempo strip then still fits a 564 px deck,
+                // which is what a 1280 px window (the layout floor) gives.
+                Layout.minimumWidth: 196
                 Layout.preferredHeight: root.paneHeight
                 Layout.alignment: Qt.AlignVCenter
                 blurRadius: 4
@@ -334,7 +352,7 @@ Item {
                 editLabel.text: qsTr("Move / Cue / Grid panes")
                 editOverlay.color: Theme.scrim
                 height: root.paneHeight
-                visible: root.paneVisible
+                objectName: "deckPane"
 
                 // One stacked host keeps the pane band at a constant height, so
                 // switching tabs never reflows the transport above it.
@@ -428,7 +446,6 @@ Item {
                 editLabel.color: Theme.textPrimary
                 editOverlay.color: Theme.surface2
                 height: root.paneTabsHeight
-                visible: root.paneVisible
                 width: 34
 
                 DeckComponent.DeckPaneTabs {
@@ -467,6 +484,7 @@ Item {
 
                 required property int index
 
+                objectName: "deckFxAssign"
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillHeight: true
                 editLabel.color: Theme.textSecondary
@@ -476,6 +494,7 @@ Item {
                 width: 135
 
                 DeckComponent.FXAssign {
+                    anchors.fill: parent
                     group: root.group
                 }
             }
@@ -485,9 +504,9 @@ Item {
 
             LayoutItem {
                 Layout.fillHeight: true
-                Layout.maximumWidth: 75
-                Layout.minimumWidth: 75
-                Layout.preferredWidth: 75
+                Layout.maximumWidth: 60
+                Layout.minimumWidth: 60
+                Layout.preferredWidth: 60
                 blurRadius: 4
                 editLabel.color: Theme.textPrimary
                 editLabel.text: qsTr("Tempo")
@@ -610,8 +629,8 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
-                Layout.minimumHeight: 24
-                Layout.preferredHeight: 24
+                Layout.minimumHeight: 22
+                Layout.preferredHeight: 22
                 blurRadius: 4
                 editLabel.color: Theme.textPrimary
                 editLabel.font.pixelSize: Theme.fontSizeLg
@@ -629,7 +648,7 @@ Item {
         id: grid
 
         anchors.fill: parent
-        anchors.margins: Mixxx.Config.paramixCompactDecks ? 2 : Theme.space1
+        anchors.margins: Theme.space1
         visible: !root.minimized
 
         FadeBehavior on visible {
@@ -645,7 +664,7 @@ Item {
         id: minimizedGrid
 
         anchors.fill: parent
-        anchors.margins: Mixxx.Config.paramixCompactDecks ? 2 : Theme.space1
+        anchors.margins: Theme.space1
         visible: root.minimized
 
         FadeBehavior on visible {
@@ -890,7 +909,7 @@ Item {
         Drag.active: mouseArea.drag.active
         Drag.hotSpot: Qt.point(width / 2, height / 2)
         columns: disposition == GridLayout.TopToBottom ? 1 : items.count
-        visible: typeof minWidth !== 'number' || root.width <= 0 || minWidth < root.width
+        visible: root.rowItemShown(typeof type === 'string' ? type : "", typeof minWidth === 'number' ? minWidth : 0)
 
         Behavior on x {
             SpringAnimation {
@@ -976,7 +995,7 @@ Item {
 
         Drag.active: mouseArea.drag.active
         Drag.hotSpot: Qt.point(width / 2, height / 2)
-        visible: typeof minWidth !== 'number' || root.width <= 0 || minWidth < root.width
+        visible: root.rowItemShown(typeof type === 'string' ? type : "", typeof minWidth === 'number' ? minWidth : 0)
 
         Behavior on x {
             SpringAnimation {

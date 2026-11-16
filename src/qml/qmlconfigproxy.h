@@ -73,6 +73,12 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     NOTIFY waveformEnabledChanged);
     Q_PROPERTY(int waveformFrameRate READ waveformFrameRate WRITE
                     set_waveformFrameRate NOTIFY waveformFrameRateChanged);
+    // Waveform update rate cap in Hz; 0 follows the display refresh rate.
+    Q_PROPERTY(int waveformRefreshRate READ waveformRefreshRate WRITE
+                    set_waveformRefreshRate NOTIFY waveformRefreshRateChanged);
+    // Refresh rate of the primary screen, for the "Auto" option.
+    Q_PROPERTY(int displayRefreshRate READ displayRefreshRate NOTIFY
+                    displayRefreshRateChanged);
     Q_PROPERTY(bool waveformUntilMarkShowBeats READ waveformUntilMarkShowBeats
                     WRITE set_waveformUntilMarkShowBeats NOTIFY
                             waveformUntilMarkShowBeatsChanged);
@@ -349,6 +355,8 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     set_paramixFontFamily NOTIFY paramixFontFamilyChanged);
     Q_PROPERTY(double paramixFontScale READ paramixFontScale WRITE
                     set_paramixFontScale NOTIFY paramixFontScaleChanged);
+    Q_PROPERTY(double paramixUiScale READ paramixUiScale WRITE
+                    set_paramixUiScale NOTIFY paramixUiScaleChanged);
     Q_PROPERTY(double paramixMotionScale READ paramixMotionScale WRITE
                     set_paramixMotionScale NOTIFY paramixMotionScaleChanged);
     Q_PROPERTY(bool paramixShowWaveforms READ paramixShowWaveforms WRITE
@@ -363,8 +371,13 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     set_paramixShowLibrary NOTIFY paramixShowLibraryChanged);
     Q_PROPERTY(bool paramixShowPreview READ paramixShowPreview WRITE
                     set_paramixShowPreview NOTIFY paramixShowPreviewChanged);
-    Q_PROPERTY(bool paramixCompactDecks READ paramixCompactDecks WRITE
-                    set_paramixCompactDecks NOTIFY paramixCompactDecksChanged);
+    Q_PROPERTY(bool paramixShowJogWheels READ paramixShowJogWheels WRITE
+                    set_paramixShowJogWheels NOTIFY paramixShowJogWheelsChanged);
+    Q_PROPERTY(bool paramixFourBandEq READ paramixFourBandEq WRITE
+                    set_paramixFourBandEq NOTIFY paramixFourBandEqChanged);
+    // BPM and pitch readout in the jog hub (default) or above the tempo fader.
+    Q_PROPERTY(bool paramixBpmInJog READ paramixBpmInJog WRITE
+                    set_paramixBpmInJog NOTIFY paramixBpmInJogChanged);
 
     // Colors
     Q_PROPERTY(QVariantList hotcueColorPalette READ hotcueColorPalette NOTIFY
@@ -428,6 +441,8 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(double, waveformPlayMarkerPosition);
     PROPERTY_DECL_ACCESSOR(bool, waveformEnabled);
     PROPERTY_DECL_ACCESSOR(int, waveformFrameRate);
+    PROPERTY_DECL_ACCESSOR(int, waveformRefreshRate);
+    int displayRefreshRate() const;
     PROPERTY_DECL_ACCESSOR(bool, waveformUntilMarkShowBeats);
     PROPERTY_DECL_ACCESSOR(bool, waveformUntilMarkShowTime);
     // {1,2,3}, Qt::AlignTop, Qt::AlignVCenter, Qt::AlignBottom
@@ -539,6 +554,7 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(QString, paramixAccentColor);
     PROPERTY_DECL_ACCESSOR(QString, paramixFontFamily);
     PROPERTY_DECL_ACCESSOR(double, paramixFontScale);
+    PROPERTY_DECL_ACCESSOR(double, paramixUiScale);
     PROPERTY_DECL_ACCESSOR(double, paramixMotionScale);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowWaveforms);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowCoverArt);
@@ -546,7 +562,9 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(bool, paramixShowHotcues);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowLibrary);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowPreview);
-    PROPERTY_DECL_ACCESSOR(bool, paramixCompactDecks);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowJogWheels);
+    PROPERTY_DECL_ACCESSOR(bool, paramixFourBandEq);
+    PROPERTY_DECL_ACCESSOR(bool, paramixBpmInJog);
 
     // Kbps, 32..512
     PROPERTY_DECL_ACCESSOR(int, stemAacBitrate);
@@ -581,6 +599,8 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void waveformPlayMarkerPositionChanged();
     void waveformEnabledChanged();
     void waveformFrameRateChanged();
+    void waveformRefreshRateChanged();
+    void displayRefreshRateChanged();
     void waveformUntilMarkShowBeatsChanged();
     void waveformUntilMarkShowTimeChanged();
     void waveformUntilMarkAlignChanged();
@@ -657,6 +677,7 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void paramixAccentColorChanged();
     void paramixFontFamilyChanged();
     void paramixFontScaleChanged();
+    void paramixUiScaleChanged();
     void paramixMotionScaleChanged();
     void paramixShowWaveformsChanged();
     void paramixShowCoverArtChanged();
@@ -664,7 +685,9 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void paramixShowHotcuesChanged();
     void paramixShowLibraryChanged();
     void paramixShowPreviewChanged();
-    void paramixCompactDecksChanged();
+    void paramixShowJogWheelsChanged();
+    void paramixFourBandEqChanged();
+    void paramixBpmInJogChanged();
 
     void stemAacBitrateChanged();
     void stemModelPathChanged();

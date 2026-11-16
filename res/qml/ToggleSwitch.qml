@@ -6,16 +6,23 @@ Item {
     id: root
 
     property bool checked: false
+    property string accessibleName: ""
 
     signal toggled
 
+    activeFocusOnTab: true
     implicitHeight: 22
     implicitWidth: 38
     opacity: enabled ? 1 : 0.5
 
     Accessible.checkable: true
     Accessible.checked: root.checked
+    Accessible.name: root.accessibleName
     Accessible.role: Accessible.CheckBox
+
+    Accessible.onPressAction: root.toggled()
+    Keys.onReturnPressed: root.toggled()
+    Keys.onSpacePressed: root.toggled()
 
     Rectangle {
         anchors.fill: parent

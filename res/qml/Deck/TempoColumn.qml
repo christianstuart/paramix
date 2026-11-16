@@ -17,6 +17,10 @@ ColumnLayout {
     required property var currentTrack
     required property string group
 
+    /// BPM and pitch live in the jog hub unless the user moved them above the
+    /// fader in Customize Paramix.
+    readonly property bool bpmInJog: Mixxx.Config.paramixBpmInJog !== false
+
     spacing: Theme.space1
 
     Mixxx.ControlProxy {
@@ -25,20 +29,87 @@ ColumnLayout {
         group: root.group
         key: "key"
     }
+    Mixxx.ControlProxy {
+        id: trackLoadedControl
+
+        group: root.group
+        key: "track_loaded"
+    }
+    // Two-line readout stacked over the fader, the deck-header tempo block of
+    // the reference layout.
+    Column {
+        Layout.fillWidth: true
+        opacity: trackLoadedControl.value ? 1 : 0
+        spacing: 0
+        visible: !root.bpmInJog
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.motionNormal
+            }
+        }
+
+        Text {
+            id: bpmReadout
+
+            readonly property real bpm: bpmControl.value
+            readonly property int precision: 2
+
+            width: parent.width
+            color: Theme.textPrimary
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeMd
+            font.weight: Theme.fontWeightDemiBold
+            horizontalAlignment: Text.AlignHCenter
+            text: `${Math.round(bpm)}.${((bpm % 1) * Math.pow(10, precision)).toFixed().padEnd(precision, "0")}`
+
+            Accessible.name: qsTr("%1 BPM").arg(bpmReadout.text)
+            Accessible.role: Accessible.StaticText
+
+            Mixxx.ControlProxy {
+                id: bpmControl
+
+                group: root.group
+                key: "bpm"
+            }
+        }
+        Text {
+            id: pitchRatio
+
+            readonly property real ratio: ((rateRatioControl.value - 1) * 100).toPrecision(2)
+
+            width: parent.width
+            color: Theme.textMuted
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeXs
+            horizontalAlignment: Text.AlignHCenter
+            text: ((ratio > 0) ? "+" + ratio.toFixed(2) : ratio.toFixed(2)) + "%"
+
+            Accessible.name: qsTr("Pitch %1").arg(pitchRatio.text)
+            Accessible.role: Accessible.StaticText
+
+            Mixxx.ControlProxy {
+                id: rateRatioControl
+
+                group: root.group
+                key: "rate_ratio"
+            }
+        }
+    }
     RowLayout {
         Layout.fillWidth: true
-        Layout.preferredHeight: 24
+        Layout.preferredHeight: 20
         spacing: Theme.space1
 
         Skin.ControlButton {
             id: pitchDownButton
 
             Layout.fillHeight: true
-            Layout.preferredWidth: 22
+            Layout.preferredWidth: 18
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 24
-            implicitWidth: 22
+            implicitHeight: 20
+            implicitWidth: 18
             key: "pitch_down"
 
             Accessible.name: qsTr("Pitch down")
@@ -124,7 +195,7 @@ ColumnLayout {
             Layout.fillHeight: true
             Layout.fillWidth: true
             highlight: false
-            implicitHeight: 24
+            implicitHeight: 20
 
             Accessible.name: qsTr("Keylock")
 
@@ -173,11 +244,11 @@ ColumnLayout {
             id: pitchUpButton
 
             Layout.fillHeight: true
-            Layout.preferredWidth: 22
+            Layout.preferredWidth: 18
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 24
-            implicitWidth: 22
+            implicitHeight: 20
+            implicitWidth: 18
             key: "pitch_up"
 
             Accessible.name: qsTr("Pitch up")
@@ -222,7 +293,7 @@ ColumnLayout {
         Layout.fillHeight: true
         Layout.fillWidth: true
         implicitHeight: 80
-        implicitWidth: 20
+        implicitWidth: 16
         showDefaultHandle: false
         bar.color: Theme.accent
         bar.margin: 2
@@ -249,7 +320,7 @@ ColumnLayout {
                 color: Theme.surface0
                 height: parent.height
                 radius: Theme.radiusSm
-                width: 14
+                width: 10
             }
             Rectangle {
                 anchors.centerIn: parent
@@ -281,9 +352,8 @@ ColumnLayout {
         id: syncButton
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 24
+        Layout.preferredHeight: 20
         group: root.group
-        height: 24
 
         Accessible.name: syncButton.highlight ? qsTr("Disable sync") : qsTr("Enable sync")
     }
@@ -291,9 +361,8 @@ ColumnLayout {
         id: rangeButton
 
         Layout.fillWidth: true
-        Layout.preferredHeight: 24
+        Layout.preferredHeight: 20
         group: root.group
-        height: 24
 
         Accessible.name: qsTr("Tempo range")
     }
