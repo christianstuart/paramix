@@ -14,7 +14,7 @@ import "../Theme"
 Rectangle {
     id: root
 
-    property list<string> availableData: ["none", "title", "year", "time", "artist", "rating"]
+    property list<string> availableData: ["none", "title", "year", "time", "artist", "key", "rating"]
     readonly property var currentTrack: deckPlayer?.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
     property bool editMode: false
@@ -189,6 +189,27 @@ Rectangle {
             }
         }
         DelegateChoice {
+            roleValue: "key"
+
+            Cell {
+                item.color: Theme.textPrimary
+                item.font.family: Theme.fontFamilyMono
+                item.font.pixelSize: root.secondarySize + 1
+                item.font.weight: Theme.fontWeightDemiBold
+                item.text: Mixxx.KeyUtils.keyIsValid(keyControl.value)
+                        ? Mixxx.KeyUtils.keyToString(keyControl.value)
+                        : ""
+                visible: root.width > 450
+
+                Mixxx.ControlProxy {
+                    id: keyControl
+
+                    group: root.group
+                    key: "key"
+                }
+            }
+        }
+        DelegateChoice {
             roleValue: "rating"
 
             Item {
@@ -340,7 +361,7 @@ Rectangle {
             type: "artist"
         }
         ListElement {
-            type: "none"
+            type: "key"
         }
         ListElement {
             type: "rating"
@@ -373,9 +394,9 @@ Rectangle {
         anchors.left: coverArtFrame.visible ? coverArtFrame.right : root.left
         anchors.leftMargin: root.showCoverArt ? Theme.space3 : Theme.space2
         anchors.right: root.right
-        anchors.rightMargin: Theme.space2
+        anchors.rightMargin: Theme.space3
         anchors.top: root.top
-        anchors.topMargin: 0
+        anchors.topMargin: (root.minimized || root.compact) ? 0 : Theme.space1
         spacing: 0
 
         RowLayout {

@@ -442,12 +442,14 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         creation.start();
         int previousCount = -1;
         int stableCreations = 0;
-        while (creation.elapsed() < 5000) {
+        // Half a second without a new item: the library and the second deck
+        // are created asynchronously and arrive in bursts on a busy machine.
+        while (creation.elapsed() < 15000) {
             QCoreApplication::processEvents();
             QThread::msleep(20);
             const int count = countItems(pMainWindow);
             if (count == previousCount) {
-                if (++stableCreations >= 3) {
+                if (++stableCreations >= 25) {
                     break;
                 }
             } else {
@@ -487,10 +489,15 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         settle.start();
         QString previousSignature;
         int stableRounds = 0;
-        while (settle.elapsed() < 3000) {
+        while (settle.elapsed() < 8000) {
             QCoreApplication::processEvents();
             QThread::msleep(10);
-            const QString signature = applySize() ? QString() : layoutSignature(pMainWindow);
+            // The item count is part of the signature so that a band still
+            // being created does not read as settled.
+            const QString signature = applySize()
+                    ? QString()
+                    : QString::number(countItems(pMainWindow)) + QLatin1Char(';') +
+                            layoutSignature(pMainWindow);
             // A tree that has not had its first layout pass yet is all 0x0 and
             // would otherwise count as settled, so it has to have bands first.
             if (signature == previousSignature && signature.count(QLatin1Char(';')) >= 3) {
@@ -504,7 +511,7 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         }
         EXPECT_GE(stableRounds, 10)
                 << "Layout did not converge at " << size.width() << "x"
-                << size.height() << " (geometry kept changing for 3 s)";
+                << size.height() << " (geometry kept changing for 8 s)";
 
         ASSERT_EQ(QSizeF(size), pMainWindow->size())
                 << "The skin was resized behind the test's back";

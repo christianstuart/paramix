@@ -138,6 +138,12 @@ deck hides below a 228 px sidebar (was a fixed 308 px that painted past the
 window); the crossfader fits its slot and its unit no longer runs under the
 output tiles; `FXAssign` drops its eyebrow label in the 30 px slot.
 
+### Deck header (later the same day)
+
+The header is 48 px (`Theme.deckHeaderHeight`, was 44) with the extra 4 px as
+top padding, so `Theme.deckMinHeight` is 236. The track's key moved from the
+GRID pane into the header's second row, between artist and rating.
+
 ### Window fit
 
 - A screen smaller than the design size opens the window maximized. Before, the
@@ -149,8 +155,9 @@ output tiles; `FXAssign` drops its eyebrow label in the 30 px slot.
 ### Measuring
 
 `QmlResponsiveBoundsTest` now asserts 2560x1369, 1792x1008, 1440x852, 1280x800
-and 1280x720, requires a laid-out tree before it calls the layout settled, and
-re-applies its size until the Loader stops overriding it. For an audit:
+and 1280x720. It waits until no item has been created for half a second (the
+library and the second deck load asynchronously), counts items as part of the
+settle check, and re-applies its size until the Loader stops overriding it. For an audit:
 
 ```bash
 cd build

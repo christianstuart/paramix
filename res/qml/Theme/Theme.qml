@@ -280,7 +280,7 @@ QtObject {
 
     // ── Layout ─────────────────────────────────────────────────────────────
     readonly property int toolbarHeight: Math.round(44 * uiScale)
-    readonly property int deckHeaderHeight: Math.round(44 * uiScale)
+    readonly property int deckHeaderHeight: Math.round(48 * uiScale)
     readonly property int stemLaneMinWidth: Math.round(58 * uiScale)
     /// Width a stem lane needs for its label to read as a word rather than an
     /// elided fragment: colour chip, label, status dot, volume fader and the
@@ -301,8 +301,8 @@ QtObject {
     /// Height the deck needs for its fixed parts: info bar, waveform overview,
     /// pane and toolbar. The band uses it so the deck can never be clipped by a
     /// shorter mixer, which is what made the panes read wrong.
-    /// 4 + 44 (header) + 134 (toolbar 22 + pane 112) + 4 + 46 (overview) = 232.
-    readonly property int deckMinHeight: Math.round(232 * uiScale)
+    /// 4 + 48 (header) + 134 (toolbar 22 + pane 112) + 4 + 46 (overview) = 236.
+    readonly property int deckMinHeight: Math.round(236 * uiScale)
     /// Height of the MOVE / CUE / GRID / STEMS pane. 112 is the smallest height
     /// that keeps a wrapped 2 x 2 stem lane usable.
     readonly property int deckPaneHeight: Math.round(112 * uiScale)

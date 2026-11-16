@@ -4,7 +4,8 @@ import QtQuick 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Beatgrid pane: BPM readout with tap, grid alignment and key readout.
+/// Beatgrid pane: BPM readout with tap and grid alignment. The key lives in
+/// the deck header (Deck/InfoBar.qml).
 ///
 /// This is the GRID tab of the deck pane stack. It replaces the toolbar's
 /// Beatgrid key (which is gone) with explicit Align / Match / Lock keys plus
@@ -38,12 +39,6 @@ Rectangle {
 
         group: root.group
         key: "visual_bpm"
-    }
-    Mixxx.ControlProxy {
-        id: keyControl
-
-        group: root.group
-        key: "key"
     }
     Mixxx.ControlProxy {
         id: beatsUndoPossible
@@ -124,42 +119,6 @@ Rectangle {
             Item {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-            }
-            Rectangle {
-                Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: 0
-                Layout.preferredHeight: 18
-                Layout.preferredWidth: 48
-                border.color: Theme.border
-                border.width: 1
-                color: Theme.surface2
-                radius: Theme.radiusSm
-
-                ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: 0
-
-                    Text {
-                        Layout.alignment: Qt.AlignHCenter
-                        color: Theme.textMuted
-                        font.capitalization: Font.AllUppercase
-                        font.family: Theme.fontFamily
-                        font.letterSpacing: Theme.letterSpacingCaps
-                        font.pixelSize: Theme.fontSizeXs
-                        text: qsTr("Key")
-                    }
-                    Text {
-                        Layout.alignment: Qt.AlignHCenter
-                        color: root.loaded && Mixxx.KeyUtils.keyIsValid(keyControl.value)
-                               ? Theme.textPrimary
-                               : Theme.textMuted
-                        font.family: Theme.fontFamilyMono
-                        font.pixelSize: Theme.fontSizeMd
-                        text: root.loaded && Mixxx.KeyUtils.keyIsValid(keyControl.value)
-                              ? Mixxx.KeyUtils.keyToString(keyControl.value)
-                              : "--"
-                    }
-                }
             }
             Skin.ControlButton {
                 id: bpmTapButton
