@@ -140,9 +140,17 @@ output tiles; `FXAssign` drops its eyebrow label in the 30 px slot.
 
 ### Deck header (later the same day)
 
-The header is 48 px (`Theme.deckHeaderHeight`, was 44) with the extra 4 px as
-top padding, so `Theme.deckMinHeight` is 236. The track's key moved from the
-GRID pane into the header's second row, between artist and rating.
+The header is 52 px (`Theme.deckHeaderHeight`, was 44) with 6 px insets top
+and bottom, so `Theme.deckMinHeight` is 240. Its two rows carry explicit
+height shares (22 : 18): with both merely filling, the title row took nearly
+all of it and the artist / key / rating row was crushed onto the bottom border.
+The track's key moved from the GRID pane into that second row.
+
+The "Compact decks" option is gone; there is one deck density.
+
+The stems pane's header row uses short "Aca" / "Inst" keys below a 280 px pane.
+With the jog wheel shown the pane is ~196 px and the full-width keys ran under
+the loop card. The pane also clips.
 
 ### Window fit
 

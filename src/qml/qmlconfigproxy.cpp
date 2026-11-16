@@ -166,7 +166,6 @@ const QString kParamixShowHotcuesKey = QStringLiteral("ShowHotcues");
 const QString kParamixShowLibraryKey = QStringLiteral("ShowLibrary");
 const QString kParamixShowPreviewKey = QStringLiteral("ShowPreview");
 const QString kParamixShowJogWheelsKey = QStringLiteral("ShowJogWheels");
-const QString kParamixCompactDecksKey = QStringLiteral("CompactDecks");
 const QString kParamixFourBandEqKey = QStringLiteral("FourBandEq");
 const QString kParamixBpmInJogKey = QStringLiteral("BpmInJog");
 
@@ -1192,11 +1191,6 @@ PROPERTY_IMPL(kParamixGroup,
         kParamixShowJogWheelsKey,
         bool,
         paramixShowJogWheels,
-        false);
-PROPERTY_IMPL(kParamixGroup,
-        kParamixCompactDecksKey,
-        bool,
-        paramixCompactDecks,
         false);
 PROPERTY_IMPL(kParamixGroup,
         kParamixFourBandEqKey,

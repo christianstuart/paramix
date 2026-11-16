@@ -53,7 +53,6 @@ Popup {
         Mixxx.Config.paramixShowLibrary = true;
         Mixxx.Config.paramixShowPreview = true;
         Mixxx.Config.paramixShowJogWheels = false;
-        Mixxx.Config.paramixCompactDecks = false;
         Mixxx.Config.paramixFourBandEq = false;
         Mixxx.Config.paramixBpmInJog = true;
         Mixxx.Config.waveformStemSplitTracks = false;
@@ -385,13 +384,6 @@ Popup {
                         value: Mixxx.Config.paramixShowJogWheels
 
                         onChanged: Mixxx.Config.paramixShowJogWheels = !value
-                    }
-                    ToggleRow {
-                        label: qsTr("Compact decks")
-                        hint: qsTr("Tighter deck header and margins for smaller screens.")
-                        value: Mixxx.Config.paramixCompactDecks
-
-                        onChanged: Mixxx.Config.paramixCompactDecks = !value
                     }
                     ToggleRow {
                         label: qsTr("BPM in jog centre")

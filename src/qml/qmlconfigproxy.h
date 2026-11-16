@@ -373,8 +373,6 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     set_paramixShowPreview NOTIFY paramixShowPreviewChanged);
     Q_PROPERTY(bool paramixShowJogWheels READ paramixShowJogWheels WRITE
                     set_paramixShowJogWheels NOTIFY paramixShowJogWheelsChanged);
-    Q_PROPERTY(bool paramixCompactDecks READ paramixCompactDecks WRITE
-                    set_paramixCompactDecks NOTIFY paramixCompactDecksChanged);
     Q_PROPERTY(bool paramixFourBandEq READ paramixFourBandEq WRITE
                     set_paramixFourBandEq NOTIFY paramixFourBandEqChanged);
     // BPM and pitch readout in the jog hub (default) or above the tempo fader.
@@ -565,7 +563,6 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(bool, paramixShowLibrary);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowPreview);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowJogWheels);
-    PROPERTY_DECL_ACCESSOR(bool, paramixCompactDecks);
     PROPERTY_DECL_ACCESSOR(bool, paramixFourBandEq);
     PROPERTY_DECL_ACCESSOR(bool, paramixBpmInJog);
 
@@ -689,7 +686,6 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void paramixShowLibraryChanged();
     void paramixShowPreviewChanged();
     void paramixShowJogWheelsChanged();
-    void paramixCompactDecksChanged();
     void paramixFourBandEqChanged();
     void paramixBpmInJogChanged();
 

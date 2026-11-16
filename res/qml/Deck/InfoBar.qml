@@ -24,10 +24,9 @@ Rectangle {
     required property int rightColumnWidth
 
     // ── Density and artwork ────────────────────────────────────────────────
-    readonly property bool compact: Mixxx.Config.paramixCompactDecks === true
     readonly property bool showCoverArt: Mixxx.Config.paramixShowCoverArt !== false && !root.minimized
-    readonly property int titleSize: root.minimized ? Theme.fontSizeSm : (root.compact ? Theme.fontSizeMd : Theme.fontSizeLg + 1)
-    readonly property int secondarySize: root.minimized ? Theme.fontSizeXs : (root.compact ? Theme.fontSizeXs : Theme.fontSizeSm)
+    readonly property int titleSize: root.minimized ? Theme.fontSizeSm : Theme.fontSizeLg + 1
+    readonly property int secondarySize: root.minimized ? Theme.fontSizeXs : Theme.fontSizeSm
     readonly property int metaSize: Theme.fontSizeXs
 
     /// Valid track colour, or `null` when the track has none.
@@ -390,13 +389,13 @@ Rectangle {
     // workaround for the shorter band and left the lower half empty.
     ColumnLayout {
         anchors.bottom: root.bottom
-        anchors.bottomMargin: root.minimized ? 1 : Theme.space1
+        anchors.bottomMargin: root.minimized ? 1 : 6
         anchors.left: coverArtFrame.visible ? coverArtFrame.right : root.left
         anchors.leftMargin: root.showCoverArt ? Theme.space3 : Theme.space2
         anchors.right: root.right
         anchors.rightMargin: Theme.space3
         anchors.top: root.top
-        anchors.topMargin: (root.minimized || root.compact) ? 0 : Theme.space1
+        anchors.topMargin: root.minimized ? 0 : 6
         spacing: 0
 
         RowLayout {
@@ -405,8 +404,12 @@ Rectangle {
             readonly property bool isTop: true
             property var model: topRowModel
 
+            // Both rows fill, so the height is shared in proportion to these.
+            // Without them the title row took nearly everything and the row
+            // below was crushed onto the header's bottom border.
             Layout.fillHeight: true
             Layout.fillWidth: true
+            Layout.preferredHeight: 22
 
             Repeater {
                 delegate: root.editMode ? editCellDelegate : cellDelegate
@@ -428,6 +431,7 @@ Rectangle {
 
             Layout.fillHeight: true
             Layout.fillWidth: true
+            Layout.preferredHeight: 18
             visible: !root.minimized
 
             Repeater {

@@ -295,7 +295,7 @@ Item {
 
             LayoutItem {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.minimized ? 28 : (Mixxx.Config.paramixCompactDecks ? 44 : Theme.deckHeaderHeight)
+                Layout.preferredHeight: root.minimized ? 28 : Theme.deckHeaderHeight
                 editOverlay.visible: false
 
                 DeckComponent.InfoBar {
@@ -648,7 +648,7 @@ Item {
         id: grid
 
         anchors.fill: parent
-        anchors.margins: Mixxx.Config.paramixCompactDecks ? 2 : Theme.space1
+        anchors.margins: Theme.space1
         visible: !root.minimized
 
         FadeBehavior on visible {
@@ -664,7 +664,7 @@ Item {
         id: minimizedGrid
 
         anchors.fill: parent
-        anchors.margins: Mixxx.Config.paramixCompactDecks ? 2 : Theme.space1
+        anchors.margins: Theme.space1
         visible: root.minimized
 
         FadeBehavior on visible {

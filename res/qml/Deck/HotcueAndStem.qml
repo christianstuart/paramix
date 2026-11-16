@@ -58,7 +58,7 @@ Rectangle {
         return qsTr("Load a track to use hotcues and stems");
     }
 
-    /// True when the deck pane is squeezed by the compact deck layout, or when
+    /// True when the deck pane is shorter than its design height, or when
     /// the stem lanes wrap onto more than one row and each lane keeps only part
     /// of the pane height. Either way the QuickFX preset selector is dropped so
     /// the fader, mute/solo and knob stay usable instead of being clipped.
@@ -184,6 +184,8 @@ Rectangle {
     radius: Theme.radiusMd
     border.width: 1
     border.color: Theme.border
+    // Nothing in a pane may paint over the loop card beside it.
+    clip: true
 
     onCurrentTrackChanged: root.resetSoloState()
 
@@ -351,6 +353,10 @@ Rectangle {
             RowLayout {
                 id: stemHeader
 
+                /// With the jog wheel shown the pane is ~196 px, and the badge
+                /// plus two full-width keys (~260 px) ran under the loop card.
+                readonly property bool narrow: stemTab.width < 280
+
                 Layout.fillWidth: true
                 Layout.preferredHeight: 18
                 spacing: Theme.space1
@@ -395,16 +401,16 @@ Rectangle {
                 Skin.Button {
                     Layout.preferredHeight: 16
                     Accessible.name: qsTr("Acapella: mute all non-vocal stems")
-                    implicitWidth: 74
-                    text: qsTr("Acapella")
+                    implicitWidth: stemHeader.narrow ? 40 : 74
+                    text: stemHeader.narrow ? qsTr("Aca") : qsTr("Acapella")
 
                     onClicked: root.applyAcapella()
                 }
                 Skin.Button {
                     Layout.preferredHeight: 16
                     Accessible.name: qsTr("Instrumental: mute the vocal stem")
-                    implicitWidth: 94
-                    text: qsTr("Instrumental")
+                    implicitWidth: stemHeader.narrow ? 40 : 94
+                    text: stemHeader.narrow ? qsTr("Inst") : qsTr("Instrumental")
 
                     onClicked: root.applyInstrumental()
                 }
