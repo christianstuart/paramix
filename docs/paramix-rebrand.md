@@ -91,14 +91,13 @@ re-entered once.
 
 ## 5. Customization and settings
 
-The Paramix QML interface has a dedicated **Customize Paramix** panel for
-scheme, accent color, font, type scale, motion, panel visibility, waveform
-playhead/style and stem lanes. The values live in a `[Paramix]` config group and
-are injected into the `Theme` singleton. The toolbar gear opens the native Mixxx
-Preferences dialog, which remains the primary settings window for audio,
-library, controllers and analysis. The QML settings popup added during the UI
-overhaul is retired. The customizer can restart into the classic widget
-interface, and the native Help menu can restart back into the QML interface.
+The Paramix QML settings live in the native Preferences dialog: scheme,
+accent color, font, type scale, motion and panel visibility on **Interface**,
+the fourth EQ band on **Mixer**, and waveform playhead/style and stem lanes on
+**Waveform**. The values live in a `[Paramix]` config group and are injected
+into the `Theme` singleton. The QML settings popup added during the UI overhaul
+is retired, including its restart-into-the-classic-interface button; the native
+Help menu can restart back into the QML interface.
 See `docs/paramix-ui-design-system.md` §6.
 
 ## 6. Follow-ups

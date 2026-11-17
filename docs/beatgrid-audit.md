@@ -68,7 +68,7 @@ Three real caveats, all verified:
    analysis threads. Acceptable, but it is the first analyzer with O(track length) state.
 
 **What this buys:** a working, packaged reference implementation of downbeats on all four targets,
-today, for a day's work. **What it does not buy:** 3/4 and odd meters, or Beat This!-class accuracy.
+today, for a day's work. **What it does not buy:** 3/4 and odd meters, or trained-model accuracy.
 
 ---
 
@@ -163,34 +163,16 @@ libraries keep their phase-less grids unless the user opts in.
 
 ---
 
-## 5. ML versus DSP
+## 5. DSP is the baseline
 
-The licensing question is easy: ONNX Runtime is MIT, Beat This! code and weights are MIT, both
-compatible with GPL-2.0.
+Beat detection uses the **Queen Mary** analyzer already in the build
+(`src/analyzer/plugins/analyzerqueenmarybeats.cpp`), with SoundTouch remaining as the existing
+alternative. No ML beat model, ONNX graph, or additional beat weights are used. The qm-dsp
+`DownBeat` code is already compiled and is the downbeat baseline.
 
-The packaging question is where the cost is:
-
-| Target | Mechanism | Cost of adding ONNX Runtime |
-|---|---|---|
-| Linux x64 | apt only (`tools/debian_buildenv.sh`), no ORT package on Ubuntu 24.04 | New acquisition path; closest precedent is the libkeyfinder `ExternalProject_Add` |
-| macOS arm64 + x86_64 | 3.7 GB SHA-pinned vcpkg bundle from `downloads.mixxx.org` | Cross-repo change in `mixxxdj/vcpkg`, rebuild, re-pin; not verifiable inside this repo |
-| Windows x64 | same bundle mechanism | Same, plus deciding which execution providers ship |
-| Flatpak | per-dependency modules built from source | Multi-hour, multi-GB build |
-
-Two risks the plan does not mention:
-
-1. **protobuf collision.** This tree links its own protobuf for grid/key/waveform schemas
-   (`CMakeLists.txt:3799-3801`); ONNX Runtime's prebuilt distributions embed their own protobuf.
-   Static linking two protobufs in one binary is an ODR hazard and must be proven, not assumed.
-2. **No model-management precedent.** No registry, no checksum flow, no cache table. Notably
-   `tools/paramix_verify.sh` rejects `models/*` as tracked junk — a deliberate guard against
-   committing weights.
-
-**Recommendation:** do the DSP path first and treat it as the specification for the integration
-points (plugin output, phase-carrying construction, accent rendering). If measured accuracy on a
-labelled fixture set is insufficient, ONNX Runtime becomes a second, informed decision with a
-working baseline to compare against. The reverse order spends four-target packaging effort before
-the feature can be evaluated at all.
+This keeps beat tracking independent of the stem-separation runtime: ONNX Runtime remains a
+separation dependency (ADR-001), not a beatgrid dependency. The remaining beatgrid work is the
+representation, serialization, and rendering described in ADR-003, not model acquisition.
 
 ---
 
@@ -256,7 +238,6 @@ Each step is blocked by the previous one.
 - **ADR-003 (grid format)** should be written against §3: additive fields, stable version strings,
   explicit meter, decoded-value tests.
 - **ADR-001 (inference runtime)** is no longer a prerequisite for downbeats. It stays a decision for
-  *separation*, and for a higher-accuracy downbeat model only if the DSP baseline proves
-  insufficient.
-- The Phase 0 "Beat This! F-measure" spike should first measure the **qm-dsp baseline** on the same
-  fixture set, so the ML decision has a reference point.
+  *separation*; no beat model is planned, because Queen Mary is the tracker.
+- The Phase 0 beatgrid spike should measure the **qm-dsp baseline** on the labelled fixture set;
+  Queen Mary is the tracker, so there is no ML model to compare against.

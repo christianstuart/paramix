@@ -1,3 +1,5 @@
+> **Historical transcript (superseded).** This file records early project context and is kept for background only. Licensing statements here, including the claim that the HTDemucs weights are MIT, are wrong. See [`docs/third-party-models.md`](third-party-models.md) for the current position.
+
 1. Project structure
 Root is a Mixxx 2.7.0 checkout (CMake project(mixxx VERSION 2.7.0), prerelease alpha), ~6,000 files:
 Directory
@@ -753,14 +755,14 @@ What the recon changed about the brief
 Three facts reframe the work:
 	1	Half of "stem support" already exists. The fork already plays NI .stem.mp4: 8-channel deck path (EngineDeck::processStem), four per-stem control groups ([ChannelN_Stem1..4] with gain/mute/QuickFX/VU), per-stem waveform peaks and a working 4-stem renderer. The gap is generation (separation), cache/persistence, and polish.
 	2	The beatgrid model is already tempo-map capable. mixxx::Beats stores markers + terminal tempo, so variable tempo is representable. What is missing is detection quality (Queen Mary/SoundTouch only), downbeats/bars, confidence, and non-destructive editing — not a new data structure from scratch.
-	3	Licences decide the ML stack. Mixxx is GPL-2.0. HTDemucs v4 (code and weights MIT) and Beat This! (code and weights MIT, 82 MB ONNX export with beat + downbeat logits) are the only commercial-quality options that are safe to bundle. madmom/Essentia weights are CC BY-NC-SA, Essentia is AGPLv3, aubio is GPLv3, and BS-RoFormer/MDX23C community weights ship with no licence — those become optional user-supplied tiers, never bundled.
+	3	Licences decide the ML stack. Mixxx is GPL-2.0. The original candidate list included HTDemucs and a beat-tracking model; both are now dropped (Demucs weights are research-only; beat tracking uses Queen Mary). madmom/Essentia weights are CC BY-NC-SA, Essentia is AGPLv3, aubio is GPLv3, and BS-RoFormer/MDX23C community weights ship with no licence — those become optional user-supplied tiers, never bundled.
 Program options
 
 A — Momentum
 B — Traktor-class (recommended)
 C — Platform leap
 Scope
-ML beat detector, HTDemucs separation, cache, stem waveform polish, skin refresh
+Queen Mary beatgrid, SCNet separation, cache, stem waveform polish, skin refresh
 A + BeatGrid-3.0 (downbeats/confidence/dual-write), quality tiers + model manager, 4-lane waveform redesign, new QML skin/design system, .stem.mp4 export
 B + real-time separation, warp/tempo-curve grids, full QML rewrite, mobile
 Time / agents
@@ -773,14 +775,14 @@ Matches the brief end-to-end
 Real-time separation isn't commercially viable yet (0.5–2 s latent, degraded); even Traktor pre-computes stems via iZotope RX
 Recommendation: fund B but make A its first shippable milestone. Defer C's real-time piece to a spike.
 Key technical choices in the plan
-	•	Beatgrid: additive BeatGrid-3.0 (downbeats, confidence, source, hypotheses) with a dual-written legacy blob so downgrades don't lose phase; Beat This! behind the existing analyzer-plugin interface, Queen Mary as fallback; non-destructive editor; bar-aware lines/quantise/loops as optional.
+	•	Beatgrid: additive BeatGrid-3.0 (downbeats, confidence, source, hypotheses) with a dual-written legacy blob so downgrades don't lose phase; Queen Mary behind the existing analyzer-plugin interface, with rbxport for phrase/downbeat work; non-destructive editor; bar-aware lines/quantise/loops as optional.
 	•	Separation: HTDemucs v4 via ONNX Runtime (CoreML / DirectML / CUDA / CPU), offline background queue with progress/cancel/resume; optional user-supplied RoFormer-class "Max" tier behind a licence gate.
 	•	Cache: 8-channel FLAC + JSON at the track's original rate, atomic writes and LRU GC (~5× MP3, 50–120 MB/track); optional .stem.mp4 export for Traktor interop.
 	•	Playback: hook SoundSourceProxy::openAudioSource() (it already holds the TrackPointer) to return a stem source when a cache exists — the existing 8-channel engine path then works unchanged.
 	•	Waveform: both stacked lanes and tinted composite (market research says users want both), muted stems visible but dimmed, labels + colour-blind-safe palette (never colour alone), downbeat accents, performance fix for the scene-graph precision workaround.
 	•	UI: new "Paramix" QML skin on a design system, hybrid shell (legacy library/preferences stay widgets initially), stem mixer strip, instant acapella/instrumental, separation status, model manager.
 Multi-agent execution
-Ten roles (architect/integrator, beatgrid core, beat ML, stem runtime, stem pipeline/DB, audio engine, waveform, QML/UX, QA, compliance/packaging), each owning disjoint directories. Six phases: baseline (−1) → spikes/ADRs (0) → contract freeze (1) → three build waves (2.1–2.3) → integration (3) → hardening (4) → release (5), with nightly integration, feature flags, peer-agent review and a human audio gate. Critical path: separator → cache/queue → playback → waveform → integration; beatgrid and UI run in parallel. The plan includes a concrete 10-day backlog and a file-level touch map.
+Ten roles (architect/integrator, beatgrid core, beatgrid baseline, stem runtime, stem pipeline/DB, audio engine, waveform, QML/UX, QA, compliance/packaging), each owning disjoint directories. Six phases: baseline (−1) → spikes/ADRs (0) → contract freeze (1) → three build waves (2.1–2.3) → integration (3) → hardening (4) → release (5), with nightly integration, feature flags, peer-agent review and a human audio gate. Critical path: separator → cache/queue → playback → waveform → integration; beatgrid and UI run in parallel. The plan includes a concrete 10-day backlog and a file-level touch map.
 Decisions I need from you before Phase 1
 	1	Quality default: htdemucs (fast) vs htdemucs_ft (slower, slightly better)?
 	2	Auto-separate on import, on demand, or both?

@@ -126,8 +126,9 @@ items leaving the *window*. Three root causes, none of them about window size:
   `deckTempoMinWidth` 270, so the row outgrew the deck and `clip: true` cut the
   right-hand end off. The tempo strip now needs a 563 px deck and the full row
   (`deckFullRowMinWidth`) 708.
-- **Jog wheels are opt-in.** Customize > Jog wheels (`[Paramix] ShowJogWheels`,
-  off by default) decides whether a deck has one at all. When on, it shows from
+- **Jog wheels are opt-in.** Preferences > Interface > Show a jog wheel
+  (`[Paramix] ShowJogWheels`, off by default) decides whether a deck has one at
+  all. When on, it shows from
   a 643 px deck (`deckSpinnyMinWidth`, a 1440 px window) and takes the tempo
   strip's place until the deck reaches 708, where both fit. The rule is
   `Deck.rowItemShown()`. `PARAMIX_QML_JOG_WHEELS=1` makes the bounds test
@@ -260,8 +261,8 @@ would clip both.
   the narrow-width rules (drop the EQ rows, columns 84 -> 56) are still not
   written.
 - **No UI control for `uiScale` yet.** The setting and the binding exist, but
-  the control belongs in `ParamixCustomize.qml`. Until then it can only be set
-  in `paramix.cfg`.
+  the control belongs in the Interface preference page. Until then it can only
+  be set in `paramix.cfg`.
 - **Below ~1200 px wide the split layout still oscillates** (see below). The
   window minimum is now `Theme.minWindowWidth`/`minWindowHeight` (1280x720), so
   a user cannot drag the window into the unstable range, but the binding cycle
