@@ -15,13 +15,12 @@
 #include "encoder/encodermp3.h"
 #include "encoder/encodervorbis.h"
 #endif
-#include "encoder/encoderwave.h"
-#include "encoder/encodersndfileflac.h"
-
-#include "encoder/encodermp3settings.h"
-#include "encoder/encodervorbissettings.h"
-#include "encoder/encoderwavesettings.h"
 #include "encoder/encoderflacsettings.h"
+#include "encoder/encodermp3settings.h"
+#include "encoder/encodersndfileflac.h"
+#include "encoder/encodervorbissettings.h"
+#include "encoder/encoderwave.h"
+#include "encoder/encoderwavesettings.h"
 
 #ifdef __OPUS__
 #include "encoder/encoderopus.h"
@@ -33,8 +32,7 @@
 
 EncoderFactory EncoderFactory::factory;
 
-const EncoderFactory& EncoderFactory::getFactory()
-{
+const EncoderFactory& EncoderFactory::getFactory() {
     return factory;
 }
 
@@ -54,13 +52,11 @@ EncoderFactory::EncoderFactory() {
     // change needed once it is fixed.
 }
 
-const QList<Encoder::Format> EncoderFactory::getFormats() const
-{
+const QList<Encoder::Format> EncoderFactory::getFormats() const {
     return m_formats;
 }
 
-Encoder::Format EncoderFactory::getSelectedFormat(UserSettingsPointer pConfig) const
-{
+Encoder::Format EncoderFactory::getSelectedFormat(UserSettingsPointer pConfig) const {
     return getFormatFor(pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Encoding")));
 }
 Encoder::Format EncoderFactory::getFormatFor(const QString& formatText) const {
@@ -70,7 +66,7 @@ Encoder::Format EncoderFactory::getFormatFor(const QString& formatText) const {
         }
     }
     qWarning() << "Format: " << formatText << " not recognized! Returning format "
-        << m_formats.first().internalName;
+               << m_formats.first().internalName;
     return m_formats.first();
 }
 
@@ -123,7 +119,7 @@ EncoderPointer EncoderFactory::createEncoder(
         pEncoder->setEncoderSettings(*pSettings);
     } else {
         qWarning() << "Unsupported format requested! "
-                << QString(pSettings ? pSettings->getFormat() : QString("NULL"));
+                   << QString(pSettings ? pSettings->getFormat() : QString("NULL"));
         DEBUG_ASSERT(false);
         pEncoder = std::make_shared<EncoderWave>(pCallback);
     }

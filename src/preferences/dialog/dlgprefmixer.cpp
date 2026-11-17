@@ -369,8 +369,8 @@ void DlgPrefMixer::slotPopulateDeckEqSelectors() {
             // to get Qt to treat the string as rich text so it automatically wraps long lines.
             pBox->setItemData(i,
                     QVariant(QStringLiteral("<b>%1</b><br/>%2")
-                                     .arg(pManifest->name(),
-                                             pManifest->description())),
+                                    .arg(pManifest->name(),
+                                            pManifest->description())),
                     Qt::ToolTipRole);
             if (pLoadedManifest &&
                     pLoadedManifest.data() == pManifest.data()) {
@@ -384,8 +384,8 @@ void DlgPrefMixer::slotPopulateDeckEqSelectors() {
             currentIndex = pBox->count() - 1;
             pBox->setItemData(currentIndex,
                     QVariant(QStringLiteral("<b>%1</b><br/>%2")
-                                     .arg(pLoadedManifest->name(),
-                                             pLoadedManifest->description())),
+                                    .arg(pLoadedManifest->name(),
+                                            pLoadedManifest->description())),
                     Qt::ToolTipRole);
             // Deactivate item to hopefully clarify the item is not an EQ
             const QStandardItemModel* pModel =
@@ -465,8 +465,8 @@ void DlgPrefMixer::slotSingleEqToggled(bool checked) {
                 newIndex = eqBox->count() - 1;
                 eqBox->setItemData(newIndex,
                         QVariant(QStringLiteral("<b>%1</b><br/>%2")
-                                         .arg(pManifest->name(),
-                                                 pManifest->description())),
+                                        .arg(pManifest->name(),
+                                                pManifest->description())),
                         Qt::ToolTipRole);
                 // Deactivate item to hopefully clarify the item is not an EQ
                 const QStandardItemModel* pModel =
@@ -1113,8 +1113,8 @@ void DlgPrefMixer::setUpMainEQ() {
         // to get Qt to treat the string as rich text so it automatically wraps long lines.
         comboBoxMainEq->setItemData(comboBoxMainEq->count() - 1,
                 QVariant(QStringLiteral("<b>%1</b><br/>%2")
-                                 .arg(pManifest->name(),
-                                         pManifest->description())),
+                                .arg(pManifest->name(),
+                                        pManifest->description())),
                 Qt::ToolTipRole);
     }
     comboBoxMainEq->setCurrentIndex(0);
