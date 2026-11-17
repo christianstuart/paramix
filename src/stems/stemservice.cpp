@@ -1,11 +1,12 @@
 #include "stems/stemservice.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
-#include <QGuiApplication>
 #include <QMap>
 #include <QSqlDatabase>
 #include <QSqlQuery>
+#include <QStandardPaths>
 #include <QStorageInfo>
 #include <algorithm>
 #include <utility>
@@ -23,6 +24,7 @@
 #include "stems/stemfilewriter.h"
 #include "stems/stemgpudetect.h"
 #include "stems/stemresampler.h"
+#include "stems/stemseparator.h"
 #include "stems/stemseparatorfactory.h"
 #include "track/track.h"
 #include "util/db/dbconnectionpooled.h"
@@ -33,23 +35,48 @@
 namespace mixxx::stems {
 namespace {
 
-/// True while the application shows a window, i.e. the user is looking at the
-/// UI. GPU stem separation shares the graphics device with the scene graph and
-/// blocks the render thread for up to seconds per chunk (the ONNX WebGPU
-/// provider on macOS), which is unacceptable while the UI is on screen. The
-/// GPU provider is therefore only used for headless/offline runs; interactive
-/// separation stays on the CPU, which renders at full frame rate.
-bool isInteractiveUiRunning() {
-    if (qobject_cast<QGuiApplication*>(QCoreApplication::instance()) == nullptr) {
-        return false;
+std::unique_ptr<StemSeparator> createSeparator(
+        const QString& path, const std::string& device, std::string* pError) {
+#ifdef __STEM_SEPARATION__
+    DemucsOnnxConfig config;
+    config.modelPath = path.toStdString();
+    config.device = device;
+    return createDemucsOnnxSeparator(config, pError);
+#else
+    Q_UNUSED(path);
+    Q_UNUSED(device);
+    if (pError != nullptr) {
+        *pError = "Stem separation is not available in this build.";
     }
-    return !QGuiApplication::topLevelWindows().isEmpty();
+    return nullptr;
+#endif
+}
+
+QString defaultModelPath() {
+    const QString relative = QStringLiteral("models/htdemucs.onnx");
+    QStringList roots{
+            QCoreApplication::applicationDirPath(),
+            QDir::currentPath(),
+            QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("..")),
+            QDir(QCoreApplication::applicationDirPath())
+                    .filePath(QStringLiteral("../Resources")),
+            QDir(QDir::currentPath()).filePath(QStringLiteral(".."))};
+    for (const QString& dataLocation :
+            QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
+        roots.append(QDir(dataLocation).filePath(QStringLiteral("paramix")));
+    }
+    for (const QString& root : std::as_const(roots)) {
+        const QString candidate = QDir(root).filePath(relative);
+        if (QFileInfo(candidate).isFile()) {
+            return candidate;
+        }
+    }
+    return QDir(roots.first()).filePath(relative);
 }
 
 const mixxx::Logger kLogger("StemService");
 
 constexpr char kGroup[] = "[Stems]";
-constexpr char kModelPathKey[] = "ModelPath";
 constexpr char kOutputDirectoryKey[] = "OutputDirectory";
 
 /// Leave at least this much free space after a job, so a full disk does not
@@ -115,7 +142,7 @@ bool StemService::queueExport(const StemExportRequest& request) {
     const QString setName = request.setName.trimmed().isEmpty()
             ? uniqueStemSetName(outputDirectory, defaultSetName(request.track))
             : sanitizeStemSetName(request.setName);
-    const QString modelPathValue = modelPath();
+    const QString modelPathValue = defaultModelPath();
     StemQueueRecord queued;
     queued.trackId = trackId;
     queued.outputDirectory = outputDirectory;
@@ -139,18 +166,8 @@ bool StemService::queueExport(const StemExportRequest& request) {
                 outputDirectory,
                 setName,
                 modelPathValue,
-                isGpuAccelerationEnabled(m_pConfig) && !m_gpuDisabled.load() &&
-                        !isInteractiveUiRunning(),
+                isGpuAccelerationEnabled(m_pConfig) && !m_gpuDisabled.load(),
                 settings});
-    }
-    if (isGpuAccelerationEnabled(m_pConfig) && isInteractiveUiRunning()) {
-        static bool s_loggedCpuFallback = false;
-        if (!s_loggedCpuFallback) {
-            s_loggedCpuFallback = true;
-            kLogger.info()
-                    << "Stem separation runs on the CPU while a window is shown:"
-                       " the GPU provider blocks the render thread and stalls the UI";
-        }
     }
     setStatus(trackId, Status::Queued, 0);
     m_waitCondition.wakeAll();
@@ -330,10 +347,6 @@ QSet<TrackId> StemService::trackIdsWithStemSets() const {
     return trackIds;
 }
 
-QString StemService::modelPath() const {
-    return m_pConfig->getValue(ConfigKey(kGroup, kModelPathKey), QString());
-}
-
 QString StemService::defaultOutputDirectory() const {
     return m_pConfig->getValue(ConfigKey(kGroup, kOutputDirectoryKey),
             QDir(m_pConfig->getSettingsPath()).filePath(QStringLiteral("Stems")));
@@ -351,7 +364,7 @@ void StemService::run() {
     StemSetDao dao(daoConnection);
     StemQueueDao queueDao(daoConnection);
 
-    std::unique_ptr<DemucsOnnxSeparator> pSeparator;
+    std::unique_ptr<StemSeparator> pSeparator;
     QString loadedModelPath;
     QString loadedDevice;
 
@@ -375,7 +388,7 @@ void StemService::run() {
 }
 
 void StemService::processJob(Job& job,
-        std::unique_ptr<DemucsOnnxSeparator>* ppSeparator,
+        std::unique_ptr<StemSeparator>* ppSeparator,
         QString* pLoadedModelPath,
         QString* pLoadedDevice,
         StemSetDao& dao) {
@@ -429,18 +442,15 @@ void StemService::processJob(Job& job,
                 QStringLiteral("No stem separation model is selected in Settings -> Stems."));
         return;
     }
-    // A GPU failure downgrades the rest of this process to CPU, including jobs
-    // that were queued before the failure.
+    // `auto` resolves against the runtime's actual provider list; a provider
+    // that is missing or fails to initialise degrades to CPU.
     const bool useGpu = job.gpuAcceleration && !m_gpuDisabled.load();
     const std::string device = stemDeviceForGpuAcceleration(useGpu);
     const QString deviceName = QString::fromStdString(device);
     if (!*ppSeparator || *pLoadedModelPath != path || *pLoadedDevice != deviceName) {
         ppSeparator->reset();
         std::string error;
-        DemucsOnnxConfig config;
-        config.modelPath = path.toStdString();
-        config.device = device;
-        *ppSeparator = createDemucsOnnxSeparator(config, &error);
+        *ppSeparator = createSeparator(path, device, &error);
         if (!*ppSeparator) {
             setStatus(trackId,
                     Status::Failed,
@@ -590,9 +600,9 @@ void StemService::processJob(Job& job,
                     return m_cancelRequested.load(); });
     };
     bool completed = runSeparation();
-    // A provider that initialized but cannot execute this graph (CoreML on the
-    // HTDemucs export, for example) fails on Run, not on session creation. Fall
-    // back to the CPU once for this job and for the rest of the process.
+    // A provider that initialized but cannot execute this graph fails on Run,
+    // not on session creation. Fall back to the CPU once for this job and for
+    // the rest of the process.
     if (!completed && !m_cancelRequested.load() &&
             (*ppSeparator)->device() != "cpu") {
         kLogger.warning() << "Stem separation failed on provider"
@@ -603,10 +613,7 @@ void StemService::processJob(Job& job,
         m_gpuDisabled = true;
         ppSeparator->reset();
         std::string error;
-        DemucsOnnxConfig fallback;
-        fallback.modelPath = path.toStdString();
-        fallback.device = "cpu";
-        *ppSeparator = createDemucsOnnxSeparator(fallback, &error);
+        *ppSeparator = createSeparator(path, "cpu", &error);
         *pLoadedDevice = QStringLiteral("cpu");
         if (!*ppSeparator) {
             setStatus(trackId,

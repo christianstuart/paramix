@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 
+#include "stems/stemseparator.h"
 #include "util/types.h"
 
 namespace mixxx::stems {
@@ -39,14 +40,13 @@ struct DemucsOnnxConfig {
 /// vocals order. Spans arrive in order and never overlap; `offset` is the
 /// absolute frame position and `frames` the number of frames in `pBuffer`.
 /// Returning false cancels the separation.
-using DemucsOutputCallback =
-        std::function<bool(SINT offset, const CSAMPLE* pBuffer, SINT frames)>;
+using DemucsOutputCallback = StemOutputCallback;
 
 /// Reports separation progress as a fraction in [0, 1].
-using DemucsProgressCallback = std::function<void(double progress)>;
+using DemucsProgressCallback = StemProgressCallback;
 
 /// Returns true to cancel. Polled between output blocks.
-using DemucsCancelCallback = std::function<bool()>;
+using DemucsCancelCallback = StemCancelCallback;
 
 /// Whole-track stem separation on top of the vendored demucs-onnx runtime.
 ///
@@ -59,7 +59,7 @@ using DemucsCancelCallback = std::function<bool()>;
 /// `separate()` expects planar stereo at `sampleRate()` and runs on the
 /// calling thread. It allocates and uses several worker threads, so call it
 /// from a background worker, never from the real-time audio thread.
-class DemucsOnnxSeparator final {
+class DemucsOnnxSeparator final : public StemSeparator {
   public:
     /// Creates the runtime and opens the model. Returns null and fills
     /// `pError` when the build has no ONNX Runtime, the model cannot be read,
@@ -67,25 +67,25 @@ class DemucsOnnxSeparator final {
     static std::unique_ptr<DemucsOnnxSeparator> create(
             const DemucsOnnxConfig& config, std::string* pError);
 
-    ~DemucsOnnxSeparator();
+    ~DemucsOnnxSeparator() override;
 
     DemucsOnnxSeparator(const DemucsOnnxSeparator&) = delete;
     DemucsOnnxSeparator& operator=(const DemucsOnnxSeparator&) = delete;
 
     /// Sample rate the model expects and produces, from the sidecar.
-    int sampleRate() const;
+    int sampleRate() const override;
 
     /// Number of audio channels the model expects (2 for HTDemucs).
-    int channels() const;
+    int channels() const override;
 
     /// Source names in the order they appear in the output, from the sidecar.
-    const std::vector<std::string>& sources() const;
+    const std::vector<std::string>& sources() const override;
 
     /// The provider that actually initialised; `auto` may have fallen back.
-    std::string device() const;
+    std::string device() const override;
 
     /// Describes the last failure from separate().
-    std::string lastError() const;
+    std::string lastError() const override;
 
     /// Separates a whole track.
     ///
@@ -99,7 +99,7 @@ class DemucsOnnxSeparator final {
             SINT frames,
             const DemucsOutputCallback& writeOutput,
             const DemucsProgressCallback& progress = DemucsProgressCallback(),
-            const DemucsCancelCallback& cancel = DemucsCancelCallback());
+            const DemucsCancelCallback& cancel = DemucsCancelCallback()) override;
 
   private:
     class Impl;

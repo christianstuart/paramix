@@ -1898,10 +1898,27 @@ add_library(
   src/controllers/scripting/javascriptplayerproxy.h
 )
 if(STEM_SEPARATION_ENABLED)
-  target_sources(mixxx-lib PRIVATE src/stems/demucsonnxseparator.cpp)
+  target_sources(mixxx-lib PRIVATE
+    src/stems/demucsonnxseparator.cpp
+    src/stems/scnetonnxseparator.cpp
+  )
   target_include_directories(mixxx-lib PRIVATE lib/demucs-onnx/include)
   target_link_libraries(mixxx-lib PRIVATE onnxruntime::onnxruntime)
   target_compile_definitions(mixxx-lib PUBLIC __STEM_SEPARATION__)
+
+  # Bundle the local model set when it is present. The release build supplies
+  # htdemucs.onnx; a clean checkout has no weights.
+  set(_paramix_model_dir "${CMAKE_CURRENT_SOURCE_DIR}/models")
+  if(EXISTS "${_paramix_model_dir}/htdemucs.onnx")
+    if(WIN32 OR APPLE)
+      set(_paramix_model_dest "models")
+    else()
+      set(_paramix_model_dest "share/paramix/models")
+    endif()
+    install(DIRECTORY "${_paramix_model_dir}/"
+      DESTINATION "${_paramix_model_dest}"
+    )
+  endif()
 else()
   target_sources(mixxx-lib PRIVATE src/stems/demucsonnxseparator_stub.cpp)
 endif()
@@ -2986,6 +3003,7 @@ if(BUILD_TESTING)
     src/test/demucsdsphelpertest.cpp
     src/test/demucsonnxseparatortest.cpp
     src/test/demucsstfttest.cpp
+    src/test/scnetonnxseparatortest.cpp
     src/test/directorydaotest.cpp
     src/test/duration_test.cpp
     src/test/durationutiltest.cpp
@@ -5814,6 +5832,11 @@ if(APPLE AND MACOS_BUNDLE)
 endif()
 
 if(WIN32 AND STEM_SEPARATION_ENABLED AND onnxruntime_RUNTIME)
+  get_filename_component(_onnxruntime_runtime_dir "${onnxruntime_RUNTIME}" DIRECTORY)
+  file(GLOB _onnxruntime_provider_runtimes
+    "${_onnxruntime_runtime_dir}/onnxruntime_providers_*.dll"
+    "${_onnxruntime_runtime_dir}/DirectML.dll"
+  )
   foreach(_target mixxx mixxx-test)
     if(TARGET ${_target})
       add_custom_command(
@@ -5821,6 +5844,7 @@ if(WIN32 AND STEM_SEPARATION_ENABLED AND onnxruntime_RUNTIME)
         POST_BUILD
         COMMAND
           ${CMAKE_COMMAND} -E copy_if_different "${onnxruntime_RUNTIME}"
+          ${_onnxruntime_provider_runtimes}
           "$<TARGET_FILE_DIR:${_target}>"
         VERBATIM
       )

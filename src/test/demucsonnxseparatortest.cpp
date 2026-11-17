@@ -4,12 +4,14 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "stems/demucsonnxseparator.h"
+#include "stems/stemresampler.h"
 #include "stems/stemseparatorfactory.h"
 #include "util/types.h"
 
@@ -32,9 +34,9 @@ DemucsOnnxConfig modelConfig() {
     return config;
 }
 
-std::vector<float> makeInput() {
-    std::vector<float> input(static_cast<std::size_t>(kFrameCount) * 2);
-    for (SINT frame = 0; frame < kFrameCount; ++frame) {
+std::vector<float> makeInput(SINT frames = kFrameCount) {
+    std::vector<float> input(static_cast<std::size_t>(frames) * 2);
+    for (SINT frame = 0; frame < frames; ++frame) {
         const double time = static_cast<double>(frame) / 44100.0;
         input[static_cast<std::size_t>(frame) * 2] =
                 static_cast<float>(0.4 * std::sin(2.0 * kPi * 440.0 * time));
@@ -196,6 +198,140 @@ TEST_F(DemucsOnnxSeparatorTest, SeparatesTinyModelAndReportsProgress) {
     EXPECT_GE(progress.back(), 0.9);
 }
 
+TEST_F(DemucsOnnxSeparatorTest, ResamplesSourceRateAroundSeparation) {
+    const char* modelPath = std::getenv("PARAMIX_TEST_DEMUCS_ONNX");
+    if (modelPath == nullptr || *modelPath == '\0') {
+        GTEST_SKIP() << "set PARAMIX_TEST_DEMUCS_ONNX";
+    }
+    if (!isDemucsOnnxAvailable()) {
+        GTEST_SKIP() << "ONNX Runtime is not available";
+    }
+    // The generated test graph expands fixed shapes and is not a separator;
+    // this test needs real weights to check level and alignment.
+    std::error_code sizeError;
+    const auto modelBytes = std::filesystem::file_size(modelPath, sizeError);
+    if (sizeError || modelBytes < 1024 * 1024) {
+        GTEST_SKIP() << "use a real separation model, not the tiny test graph";
+    }
+    auto separator = createTestSeparator();
+    ASSERT_NE(nullptr, separator);
+    const int modelRate = separator->sampleRate();
+    constexpr int kSourceRate = 96000;
+    constexpr SINT kSourceFrames = 192000; // 2 s at 96 kHz
+    ASSERT_NE(modelRate, kSourceRate);
+
+    std::vector<float> interleaved(static_cast<std::size_t>(kSourceFrames) * 2);
+    for (SINT frame = 0; frame < kSourceFrames; ++frame) {
+        const double time = static_cast<double>(frame) / kSourceRate;
+        interleaved[static_cast<std::size_t>(frame) * 2] = static_cast<float>(
+                0.4 * std::sin(2.0 * kPi * 220.0 * time) +
+                0.1 * std::sin(2.0 * kPi * 880.0 * time));
+        interleaved[static_cast<std::size_t>(frame) * 2 + 1] =
+                static_cast<float>(0.3 * std::sin(2.0 * kPi * 330.0 * time));
+    }
+    std::vector<float> sourcePlanar(static_cast<std::size_t>(kSourceFrames) * 2);
+    for (SINT frame = 0; frame < kSourceFrames; ++frame) {
+        sourcePlanar[frame] = interleaved[static_cast<std::size_t>(frame) * 2];
+        sourcePlanar[kSourceFrames + frame] =
+                interleaved[static_cast<std::size_t>(frame) * 2 + 1];
+    }
+
+    std::vector<float> modelPlanar;
+    SINT modelFrames = 0;
+    ASSERT_TRUE(resamplePlanar(sourcePlanar.data(),
+            2,
+            kSourceFrames,
+            kSourceRate,
+            modelRate,
+            &modelPlanar,
+            &modelFrames));
+    EXPECT_LE(std::abs(modelFrames - kSourceFrames * modelRate / kSourceRate), 1);
+
+    std::vector<CSAMPLE> stems(
+            static_cast<std::size_t>(modelFrames) * kOutputChannels, 0.0f);
+    ASSERT_TRUE(separator->separate(modelPlanar.data(),
+            modelFrames,
+            [&stems, modelFrames](SINT offset, const CSAMPLE* pBuffer, SINT count) {
+                if (offset < 0 || count <= 0 || offset + count > modelFrames) {
+                    return false;
+                }
+                std::copy(pBuffer,
+                        pBuffer + static_cast<std::size_t>(count) * kOutputChannels,
+                        stems.begin() +
+                                static_cast<std::size_t>(offset) * kOutputChannels);
+                return true;
+            }))
+            << separator->lastError();
+
+    std::vector<float> modelStems(
+            static_cast<std::size_t>(modelFrames) * kOutputChannels);
+    for (SINT frame = 0; frame < modelFrames; ++frame) {
+        for (int channel = 0; channel < kOutputChannels; ++channel) {
+            modelStems[static_cast<std::size_t>(channel) * modelFrames + frame] =
+                    stems[static_cast<std::size_t>(frame) * kOutputChannels +
+                            channel];
+        }
+    }
+    std::vector<float> sourceStems;
+    SINT sourceOutputFrames = 0;
+    ASSERT_TRUE(resamplePlanar(modelStems.data(),
+            kOutputChannels,
+            modelFrames,
+            modelRate,
+            kSourceRate,
+            &sourceStems,
+            &sourceOutputFrames));
+    EXPECT_EQ(kSourceFrames, sourceOutputFrames);
+
+    // The cache must land on exactly the source frame count so the beatgrid and
+    // cue positions stay aligned.
+    std::vector<CSAMPLE> finalStems(
+            static_cast<std::size_t>(kSourceFrames) * kOutputChannels, 0.0f);
+    for (SINT frame = 0; frame < kSourceFrames; ++frame) {
+        for (int channel = 0; channel < kOutputChannels; ++channel) {
+            finalStems[static_cast<std::size_t>(frame) * kOutputChannels +
+                    channel] =
+                    sourceStems[static_cast<std::size_t>(channel) *
+                                    sourceOutputFrames +
+                            frame];
+        }
+    }
+
+    double inputDot = 0.0;
+    double inputEnergy = 0.0;
+    double stemEnergy = 0.0;
+    SINT silentFrames = 0;
+    for (SINT frame = 0; frame < kSourceFrames; ++frame) {
+        bool anySound = false;
+        for (int channel = 0; channel < 2; ++channel) {
+            CSAMPLE stemSum = 0.0f;
+            for (int stem = 0; stem < 4; ++stem) {
+                stemSum += finalStems[static_cast<std::size_t>(frame) *
+                                kOutputChannels +
+                        stem * 2 + channel];
+            }
+            ASSERT_TRUE(std::isfinite(stemSum));
+            const float input =
+                    interleaved[static_cast<std::size_t>(frame) * 2 + channel];
+            inputDot += input * stemSum;
+            inputEnergy += input * input;
+            stemEnergy += stemSum * stemSum;
+            anySound = anySound || std::abs(stemSum) > 1e-4f;
+        }
+        if (!anySound) {
+            ++silentFrames;
+        }
+    }
+    EXPECT_GT(stemEnergy, 0.0);
+    // Demucs conserves the mix: the four stems must sum back onto the input,
+    // which only holds when both resampling steps are time-aligned.
+    EXPECT_GT(inputDot / std::sqrt(inputEnergy * stemEnergy), 0.9)
+            << "the resampled stems are not aligned with the source";
+    EXPECT_LE(std::abs(std::sqrt(stemEnergy / inputEnergy) - 1.0), 0.1)
+            << "the resampling changed the stem level";
+    EXPECT_EQ(0, silentFrames) << "the resampled output contains digital silence";
+}
+
 TEST_F(DemucsOnnxSeparatorTest, AutoDeviceCreatesASeparator) {
     const char* modelPath = std::getenv("PARAMIX_TEST_DEMUCS_ONNX");
     if (modelPath == nullptr || *modelPath == '\0') {
@@ -222,9 +358,12 @@ TEST_F(DemucsOnnxSeparatorTest, CancelsAfterFirstOutputBlock) {
     }
     auto separator = createTestSeparator();
     ASSERT_NE(nullptr, separator);
-    const auto input = makeInput();
+    // A 2 s input fits in one Demucs window, so cancellation is never polled
+    // before the job completes. Use enough audio for two windows.
+    constexpr SINT kCancelFrames = 44100 * 10;
+    const auto input = makeInput(kCancelFrames);
     int blocksWritten = 0;
-    const bool completed = separator->separate(input.data(), kFrameCount, [&blocksWritten](SINT, const CSAMPLE*, SINT) {
+    const bool completed = separator->separate(input.data(), kCancelFrames, [&blocksWritten](SINT, const CSAMPLE*, SINT) {
                 ++blocksWritten;
                 return true; }, {}, [&blocksWritten]() { return blocksWritten > 0; });
     EXPECT_FALSE(completed);
