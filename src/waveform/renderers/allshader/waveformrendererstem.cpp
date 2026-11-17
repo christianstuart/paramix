@@ -115,7 +115,20 @@ WaveformRendererStem::WaveformRendererStem(
           m_reorderOnChange(true),
           m_opacity(kOpaqueStemOpacity),
           m_hasGeometry(false),
-          m_pTextureNode(nullptr) {
+          m_pTextureNode(nullptr),
+          m_textureValid(false),
+          m_textureDetail(nullptr),
+          m_texturePixelLength(0),
+          m_textureLaneDeviceHeight(0),
+          m_textureLaneCount(0),
+          m_textureSamplesPerColumn(0),
+          m_textureDetailSamplesPerColumn(0),
+          m_textureLaneAlpha(0.0f),
+          m_textureMutedMask(0),
+          m_textureOrderSignature(0),
+          m_textureSlip(false),
+          m_textureFirstSample(0.0),
+          m_textureColumns(0) {
     initForRectangles<RGBAMaterial>(0);
     m_pTextureNode = appendChildNode(std::make_unique<StemDetailTextureNode>());
     setUsePreprocess(true);
@@ -304,11 +317,13 @@ bool WaveformRendererStem::preprocessInner() {
         // while the first build is still running.
         m_pDetail.reset();
         m_hasGeometry = false;
+        m_textureValid = false;
         return false;
     }
     if (m_pDetail && m_pDetail->trackId != pTrack->getId()) {
         m_pDetail.reset();
         m_hasGeometry = false;
+        m_textureValid = false;
     }
 
     const int laneCount = std::min(stemCount, pDetail->laneCount);
@@ -376,28 +391,6 @@ bool WaveformRendererStem::preprocessInner() {
     const int endX = std::clamp(
             static_cast<int>(std::ceil(detailColumnEnd)), 0, pixelLength);
 
-    GeometryKey key;
-    key.pDetail = pDetail.get();
-    key.pixelLength = pixelLength;
-    key.length = length;
-    key.breadth = breadth;
-    key.devicePixelRatio = devicePixelRatio;
-    key.laneDeviceHeight = laneDeviceHeight;
-    key.laneCount = drawLaneCount;
-    key.topDevice = topDevicePx;
-    key.firstColumn = static_cast<qint64>(std::floor(detailColumnStart));
-    key.firstSample = firstSample;
-    key.samplesPerColumn = samplesPerColumn;
-    key.detailSamplesPerColumn = detailSamplesPerColumn;
-    key.laneAlpha = laneAlpha;
-    key.mutedMask = mutedMask;
-    key.orderSignature = orderSignature;
-    key.slip = m_isSlipRenderer;
-
-    if (m_hasGeometry && key == m_geometryKey) {
-        return true;
-    }
-
     // One run is a vertical span of rows that share the same pixel colour.
     auto forEachRun = [](const StemDetailLane& lane,
                               int columnIndex,
@@ -452,21 +445,145 @@ bool WaveformRendererStem::preprocessInner() {
         }
     };
 
-    auto detailColumnFor = [&](int x, int laneSamplesPerColumn) {
-        return static_cast<int>(std::llround(
-                (firstSample + static_cast<double>(x) * samplesPerColumn) /
-                laneSamplesPerColumn));
-    };
+    // The texture covers the viewport plus a margin. While the playhead stays
+    // inside that margin only the quads move; the texture is rebuilt when the
+    // visible range leaves it. This keeps texture allocation and uploads off
+    // the per-frame path.
+    const int marginColumns = std::max(64, pixelLength / 4);
+    const int textureColumns = pixelLength + 2 * marginColumns;
+    const bool textureParamsChanged = !m_textureValid ||
+            m_textureDetail != pDetail.get() ||
+            m_texturePixelLength != pixelLength ||
+            m_textureLaneDeviceHeight != laneDeviceHeight ||
+            m_textureLaneCount != drawLaneCount ||
+            m_textureSamplesPerColumn != samplesPerColumn ||
+            m_textureDetailSamplesPerColumn != detailSamplesPerColumn ||
+            m_textureLaneAlpha != laneAlpha ||
+            m_textureMutedMask != mutedMask ||
+            m_textureOrderSignature != orderSignature ||
+            m_textureSlip != m_isSlipRenderer;
+    const bool textureRangeExceeded = !m_textureValid ||
+            firstSample < m_textureFirstSample ||
+            firstSample + static_cast<double>(pixelLength) * samplesPerColumn >
+                    m_textureFirstSample +
+                            static_cast<double>(m_textureColumns) *
+                                    samplesPerColumn;
+    bool textureRebuilt = false;
+    if (textureParamsChanged || textureRangeExceeded) {
+        m_textureFirstSample =
+                firstSample - static_cast<double>(marginColumns) * samplesPerColumn;
+        m_textureColumns = textureColumns;
 
-    const int imageWidth = pixelLength;
-    const int imageHeight = totalLaneDeviceHeight;
-    if (m_textureImage.size() != QSize(imageWidth, imageHeight) ||
-            m_textureImage.format() != QImage::Format_RGBA8888_Premultiplied) {
-        m_textureImage = QImage(imageWidth,
-                imageHeight,
-                QImage::Format_RGBA8888_Premultiplied);
+        const int imageWidth = textureColumns;
+        const int imageHeight = totalLaneDeviceHeight;
+        if (m_textureImage.size() != QSize(imageWidth, imageHeight) ||
+                m_textureImage.format() != QImage::Format_RGBA8888_Premultiplied) {
+            m_textureImage = QImage(imageWidth,
+                    imageHeight,
+                    QImage::Format_RGBA8888_Premultiplied);
+        }
+        m_textureImage.fill(Qt::transparent);
+        const qsizetype bytesPerLine = m_textureImage.bytesPerLine();
+        uchar* pBits = m_textureImage.bits();
+
+        for (int x = 0; x < textureColumns; ++x) {
+            const double sample = m_textureFirstSample +
+                    static_cast<double>(x) * samplesPerColumn;
+            const int columnIndex = static_cast<int>(
+                    std::llround(sample / detailSamplesPerColumn));
+            if (columnIndex < 0 || columnIndex >= detailColumns) {
+                continue;
+            }
+            for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
+                const StemDetailLane& lane =
+                        pDetail->lanes[static_cast<std::size_t>(
+                                laneStems.at(laneIndex))];
+                const bool muted = (mutedMask >> laneIndex) & 1u;
+                const float alpha =
+                        muted ? laneAlpha * kGhostedStemOpacity : laneAlpha;
+                const int alphaByte = std::clamp(
+                        static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
+                if (alphaByte == 0) {
+                    continue;
+                }
+                const int laneTopRow =
+                        laneIndex * (laneDeviceHeight + gapDevicePx);
+                const int visibleHeight = m_isSlipRenderer
+                        ? laneDeviceHeight / 2
+                        : laneDeviceHeight;
+                const int rowLimit = m_isSlipRenderer ? lane.height / 2
+                                                      : lane.height;
+
+                forEachRun(lane,
+                        columnIndex,
+                        rowLimit,
+                        [&](int rowStart, int rowEnd, QRgb color) {
+                            int y0 = laneTopRow +
+                                    (rowStart * laneDeviceHeight) / lane.height;
+                            int y1 = laneTopRow +
+                                    (rowEnd * laneDeviceHeight + lane.height - 1) /
+                                            lane.height;
+                            y0 = std::clamp(
+                                    y0, laneTopRow, laneTopRow + visibleHeight);
+                            y1 = std::clamp(
+                                    y1, y0, laneTopRow + visibleHeight);
+                            const auto red = static_cast<uchar>(
+                                    (qRed(color) * alphaByte) / 255);
+                            const auto green = static_cast<uchar>(
+                                    (qGreen(color) * alphaByte) / 255);
+                            const auto blue = static_cast<uchar>(
+                                    (qBlue(color) * alphaByte) / 255);
+                            for (int y = y0; y < y1; ++y) {
+                                uchar* pPixel = pBits + y * bytesPerLine +
+                                        static_cast<qsizetype>(x) * 4;
+                                pPixel[0] = red;
+                                pPixel[1] = green;
+                                pPixel[2] = blue;
+                                pPixel[3] = static_cast<uchar>(alphaByte);
+                            }
+                        });
+            }
+        }
+
+        m_pTextureNode->updateTexture(
+                m_waveformRenderer->getContext(), m_textureImage);
+        m_textureDetail = pDetail.get();
+        m_texturePixelLength = pixelLength;
+        m_textureLaneDeviceHeight = laneDeviceHeight;
+        m_textureLaneCount = drawLaneCount;
+        m_textureSamplesPerColumn = samplesPerColumn;
+        m_textureDetailSamplesPerColumn = detailSamplesPerColumn;
+        m_textureLaneAlpha = laneAlpha;
+        m_textureMutedMask = mutedMask;
+        m_textureOrderSignature = orderSignature;
+        m_textureSlip = m_isSlipRenderer;
+        m_textureValid = true;
+        textureRebuilt = true;
     }
-    m_textureImage.fill(Qt::transparent);
+
+    GeometryKey key;
+    key.pDetail = pDetail.get();
+    key.pixelLength = pixelLength;
+    key.length = length;
+    key.breadth = breadth;
+    key.devicePixelRatio = devicePixelRatio;
+    key.laneDeviceHeight = laneDeviceHeight;
+    key.laneCount = drawLaneCount;
+    key.topDevice = topDevicePx;
+    key.firstColumn = static_cast<qint64>(std::floor(detailColumnStart));
+    key.firstSample = firstSample;
+    key.samplesPerColumn = samplesPerColumn;
+    key.detailSamplesPerColumn = detailSamplesPerColumn;
+    key.textureFirstSample = m_textureFirstSample;
+    key.textureColumns = m_textureColumns;
+    key.laneAlpha = laneAlpha;
+    key.mutedMask = mutedMask;
+    key.orderSignature = orderSignature;
+    key.slip = m_isSlipRenderer;
+
+    if (m_hasGeometry && key == m_geometryKey && !textureRebuilt) {
+        return true;
+    }
 
     const bool drawBase = !m_isSlipRenderer && endX > startX;
     const int baseVertexCount = drawBase
@@ -478,13 +595,24 @@ bool WaveformRendererStem::preprocessInner() {
     RGBAVertexUpdater baseUpdater{
             geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
 
+    const double offsetColumns =
+            (firstSample - m_textureFirstSample) / samplesPerColumn;
+    const float quadX0 = 0.0f;
+    const float quadX1 = static_cast<float>(pixelLength) / devicePixelRatio;
+    const float quadU0 = static_cast<float>(
+                                 std::clamp(offsetColumns, 0.0, std::max(0.0, static_cast<double>(m_textureColumns - pixelLength)))) /
+            static_cast<float>(m_textureColumns);
+    const float quadU1 = static_cast<float>(
+                                 std::clamp(offsetColumns + pixelLength, 0.0, static_cast<double>(m_textureColumns))) /
+            static_cast<float>(m_textureColumns);
+
     std::array<TextureQuad, mixxx::kMaxSupportedStems> quads{};
     int quadCount = 0;
 
     for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
-        const int stemIdx = laneStems.at(laneIndex);
         const StemDetailLane& lane =
-                pDetail->lanes[static_cast<std::size_t>(stemIdx)];
+                pDetail->lanes[static_cast<std::size_t>(
+                        laneStems.at(laneIndex))];
         const bool muted = (mutedMask >> laneIndex) & 1u;
         const float alpha = muted ? laneAlpha * kGhostedStemOpacity : laneAlpha;
         const int laneTopRow = laneIndex * (laneDeviceHeight + gapDevicePx);
@@ -492,7 +620,6 @@ bool WaveformRendererStem::preprocessInner() {
         const int laneBottomDevice = laneTopDevice + laneDeviceHeight;
         const int visibleHeight = m_isSlipRenderer ? laneDeviceHeight / 2
                                                    : laneDeviceHeight;
-        const int rowLimit = m_isSlipRenderer ? lane.height / 2 : lane.height;
         const int alphaByte = std::clamp(
                 static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
 
@@ -507,59 +634,20 @@ bool WaveformRendererStem::preprocessInner() {
                     {kLaneBaseRed, kLaneBaseGreen, kLaneBaseBlue, alpha});
         }
 
-        if (alphaByte > 0 && endX > startX) {
-            for (int x = startX; x < endX; ++x) {
-                const int columnIndex = detailColumnFor(x, lane.spc);
-                if (columnIndex < 0 || columnIndex >= lane.columns.size()) {
-                    continue;
-                }
-                forEachRun(lane,
-                        columnIndex,
-                        rowLimit,
-                        [&](int rowStart, int rowEnd, QRgb color) {
-                            int y0 = laneTopRow +
-                                    (rowStart * laneDeviceHeight) / lane.height;
-                            int y1 = laneTopRow +
-                                    (rowEnd * laneDeviceHeight + lane.height - 1) /
-                                            lane.height;
-                            y0 = std::clamp(y0, laneTopRow, laneTopRow + visibleHeight);
-                            y1 = std::clamp(y1, y0, laneTopRow + visibleHeight);
-                            const auto red = static_cast<uchar>(
-                                    (qRed(color) * alphaByte) / 255);
-                            const auto green = static_cast<uchar>(
-                                    (qGreen(color) * alphaByte) / 255);
-                            const auto blue = static_cast<uchar>(
-                                    (qBlue(color) * alphaByte) / 255);
-                            for (int y = y0; y < y1; ++y) {
-                                uchar* pPixel = m_textureImage.scanLine(y) +
-                                        static_cast<qsizetype>(x) * 4;
-                                pPixel[0] = red;
-                                pPixel[1] = green;
-                                pPixel[2] = blue;
-                                pPixel[3] = static_cast<uchar>(alphaByte);
-                            }
-                        });
-            }
-        }
-
-        if (visibleHeight > 0 && endX > startX) {
-            const float x0 = static_cast<float>(startX) / devicePixelRatio;
-            const float x1 = static_cast<float>(endX) / devicePixelRatio;
-            const float y0 = static_cast<float>(laneTopDevice) / devicePixelRatio;
+        if (alphaByte > 0 && visibleHeight > 0) {
+            const float y0 = static_cast<float>(laneTopDevice) /
+                    devicePixelRatio;
             const float y1 = static_cast<float>(laneTopDevice + visibleHeight) /
                     devicePixelRatio;
-            const float u0 = static_cast<float>(startX) / imageWidth;
-            const float u1 = static_cast<float>(endX) / imageWidth;
-            const float v0 = static_cast<float>(laneTopRow) / imageHeight;
+            const float v0 = static_cast<float>(laneTopRow) /
+                    static_cast<float>(totalLaneDeviceHeight);
             const float v1 = static_cast<float>(laneTopRow + visibleHeight) /
-                    imageHeight;
-            quads[quadCount++] = {x0, y0, x1, y1, u0, v0, u1, v1};
+                    static_cast<float>(totalLaneDeviceHeight);
+            quads[quadCount++] = {quadX0, y0, quadX1, y1, quadU0, v0, quadU1, v1};
         }
     }
 
     DEBUG_ASSERT(baseUpdater.index() == baseVertexCount);
-
-    m_pTextureNode->updateTexture(m_waveformRenderer->getContext(), m_textureImage);
     m_pTextureNode->updateGeometry(quads.data(), quadCount);
 
     m_pDetail = pDetail;

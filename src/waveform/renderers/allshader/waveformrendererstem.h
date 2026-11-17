@@ -1,11 +1,10 @@
 #pragma once
 
+#include <QImage>
 #include <cstdint>
 #include <memory>
 #include <numeric>
 #include <vector>
-
-#include <QImage>
 
 #include "rendergraph/geometrynode.h"
 #include "util/class.h"
@@ -97,6 +96,8 @@ class allshader::WaveformRendererStem final
         double firstSample = 0.0;
         int samplesPerColumn = 0;
         int detailSamplesPerColumn = 0;
+        double textureFirstSample = 0.0;
+        int textureColumns = 0;
         float laneAlpha = 1.0f;
         unsigned int mutedMask = 0;
         uint64_t orderSignature = 0;
@@ -122,6 +123,19 @@ class allshader::WaveformRendererStem final
     bool m_hasGeometry;
     StemDetailTextureNode* m_pTextureNode;
     QImage m_textureImage;
+    bool m_textureValid;
+    const StemDetailTrack* m_textureDetail;
+    int m_texturePixelLength;
+    int m_textureLaneDeviceHeight;
+    int m_textureLaneCount;
+    int m_textureSamplesPerColumn;
+    int m_textureDetailSamplesPerColumn;
+    float m_textureLaneAlpha;
+    unsigned int m_textureMutedMask;
+    uint64_t m_textureOrderSignature;
+    bool m_textureSlip;
+    double m_textureFirstSample;
+    int m_textureColumns;
     std::shared_ptr<const StemDetailTrack> m_pDetail;
     GeometryKey m_geometryKey;
 

@@ -113,9 +113,11 @@ black instead of `#181818`.
   window background.
 - **Texture:** the coloured rows are rasterised into an RGBA8 image at device resolution and
   drawn with one textured quad per lane (nearest filtering, pixel-aligned UVs). The image
-  is regenerated when the geometry key changes; transparent texels leave the lane base
-  visible. The renderer is still a `GeometryNode`; the texture is a child node, so the same
-  source compiles for the GL rendergraph and the QML scene-graph backend.
+  covers the viewport plus a 25 % margin and is rebuilt only when the playhead leaves that
+  margin or the zoom/layout changes; between rebuilds only the quads' UVs move, so playback
+  does not upload a texture per frame. Transparent texels leave the lane base visible. The
+  renderer is still a `GeometryNode`; the texture is a child node, so the same source
+  compiles for the GL rendergraph and the QML scene-graph backend.
 - **Mute/solo:** both the base and the wave pixels are multiplied by
   `kGhostedStemOpacity` (0.32). The wave alpha is baked into the texture, the base alpha is
   in its geometry.
@@ -170,7 +172,11 @@ black instead of `#181818`.
   detail view, drums magenta/orange, bass orange, other green/cyan, vocals blue/cyan; the
   deck overview and non-stem tracks keep the regular waveform.
 - Performance: on the Retina QML skin the per-pixel geometry path spent ~55 % of the render
-  thread in the Metal host-write copy and drove the process to ~100 % CPU; the texture path
-  removes the vertex stream, the render thread is back to waiting for the drawable, and the
-  process stays around 50 % while playing. The picture is produced from the same `QRgb`
-  rows, so the pixels are unchanged.
+  thread in the Metal host-write copy and drove the process to ~100 % CPU, with a ~3 ms
+  per-frame build and periodic 25–33 ms frame gaps. The texture path removed the vertex
+  stream; the viewport-plus-margin texture rebuilds only a few times per second (the build
+  itself is ~3–4 ms) and between rebuilds only quads move. The render thread is back to
+  waiting for the drawable and the process stays around 30–40 % while playing. The picture
+  is produced from the same `QRgb` rows, so the pixels are unchanged. The QML waveform
+  pacing also allows a 1 ms tolerance so a 60 Hz display updates every frame instead of
+  slipping through the millisecond timer.
