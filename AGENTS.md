@@ -43,4 +43,3 @@ QML edits need only a restart: the resource path resolves to the source `res/`
 via `CMakeCache.txt` (`src/preferences/configobject.cpp`), so the app reads
 `res/qml/` off disk. C++ edits still need a rebuild — the `.exe` does not
 contain the QML.
-
