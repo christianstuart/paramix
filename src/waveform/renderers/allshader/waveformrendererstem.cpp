@@ -421,7 +421,6 @@ bool WaveformRendererStem::preprocessInner() {
     geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
     geometry().allocate(vertexCount);
     markDirtyGeometry();
-
     RGBAVertexUpdater vertexUpdater{
             geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
 
@@ -438,8 +437,10 @@ bool WaveformRendererStem::preprocessInner() {
         const float laneBottom = static_cast<float>(
                                          laneTopDevice + laneDeviceHeight) /
                 devicePixelRatio;
+        // Row offsets are device pixels; y is in logical widget units, so the
+        // per-row height must be divided by the device pixel ratio as well.
         const float rowScale = static_cast<float>(laneDeviceHeight) /
-                static_cast<float>(std::max(1, lane.height));
+                (static_cast<float>(std::max(1, lane.height)) * devicePixelRatio);
 
         if (!m_isSlipRenderer) {
             // Opaque lane base, clipped to the part of the track that the
