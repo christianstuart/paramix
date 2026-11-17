@@ -287,12 +287,14 @@ at ~100 % CPU with visible stutter. `StemDetailRendererStem` now rasterises the 
 rows into one RGBA8 image at device resolution and draws it with four textured quads
 (nearest filtering, pixel-aligned UVs); the lane bases remain geometry. The render thread
 is back to waiting for the drawable and the process runs around 30–40 % while playing.
-The texture image covers the viewport plus a 25 % margin, so it is rebuilt only a few times
-per second; between rebuilds only the quads' UVs change. `QmlWaveformDisplay` also allows a
-1 ms pacing tolerance so a 60 Hz display updates the waveform every frame instead of
-slipping through the millisecond timer. The remaining optional step is in-place ring-buffer
-updates for the texture (only newly exposed columns) if longer tracks or two simultaneous
-stem decks need more headroom.
+The texture image covers the viewport plus a margin, so it is rebuilt only a few times
+per second; for tracks whose whole picture fits in a texture (including the test fixture),
+the image covers the whole track and playback performs no texture uploads at all. Between
+rebuilds only the quads' UVs change. `QmlWaveformDisplay` also allows a 1 ms pacing
+tolerance so a 60 Hz display updates the waveform every frame instead of slipping through
+the millisecond timer. The remaining optional step is tiled whole-track textures for long
+tracks, which would remove the last periodic rebuild; the current profile of the render
+thread is already dominated by waiting for the Metal drawable.
 
 ### Iterating on the build
 

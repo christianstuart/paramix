@@ -134,6 +134,7 @@ class allshader::WaveformRendererStem final
     unsigned int m_textureMutedMask;
     uint64_t m_textureOrderSignature;
     bool m_textureSlip;
+    bool m_textureWholeTrack;
     double m_textureFirstSample;
     int m_textureColumns;
     std::shared_ptr<const StemDetailTrack> m_pDetail;

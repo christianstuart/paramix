@@ -100,6 +100,9 @@ class StemDetailTextureNode final : public rendergraph::GeometryNode {
     }
 
     void clear() {
+        if (geometry().vertexCount() == 0) {
+            return;
+        }
         geometry().allocate(0);
         markDirtyGeometry();
     }
@@ -127,6 +130,7 @@ WaveformRendererStem::WaveformRendererStem(
           m_textureMutedMask(0),
           m_textureOrderSignature(0),
           m_textureSlip(false),
+          m_textureWholeTrack(false),
           m_textureFirstSample(0.0),
           m_textureColumns(0) {
     initForRectangles<RGBAMaterial>(0);
@@ -448,9 +452,18 @@ bool WaveformRendererStem::preprocessInner() {
     // The texture covers the viewport plus a margin. While the playhead stays
     // inside that margin only the quads move; the texture is rebuilt when the
     // visible range leaves it. This keeps texture allocation and uploads off
-    // the per-frame path.
-    const int marginColumns = std::max(64, pixelLength / 4);
-    const int textureColumns = pixelLength + 2 * marginColumns;
+    // the per-frame path. Tracks whose whole picture fits in one texture use a
+    // fixed whole-track range, so playback never rebuilds the texture at all.
+    const int64_t totalTrackColumns =
+            (pDetail->totalSamples + samplesPerColumn - 1) / samplesPerColumn;
+    constexpr int64_t kMaxTextureWidth = 16384;
+    const int64_t wholeTextureColumns = totalTrackColumns + 2 * pixelLength;
+    const bool useWholeTrackTexture = wholeTextureColumns <= kMaxTextureWidth;
+    const int marginColumns = useWholeTrackTexture ? pixelLength
+                                                   : std::max(64, pixelLength / 2);
+    const int textureColumns = useWholeTrackTexture
+            ? static_cast<int>(wholeTextureColumns)
+            : pixelLength + 2 * marginColumns;
     const bool textureParamsChanged = !m_textureValid ||
             m_textureDetail != pDetail.get() ||
             m_texturePixelLength != pixelLength ||
@@ -461,18 +474,24 @@ bool WaveformRendererStem::preprocessInner() {
             m_textureLaneAlpha != laneAlpha ||
             m_textureMutedMask != mutedMask ||
             m_textureOrderSignature != orderSignature ||
-            m_textureSlip != m_isSlipRenderer;
+            m_textureSlip != m_isSlipRenderer ||
+            m_textureWholeTrack != useWholeTrackTexture;
     const bool textureRangeExceeded = !m_textureValid ||
-            firstSample < m_textureFirstSample ||
-            firstSample + static_cast<double>(pixelLength) * samplesPerColumn >
-                    m_textureFirstSample +
-                            static_cast<double>(m_textureColumns) *
-                                    samplesPerColumn;
+            (!useWholeTrackTexture &&
+                    (firstSample < m_textureFirstSample ||
+                            firstSample +
+                                            static_cast<double>(pixelLength) *
+                                                    samplesPerColumn >
+                                    m_textureFirstSample +
+                                            static_cast<double>(m_textureColumns) *
+                                                    samplesPerColumn));
     bool textureRebuilt = false;
     if (textureParamsChanged || textureRangeExceeded) {
-        m_textureFirstSample =
-                firstSample - static_cast<double>(marginColumns) * samplesPerColumn;
+        m_textureFirstSample = useWholeTrackTexture
+                ? -static_cast<double>(pixelLength) * samplesPerColumn
+                : firstSample - static_cast<double>(marginColumns) * samplesPerColumn;
         m_textureColumns = textureColumns;
+        m_textureWholeTrack = useWholeTrackTexture;
 
         const int imageWidth = textureColumns;
         const int imageHeight = totalLaneDeviceHeight;
@@ -557,6 +576,7 @@ bool WaveformRendererStem::preprocessInner() {
         m_textureMutedMask = mutedMask;
         m_textureOrderSignature = orderSignature;
         m_textureSlip = m_isSlipRenderer;
+        m_textureWholeTrack = useWholeTrackTexture;
         m_textureValid = true;
         textureRebuilt = true;
     }

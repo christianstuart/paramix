@@ -112,12 +112,13 @@ black instead of `#181818`.
   rectangle is clipped to the columns the picture actually covers, so pre/post-track stays
   window background.
 - **Texture:** the coloured rows are rasterised into an RGBA8 image at device resolution and
-  drawn with one textured quad per lane (nearest filtering, pixel-aligned UVs). The image
-  covers the viewport plus a 25 % margin and is rebuilt only when the playhead leaves that
-  margin or the zoom/layout changes; between rebuilds only the quads' UVs move, so playback
-  does not upload a texture per frame. Transparent texels leave the lane base visible. The
-  renderer is still a `GeometryNode`; the texture is a child node, so the same source
-  compiles for the GL rendergraph and the QML scene-graph backend.
+  drawn with one textured quad per lane (nearest filtering, pixel-aligned UVs). When the
+  track plus one viewport of margin per side fits in a single texture (at most 16384 px
+  wide), the image covers the whole track and playback never rebuilds it. Longer tracks
+  use the viewport plus a 50 % margin and rebuild only when the playhead leaves that
+  margin; between rebuilds only the quads' UVs move. Transparent texels leave the lane base
+  visible. The renderer is still a `GeometryNode`; the texture is a child node, so the same
+  source compiles for the GL rendergraph and the QML scene-graph backend.
 - **Mute/solo:** both the base and the wave pixels are multiplied by
   `kGhostedStemOpacity` (0.32). The wave alpha is baked into the texture, the base alpha is
   in its geometry.
