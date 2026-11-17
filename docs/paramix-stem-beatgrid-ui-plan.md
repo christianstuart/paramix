@@ -170,7 +170,7 @@ B plus real-time/streaming separation, warp-marker/tempo-curve grids ("Ableton-s
 
 ### 5.1 Beat detection
 
-**Decision: Queen Mary, already in the build.** Beat detection uses the Queen Mary analyzer (`src/analyzer/plugins/analyzerqueenmarybeats.cpp`), with SoundTouch remaining as the existing alternative. No ML beat model, ONNX graph, download, or additional beat weights are used. The rbxport analyzer (PR #16) provides kick-attack placement, variable-tempo segmentation, and arrangement-based downbeat detection.
+**Decision: Queen Mary, already in the build.** Beat detection uses the Queen Mary analyzer (`src/analyzer/plugins/analyzerqueenmarybeats.cpp`), with SoundTouch remaining as the existing alternative. No ML beat model, ONNX graph, download, or additional beat weights are used.
 
 The remaining beatgrid work is confidence/downbeat export and the ADR-003 representation/rendering, not model acquisition. Rejected alternatives (madmom/Essentia/aubio) remain rejected on GPL-2.0 grounds, but they are not part of the build either.
 
@@ -364,11 +364,10 @@ generated sets, the model download manager, and a QML stem-status column (the ba
 
 ### 6.2 Beatgrid & Rekordbox-style phrase visualization
 
-With the **rbxport** C++ beatgrid analyzer (`src/analyzer/plugins/rbxport/`, PR #16) merged and delivering kick-attack placement, variable-tempo segmentation, and arrangement-based downbeat detection, Queen Mary remains the built-in beat tracker and no ML beat model is used. The remaining beatgrid work focuses on **phrase change labeling and visualization**:
+Queen Mary remains the built-in beat tracker and no ML beat model is used. The remaining beatgrid work focuses on **phrase change labeling and visualization**:
 
 - **Additive wire format (ADR-003):** extend `BeatGrid` and `BeatMap` in `src/proto/beats.proto` additively under the existing `BeatGrid-2.0` / `BeatMap-1.0` version strings with `BarInfo` (`beats_per_bar`, `first_beat_in_bar`) and optional phrase segment entries (`start_beat`, `end_beat`, `phrase_kind`), plus fix the `Beats::operator==` sample-rate comparison bug (`beats.h:216-221`).
 - **Rekordbox-style phrase classification & import:**
-  - `rbxport/downbeat.cpp` already computes 12-band log-energy spectral profiles (`BandFrames`) and 4-bar spectral novelty peaks (`GridPhase::phraseStarts`). Preserve `phraseStarts` from `analyseGrid()` and classify each phrase segment from its band-energy profile and track position into Rekordbox-style phrase labels (`Intro`, `Up`, `Down`, `Verse 1/2`, `Bridge`, `Chorus`, `Outro`).
   - In `src/library/rekordbox/rekordboxfeature.cpp`, import Rekordbox's `SECTION_TAGS_SONG_STRUCTURE` (`PSSI`, already parsed by `lib/rekordbox-metadata/rekordbox_anlz.h`) and `beat_number` downbeats directly.
 - **Selectable waveform display option:**
   - **Standard Bar (default/classic):** simple vertical bar line at phrase/bar changes.
@@ -491,7 +490,7 @@ rename are still open; see `docs/paramix-rebrand.md`.
 |---|---|---|---|
 | **A0 Architect/Integrator** | ADRs, interfaces, merge gate, nightly integration | `docs/adr/`, `CMakeLists.txt`, contract headers | ADRs, frozen interfaces, green integration branch |
 | **A1 BeatGrid core** | Bar info, serialization, builder, editor semantics | `src/track/beats.*`, `src/track/beatfactory.*`, `src/track/beatutils.*`, `src/proto/beats.proto` | ADR-003 bar info + tests |
-| **A2 Beatgrid baseline** | Queen Mary tuning, downbeat/confidence export, accuracy evaluation | `src/analyzer/plugins/analyzerqueenmarybeats.*`, `src/analyzer/plugins/rbxport/` | Queen Mary baseline + F-measure report |
+| **A2 Beatgrid baseline** | Queen Mary tuning, downbeat/confidence export, accuracy evaluation | `src/analyzer/plugins/analyzerqueenmarybeats.*` | Queen Mary baseline + F-measure report |
 | **A3 Stem runtime** | ORT separator, model manager, chunking | `src/stems/` (separator/model), `tools/stems/` | Working separator + benchmarks |
 | **A4 Stem pipeline/DB** | Cache, jobs, schema, DAO, source wrapper | `src/stems/stemcache.*`, `src/library/dao/`, `res/schema.xml`, `src/sources/soundsourcestemcache.*` | Durable cache + migration |
 | **A5 Audio engine** | Playback integration, controls, latency | `src/engine/` (incl. `cachingreader/`), `src/mixer/` | 8-ch playback verified, no xruns |
@@ -643,7 +642,7 @@ The program board (<https://github.com/users/christianstuart/projects/2>) has be
 
 | # | Area | Task | Primary Files |
 |---|---|---|---|
-| 1 | **Beatgrid** | **Rekordbox-style phrase labeling & visualization option** — additive `BarInfo` + phrase segments in `beats.proto`, classify `rbxport` `GridPhase::phraseStarts` into Rekordbox-style phrase labels (`Intro`, `Up`, `Down`, `Verse`, `Bridge`, `Chorus`, `Outro`), import Rekordbox `PSSI` song structure in `rekordboxfeature.cpp`, and add user setting to toggle between Standard Bar lines and Rekordbox-style labeled phrase blocks. | `src/proto/beats.proto`, `src/track/beats.*`, `src/analyzer/plugins/rbxport/*`, `src/library/rekordbox/rekordboxfeature.cpp`, `src/waveform/renderers/*waveformrenderbeat*` |
+| 1 | **Beatgrid** | **Rekordbox-style phrase labeling & visualization option** — additive `BarInfo` + phrase segments in `beats.proto`, import Rekordbox `PSSI` song structure in `rekordboxfeature.cpp`, and add user setting to toggle between Standard Bar lines and Rekordbox-style labeled phrase blocks. | `src/proto/beats.proto`, `src/track/beats.*`, `src/library/rekordbox/rekordboxfeature.cpp`, `src/waveform/renderers/*waveformrenderbeat*` |
 | 2 | **Stems 1** | **Model-specific STFT/preprocessing** — SCNet `n_fft=4096`/`hop=1024` 2049-bin complex spectrogram with 11 s segments and overlap-add; Open-Unmix magnitude spectrogram + Wiener stage; 44.1 kHz resampling, per-model normalization, tail padding, and shared peak limiting. | `src/stems/`, `src/test/` |
 | 3 | **Stems 2** | **GPU-accelerated inference backend & model manager** — hardware GPU execution via Metal (macOS), Vulkan / DirectML / CUDA (Windows), and Vulkan / CUDA (Linux) with SIMD CPU (`AVX2`/`NEON`) fallback, startup NaN self-check, fast **SCNet** (13 MB int8) default + **SCNet-large** (45 MB int8) quality and **Open-Unmix `umxhq`** speed fallback, and C++/Qt Model Manager (`paramix-models`). | `src/stems/`, `cmake/`, `CMakeLists.txt` |
 | 4 | **Stems 3** | **Traktor-style native `.stem.mp4` generation & library stem linking** — mux 5 stereo streams (master + 4 stems in ALAC or AAC 256k) + `moov/udta/stem` NI JSON atom into `<StemFilesLocation>/`, link in schema rev 41 (`min_compatible="3"`), hook `SoundSourceProxy` into existing `SoundSourceSTEM` with red "Missing stem file" fallback, and add "Save `.stem.mp4` As…". | `src/stems/`, `src/sources/soundsourceproxy.cpp`, `src/track/steminfoimporter.*`, `res/schema.xml`, `src/library/dao/` |
@@ -659,7 +658,7 @@ The program board (<https://github.com/users/christianstuart/projects/2>) has be
 | Area | Files (primary) |
 |---|---|
 | Beatgrid/serialization | `src/track/beats.{h,cpp}`, `src/track/beatfactory.{h,cpp}`, `src/track/beatutils.{h,cpp}`, `src/proto/beats.proto` |
-| Beat detection | `src/analyzer/analyzerbeats.{h,cpp}`, `src/analyzer/plugins/analyzerqueenmarybeats.*`, `src/analyzer/plugins/rbxport/*`, `src/analyzer/plugins/analyzerplugin.h` |
+| Beat detection | `src/analyzer/analyzerbeats.{h,cpp}`, `src/analyzer/plugins/analyzerqueenmarybeats.*`, `src/analyzer/plugins/analyzerplugin.h` |
 | Beat persistence | `res/schema.xml`, `src/library/dao/trackdao.cpp`, `src/library/dao/trackdao.h`, `src/track/trackrecord.h` |
 | Beat UI | `src/library/dlgtrackinfo.{h,cpp}`, `src/widget/wtrackmenu.cpp`, `src/waveform/renderers/allshader/waveformrenderbeat.cpp` |
 | Stems service | `src/stems/*` (new), `src/coreservices.{h,cpp}`, `src/analyzer/trackanalysisscheduler.*` (model) |
@@ -692,7 +691,6 @@ The program board (<https://github.com/users/christianstuart/projects/2>) has be
 **Beat tracking**
 - Queen Mary DSP (already in the tree): `lib/qm-dsp/`, `src/analyzer/plugins/analyzerqueenmarybeats.cpp`
 - qm-dsp downbeat baseline: `lib/qm-dsp/dsp/tempotracking/DownBeat.cpp`
-- rbxport analyzer (phrase/downbeat): `src/analyzer/plugins/rbxport/`
 
 **DJ market / UX**
 - Traktor Pro 4 review (iZotope RX offline separation): https://musictech.com/reviews/dj/native-instruments-traktor-4-pro/
