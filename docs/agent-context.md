@@ -404,6 +404,18 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   needs a new `rendergraph::Material`, two qsb shaders derived from `res/shaders/rgbsignal.frag`,
   and a whole-track texture upload - a rewrite rather than a wiring change. Plan and file list are
   captured in the session notes; not started to avoid an unvalidated rewrite across every deck.
+- **2026-11-15** — **Waveform refresh rate follows the display.** `[Waveform],RefreshRate`
+  (`Mixxx.Config.waveformRefreshRate`, 0 = Auto) sets the deck waveform update rate, and
+  `WaveformDisplay.qml` uses it instead of the hidden `[Waveform],FrameRate`. Preferences > Waveform
+  relabels the old frame-rate row "Monitor refresh" (0 shows as "Auto", range 0-240 Hz) and writes the
+  new key, so the setting is reachable from the gear dialog rather than only the unwired QML settings
+  popup. Auto reads `QScreen::refreshRate()` (120 Hz on the dev machine). The play head is
+  extrapolated one *waveform* interval ahead (`getPlaySlipAtNextVSync`), which only lands on the next
+  present when the waveform ticks once per vsync; 60 fps on a 144 Hz panel produced alternating
+  2/3-vsync steps, i.e. the visible jumps. `QmlWaveformDisplay::slotFrameSwapped()` now refreshes on
+  every presented frame when the rate matches the panel, because the elapsed-timer path could come up
+  1 ms short and halve the rate; lower caps keep the timer path. Still open: during stems/analysis the
+  adaptive 30 fps cap extrapolates 33 ms while presenting sooner.
 - **2026-11-15** — **Mono keys became lamps.** The output bar's mono toggles are no longer square
   keys: each is a 10 px round lamp (dark ring when off, accent filled when on, hover lifts the face)
   with the caption at `fontSizeXs - 1`, and the first one now reads "OUT MONO". The lamp was later
@@ -772,3 +784,10 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   strip now always renders only channels 1 and 2, each keeping half the height, even with four decks
   enabled; decks 3 and 4 have no waveform row (their panes are unchanged). `StemLaneStrip` rows are
   quarter-height so they stay aligned with the renderer's lanes.
+- **2026-11-16** — **Qt Quick vsync is a setting.** `[Waveform],QtQuickVSync` (default true) is read
+  in `main.cpp` before `QmlApplication` is constructed; when false it sets `QSG_NO_VSYNC=1`.
+  Preferences > Waveform > Graphics API Status now has a "VSync" checkbox below the average frame
+  rate (restart required). The pre-existing `[Waveform],VSync` key is the legacy `VSyncThread` mode
+  and is left alone. Measured default: threaded render loop, D3D11 FLIP swapchain (max frame latency
+  2), "Animation Driver: using vsync: 8.33 ms", 3884 frames in a 45 s run (≈120 fps once the UI is
+  up). With the toggle off Qt logs "Swap interval is 0" and "animation driver switched to timer mode".
