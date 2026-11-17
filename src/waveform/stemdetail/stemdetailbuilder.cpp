@@ -23,9 +23,10 @@ const mixxx::Logger kLogger("StemDetailBuilder");
 constexpr int kMaxStems = mixxx::kMaxSupportedStems;
 
 /// Upper bound for a full-track reduction. A column holds up to `height`
-/// per-row colours, so this caps one track at roughly 200 MB; deeper zoom
-/// levels keep the previous picture until the windowed rebuild (M5).
-constexpr int kMaxCachedColumns = 600000;
+/// per-row colours, so this caps one lane at roughly 64 MB (four lanes at
+/// 256 MB); deeper zoom levels keep the previous picture until the windowed
+/// rebuild (M5).
+constexpr int64_t kMaxCachedPixels = 16000000;
 
 bool isZero(const StemDetailEntry& entry) {
     return entry.coverage == 0.0f && entry.low == 0.0f && entry.mid == 0.0f &&
@@ -143,9 +144,9 @@ void StemDetailBuilder::build(const StemDetailKey& key, const TrackPointer& pTra
     const int height = std::clamp(key.height, 1, 63);
     const int64_t columnCount =
             (static_cast<int64_t>(totalFrames) + spc - 1) / spc;
-    if (columnCount > kMaxCachedColumns) {
-        kLogger.warning() << "Stem detail too large" << columnCount
-                          << "columns; keeping the previous picture";
+    if (columnCount * height > kMaxCachedPixels) {
+        kLogger.warning() << "Stem detail too large" << columnCount << "x" << height
+                          << "pixels; keeping the previous picture";
         emit built(key, nullptr);
         return;
     }

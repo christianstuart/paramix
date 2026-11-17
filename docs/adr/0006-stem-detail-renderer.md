@@ -100,8 +100,9 @@ black instead of `#181818`.
 - **Memory:** the compact form is 16 bytes per column per lane; the per-row arena is
   `height * 4` bytes per column per lane and is allocated on the first non-uniform column
   of a lane. Loud material is non-uniform in most columns, so the arena is the normal case,
-  not a rare exception. A full-track reduction is capped at 600,000 columns; deeper zoom
-  levels keep the previous picture until the windowed rebuild (plan M5).
+  not a rare exception. A full-track reduction is capped at 16 million cached pixels per
+  lane (about 64 MB); deeper zoom levels keep the previous picture until the windowed
+  rebuild (plan M5).
 - **Threading:** the builder lives on its own `QThread`. `request()` may be called from a
   render thread; it only reads the cache under a mutex and posts the debounced schedule
   onto the cache's thread. Muting, reordering and opacity never touch the cache.
