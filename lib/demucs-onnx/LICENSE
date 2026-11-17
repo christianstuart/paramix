@@ -26,3 +26,11 @@ The Demucs model architecture and pretrained weights are the work of Alexandre
 Défossez et al. and are distributed under the MIT license by Meta AI Research
 (https://github.com/facebookresearch/demucs). This project contains no model
 weights; it converts and runs them.
+
+---
+
+**Paramix note (2026-11-16):** the sentence above about the pretrained weights
+is incorrect. The Demucs *code* is MIT, but the weights have no explicit licence
+and Meta's maintainer states they are provided for scientific purposes only.
+Paramix bundles `models/htdemucs.onnx` anyway; the maintainer accepted that
+risk. See [`docs/third-party-models.md`](../../docs/third-party-models.md).
