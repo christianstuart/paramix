@@ -107,9 +107,9 @@ Item {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        // Was 36, which clipped the 2 x 16 px deck-assignment keys inside the
-        // recessed well (28 px of usable height).
-        height: 44
+        // Was 44, which left the fader well taller than it needed to be; the
+        // 2 x 12 px assignment keys now set the height.
+        height: 34
         show4decks: root.show4decks
         // Centered, so the free half-width is limited by whichever side group
         // reaches closer to the middle; otherwise the keys sit under the tiles.
