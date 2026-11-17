@@ -280,6 +280,24 @@ QtObject {
 
     // ── Layout ─────────────────────────────────────────────────────────────
     readonly property int toolbarHeight: Math.round(44 * uiScale)
+
+    // ── Top bar effects strip ──────────────────────────────────────────────
+    // A single compact row under the main toolbar: the two standard effect
+    // chains plus the per-deck quick chains. Control height follows the type
+    // scale as well, so a large font cannot clip the selector labels.
+    readonly property int fxControlHeight: Math.max(Math.round(22 * uiScale),
+                                                    fontSizeSm + 2 * space1)
+    readonly property int topBarEffectsHeight: fxControlHeight + 2 * space1
+    readonly property int topBarHeight: toolbarHeight + topBarEffectsHeight
+    readonly property int fxKnobSize: Math.round(22 * uiScale)
+    readonly property int fxOnKeyWidth: Math.max(Math.round(28 * uiScale), fontSizeXs * 3)
+    readonly property int fxAssignKeyWidth: Math.max(Math.round(20 * uiScale), fontSizeXs * 2)
+    readonly property int fxPowerDotSize: Math.round(12 * uiScale)
+    readonly property int fxUnitKeyMinWidth: Math.max(Math.round(38 * uiScale), fontSizeXs * 4)
+    readonly property int fxSlotMinWidth: Math.round(64 * uiScale)
+    // Optional parts hide in this order as the strip narrows.
+    readonly property int fxSuperMinWidth: 1100
+
     readonly property int deckHeaderHeight: Math.round(52 * uiScale)
     readonly property int stemLaneMinWidth: Math.round(58 * uiScale)
     /// Width a stem lane needs for its label to read as a word rather than an

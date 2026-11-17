@@ -4,7 +4,7 @@
 file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 `docs/old-context.md` (raw transcript of the original planning session).
 
-**Last updated:** 2026-11-15, after the stem waveform and deck layout pass (spectrum colors, label strip, 160 px waveform band).
+**Last updated:** 2026-11-16, after moving the effects chains into the top bar.
 **Update rule:** every agent that changes repo state must append to §9 (Work log) and correct
 §3 (Current state) before finishing.
 
@@ -121,7 +121,8 @@ table (schema is at revision 40; the plan needs 41). The QML skin lives in `res/
 `res/skins/Paramix` directory; QML skins are discovered from `res/qml` in developer mode). Present
 from upstream: `src/track/beat*`,
 `analyzerqueenmarybeats`, `analyzersoundtouchbeats`, `waveformrendererstem`, `qmlstemsmodel`,
-`soundsourcestem`.
+`soundsourcestem`. The effects UI now lives in the top bar (`TopBarEffects.qml`); there is no
+bottom effects row or View > Effects entry.
 
 ### 3.5 Current progress (2026-11-12)
 
@@ -331,6 +332,19 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
 ---
 
 ## 9. Work log
+
+- **2026-11-16** — **Effects moved into the top bar.** The standard effect units now live in a
+  30 px strip docked under the 44 px toolbar instead of a View > Effects panel in the deck band.
+  Each unit shows a status key, power dot, A-D deck assignment keys (multi-select), three effect
+  selectors with On keys, dry/wet and super knob. The per-deck quick chains stay in the mixer, and
+  the metaknob/parameter popup was removed. `EffectRow.qml`, `Effects/EffectUnit.qml`,
+  `Effects/EffectSlot.qml` and `Effects/EffectFocusButton.qml` are deleted; the new
+  `TopBarEffects.qml` / `TopBarEffectUnit.qml` use `Theme.uiScale`, `fontSizeSm`, `space*` and
+  `Theme.topBarHeight` instead of fixed pixel sizes. `MainWindow.bandMinimumHeight` now subtracts
+  `Theme.topBarHeight`, and the View menu no longer carries Effects. Only standard units 1-2 fit
+  the strip; units 3-4 stay controllable through the effect rack/controllers but have no inline UI.
+  The bounds test still passes at
+  2560x1369, 1792x1008, 1440x852, 1280x800 and 1280x720.
 
 - **2026-11-16** — **Preferences search.** The settings dialog's sidebar gained a search field
   (`settingsSearchEdit` in `dlgpreferencesdlg.ui`) that indexes the visible labels, group-box
