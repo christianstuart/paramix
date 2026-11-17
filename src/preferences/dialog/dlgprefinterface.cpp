@@ -170,7 +170,13 @@ DlgPrefInterface::DlgPrefInterface(
     ComboBoxLocale->insertItem(0, QStringLiteral("System"), "");
     ComboBoxLocale->insertSeparator(1);
 
-    if (pSkinLoader && !CmdlineArgs::Instance().isQml()) {
+#ifdef MIXXX_USE_QML
+    const bool showClassicSkinSettings =
+            pSkinLoader && !CmdlineArgs::Instance().isQml();
+#else
+    const bool showClassicSkinSettings = pSkinLoader != nullptr;
+#endif
+    if (showClassicSkinSettings) {
         // Skin configurations
         warningLabel->setText(kWarningIconHtmlString +
                 tr("The minimum size of the selected skin is bigger than your "
