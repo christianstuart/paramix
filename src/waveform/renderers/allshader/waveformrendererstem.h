@@ -5,6 +5,8 @@
 #include <numeric>
 #include <vector>
 
+#include <QImage>
+
 #include "rendergraph/geometrynode.h"
 #include "util/class.h"
 #include "util/math.h"
@@ -16,6 +18,7 @@ class ControlProxy;
 
 namespace allshader {
 class WaveformRendererStem;
+class StemDetailTextureNode;
 } // namespace allshader
 
 class allshader::WaveformRendererStem final
@@ -117,6 +120,8 @@ class allshader::WaveformRendererStem final
     QVarLengthArray<int, mixxx::kMaxSupportedStems> m_stackOrder;
 
     bool m_hasGeometry;
+    StemDetailTextureNode* m_pTextureNode;
+    QImage m_textureImage;
     std::shared_ptr<const StemDetailTrack> m_pDetail;
     GeometryKey m_geometryKey;
 

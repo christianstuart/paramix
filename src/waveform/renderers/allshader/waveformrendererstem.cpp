@@ -1,6 +1,7 @@
 #include "waveform/renderers/allshader/waveformrendererstem.h"
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cmath>
 #include <numeric>
@@ -9,7 +10,10 @@
 #include "control/controlproxy.h"
 #include "engine/channels/enginedeck.h"
 #include "rendergraph/material/rgbamaterial.h"
+#include "rendergraph/material/texturematerial.h"
+#include "rendergraph/texture.h"
 #include "rendergraph/vertexupdaters/rgbavertexupdater.h"
+#include "rendergraph/vertexupdaters/texturedvertexupdater.h"
 #include "track/track.h"
 #include "util/assert.h"
 #include "util/math.h"
@@ -42,11 +46,64 @@ inline float colorChannel(QRgb color, int shift) {
     return static_cast<float>((color >> shift) & 0xffu) / 255.0f;
 }
 
+struct TextureQuad {
+    float x0;
+    float y0;
+    float x1;
+    float y1;
+    float u0;
+    float v0;
+    float u1;
+    float v1;
+};
+
 } // namespace
 
 using namespace rendergraph;
 
 namespace allshader {
+
+/// Draws the coloured waveform bands of all lanes as one nearest-filtered
+/// texture. The lane bases stay as opaque geometry on the parent node.
+class StemDetailTextureNode final : public rendergraph::GeometryNode {
+  public:
+    StemDetailTextureNode() {
+        initForRectangles<rendergraph::TextureMaterial>(4);
+        geometry().allocate(0);
+    }
+
+    void updateTexture(rendergraph::Context* pContext, const QImage& image) {
+        auto& textureMaterial = dynamic_cast<rendergraph::TextureMaterial&>(material());
+        textureMaterial.setTexture(std::make_unique<rendergraph::Texture>(
+                pContext, image, rendergraph::Texture::Filtering::Nearest));
+        textureMaterial.setUniform(1, 1.0f);
+        markDirtyMaterial();
+    }
+
+    void updateGeometry(const TextureQuad* pQuads, int quadCount) {
+        const int vertexCount = quadCount * kVerticesPerRectangle;
+        geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
+        geometry().allocate(vertexCount);
+        if (vertexCount > 0) {
+            TexturedVertexUpdater vertexUpdater{
+                    geometry().vertexDataAs<Geometry::TexturedPoint2D>()};
+            for (int i = 0; i < quadCount; ++i) {
+                const TextureQuad& quad = pQuads[i];
+                vertexUpdater.addRectangle({quad.x0, quad.y0},
+                        {quad.x1, quad.y1},
+                        {quad.u0, quad.v0},
+                        {quad.u1, quad.v1});
+            }
+            DEBUG_ASSERT(vertexUpdater.index() == vertexCount);
+        }
+        markDirtyGeometry();
+    }
+
+    void clear() {
+        geometry().allocate(0);
+        markDirtyGeometry();
+    }
+};
 
 WaveformRendererStem::WaveformRendererStem(
         WaveformWidgetRenderer* waveformWidget,
@@ -57,8 +114,10 @@ WaveformRendererStem::WaveformRendererStem(
           m_splitStemTracks(false),
           m_reorderOnChange(true),
           m_opacity(kOpaqueStemOpacity),
-          m_hasGeometry(false) {
+          m_hasGeometry(false),
+          m_pTextureNode(nullptr) {
     initForRectangles<RGBAMaterial>(0);
+    m_pTextureNode = appendChildNode(std::make_unique<StemDetailTextureNode>());
     setUsePreprocess(true);
 }
 
@@ -144,6 +203,9 @@ void WaveformRendererStem::preprocess() {
         if (geometry().vertexCount() != 0) {
             geometry().allocate(0);
             markDirtyGeometry();
+        }
+        if (m_pTextureNode) {
+            m_pTextureNode->clear();
         }
     }
 }
@@ -396,89 +458,109 @@ bool WaveformRendererStem::preprocessInner() {
                 laneSamplesPerColumn));
     };
 
-    int vertexCount = 0;
-    for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
-        const StemDetailLane& lane =
-                pDetail->lanes[static_cast<std::size_t>(laneStems.at(laneIndex))];
-        const int rowLimit = m_isSlipRenderer ? lane.height / 2 : lane.height;
-        if (!m_isSlipRenderer && endX > startX) {
-            vertexCount += kVerticesPerRectangle;
-        }
-        for (int x = startX; x < endX; ++x) {
-            const int columnIndex = detailColumnFor(x, lane.spc);
-            if (columnIndex < 0 || columnIndex >= lane.columns.size()) {
-                continue;
-            }
-            forEachRun(lane,
-                    columnIndex,
-                    rowLimit,
-                    [&vertexCount](int, int, QRgb) {
-                        vertexCount += kVerticesPerRectangle;
-                    });
-        }
+    const int imageWidth = pixelLength;
+    const int imageHeight = totalLaneDeviceHeight;
+    if (m_textureImage.size() != QSize(imageWidth, imageHeight) ||
+            m_textureImage.format() != QImage::Format_RGBA8888_Premultiplied) {
+        m_textureImage = QImage(imageWidth,
+                imageHeight,
+                QImage::Format_RGBA8888_Premultiplied);
     }
+    m_textureImage.fill(Qt::transparent);
 
+    const bool drawBase = !m_isSlipRenderer && endX > startX;
+    const int baseVertexCount = drawBase
+            ? drawLaneCount * kVerticesPerRectangle
+            : 0;
     geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
-    geometry().allocate(vertexCount);
+    geometry().allocate(baseVertexCount);
     markDirtyGeometry();
-    RGBAVertexUpdater vertexUpdater{
+    RGBAVertexUpdater baseUpdater{
             geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
+
+    std::array<TextureQuad, mixxx::kMaxSupportedStems> quads{};
+    int quadCount = 0;
 
     for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
         const int stemIdx = laneStems.at(laneIndex);
         const StemDetailLane& lane =
                 pDetail->lanes[static_cast<std::size_t>(stemIdx)];
-        const int rowLimit = m_isSlipRenderer ? lane.height / 2 : lane.height;
         const bool muted = (mutedMask >> laneIndex) & 1u;
         const float alpha = muted ? laneAlpha * kGhostedStemOpacity : laneAlpha;
-        const int laneTopDevice =
-                topDevicePx + laneIndex * (laneDeviceHeight + gapDevicePx);
-        const float laneTop = static_cast<float>(laneTopDevice) / devicePixelRatio;
-        const float laneBottom = static_cast<float>(
-                                         laneTopDevice + laneDeviceHeight) /
-                devicePixelRatio;
-        // Row offsets are device pixels; y is in logical widget units, so the
-        // per-row height must be divided by the device pixel ratio as well.
-        const float rowScale = static_cast<float>(laneDeviceHeight) /
-                (static_cast<float>(std::max(1, lane.height)) * devicePixelRatio);
-        DEBUG_ASSERT(std::abs(laneTop + static_cast<float>(lane.height) * rowScale -
-                             laneBottom) < 0.01f);
+        const int laneTopRow = laneIndex * (laneDeviceHeight + gapDevicePx);
+        const int laneTopDevice = topDevicePx + laneTopRow;
+        const int laneBottomDevice = laneTopDevice + laneDeviceHeight;
+        const int visibleHeight = m_isSlipRenderer ? laneDeviceHeight / 2
+                                                   : laneDeviceHeight;
+        const int rowLimit = m_isSlipRenderer ? lane.height / 2 : lane.height;
+        const int alphaByte = std::clamp(
+                static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
 
-        if (!m_isSlipRenderer) {
+        if (drawBase) {
             // Opaque lane base, clipped to the part of the track that the
             // picture covers (pre/post-track stays window background).
-            vertexUpdater.addRectangle(
-                    {static_cast<float>(startX) / devicePixelRatio, laneTop},
-                    {static_cast<float>(endX) / devicePixelRatio, laneBottom},
+            baseUpdater.addRectangle(
+                    {static_cast<float>(startX) / devicePixelRatio,
+                            static_cast<float>(laneTopDevice) / devicePixelRatio},
+                    {static_cast<float>(endX) / devicePixelRatio,
+                            static_cast<float>(laneBottomDevice) / devicePixelRatio},
                     {kLaneBaseRed, kLaneBaseGreen, kLaneBaseBlue, alpha});
         }
 
-        for (int x = startX; x < endX; ++x) {
-            const int columnIndex = detailColumnFor(x, lane.spc);
-            if (columnIndex < 0 || columnIndex >= lane.columns.size()) {
-                continue;
+        if (alphaByte > 0 && endX > startX) {
+            for (int x = startX; x < endX; ++x) {
+                const int columnIndex = detailColumnFor(x, lane.spc);
+                if (columnIndex < 0 || columnIndex >= lane.columns.size()) {
+                    continue;
+                }
+                forEachRun(lane,
+                        columnIndex,
+                        rowLimit,
+                        [&](int rowStart, int rowEnd, QRgb color) {
+                            int y0 = laneTopRow +
+                                    (rowStart * laneDeviceHeight) / lane.height;
+                            int y1 = laneTopRow +
+                                    (rowEnd * laneDeviceHeight + lane.height - 1) /
+                                            lane.height;
+                            y0 = std::clamp(y0, laneTopRow, laneTopRow + visibleHeight);
+                            y1 = std::clamp(y1, y0, laneTopRow + visibleHeight);
+                            const auto red = static_cast<uchar>(
+                                    (qRed(color) * alphaByte) / 255);
+                            const auto green = static_cast<uchar>(
+                                    (qGreen(color) * alphaByte) / 255);
+                            const auto blue = static_cast<uchar>(
+                                    (qBlue(color) * alphaByte) / 255);
+                            for (int y = y0; y < y1; ++y) {
+                                uchar* pPixel = m_textureImage.scanLine(y) +
+                                        static_cast<qsizetype>(x) * 4;
+                                pPixel[0] = red;
+                                pPixel[1] = green;
+                                pPixel[2] = blue;
+                                pPixel[3] = static_cast<uchar>(alphaByte);
+                            }
+                        });
             }
-            const float x0 = static_cast<float>(x) / devicePixelRatio;
-            const float x1 = static_cast<float>(x + 1) / devicePixelRatio;
-            forEachRun(lane,
-                    columnIndex,
-                    rowLimit,
-                    [&](int rowStart, int rowEnd, QRgb color) {
-                        const float y0 = laneTop +
-                                static_cast<float>(rowStart) * rowScale;
-                        const float y1 = laneTop +
-                                static_cast<float>(rowEnd) * rowScale;
-                        vertexUpdater.addRectangle({x0, y0},
-                                {x1, y1},
-                                {colorChannel(color, 16),
-                                        colorChannel(color, 8),
-                                        colorChannel(color, 0),
-                                        alpha});
-                    });
+        }
+
+        if (visibleHeight > 0 && endX > startX) {
+            const float x0 = static_cast<float>(startX) / devicePixelRatio;
+            const float x1 = static_cast<float>(endX) / devicePixelRatio;
+            const float y0 = static_cast<float>(laneTopDevice) / devicePixelRatio;
+            const float y1 = static_cast<float>(laneTopDevice + visibleHeight) /
+                    devicePixelRatio;
+            const float u0 = static_cast<float>(startX) / imageWidth;
+            const float u1 = static_cast<float>(endX) / imageWidth;
+            const float v0 = static_cast<float>(laneTopRow) / imageHeight;
+            const float v1 = static_cast<float>(laneTopRow + visibleHeight) /
+                    imageHeight;
+            quads[quadCount++] = {x0, y0, x1, y1, u0, v0, u1, v1};
         }
     }
 
-    DEBUG_ASSERT(vertexUpdater.index() == vertexCount);
+    DEBUG_ASSERT(baseUpdater.index() == baseVertexCount);
+
+    m_pTextureNode->updateTexture(m_waveformRenderer->getContext(), m_textureImage);
+    m_pTextureNode->updateGeometry(quads.data(), quadCount);
 
     m_pDetail = pDetail;
     m_geometryKey = key;

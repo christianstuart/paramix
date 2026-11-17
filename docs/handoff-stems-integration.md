@@ -278,6 +278,18 @@ now the ported Traktor detail pipeline (`docs/adr/0006-stem-detail-renderer.md`)
 - The analysis format is unchanged: `WaveformStemColumn` and the analyzer still serve the
   other renderers.
 
+### Performance of the detail renderer
+
+The first implementation emitted per-pixel geometry (one rectangle per colour run per
+column). On the Retina QML skin that is ~388,000 vertices / 9.3 MB per frame; profiling
+showed ~55 % of the render thread in the Metal host-to-GPU vertex copy, and the process sat
+at ~100 % CPU with visible stutter. `StemDetailRendererStem` now rasterises the coloured
+rows into one RGBA8 image at device resolution and draws it with four textured quads
+(nearest filtering, pixel-aligned UVs); the lane bases remain geometry. The render thread
+is back to waiting for the drawable and the process runs around 50 % while playing. The
+texture is rebuilt when the viewport key changes; incremental/ring-buffer updates are the
+next step if longer tracks or two-deck playback need more headroom.
+
 ### Iterating on the build
 
 `build-main/.ninja_deps` was found corrupt (ninja printed

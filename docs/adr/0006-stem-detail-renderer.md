@@ -21,10 +21,11 @@
 3. Reduce on a **worker thread** (`StemDetailBuilder`), publish an immutable
    `std::shared_ptr<const StemDetailTrack>`, and cache at most two pictures in
    `StemDetailCache`, owned by `WaveformWidgetFactory`.
-4. Emit the picture with **geometry only** (`rendergraph::GeometryNode` +
-   `RGBAVertexUpdater`): one opaque `#181818` lane base, then one rectangle per contiguous
-   row run of every column. No textures and no GL calls, so the same source compiles for
-   the GL rendergraph and the QML scene-graph backend.
+4. Emit the picture as a **nearest-filtered RGBA texture per lane**: the lane base
+   (`#181818`) stays as geometry, and the coloured rows are written into one
+   device-resolution image and drawn with four textured quads. The image is built from the
+   same cached row colours, one texel per device pixel, so the pixels are unchanged; a
+   per-pixel geometry path was tried first and was upload-bound (see §7).
 5. A stem track always shows **four lanes**, whatever `splitStemTracks` says. A track
    without stem audio keeps the regular waveform renderer and its existing picture.
 6. Keep the analysis format unchanged. `WaveformStemColumn` and the analyzer still feed the
@@ -110,8 +111,14 @@ black instead of `#181818`.
   emitted. The lane strip is centered in `breadth`, with a one-logical-pixel gap. The base
   rectangle is clipped to the columns the picture actually covers, so pre/post-track stays
   window background.
-- **Mute/solo:** both the base and the band rectangles are multiplied by
-  `kGhostedStemOpacity` (0.32).
+- **Texture:** the coloured rows are rasterised into an RGBA8 image at device resolution and
+  drawn with one textured quad per lane (nearest filtering, pixel-aligned UVs). The image
+  is regenerated when the geometry key changes; transparent texels leave the lane base
+  visible. The renderer is still a `GeometryNode`; the texture is a child node, so the same
+  source compiles for the GL rendergraph and the QML scene-graph backend.
+- **Mute/solo:** both the base and the wave pixels are multiplied by
+  `kGhostedStemOpacity` (0.32). The wave alpha is baked into the texture, the base alpha is
+  in its geometry.
 - **Opacity:** the shipped `stem_opacity` default (0.75) maps to a fully opaque lane so
   the picture keeps its exact `#181818` base and pixel colours. Lower values fade the
   lanes. `setOutlineOpacity()` and `setStemVisualGain()` are documented no-ops: modulating
@@ -119,8 +126,12 @@ black instead of `#181818`.
 
 ## 5. Rejected alternatives
 
-- **Render with a texture.** Traktor blits a precomputed image, but textures are not
-  available in both rendergraph backends with one code path.
+- **Per-pixel geometry only.** Tried first: the detail strip emitted ~388,000 vertices
+  (9.3 MB) per frame. At 60 Hz that is ~560 MB/s of host-to-GPU writes; a sample of the QML
+  app showed ~55 % of the render thread inside `QRhiMetal::executeBufferHostWritesForSlot`
+  → `memmove`, and the waveform stuttered. Horizontal run merging did not help because
+  adjacent columns rarely share an exact 8-bit colour. The texture path removes that
+  bottleneck.
 - **Keep the HSV family palette.** It is not the shipping algorithm and cannot reproduce
   quiet passages or per-column band colours.
 - **Link against stemwave.** Paramix has its own build and Qt types; the algorithm is a
@@ -158,3 +169,8 @@ black instead of `#181818`.
 - Visual check on `buildenv/test-music/trance_ALAC_24bit.stem.mp4`: four lanes in the deck
   detail view, drums magenta/orange, bass orange, other green/cyan, vocals blue/cyan; the
   deck overview and non-stem tracks keep the regular waveform.
+- Performance: on the Retina QML skin the per-pixel geometry path spent ~55 % of the render
+  thread in the Metal host-write copy and drove the process to ~100 % CPU; the texture path
+  removes the vertex stream, the render thread is back to waiting for the drawable, and the
+  process stays around 50 % while playing. The picture is produced from the same `QRgb`
+  rows, so the pixels are unchanged.

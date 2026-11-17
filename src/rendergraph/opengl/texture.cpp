@@ -47,9 +47,12 @@ QImage premultiplyAlpha(const QImage& image) {
 }
 } // namespace
 
-Texture::Texture(Context*, const QImage& image)
+Texture::Texture(Context*, const QImage& image, Filtering filtering)
         : m_pTexture(std::make_unique<QOpenGLTexture>(premultiplyAlpha(image))) {
-    m_pTexture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+    const QOpenGLTexture::Filter filter = filtering == Filtering::Nearest
+            ? QOpenGLTexture::Nearest
+            : QOpenGLTexture::Linear;
+    m_pTexture->setMinMagFilters(filter, filter);
     m_pTexture->setWrapMode(QOpenGLTexture::ClampToEdge);
 }
 
