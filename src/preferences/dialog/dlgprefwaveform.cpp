@@ -26,6 +26,10 @@ namespace {
 const QString kWaveformGroup(QStringLiteral("[Waveform]"));
 const ConfigKey kOverviewTypeCfgKey(kWaveformGroup,
         QStringLiteral("WaveformOverviewType"));
+// QML waveform update rate in Hz; 0 follows the display refresh rate.
+const ConfigKey kRefreshRateCfgKey(kWaveformGroup, QStringLiteral("RefreshRate"));
+// Persisted Qt Quick vsync switch, applied at startup via QSG_NO_VSYNC.
+const ConfigKey kQtQuickVSyncCfgKey(kWaveformGroup, QStringLiteral("QtQuickVSync"));
 
 #ifdef MIXXX_USE_QML
 QString quickGraphicsApiName() {
@@ -72,11 +76,15 @@ DlgPrefWaveform::DlgPrefWaveform(
 
 #ifdef MIXXX_USE_QML
     if (isQtQuickWaveformRenderActive()) {
-        // Qt Quick owns scene-graph frame scheduling, so the legacy QWidget
-        // frame-rate controls do not apply to QML waveforms.
-        frameRateLabel->setVisible(false);
-        frameRateSlider->setVisible(false);
-        frameRateSpinBox->setVisible(false);
+        // Qt Quick owns scene-graph frame scheduling, so the rate is the panel
+        // refresh rate (or a cap below it) instead of a free 10-240 fps value.
+        frameRateLabel->setText(tr("Monitor refresh"));
+        frameRateSlider->setMinimum(0);
+        frameRateSpinBox->setMinimum(0);
+        frameRateSpinBox->setSuffix(tr(" Hz"));
+        frameRateSpinBox->setSpecialValueText(tr("Auto"));
+        frameRateSpinBox->setToolTip(tr("0 = follow the display refresh rate."));
+        frameRateSlider->setToolTip(frameRateSpinBox->toolTip());
     }
 #endif
 
@@ -187,6 +195,10 @@ DlgPrefWaveform::DlgPrefWaveform(
             QOverload<int>::of(&QSpinBox::valueChanged),
             frameRateSlider,
             &QSlider::setValue);
+    connect(vsyncCheckBox,
+            &QCheckBox::toggled,
+            this,
+            &DlgPrefWaveform::slotSetVSync);
     connect(endOfTrackWarningTimeSlider,
             &QSlider::valueChanged,
             endOfTrackWarningTimeSpinBox,
@@ -389,8 +401,17 @@ void DlgPrefWaveform::slotUpdate() {
     updateWaveformGeneralOptionsEnabled();
     updateStemOptionsEnabled();
 
-    frameRateSpinBox->setValue(pFactory->getFrameRate());
-    frameRateSlider->setValue(pFactory->getFrameRate());
+#ifdef MIXXX_USE_QML
+    const bool qmlMode = isQtQuickWaveformRenderActive();
+#else
+    constexpr bool qmlMode = false;
+#endif
+    const int configuredFrameRate = qmlMode
+            ? m_pConfig->getValue(kRefreshRateCfgKey, 0)
+            : pFactory->getFrameRate();
+    frameRateSpinBox->setValue(configuredFrameRate);
+    frameRateSlider->setValue(configuredFrameRate);
+    vsyncCheckBox->setChecked(m_pConfig->getValue(kQtQuickVSyncCfgKey, true));
     endOfTrackWarningTimeSpinBox->setValue(pFactory->getEndOfTrackWarningTime());
     endOfTrackWarningTimeSlider->setValue(pFactory->getEndOfTrackWarningTime());
     synchronizeZoomCheckBox->setChecked(pFactory->isZoomSync());
@@ -514,8 +535,15 @@ void DlgPrefWaveform::slotResetToDefaults() {
     // Use "Global" waveform gain + ReplayGain if enabled
     overview_scale_allReplayGain->setChecked(!WaveformWidgetFactory::isOverviewNormalizedDefault());
 
-    // 60FPS is the default
-    frameRateSlider->setValue(60);
+    // 60 fps is the legacy widgets default; the QML waveform follows the
+    // display refresh rate (0 = Auto).
+#ifdef MIXXX_USE_QML
+    const int defaultFrameRate = isQtQuickWaveformRenderActive() ? 0 : 60;
+#else
+    constexpr int defaultFrameRate = 60;
+#endif
+    frameRateSlider->setValue(defaultFrameRate);
+    vsyncCheckBox->setChecked(true);
     endOfTrackWarningTimeSlider->setValue(30);
 
     // Waveform caching enabled.
@@ -541,8 +569,22 @@ void DlgPrefWaveform::notifyQmlWaveformSettingsChanged() {
 }
 
 void DlgPrefWaveform::slotSetFrameRate(int frameRate) {
+#ifdef MIXXX_USE_QML
+    if (isQtQuickWaveformRenderActive()) {
+        // Written as a QML waveform setting; 0 means "follow the display".
+        m_pConfig->setValue(kRefreshRateCfgKey, frameRate);
+        notifyQmlWaveformSettingsChanged();
+        return;
+    }
+#endif
     WaveformWidgetFactory::instance()->setFrameRate(frameRate);
     notifyQmlWaveformSettingsChanged();
+}
+
+void DlgPrefWaveform::slotSetVSync(bool enabled) {
+    // Qt Quick reads QSG_NO_VSYNC before the first window exists, so this is
+    // applied on the next launch.
+    m_pConfig->setValue(kQtQuickVSyncCfgKey, enabled);
 }
 
 void DlgPrefWaveform::slotSetWaveformEndRender(int endTime) {

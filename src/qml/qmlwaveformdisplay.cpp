@@ -1,6 +1,7 @@
 #include "qml/qmlwaveformdisplay.h"
 
 #include <QQuickWindow>
+#include <QScreen>
 #include <QSGFlatColorMaterial>
 #include <QSGSimpleRectNode>
 #include <QSGVertexColorMaterial>
@@ -318,6 +319,14 @@ std::chrono::microseconds QmlWaveformDisplay::fromTimerToNextSync(const Performa
 
 void QmlWaveformDisplay::slotFrameSwapped() {
     m_timer.restart();
+    // Matching the panel rate: refresh on every presented frame. The elapsed
+    // timer below can come up a millisecond short and skip a frame, which
+    // halves the rate and reads as a jump in the scrolling waveform.
+    const QScreen* pScreen = window() ? window()->screen() : nullptr;
+    if (pScreen && m_frameRate >= static_cast<int>(std::lround(pScreen->refreshRate()))) {
+        update();
+        return;
+    }
     requestUpdateAtFrameRate();
 }
 
