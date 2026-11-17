@@ -48,9 +48,10 @@ EncoderFactory::EncoderFactory() {
 #ifdef __OPUS__
     m_formats.append(Encoder::Format{"Opus", ENCODING_OPUS, false, "opus"});
 #endif
-    m_formats.append(Encoder::Format{"AAC", ENCODING_AAC, false, "aac"});
-    m_formats.append(Encoder::Format{"HE-AAC", ENCODING_HEAAC, false, "aac"});
-    m_formats.append(Encoder::Format{"HE-AACv2", ENCODING_HEAACV2, false, "aac"});
+    // shortcut: AAC is deliberately unlisted until EncoderFdkAac::processFIFO()
+    // stops segfaulting on real audio (invalid vector access in the encode
+    // loop). The encoder itself stays wired up so re-listing is the only
+    // change needed once it is fixed.
 }
 
 const QList<Encoder::Format> EncoderFactory::getFormats() const
