@@ -165,8 +165,7 @@ They are useful for comparison; the only shipping model is Demucs.
 | Open-Unmix `umxl` | CC BY-NC-SA 4.0; non-commercial only. |
 
 Beat tracking is not a model dependency: Queen Mary is already in the build
-(`analyzerqueenmarybeats.cpp`), with rbxport for phrase/downbeat work. No beat
-weights are downloaded or shipped.
+(`analyzerqueenmarybeats.cpp`). No beat weights are downloaded or shipped.
 
 ## 6. Datasets
 

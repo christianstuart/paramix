@@ -775,7 +775,7 @@ Matches the brief end-to-end
 Real-time separation isn't commercially viable yet (0.5–2 s latent, degraded); even Traktor pre-computes stems via iZotope RX
 Recommendation: fund B but make A its first shippable milestone. Defer C's real-time piece to a spike.
 Key technical choices in the plan
-	•	Beatgrid: additive BeatGrid-3.0 (downbeats, confidence, source, hypotheses) with a dual-written legacy blob so downgrades don't lose phase; Queen Mary behind the existing analyzer-plugin interface, with rbxport for phrase/downbeat work; non-destructive editor; bar-aware lines/quantise/loops as optional.
+	•	Beatgrid: additive BeatGrid-3.0 (downbeats, confidence, source, hypotheses) with a dual-written legacy blob so downgrades don't lose phase; Queen Mary behind the existing analyzer-plugin interface; non-destructive editor; bar-aware lines/quantise/loops as optional.
 	•	Separation: HTDemucs v4 via ONNX Runtime (CoreML / DirectML / CUDA / CPU), offline background queue with progress/cancel/resume; optional user-supplied RoFormer-class "Max" tier behind a licence gate.
 	•	Cache: 8-channel FLAC + JSON at the track's original rate, atomic writes and LRU GC (~5× MP3, 50–120 MB/track); optional .stem.mp4 export for Traktor interop.
 	•	Playback: hook SoundSourceProxy::openAudioSource() (it already holds the TrackPointer) to return a stem source when a cache exists — the existing 8-channel engine path then works unchanged.
