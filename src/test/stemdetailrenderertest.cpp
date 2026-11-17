@@ -1,15 +1,26 @@
 #include <gtest/gtest.h>
 
 #include <QFile>
+#include <QSignalSpy>
 #include <QStringList>
+#include <QTemporaryDir>
 #include <array>
+#include <bit>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
+#include "sources/audiosource.h"
+#include "sources/soundsourceproxy.h"
+#include "stems/stemcache.h"
 #include "test/mixxxtest.h"
+#include "track/track.h"
+#include "util/samplebuffer.h"
+#include "waveform/stemdetail/stemdetailbuilder.h"
 #include "waveform/stemdetail/stemdetailcolors.h"
 #include "waveform/stemdetail/stemdetailentry.h"
 #include "waveform/stemdetail/stemdetailreducer.h"
+#include "waveform/stemdetail/stemdetailtrack.h"
 
 namespace {
 
@@ -138,4 +149,213 @@ TEST(StemDetailReducer, SilentColumnsFillTheCentreRowOnly) {
     // Silence must not produce a covered cell away from the centre line.
     EXPECT_EQ(0.0f, entries.front().coverage);
     EXPECT_EQ(0.0f, entries.back().coverage);
+}
+
+class StemDetailBuilderTest : public MixxxTest {};
+
+namespace {
+constexpr uint64_t kGoldenFingerprint = 17855010542173845310ull;
+} // namespace
+
+TEST_F(StemDetailBuilderTest, DecodesParamixEightChannelCacheInStemOrder) {
+    constexpr int kFrames = 8192;
+    constexpr int kSampleRate = 44100;
+    constexpr int kSpc = 64;
+    constexpr int kHeight = 21;
+    constexpr int kStemCount = mixxx::kMaxSupportedStems;
+
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    config()->setValue(ConfigKey("[Stems]", "CacheDirectory"), tempDir.path());
+    mixxx::stems::StemCache::initialize(config());
+
+    // Four deterministic stereo stems. Stem 3 is silent so the silent-lane
+    // behaviour is covered as well.
+    std::array<std::vector<float>, kStemCount> left;
+    std::array<std::vector<float>, kStemCount> right;
+    for (int stem = 0; stem < kStemCount; ++stem) {
+        left[static_cast<std::size_t>(stem)].resize(kFrames);
+        right[static_cast<std::size_t>(stem)].resize(kFrames);
+    }
+    const std::array<double, kStemCount> frequencies = {200.0, 80.0, 1000.0, 0.0};
+    constexpr double kPi = 3.14159265358979323846;
+    std::vector<CSAMPLE> interleaved(static_cast<std::size_t>(kFrames) * kStemCount * 2);
+    for (int frame = 0; frame < kFrames; ++frame) {
+        const double t = static_cast<double>(frame) / kSampleRate;
+        for (int stem = 0; stem < kStemCount; ++stem) {
+            const float sample = stem == 3
+                    ? 0.0f
+                    : static_cast<float>(0.3 * std::sin(2.0 * kPi * frequencies[static_cast<std::size_t>(stem)] * t));
+            left[static_cast<std::size_t>(stem)][static_cast<std::size_t>(frame)] = sample;
+            right[static_cast<std::size_t>(stem)][static_cast<std::size_t>(frame)] =
+                    sample * 0.5f;
+            interleaved[static_cast<std::size_t>(frame) * kStemCount * 2 + stem * 2] =
+                    sample;
+            interleaved[static_cast<std::size_t>(frame) * kStemCount * 2 + stem * 2 + 1] =
+                    sample * 0.5f;
+        }
+    }
+
+    const TrackId trackId(QVariant(4242));
+    QString error;
+    ASSERT_TRUE(mixxx::stems::StemCache::writeCache(trackId,
+            interleaved.data(),
+            kFrames,
+            kSampleRate,
+            &error))
+            << error.toStdString();
+
+    const TrackPointer pTrack =
+            Track::newDummy(QStringLiteral("stem-detail-test.flac"), trackId);
+
+    // Read the cache back exactly as the builder does, so the reference path
+    // below sees the same 16-bit-quantised samples.
+    mixxx::AudioSource::OpenParams openParams;
+    openParams.setChannelCount(mixxx::kAnalysisMaxChannels);
+    const mixxx::AudioSourcePointer pSource =
+            SoundSourceProxy(pTrack).openAudioSource(openParams);
+    ASSERT_NE(nullptr, pSource);
+    const int channelCount = pSource->getSignalInfo().getChannelCount();
+    ASSERT_EQ(kStemCount * 2, channelCount);
+    ASSERT_EQ(kFrames, pSource->frameLength());
+    mixxx::SampleBuffer sampleBuffer(
+            static_cast<SINT>(static_cast<std::int64_t>(kFrames) * channelCount));
+    const auto readable = pSource->readSampleFrames(
+            mixxx::WritableSampleFrames(mixxx::IndexRange::forward(0, kFrames),
+                    mixxx::SampleBuffer::WritableSlice(sampleBuffer)));
+    ASSERT_EQ(kFrames, readable.frameLength());
+    for (int frame = 0; frame < kFrames; ++frame) {
+        for (int stem = 0; stem < kStemCount; ++stem) {
+            const CSAMPLE* pFrame =
+                    readable.readableData() +
+                    static_cast<std::size_t>(frame) * channelCount;
+            left[static_cast<std::size_t>(stem)][static_cast<std::size_t>(frame)] =
+                    pFrame[stem * 2];
+            right[static_cast<std::size_t>(stem)][static_cast<std::size_t>(frame)] =
+                    pFrame[stem * 2 + 1];
+        }
+    }
+    pSource->close();
+
+    StemDetailKey key;
+    key.trackId = trackId;
+    key.sampleRate = kSampleRate;
+    key.samplesPerColumn = kSpc;
+    key.height = kHeight;
+    key.magnification = 2.0f;
+
+    StemDetailBuilder builder;
+    QSignalSpy spy(&builder, &StemDetailBuilder::built);
+    builder.build(key, pTrack);
+    ASSERT_EQ(1, spy.count());
+    const auto pDetail = spy.at(0)
+                                 .at(1)
+                                 .value<std::shared_ptr<const StemDetailTrack>>();
+    ASSERT_NE(nullptr, pDetail);
+
+    EXPECT_EQ(kStemCount, pDetail->laneCount);
+    EXPECT_EQ(kFrames, pDetail->totalSamples);
+    EXPECT_EQ(kSampleRate, static_cast<int>(pDetail->sampleRate));
+    const int expectedColumns = (kFrames + kSpc - 1) / kSpc;
+
+    const StemDetailColorParams params;
+    StemDetailConfig config;
+    config.sampleRate = kSampleRate;
+    config.height = kHeight;
+    config.samplesPerColumn = kSpc;
+    config.magnification = 2.0f;
+    config.verticalInset = 1;
+
+    for (int stem = 0; stem < kStemCount; ++stem) {
+        const StemDetailLane& lane = pDetail->lanes[static_cast<std::size_t>(stem)];
+        ASSERT_EQ(kSpc, lane.spc);
+        ASSERT_EQ(kHeight, lane.height);
+        ASSERT_EQ(0, lane.firstSample);
+        ASSERT_EQ(expectedColumns, lane.columns.size());
+
+        // Reference path: feed the original stereo stems through the reducer
+        // and the colour consumer, then compare every row of every column.
+        StemDetailReducer reducer(config);
+        std::vector<float> columnLeft(kSpc);
+        std::vector<float> columnRight(kSpc);
+        for (int column = 0; column < expectedColumns; ++column) {
+            for (int i = 0; i < kSpc; ++i) {
+                const int frame = column * kSpc + i;
+                const bool inRange = frame < kFrames;
+                columnLeft[static_cast<std::size_t>(i)] = inRange
+                        ? left[static_cast<std::size_t>(stem)]
+                              [static_cast<std::size_t>(frame)]
+                        : 0.0f;
+                columnRight[static_cast<std::size_t>(i)] = inRange
+                        ? right[static_cast<std::size_t>(stem)]
+                               [static_cast<std::size_t>(frame)]
+                        : 0.0f;
+            }
+            const auto& entries = reducer.processColumn(columnLeft.data(),
+                    columnRight.data());
+            const StemDetailColumn& compact =
+                    lane.columns.at(column);
+            for (int row = 0; row < kHeight; ++row) {
+                const StemDetailEntry& entry = entries[static_cast<std::size_t>(row)];
+                const bool zero = entry.coverage == 0.0f && entry.low == 0.0f &&
+                        entry.mid == 0.0f && entry.high == 0.0f;
+                const uint32_t expected = zero
+                        ? 0u
+                        : static_cast<uint32_t>(
+                                  stemDetailEntryColor(entry, params) & 0x00ffffffu);
+                uint32_t actual = 0;
+                const std::size_t rowIndex =
+                        static_cast<std::size_t>(column) * kHeight + row;
+                if (rowIndex < static_cast<std::size_t>(lane.rowColors.size()) &&
+                        lane.rowColors[static_cast<int>(rowIndex)] != 0) {
+                    actual = static_cast<uint32_t>(
+                            lane.rowColors[static_cast<int>(rowIndex)] & 0x00ffffffu);
+                } else if ((compact.mask >> row) & 1u) {
+                    actual = compact.rgba;
+                }
+                ASSERT_EQ(expected, actual)
+                        << "stem " << stem << " column " << column << " row " << row;
+                EXPECT_EQ(!zero, (compact.mask >> row) & 1u);
+            }
+        }
+    }
+
+    // The silent stem keeps the lane base colour outside its thin centre band
+    // and must never produce a full-height black block.
+    const StemDetailLane& silentLane = pDetail->lanes[3];
+    for (const StemDetailColumn& column : silentLane.columns) {
+        EXPECT_LE(std::popcount(column.mask), 2);
+    }
+
+    // Golden fingerprint of the whole picture. The input and the 16-bit cache
+    // are deterministic; this catches any drift in channel order, mask packing
+    // or the compact/row-colour split.
+    uint64_t fingerprint = 1469598103934665603ull;
+    const auto mix = [&fingerprint](uint64_t value) {
+        for (int byte = 0; byte < 8; ++byte) {
+            fingerprint ^= (value >> (byte * 8)) & 0xffu;
+            fingerprint *= 1099511628211ull;
+        }
+    };
+    for (int stem = 0; stem < pDetail->laneCount; ++stem) {
+        const StemDetailLane& lane = pDetail->lanes[static_cast<std::size_t>(stem)];
+        for (int column = 0; column < lane.columns.size(); ++column) {
+            const StemDetailColumn& compact = lane.columns.at(column);
+            mix(compact.mask);
+            for (int row = 0; row < kHeight; ++row) {
+                uint32_t color = 0;
+                const std::size_t rowIndex =
+                        static_cast<std::size_t>(column) * kHeight + row;
+                if (rowIndex < static_cast<std::size_t>(lane.rowColors.size())) {
+                    color = static_cast<uint32_t>(
+                            lane.rowColors[static_cast<int>(rowIndex)] & 0x00ffffffu);
+                }
+                if (color == 0 && ((compact.mask >> row) & 1u)) {
+                    color = compact.rgba;
+                }
+                mix(color);
+            }
+        }
+    }
+    EXPECT_EQ(kGoldenFingerprint, fingerprint);
 }

@@ -2931,8 +2931,11 @@ if(STEM)
       src/sources/soundsourcestem.cpp
       src/track/steminfoimporter.cpp
       src/track/steminfo.cpp
+      src/waveform/stemdetail/stemdetailbuilder.cpp
+      src/waveform/stemdetail/stemdetailcache.cpp
       src/waveform/stemdetail/stemdetailcolors.cpp
       src/waveform/stemdetail/stemdetailreducer.cpp
+      src/waveform/stemdetail/stemdetailtrack.cpp
       src/widget/wtrackstemmenu.cpp
       src/widget/wstemlabel.cpp
   )
@@ -4160,8 +4163,11 @@ if(QML)
       mixxx-qml-lib
       PRIVATE
         src/waveform/renderers/allshader/waveformrendererstem.cpp
+        src/waveform/stemdetail/stemdetailbuilder.cpp
+        src/waveform/stemdetail/stemdetailcache.cpp
         src/waveform/stemdetail/stemdetailcolors.cpp
         src/waveform/stemdetail/stemdetailreducer.cpp
+        src/waveform/stemdetail/stemdetailtrack.cpp
         src/qml/qmlstemsmodel.cpp
     )
   endif()

@@ -29,6 +29,9 @@
 #include "util/timer.h"
 #include "waveform/guitick.h"
 #include "waveform/sharedglcontext.h"
+#ifdef __STEM__
+#include "waveform/stemdetail/stemdetailcache.h"
+#endif
 #include "waveform/visualsmanager.h"
 #include "waveform/vsyncthread.h"
 #ifdef MIXXX_USE_QOPENGL
@@ -152,6 +155,9 @@ WaveformWidgetFactory::WaveformWidgetFactory()
           m_frameCnt(0),
           m_actualFrameRate(0),
           m_playMarkerPosition(WaveformWidgetRenderer::s_defaultPlayMarkerPosition) {
+#ifdef __STEM__
+    m_pStemDetailCache = std::make_unique<StemDetailCache>();
+#endif
     m_pStemSplitTracksControl = std::make_unique<ControlObject>(
             ConfigKey(kWaveformGroup, QStringLiteral("stem_split_tracks")));
     connect(m_pStemSplitTracksControl.get(),
