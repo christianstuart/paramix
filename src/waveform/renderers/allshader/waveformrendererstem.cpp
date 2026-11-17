@@ -441,6 +441,8 @@ bool WaveformRendererStem::preprocessInner() {
         // per-row height must be divided by the device pixel ratio as well.
         const float rowScale = static_cast<float>(laneDeviceHeight) /
                 (static_cast<float>(std::max(1, lane.height)) * devicePixelRatio);
+        DEBUG_ASSERT(std::abs(laneTop + static_cast<float>(lane.height) * rowScale -
+                             laneBottom) < 0.01f);
 
         if (!m_isSlipRenderer) {
             // Opaque lane base, clipped to the part of the track that the
