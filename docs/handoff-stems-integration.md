@@ -256,3 +256,37 @@ Settings -> Stems format controls, the context action, and calling
 writeStemSet() from the separation service after applying the shared limiter.
 Follow the repository rules in AGENTS.md and docs/parallel-work.md.
 ```
+
+---
+
+## 8. Stem detail renderer (2026-11-17)
+
+The deck stem picture no longer uses the analysis summary or the HSV family palette. It is
+now the ported Traktor detail pipeline (`docs/adr/0006-stem-detail-renderer.md`):
+
+- `src/waveform/stemdetail/` holds the entry/config types, the reducer, the colour
+  consumer, the column cache types, the background builder and the two-entry cache.
+- The builder opens the track with `SoundSourceProxy` and
+  `OpenParams::setChannelCount(kAnalysisMaxChannels)`, exactly like `AnalyzerThread`. That
+  resolves both native Paramix stems (`<cache>/<trackId>/stems.flac`, eight interleaved
+  channels in drums/bass/other/vocals order) and Traktor `.stem.mp4`. Stem `s` is
+  de-interleaved from channels `(2s, 2s + 1)`.
+- `allshader::WaveformRendererStem` keeps its class and slot API but now emits four lanes
+  from the cache. `splitStemTracks` no longer changes the lane layout; `opacity` scales
+  lane alpha (0.75, the shipped default, means opaque); `outlineOpacity` and
+  `stemVisualGain` are no-ops.
+- The analysis format is unchanged: `WaveformStemColumn` and the analyzer still serve the
+  other renderers.
+
+### Iterating on the build
+
+`build-main/.ninja_deps` was found corrupt (ninja printed
+`premature end of file; recovering`). With a corrupt deps log, every build rebuilt the PCH
+and all ~860 objects (~6 minutes). Delete the file once and rebuild; incremental edits are
+then ~20 seconds. If it recurs after an interrupted build, remove it again:
+
+```bash
+rm build-main/.ninja_deps
+cmake --build build-main --parallel   # once, full rebuild
+```
+
