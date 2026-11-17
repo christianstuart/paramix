@@ -7,6 +7,12 @@
 - **Source material:** [`docs/paramix-stem-beatgrid-ui-plan.md`](../paramix-stem-beatgrid-ui-plan.md) §5.3, §5.4, §5.9, §6.3, §6.7, §6.8, §8.2, §9, §10; [`docs/beatgrid-audit.md`](../beatgrid-audit.md) §1, §5
 - **Related:** ADR-002 (stem cache format), ADR-003 (beatgrid format), ADR-005 (model distribution)
 
+> **Update 2026-11-16:** separation uses the bundled Demucs model, which is the
+> only shipping model. The runtime decision (ORT), interface boundary,
+> thread/memory rules and packaging remain; the Demucs exclusion below is
+> superseded. SCNet remains experimental and Open-Unmix was removed. See
+> [`docs/third-party-models.md`](../third-party-models.md).
+
 ---
 
 ## Decision summary
@@ -26,7 +32,7 @@
 7. The **cache key excludes the runtime version and the device** (ADR-002 §2.3): an update within
    tolerance is not an invalidation, while a change beyond tolerance forces a model version or
    separation-parameter bump.
-8. `demucs.cpp` remains the documented **compile-time fallback** behind the same interface.
+8. **Demucs is removed.** The legacy `demucs.cpp`/`demucs-onnx` path is not a supported fallback; the target backends are SCNet-large, SCNet, and Open-Unmix `umxhq` behind the same interface.
 
 ---
 
@@ -74,10 +80,10 @@ accumulator and polls a cancel callback between windows.
 
 ### 1.4 Decisions already made
 
-Separation is **offline and background**, not real-time (ADR-002 §1.4; plan §5.5). The default model
-is `htdemucs_ft`, with `htdemucs` as the low-end fallback (plan §11, decision 1). GPU acceleration is
-**auto-enabled with a CPU opt-out** (decision 12). Models are **download-only**, with ADR-005 owning
-distribution (§5.9), and `demucs.cpp` is the documented CPU-only fallback (§5.4).
+Separation is **offline and background**, not real-time (ADR-002 §1.4; plan §5.5). The target models
+are SCNet (balanced), SCNet-large (quality), and Open-Unmix `umxhq` (speed), all MIT code + MIT
+weights. GPU acceleration is **auto-enabled with a CPU opt-out** (decision 12). Models are
+**download-only**, with ADR-005 owning distribution (§5.9). Demucs is removed from the architecture.
 
 ---
 
@@ -308,13 +314,11 @@ a background job expected to run on a plane, and makes the cache depend on a ser
 Rejected on license and quality. TensorFlow/TFLite are Apache-2.0, which the plan identifies as
 incompatible with GPL-2.0 (§2, §10), and Spleeter's quality is below the bar (§5.3).
 
-### 3.5 `demucs.cpp` only (no ORT)
+### 3.5 `demucs.cpp` only (no ORT) — removed
 
-Rejected as the default, retained as the fallback. MIT, CPU-only, no ORT, but roughly four minutes
-per four-minute track with four threads (plan §5.3), which misses the CPU target and offers no GPU
-path. It stays behind the interface for builds with `STEM_SEPARATION=OFF` that still want
-separation, platforms where ORT cannot be packaged, and a diagnostic comparison. Because the
-interface is shared, choosing it is a build and manifest decision, not a rewrite.
+Rejected. MIT, CPU-only, no ORT, but roughly four minutes per four-minute track with four threads
+(plan §5.3), and it depends on the research-only HTDemucs weights. It is not a supported fallback
+and is pending removal with the rest of the Demucs code.
 
 ### 3.6 Static ORT, vendoring, or a runtime-loaded plugin
 
@@ -374,7 +378,7 @@ runtime is a project of its own. The program's value is the DJ integration, not 
 
 The first step is a hard gate. Do not freeze packaging or the cache around an unproven runtime.
 
-1. **Spike (Phase 0).** Export or obtain `htdemucs_ft` in ONNX; run it on macOS arm64 CPU and
+1. **Spike (Phase 0).** Obtain SCNet/SCNet-large and Open-Unmix `umxhq` in ONNX; run them on macOS arm64 CPU and
    CoreML, and on Windows x64 CPU and DirectML (Linux CPU if available). Measure parity, RTF, peak
    RSS and bundle size. Prove ORT and `mixxx-proto` link together and that a universal macOS build
    is possible. Every number in §6 is filled in here.
@@ -403,12 +407,12 @@ intentionally empty until the spike runs. No number below is a claim about this 
 |---|---|---|
 | Parity vs the reference PyTorch implementation, per-stem SDR | Within 0.1 dB of the reference on the fixed fixture | to be measured |
 | Parity vs the reference, max absolute sample error | ≤ 1e-3 (the export tool's advertised parity) | to be measured |
-| Real-time factor, M-series CPU, `htdemucs_ft` bag | ≤ 150 s per 4-minute track (RTF ≤ 0.63), plan §8.2 | to be measured |
+| Real-time factor, M-series CPU, SCNet/SCNet-large | ≤ 150 s per 4-minute track (RTF ≤ 0.63), plan §8.2 | to be measured |
 | Real-time factor, GPU provider (CoreML; DirectML or CUDA) | ≤ 30 s per 4-minute track (RTF ≤ 0.125), plan §8.2 | to be measured |
 | Peak RSS, two separation workers | < 1.5 GB, plan §8.2 | to be measured |
 | Audio xruns, 2-hour soak, 4 decks, 128-frame buffer, two workers | 0, plan §8.2 | to be measured |
 | ORT bundle size per platform | ≤ 60 MB, plan §5.4 | to be measured |
-| `htdemucs_ft` download size | About 630 MB fp16, plan decision 1 | to be measured |
+| SCNet-large download size | About 45 MB int8 / 169 MB fp32 | to be measured |
 
 Acceptance also means:
 

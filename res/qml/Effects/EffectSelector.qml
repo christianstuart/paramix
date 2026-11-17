@@ -1,6 +1,8 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick
+import QtQuick.Controls
+import "../Theme"
 
 /// Effect selector for one slot. Uses the skin combo box so it follows the
 /// flat theme instead of the platform style.
@@ -10,22 +12,33 @@ Skin.ComboBox {
     required property Mixxx.EffectSlotProxy slot
 
     function syncCurrentEffect() {
+        if (!slot.effectId) {
+            // Hide the model's "---" placeholder; an empty slot should read as
+            // empty, not as a selected no-effect entry.
+            currentIndex = -1;
+            return;
+        }
         for (let index = 0; index < count; ++index) {
             if (model.get(index).effectId === slot.effectId) {
                 currentIndex = index;
                 return;
             }
         }
-        currentIndex = 0;
+        currentIndex = -1;
     }
 
     readonly property string observedEffectId: root.slot?.effectId ?? ""
 
     Accessible.name: qsTr("Effect")
     Accessible.role: Accessible.ComboBox
-    implicitHeight: 24
+    implicitHeight: Theme.fxControlHeight
     model: Mixxx.EffectsManager.visibleEffectsModel
+    textLeftPadding: indicator.width + Theme.space1
     textRole: "display"
+
+    ToolTip.delay: 500
+    ToolTip.text: displayText
+    ToolTip.visible: hovered
 
     Component.onCompleted: syncCurrentEffect()
     onObservedEffectIdChanged: syncCurrentEffect()

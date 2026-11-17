@@ -1,5 +1,9 @@
 # Parallel work: coordination guide for additional contributors
 
+> **Update 2026-11-16:** separation uses the bundled Demucs model; SCNet stays
+> experimental and Open-Unmix was removed. See
+> [`docs/third-party-models.md`](third-party-models.md).
+
 This document tells a second team of agents and developers (starting with Bradley's) what they can
 work on **concurrently** with the main Paramix workstream without colliding with it.
 
@@ -71,15 +75,15 @@ A frequent waste of effort here is building something the imported tree already 
 
 ## 3. Claimable workstreams & consolidated task backlog
 
-Workstreams W1 (#3), W2 (#4), W4 (#6), W5 (#5), W6 (#15), and the `rbxport` beatgrid engine (#16) are **merged on `main`**.
+Workstreams W1 (#3), W2 (#4), W4 (#6), W5 (#5), and W6 (#15) are **merged on `main`**.
 
 The remaining project backlog on the [Program Board](https://github.com/users/christianstuart/projects/2) is consolidated into **8 independent tasks** so multiple agents can work in parallel without file collisions:
 
 **Current state (2026-11-13):** The implementation stack (#17-#20) is merged to `main`. Stems 3 integration (schema 41/42, Settings -> Stems, the context action and `StemService` export) and the Stems 4 background queue are implemented on `bradley/stems3-integration` and `bradley/stems4-queue`. The remaining stem work is the ADR-002 cache and its playback path. The program board carries the same status.
 
 ### 1. Beatgrid — Rekordbox-style phrase labeling & visualization option
-- **Scope:** Extend `src/proto/beats.proto` additively (`BarInfo` + phrase segments under existing version strings; fix `Beats::operator==`), preserve `GridPhase::phraseStarts` in `analyzerrbxportbeats.cpp` and classify segments into Rekordbox-style phrase labels (`Intro`, `Up`, `Down`, `Verse`, `Bridge`, `Chorus`, `Outro`), import Rekordbox `PSSI` (`SECTION_TAGS_SONG_STRUCTURE`) in `rekordboxfeature.cpp`, and add a user preference to toggle between **Standard Bar** lines and **Rekordbox Phrase Style** (colored, labeled phrase blocks/strip).
-- **Files:** `src/proto/beats.proto`, `src/track/beats.*`, `src/analyzer/plugins/rbxport/*`, `src/library/rekordbox/rekordboxfeature.cpp`, `src/waveform/renderers/*waveformrenderbeat*`.
+- **Scope:** Extend `src/proto/beats.proto` additively (`BarInfo` + phrase segments under existing version strings; fix `Beats::operator==`), import Rekordbox `PSSI` (`SECTION_TAGS_SONG_STRUCTURE`) in `rekordboxfeature.cpp`, and add a user preference to toggle between **Standard Bar** lines and **Rekordbox Phrase Style** (colored, labeled phrase blocks/strip).
+- **Files:** `src/proto/beats.proto`, `src/track/beats.*`, `src/library/rekordbox/rekordboxfeature.cpp`, `src/waveform/renderers/*waveformrenderbeat*`.
 
 ### 2. Stems 1 - Host STFT/iSTFT & CaC-split DSP pipeline (implemented, PRs #17/#18)
 - **Status:** In review. #17 adds the host transform; #18 adds normalization, bag averaging, the shared limiter and `demucsReconstruct`. 52 tests pass locally and all five CI jobs are green.
@@ -90,7 +94,7 @@ The remaining project backlog on the [Program Board](https://github.com/users/ch
 ### 3. Stems 2 - ONNX Runtime inference backend (implemented, PR #19)
 - **Status:** In review. The MIT header-only demucs-onnx runtime is vendored under `lib/demucs-onnx/`; `DemucsOnnxSeparator` wraps `demucs::Separator`; `STEM_SEPARATION` is AUTO/ON/OFF; a dedicated Linux ORT CI workflow runs.
 - **Scope:** ONNX Runtime session and execution-provider fallback, chunking, track-level normalization, overlap-add, four-stem output and the factory seam. Validated with the demucs-onnx `htdemucs` graph on Windows x64 CPU.
-- **Licensing:** the runtime is MIT; the HTDemucs weights are CC BY-NC 4.0, not MIT, and are not committed.
+- **Licensing:** the runtime is MIT; the HTDemucs weights are **not MIT** and have no explicit licence (research/scientific use only, per the maintainer), so they are not committed. The GPL-2.0-compatible candidates are SCNet-large, SCNet, and Open-Unmix `umxhq`; see [`docs/third-party-models.md`](third-party-models.md).
 - **Files:** `lib/demucs-onnx/`, `src/stems/demucsonnxseparator.*`, `src/stems/stemseparatorfactory.*`, `cmake/modules/Findonnxruntime.cmake`, `.github/workflows/stems-onnx.yml`, `docs/stems-onnx.md`.
 - **Remaining:** wire the shared limiter and resampling, add Windows/macOS ORT CI, and the model manager/ADR-005.
 

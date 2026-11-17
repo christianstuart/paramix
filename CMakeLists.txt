@@ -1226,14 +1226,8 @@ add_library(
   src/analyzer/analyzerwaveform.cpp
   src/analyzer/plugins/analyzerqueenmarybeats.cpp
   src/analyzer/plugins/analyzerqueenmarykey.cpp
-  src/analyzer/plugins/analyzerrbxportbeats.cpp
   src/analyzer/plugins/analyzersoundtouchbeats.cpp
   src/analyzer/plugins/buffering_utils.cpp
-  src/analyzer/plugins/rbxport/attack.cpp
-  src/analyzer/plugins/rbxport/downbeat.cpp
-  src/analyzer/plugins/rbxport/grid.cpp
-  src/analyzer/plugins/rbxport/onset.cpp
-  src/analyzer/plugins/rbxport/tempo.cpp
   src/analyzer/trackanalysisscheduler.cpp
   src/audio/frame.cpp
   src/audio/signalinfo.cpp
@@ -1599,6 +1593,7 @@ add_library(
   src/preferences/dialog/dlgpreferencepage.cpp
   src/preferences/dialog/dlgpreferences.cpp
   src/preferences/dialog/dlgpreferencesdlg.ui
+  src/preferences/dialog/preferencessearch.cpp
   src/preferences/dialog/dlgprefinterface.cpp
   src/preferences/dialog/dlgprefinterfacedlg.ui
   src/preferences/dialog/dlgprefkey.cpp
@@ -1898,10 +1893,27 @@ add_library(
   src/controllers/scripting/javascriptplayerproxy.h
 )
 if(STEM_SEPARATION_ENABLED)
-  target_sources(mixxx-lib PRIVATE src/stems/demucsonnxseparator.cpp)
+  target_sources(mixxx-lib PRIVATE
+    src/stems/demucsonnxseparator.cpp
+    src/stems/scnetonnxseparator.cpp
+  )
   target_include_directories(mixxx-lib PRIVATE lib/demucs-onnx/include)
   target_link_libraries(mixxx-lib PRIVATE onnxruntime::onnxruntime)
   target_compile_definitions(mixxx-lib PUBLIC __STEM_SEPARATION__)
+
+  # Bundle the local model set when it is present. The release build supplies
+  # htdemucs.onnx; a clean checkout has no weights.
+  set(_paramix_model_dir "${CMAKE_CURRENT_SOURCE_DIR}/models")
+  if(EXISTS "${_paramix_model_dir}/htdemucs.onnx")
+    if(WIN32 OR APPLE)
+      set(_paramix_model_dest "models")
+    else()
+      set(_paramix_model_dest "share/paramix/models")
+    endif()
+    install(DIRECTORY "${_paramix_model_dir}/"
+      DESTINATION "${_paramix_model_dest}"
+    )
+  endif()
 else()
   target_sources(mixxx-lib PRIVATE src/stems/demucsonnxseparator_stub.cpp)
 endif()
@@ -2388,7 +2400,7 @@ if(WIN32)
   # shoutidjc/shout.h checks for WIN32 to see if we are on Windows.
   target_compile_definitions(mixxx-lib PUBLIC WIN32)
 
-  target_link_libraries(mixxx-lib PRIVATE comctl32 shell32)
+  target_link_libraries(mixxx-lib PRIVATE comctl32 shell32 pdh)
 
   if(MSVC)
     target_link_options(mixxx-lib PUBLIC /entry:mainCRTStartup)
@@ -2986,6 +2998,7 @@ if(BUILD_TESTING)
     src/test/demucsdsphelpertest.cpp
     src/test/demucsonnxseparatortest.cpp
     src/test/demucsstfttest.cpp
+    src/test/scnetonnxseparatortest.cpp
     src/test/directorydaotest.cpp
     src/test/duration_test.cpp
     src/test/durationutiltest.cpp
@@ -3028,12 +3041,12 @@ if(BUILD_TESTING)
     src/test/playlisttest.cpp
     src/test/portmidicontroller_test.cpp
     src/test/portmidienumeratortest.cpp
+    src/test/preferencessearchtest.cpp
     src/test/queryutiltest.cpp
     src/test/rangelist_test.cpp
     src/test/readaheadmanager_test.cpp
     src/test/replaygaintest.cpp
     src/test/rescalertest.cpp
-    src/test/rbxportgridtest.cpp
     src/test/rgbcolor_test.cpp
     src/test/rotary_test.cpp
     src/test/samplebuffertest.cpp
@@ -4119,6 +4132,7 @@ if(QML)
       src/qml/qmltrackproxy.cpp
       src/qml/qmlspinnyposition.cpp
       src/qml/qmlstemserviceproxy.cpp
+      src/qml/qmlsystemmonitorproxy.cpp
       src/qml/qmlvinylsignalquality.cpp
       src/qml/qmlvisibleeffectsmodel.cpp
       src/qml/qmlvumeteritem.cpp
@@ -5813,6 +5827,11 @@ if(APPLE AND MACOS_BUNDLE)
 endif()
 
 if(WIN32 AND STEM_SEPARATION_ENABLED AND onnxruntime_RUNTIME)
+  get_filename_component(_onnxruntime_runtime_dir "${onnxruntime_RUNTIME}" DIRECTORY)
+  file(GLOB _onnxruntime_provider_runtimes
+    "${_onnxruntime_runtime_dir}/onnxruntime_providers_*.dll"
+    "${_onnxruntime_runtime_dir}/DirectML.dll"
+  )
   foreach(_target mixxx mixxx-test)
     if(TARGET ${_target})
       add_custom_command(
@@ -5820,6 +5839,7 @@ if(WIN32 AND STEM_SEPARATION_ENABLED AND onnxruntime_RUNTIME)
         POST_BUILD
         COMMAND
           ${CMAKE_COMMAND} -E copy_if_different "${onnxruntime_RUNTIME}"
+          ${_onnxruntime_provider_runtimes}
           "$<TARGET_FILE_DIR:${_target}>"
         VERBATIM
       )

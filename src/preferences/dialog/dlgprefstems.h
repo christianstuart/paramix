@@ -20,7 +20,6 @@ class DlgPrefStems : public DlgPreferencePage, public Ui::DlgStemsDlg {
     void slotResetToDefaults() override;
 
   private slots:
-    void slotBrowseModel();
     void slotBrowseOutput();
     void slotFormatChanged(int index);
 
@@ -29,7 +28,6 @@ class DlgPrefStems : public DlgPreferencePage, public Ui::DlgStemsDlg {
 
     const UserSettingsPointer m_pConfig;
     mixxx::stems::StemExportSettings m_settings;
-    QString m_modelPath;
     QString m_outputDirectory;
     bool m_gpuAcceleration = true;
 };

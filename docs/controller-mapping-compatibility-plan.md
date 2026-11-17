@@ -330,7 +330,7 @@ Fix this in QML, not by reconnecting `LibraryControl`. `LibraryControl`'s slots 
    | `show_coverart` | `Mixxx.Config.paramixShowCoverArt` (already used by `Deck/InfoBar.qml`) |
    | `show_spinnies` | Add a Paramix config property (for example `paramixShowSpinnies`) and gate `Deck/Spinny.qml` |
    | `show_mixer` | Add a `showMixer` property and hide the mixer panes; keep the crossfader and master controls reachable |
-   | `show_settings` | Open the existing `ParamixCustomize` popup (`res/qml/MainWindow.qml`) |
+   | `show_settings` | Open the native Preferences dialog (`Mixxx.PreferencesDialog.show()`) |
 
 4. Keep the legacy UI unchanged. This work must not alter `LibraryControl` connection logic or legacy widget behavior.
 5. Add a compatibility mapping table to `docs/controller-mapping-compatibility.md`: control → QML implementation → test.
@@ -346,7 +346,7 @@ Fix this in QML, not by reconnecting `LibraryControl`. `LibraryControl`'s slots 
 - `res/qml/MainWindow.qml`
 - `res/qml/ApplicationMenuActions.qml`
 - `res/qml/Deck/InfoBar.qml`, `res/qml/Deck/Spinny.qml` (if `show_coverart` / `show_spinnies` require it)
-- `res/qml/ParamixCustomize.qml`
+- `src/preferences/dialog/dlgprefinterface.{h,cpp,ui}`, `dlgprefmixerdlg.ui` (Paramix options)
 - `src/qml/qmlsidebarmodelproxy.{h,cpp}` only if a C++ invokable is preferable to QML-side traversal
 - `src/qml/qmlconfigproxy.{h,cpp}` for a new `paramixShowSpinnies` property if needed
 - `src/test/qml_controller_bindings_test.cpp` (new) or the nearest existing QML test target

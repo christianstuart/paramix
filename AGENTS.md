@@ -22,3 +22,24 @@ res/          Resources (controllers/ JS/XML, skins/, qml/)
 cmake/        CMake modules
 tools/        Python helper scripts
 ```
+
+## Running the app
+
+The Paramix QML interface in `res/qml/` is the only interface; `src/main.cpp`
+always loads it. The classic QtWidgets skins were removed from `res/skins`, so
+there is nothing to fall back to.
+
+```bash
+build/paramix.exe
+```
+
+`--new-ui` is still accepted but no longer changes which UI loads. It only
+re-enables the Mixxx 3.0 data-corruption gate that blocks an existing profile;
+pass `--allow-dangerous-data-corruption-risk` to get past it. The gate is about
+Mixxx 3.0's unstable upgrade paths, not about Paramix's own data, which uses the
+same schema as the classic UI.
+
+QML edits need only a restart: the resource path resolves to the source `res/`
+via `CMakeCache.txt` (`src/preferences/configobject.cpp`), so the app reads
+`res/qml/` off disk. C++ edits still need a rebuild — the `.exe` does not
+contain the QML.

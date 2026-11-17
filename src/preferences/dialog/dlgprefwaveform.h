@@ -30,6 +30,7 @@ class DlgPrefWaveform : public DlgPreferencePage, public Ui::DlgPrefWaveformDlg 
 
   private slots:
     void slotSetFrameRate(int frameRate);
+    void slotSetVSync(bool enabled);
     void slotSetWaveformType(int index);
     void slotSetWaveformEnabled(bool checked);
     void slotSetWaveformAcceleration(bool checked);

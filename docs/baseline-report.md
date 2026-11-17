@@ -191,8 +191,8 @@ Phase 0 (discovery and spikes), per plan §7.3:
 
 1. ADR-001 inference runtime and model, ADR-002 cache format, ADR-003 grid format,
    ADR-004 UI/customization, ADR-005 model distribution.
-2. Spikes: `htdemucs_ft` ONNX benchmark on available hardware; Beat This! F-measure against
-   Queen Mary on a labeled fixture set; 8-channel FLAC write/read through the existing
+2. Spikes: SCNet-large/SCNet ONNX benchmark on available hardware; Queen Mary beatgrid F-measure
+   on a labeled fixture set; 8-channel FLAC write/read through the existing
    `EngineDeck` 8-channel path; 4-lane waveform geometry at 60 fps; a GitHub Releases
    model-download dry run.
 3. Audit what the imported tree already provides before writing new code. Preliminary evidence

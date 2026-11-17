@@ -133,7 +133,11 @@ SkinPointer SkinLoader::getConfiguredSkin() const {
     }
 
     // Try to load the desired skin
-    DEBUG_ASSERT(!configSkin.isEmpty());
+    if (configSkin.isEmpty()) {
+        // No legacy skin is installed and none was configured.
+        qWarning() << "No legacy skin available";
+        return nullptr;
+    }
     SkinPointer pSkin = getSkin(configSkin);
     if (pSkin && pSkin->isValid()) {
         return pSkin;
@@ -148,7 +152,12 @@ SkinPointer SkinLoader::getConfiguredSkin() const {
 
     // Fallback to default skin as last resort
     const QString defaultSkinName = getDefaultSkinName();
-    DEBUG_ASSERT(!defaultSkinName.isEmpty());
+    if (defaultSkinName.isEmpty()) {
+        // No legacy skin is installed: the QML skin in res/qml is loaded
+        // directly by QmlApplication and never goes through SkinLoader.
+        qWarning() << "No legacy skin available";
+        return nullptr;
+    }
     pSkin = getSkin(defaultSkinName);
     VERIFY_OR_DEBUG_ASSERT(pSkin && pSkin->isValid()) {
         qWarning() << "Can't find default skin" << defaultSkinName;
@@ -159,7 +168,10 @@ SkinPointer SkinLoader::getConfiguredSkin() const {
 }
 
 QString SkinLoader::getDefaultSkinName() const {
-    return "LateNight";
+    // The classic QtWidgets skins were removed; res/qml is loaded directly and
+    // is not a SkinLoader skin. Returning empty makes getConfiguredSkin() yield
+    // nullptr instead of a name that cannot resolve.
+    return QString();
 }
 
 QWidget* SkinLoader::loadConfiguredSkin(QWidget* pParent,
@@ -233,16 +245,9 @@ LaunchImage* SkinLoader::loadLaunchImage(QWidget* pParent) const {
     return pLaunchImage;
 }
 
-QString SkinLoader::pickResizableSkin(const QString& oldSkin) const {
-    if (oldSkin.contains("latenight", Qt::CaseInsensitive)) {
-        return "LateNight";
-    }
-    if (oldSkin.contains("deere", Qt::CaseInsensitive)) {
-        return "Deere";
-    }
-    if (oldSkin.contains("shade", Qt::CaseInsensitive)) {
-        return "Shade";
-    }
+QString SkinLoader::pickResizableSkin(const QString&) const {
+    // The classic resizable skins were removed and nothing replaces them as a
+    // SkinLoader skin, so a legacy name migrates to no skin at all.
     return QString();
 }
 

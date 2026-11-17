@@ -36,6 +36,7 @@ the legacy names; migrate call sites opportunistically.
 | Radius | `radiusXs`..`radiusXl`, `radiusPill` | Traktor-sharp: panels `radiusSm` (2 px), keys `radiusSm`; only pills stay round. |
 | Motion | `motionFast`, `motionNormal`, `motionSlow`, `motionSpringDuration` | Hover/press is `motionFast`; layout springs use `motionSpringDuration`. |
 | Layout | `toolbarHeight`, `deckHeaderHeight`, `deckMinHeight`, `deckPaneHeight`, `stemLaneMinWidth`, `stemLaneHeight`, `minWindowWidth`, `minWindowHeight` | Minimum window is 1280x720, enforced by `main.qml` and declared in `res/qml/skin.ini`. `deckMinHeight` is the deck's fixed-parts total; the waveform overview absorbs the rest of the band. |
+| Top bar effects | `topBarHeight`, `topBarEffectsHeight`, `fxControlHeight`, `fxKnobSize`, `fxSlotMinWidth`, `fxAssignKeyWidth` | The effects strip is one `fxControlHeight` row (30 px at scale 1) under the 44 px toolbar; `topBarHeight` is the sum and is what the deck band reserves. Each of the two chains carries A-D deck assignment keys; the super knob hides below `fxSuperMinWidth`. |
 
 ## 3. Named color schemes
 
@@ -108,23 +109,19 @@ the `Theme` singleton to the persisted `[Paramix]` values through `Mixxx.Config`
 | `paramixShowStems` | `true` | Deck stem strip tab |
 | `paramixShowHotcues` | `true` | Deck hotcue grid |
 | `paramixShowLibrary` | `true` | Library pane |
-| `paramixShowPreview` | `true` | Preview deck below the library |
 | `paramixCompactDecks` | `false` | Tighter deck header and margins |
-| `paramixBpmInJog` | `true` | BPM/pitch in the jog hub; `false` moves them above the tempo fader |
 
 Waveform playhead position, waveform style and stem lane stacking use the
 existing `[Waveform]` settings (`PlayMarkerPosition`, `WaveformType`,
 `StemSplitTracks`).
 
-The **Customize Paramix** panel (`res/qml/ParamixCustomize.qml`, opened from the
-toolbar sliders button) exposes all of the above. The toolbar gear now opens the
-native Mixxx Preferences dialog, which remains the place for audio, library,
-controllers, analysis and stem export settings. The old QML settings popup is no
-longer instantiated.
+The Paramix options live in the native Preferences dialog: appearance and
+layout on **Interface**, the fourth EQ band on **Mixer**, and the waveform
+settings on **Waveform**. The old QML settings popup is retired.
 
-The panel also offers **Switch to classic Mixxx interface**, which restarts the
-app without `--new-ui`. The native Help menu has the reverse action, **Use
-Paramix QML Interface**, which restarts with `--new-ui`.
+The Interface page no longer offers **Switch to classic Mixxx interface**; the
+native Help menu has the reverse action, **Use Paramix QML Interface**, which
+restarts with `--new-ui`.
 
 ## 7. Scope and status
 

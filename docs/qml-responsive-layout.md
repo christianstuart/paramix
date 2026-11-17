@@ -38,9 +38,9 @@ without clipping; every value is logical px.
 
 | Band | Needs | Set by |
 |---|---|---|
-| Toolbar | 44 high, ~390 wide | `Theme.toolbarHeight`; per-key 26x56 minimums |
+| Top bar | 44 high (main row) + 30 high (effects strip), ~390 wide without effects | `Theme.toolbarHeight` + `Theme.topBarEffectsHeight`; per-key 26x56 minimums |
 | Mixer | 152 wide, ~190 high | `Mixer.qml` `implicitWidth`; `EqColumn` sets the height |
-| Output bar | 54 high | `Mixer/OutputBar.qml` `implicitHeight` |
+| Output bar | 42 high | `Mixer/OutputBar.qml` `implicitHeight` |
 | Deck | ~1265 wide with spinny, ~457 without, ~386 with tempo hidden; 232 high | `Theme.deckMinHeight`; `Deck.qml` DelegateChooser `minWidth` 620 / 270 / 200 |
 | Library | 358 wide, 120 high (228 with preview deck) | `Library.qml` sidebar 150 + browser 200 |
 | Waveform strip | no intrinsic minimum | two `WaveformDisplay`s at `height / 2` |
@@ -126,8 +126,9 @@ items leaving the *window*. Three root causes, none of them about window size:
   `deckTempoMinWidth` 270, so the row outgrew the deck and `clip: true` cut the
   right-hand end off. The tempo strip now needs a 563 px deck and the full row
   (`deckFullRowMinWidth`) 708.
-- **Jog wheels are opt-in.** Customize > Jog wheels (`[Paramix] ShowJogWheels`,
-  off by default) decides whether a deck has one at all. When on, it shows from
+- **Jog wheels are opt-in.** Preferences > Interface > Show a jog wheel
+  (`[Paramix] ShowJogWheels`, off by default) decides whether a deck has one at
+  all. When on, it shows from
   a 643 px deck (`deckSpinnyMinWidth`, a 1440 px window) and takes the tempo
   strip's place until the deck reaches 708, where both fit. The rule is
   `Deck.rowItemShown()`. `PARAMIX_QML_JOG_WHEELS=1` makes the bounds test
@@ -179,7 +180,7 @@ fonts; without it only the bundled ones exist. The audit reports text over
 text, text larger than its box, short labels elided and children outside their
 parent. Knob art 3-5 px taller than its hit box is reported and intended.
 
-Not covered: four-deck mode, the effects and sampler rows, maximized library,
+Not covered: four-deck mode, the sampler row, maximized library,
 and popups. The dump only sees the default two-deck layout.
 
 ## Deck fixes after the first run
@@ -253,6 +254,23 @@ instead of ~253, about 75 % of its previous height.
 and the stems pane needs an 18 px header plus lane rows. Reaching a strict 2/3
 would clip both.
 
+## Top bar effects (2026-11-16)
+
+The standard effects moved from a deck-band row into a second top-bar row, so the deck band gained
+the old 168 px back and the effects stay visible with the library maximized. The strip is
+`Theme.topBarEffectsHeight` (30 px at uiScale 1) and the whole top bar is `Theme.topBarHeight`
+(74 px); `MainWindow.bandMinimumHeight` subtracts it.
+
+| Part | Compact rule |
+|---|---|
+| Standard unit | Status key + power dot + A-D deck assignment + three selector/On pairs + D/W; super knob appears from `Theme.fxSuperMinWidth` (1100) |
+| Deck assignment | Four independent toggle keys per chain; any combination of decks A-D can be active at once |
+| Selectors | `Layout.fillWidth`, elide, full name in a tooltip; never a fixed 300 px |
+
+The per-deck quick chains stay in the mixer; they are not duplicated in the strip. The strip is
+measured by `QmlResponsiveBoundsTest` at the same five sizes as the rest of the skin. At 1280 the
+bounds test still passes; the deck band is 30 px shorter than before.
+
 ## Still open
 
 - **Narrow-width mixer rules still deferred.** The sleek-mixer work landed, and
@@ -260,8 +278,8 @@ would clip both.
   the narrow-width rules (drop the EQ rows, columns 84 -> 56) are still not
   written.
 - **No UI control for `uiScale` yet.** The setting and the binding exist, but
-  the control belongs in `ParamixCustomize.qml`. Until then it can only be set
-  in `paramix.cfg`.
+  the control belongs in the Interface preference page. Until then it can only
+  be set in `paramix.cfg`.
 - **Below ~1200 px wide the split layout still oscillates** (see below). The
   window minimum is now `Theme.minWindowWidth`/`minWindowHeight` (1280x720), so
   a user cannot drag the window into the unstable range, but the binding cycle

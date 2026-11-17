@@ -251,6 +251,19 @@ int EncoderFdkAac::initEncoder(mixxx::audio::SampleRate sampleRate,
         QString* pUserErrorMessage) {
     m_sampleRate = sampleRate;
 
+    // shortcut: disabled until processFIFO() stops segfaulting on real audio
+    // (invalid vector access in the encode loop). This is the choke point for
+    // recording, broadcasting and any profile saved before AAC was unlisted,
+    // so failing here is what keeps the crash unreachable.
+    kLogger.warning() << "initEncoder failed: AAC encoding is disabled";
+    if (pUserErrorMessage) {
+        *pUserErrorMessage = QObject::tr(
+                "AAC and HE-AAC recording and streaming are disabled in this "
+                "version because the encoder crashes. Choose MP3, Ogg Vorbis, "
+                "Opus, FLAC or WAV instead.");
+    }
+    return -1;
+
     if (!m_pLibrary) {
         kLogger.warning() << "initEncoder failed: fdk-aac library not loaded";
         if (pUserErrorMessage) {

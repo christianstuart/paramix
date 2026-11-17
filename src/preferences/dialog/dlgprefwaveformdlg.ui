@@ -896,6 +896,16 @@ Select from different types of displays for the waveform overview, which differ 
        </property>
       </widget>
      </item>
+     <item row="2" column="0" colspan="3">
+      <widget class="QCheckBox" name="vsyncCheckBox">
+       <property name="toolTip">
+        <string>Synchronize rendering to the display refresh rate. Prevents tearing at the cost of a frame of latency. Takes effect after restart.</string>
+       </property>
+       <property name="text">
+        <string>VSync</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </widget>
   </item><!-- opengl_status_groupbox -->
@@ -934,6 +944,7 @@ Select from different types of displays for the waveform overview, which differ 
   <tabstop>enableWaveformCaching</tabstop>
   <tabstop>enableWaveformGenerationWithAnalysis</tabstop>
   <tabstop>clearCachedWaveforms</tabstop>
+  <tabstop>vsyncCheckBox</tabstop>
  </tabstops>
  <buttongroups>
   <buttongroup name="overview_scale_options"/>

@@ -15,7 +15,6 @@ Item {
     required property ApplicationWindow applicationWindow
     property alias menuBar: nativeApplicationMenuLoader.item
 
-    property alias editDeck: editDeckButton.checked
     property var focusedDeck: null
     // Layout visibility is driven by the View menu in the toolbar. The stored
     // state is kept independently of window size so shrinking the window only
@@ -23,19 +22,20 @@ Item {
     property bool fourDecksRequested: false
     property bool maximizeLibrary: false
     readonly property int numDecks: 4
-    readonly property int numPreviewDecks: 1
     readonly property int numSamplers: 16
     readonly property bool show4decks: fourDecksRequested && root.height > 515
-    /// Height the deck band reserves: the taller of the mixer and the deck, so a
-    /// short mixer can never clip the deck's panes.
-    readonly property int bandContentHeight: Math.max(mixer.implicitHeight, Theme.deckMinHeight)
+    /// Height the deck band reserves: the taller of the mixer and the deck
+    /// rows. Four decks need two deck rows even when the mixer's EQ columns
+    /// are short (three bands), so the decks cannot be squeezed below their
+    /// minimum.
+    readonly property int bandContentHeight: Math.max(mixer.implicitHeight,
+            Theme.deckMinHeight * (root.show4decks ? 2 : 1))
     /// The deck/mixer band may never reserve more height than the window leaves
     /// under the toolbar. Without this the vertical split honours a minimum that
     /// is larger than the window and paints the band past the bottom edge
     /// instead of shrinking it.
     readonly property int bandMinimumHeight: Math.min(root.bandContentHeight + outputBar.height,
-            Math.max(0, root.height - Theme.toolbarHeight))
-    property bool showEffects: false
+            Math.max(0, root.height - Theme.topBarHeight))
     property bool showSamplers: false
     readonly property bool showMicrophoneInputs: showMicrophonesControl.value > 0
     readonly property int waveformOverviewTypeRgb: 2
@@ -49,11 +49,7 @@ Item {
     Loader {
         id: nativeApplicationMenuLoader
 
-        // The classic UI uses the native WMainMenuBar; the QML skin has to carry
-        // its own menu, so build one on every desktop platform. Without this
-        // Windows and Linux (no AppMenu registrar) had no File/Library/Options
-        // menus at all.
-        active: Qt.platform.os !== "android" && Qt.platform.os !== "ios"
+        active: Qt.platform.os === "osx" || (Mixxx.Application.supportsGlobalMenuBar && root.applicationWindow.visibility !== Window.FullScreen)
 
         sourceComponent: Skin.MainMenuBar {
             actions: applicationMenuActions
@@ -99,14 +95,6 @@ Item {
 
         onInitializedChanged: {
             value = root.numSamplers;
-        }
-    }
-    Mixxx.ControlProxy {
-        group: "[App]"
-        key: "num_preview_decks"
-
-        onInitializedChanged: {
-            value = root.numPreviewDecks;
         }
     }
     Mixxx.ControlProxy {
@@ -157,239 +145,243 @@ Item {
             id: toolbar
 
             color: Theme.surface1
-            height: Theme.toolbarHeight
+            height: Theme.topBarHeight
             width: parent.width
 
-            // Master tempo and tempo-source switch: centered in the bar so it
-            // sits above the playback marker of the overview waveforms.
-            MixerComponents.MasterTempoBox {
-                id: masterTempo
+            // Main row: brand, centred master readouts and the layout keys.
+            Item {
+                id: mainToolbarRow
 
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.width >= Theme.masterTempoMinWidth
-                z: 1
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: Theme.toolbarHeight
+
+                // Master tempo and tempo-source switch: centered in the bar so it
+                // sits above the playback marker of the overview waveforms.
+                MixerComponents.MasterTempoBox {
+                    id: masterTempo
+
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.width >= Theme.masterTempoMinWidth
+                    z: 1
+                }
+                // Master output level, left of the tempo readout. Hidden on narrow
+                // windows where it would collide with the layout toggles.
+                MixerComponents.MasterLevelDisplay {
+                    anchors.right: masterTempo.left
+                    anchors.rightMargin: Theme.space4
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.width >= Theme.masterMeterMinWidth
+                    z: 1
+                }
+                // Recording output, right of the tempo readout.
+                MixerComponents.RecordingBox {
+                    anchors.left: masterTempo.right
+                    anchors.leftMargin: Theme.space4
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.width >= Theme.recordingBoxMinWidth
+                    z: 1
+                }
+                // Flat matte top plate with a 1 px hairline bottom separator.
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    color: Theme.border
+                    height: 1
+                    width: parent.width
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.space3
+                    anchors.rightMargin: Theme.space2
+                    spacing: Theme.space2
+
+                    // Brand plate: signal bar, wordmark, deck status dots.
+                    RowLayout {
+                        spacing: Theme.space2
+
+                        Rectangle {
+                            color: Theme.accent
+                            implicitHeight: 22
+                            implicitWidth: 3
+                            radius: 1
+                        }
+                        ColumnLayout {
+                            spacing: 0
+
+                            Text {
+                                color: Theme.textPrimary
+                                font.bold: true
+                                font.family: Theme.fontFamilyDisplay
+                                font.letterSpacing: 2.5
+                                font.pixelSize: Theme.fontSizeSm
+                                text: qsTr("PARAMIX")
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                        RowLayout {
+                            spacing: 4
+
+                            Layout.leftMargin: Theme.space2
+
+                            Repeater {
+                                model: [Theme.deckA, Theme.deckB, Theme.deckC, Theme.deckD]
+
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    color: modelData
+                                    height: 6
+                                    opacity: 0.9
+                                    radius: 3
+                                    width: 6
+                                }
+                            }
+                        }
+                        Item {
+                            implicitWidth: Theme.space2
+                        }
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    // CPU / GPU / clock / battery. Each item is optional; the whole
+                    // cluster hides before it can collide with the centred tempo.
+                    TopBarStatus {
+                        Layout.alignment: Qt.AlignVCenter
+                        visible: root.width >= Theme.toolbarStatusMinWidth
+                    }
+                    // Layout visibility lives here instead of a row of toggles on
+                    // the left: one key that opens a checkable menu.
+                    Skin.Button {
+                        id: viewButton
+
+                        activeColor: Theme.textOnAccent
+                        highlight: layoutMenu.visible
+                        text: qsTr("View")
+
+                        Accessible.name: qsTr("Show or hide interface panels")
+
+                        onClicked: layoutMenu.visible ? layoutMenu.close() : layoutMenu.open()
+
+                        Menu {
+                            id: layoutMenu
+
+                            parent: viewButton
+                            width: 188
+                            x: parent.width - width
+                            y: parent.height + 4
+
+                            background: Rectangle {
+                                border.color: Theme.borderStrong
+                                border.width: 1
+                                color: Theme.surface2
+                                radius: Theme.radiusMd
+                            }
+                            padding: Theme.space1
+
+                            onAboutToShow: {
+                                fourDecksItem.checked = root.fourDecksRequested;
+                                libraryItem.checked = root.maximizeLibrary;
+                                auxItem.checked = root.showMicrophoneInputs;
+                                samplersItem.checked = root.showSamplers;
+                            }
+
+                            Skin.CheckMenuItem {
+                                id: fourDecksItem
+
+                                checkable: true
+                                enabled: root.height > 515
+                                text: qsTr("Four decks")
+
+                                onTriggered: root.fourDecksRequested = checked
+                            }
+                            Skin.CheckMenuItem {
+                                id: libraryItem
+
+                                checkable: true
+                                text: qsTr("Library")
+
+                                onTriggered: root.maximizeLibrary = checked
+                            }
+                            Skin.CheckMenuItem {
+                                id: auxItem
+
+                                checkable: true
+                                text: qsTr("Mic / Aux")
+
+                                onTriggered: showMicrophonesControl.value = checked ? 1 : 0
+                            }
+                            Skin.CheckMenuItem {
+                                id: samplersItem
+
+                                checkable: true
+                                text: qsTr("Samplers")
+
+                                onTriggered: root.showSamplers = checked
+                            }
+                        }
+                    }
+                    Skin.Button {
+                        id: showDevToolsButton
+
+                        activeColor: Theme.textOnAccent
+                        Layout.preferredWidth: 84
+                        checkable: true
+                        checked: devToolsWindow.visible
+                        text: qsTr("Develop")
+                        visible: Mixxx.Application.developerMode
+
+                        Accessible.name: qsTr("Show developer tools")
+
+                        onClicked: {
+                            if (devToolsWindow.visible)
+                                devToolsWindow.close();
+                            else
+                                devToolsWindow.show();
+                        }
+
+                        DeveloperToolsWindow {
+                            id: devToolsWindow
+
+                            height: 480
+                            width: 640
+                        }
+                    }
+                    Skin.Button {
+                        id: showPreferencesButton
+
+                        activeColor: Theme.textOnAccent
+                        icon.height: 16
+                        icon.source: "images/gear.svg"
+                        icon.width: 16
+                        implicitWidth: implicitHeight
+
+                        Accessible.name: qsTr("Preferences")
+
+                        onClicked: Mixxx.PreferencesDialog.show()
+                    }
+                }
             }
-            // Master output level, left of the tempo readout. Hidden on narrow
-            // windows where it would collide with the layout toggles.
-            MixerComponents.MasterLevelDisplay {
-                anchors.right: masterTempo.left
-                anchors.rightMargin: Theme.space4
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.width >= Theme.masterMeterMinWidth
-                z: 1
+            // Effects strip: the standard chains and the per-deck quick chains.
+            Skin.TopBarEffects {
+                id: topBarEffects
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: mainToolbarRow.bottom
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: Theme.space3
+                anchors.rightMargin: Theme.space2
             }
-            // Recording output, right of the tempo readout.
-            MixerComponents.RecordingBox {
-                anchors.left: masterTempo.right
-                anchors.leftMargin: Theme.space4
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.width >= Theme.recordingBoxMinWidth
-                z: 1
-            }
-            // Flat matte top plate with a 1 px hairline bottom separator.
+            // Bottom edge of the whole top bar.
             Rectangle {
                 anchors.bottom: parent.bottom
                 color: Theme.border
                 height: 1
                 width: parent.width
-            }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.space3
-                anchors.rightMargin: Theme.space2
-                spacing: Theme.space2
-
-                // Brand plate: signal bar, wordmark, deck status dots.
-                RowLayout {
-                    spacing: Theme.space2
-
-                    Rectangle {
-                        color: Theme.accent
-                        implicitHeight: 22
-                        implicitWidth: 3
-                        radius: 1
-                    }
-                    ColumnLayout {
-                        spacing: 0
-
-                        Text {
-                            color: Theme.textPrimary
-                            font.bold: true
-                            font.family: Theme.fontFamilyDisplay
-                            font.letterSpacing: 2.5
-                            font.pixelSize: Theme.fontSizeSm
-                            text: qsTr("PARAMIX")
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                    }
-                    RowLayout {
-                        spacing: 4
-
-                        Layout.leftMargin: Theme.space2
-
-                        Repeater {
-                            model: [Theme.deckA, Theme.deckB, Theme.deckC, Theme.deckD]
-
-                            Rectangle {
-                                Layout.alignment: Qt.AlignVCenter
-                                color: modelData
-                                height: 6
-                                opacity: 0.9
-                                radius: 3
-                                width: 6
-                            }
-                        }
-                    }
-                    Item {
-                        implicitWidth: Theme.space2
-                    }
-                }
-                Item {
-                    Layout.fillWidth: true
-                }
-                // Layout visibility lives here instead of a row of toggles on
-                // the left: one key that opens a checkable menu.
-                Skin.Button {
-                    id: viewButton
-
-                    activeColor: Theme.textOnAccent
-                    highlight: layoutMenu.visible
-                    text: qsTr("View")
-
-                    Accessible.name: qsTr("Show or hide interface panels")
-
-                    onClicked: layoutMenu.visible ? layoutMenu.close() : layoutMenu.open()
-
-                    Menu {
-                        id: layoutMenu
-
-                        parent: viewButton
-                        width: 188
-                        x: parent.width - width
-                        y: parent.height + 4
-
-                        background: Rectangle {
-                            border.color: Theme.borderStrong
-                            border.width: 1
-                            color: Theme.surface2
-                            radius: Theme.radiusMd
-                        }
-                        padding: Theme.space1
-
-                        onAboutToShow: {
-                            fourDecksItem.checked = root.fourDecksRequested;
-                            libraryItem.checked = root.maximizeLibrary;
-                            effectsItem.checked = root.showEffects;
-                            auxItem.checked = root.showMicrophoneInputs;
-                            samplersItem.checked = root.showSamplers;
-                        }
-
-                        Skin.CheckMenuItem {
-                            id: fourDecksItem
-
-                            checkable: true
-                            enabled: root.height > 515
-                            text: qsTr("Four decks")
-
-                            onTriggered: root.fourDecksRequested = checked
-                        }
-                        Skin.CheckMenuItem {
-                            id: libraryItem
-
-                            checkable: true
-                            text: qsTr("Library")
-
-                            onTriggered: root.maximizeLibrary = checked
-                        }
-                        Skin.CheckMenuItem {
-                            id: effectsItem
-
-                            checkable: true
-                            text: qsTr("Effects")
-
-                            onTriggered: root.showEffects = checked
-                        }
-                        Skin.CheckMenuItem {
-                            id: auxItem
-
-                            checkable: true
-                            text: qsTr("Mic / Aux")
-
-                            onTriggered: showMicrophonesControl.value = checked ? 1 : 0
-                        }
-                        Skin.CheckMenuItem {
-                            id: samplersItem
-
-                            checkable: true
-                            text: qsTr("Samplers")
-
-                            onTriggered: root.showSamplers = checked
-                        }
-                    }
-                }
-                Skin.Button {
-                    id: editDeckButton
-
-                    activeColor: Theme.textOnAccent
-                    checkable: true
-                    text: qsTr("Edit")
-
-                    Accessible.name: qsTr("Edit deck layout")
-                }
-                Skin.Button {
-                    id: showDevToolsButton
-
-                    activeColor: Theme.textOnAccent
-                    Layout.preferredWidth: 84
-                    checkable: true
-                    checked: devToolsWindow.visible
-                    text: qsTr("Develop")
-                    visible: Mixxx.Application.developerMode
-
-                    Accessible.name: qsTr("Show developer tools")
-
-                    onClicked: {
-                        if (devToolsWindow.visible)
-                            devToolsWindow.close();
-                        else
-                            devToolsWindow.show();
-                    }
-
-                    DeveloperToolsWindow {
-                        id: devToolsWindow
-
-                        height: 480
-                        width: 640
-                    }
-                }
-                Skin.Button {
-                    id: showPreferencesButton
-
-                    activeColor: Theme.textOnAccent
-                    icon.height: 16
-                    icon.source: "images/gear.svg"
-                    icon.width: 16
-                    implicitWidth: implicitHeight
-
-                    Accessible.name: qsTr("Preferences")
-
-                    onClicked: Mixxx.PreferencesDialog.show()
-                }
-                Skin.Button {
-                    id: customizeInterfaceButton
-
-                    activeColor: Theme.textOnAccent
-                    icon.height: 16
-                    icon.source: "images/sliders.svg"
-                    icon.width: 16
-                    implicitWidth: implicitHeight
-
-                    Accessible.name: qsTr("Customize interface")
-
-                    onClicked: customizePopup.open()
-                }
+                z: 2
             }
         }
         SplitView {
@@ -515,7 +507,6 @@ Item {
                 Deck {
                     id: deck1
 
-                    editMode: root.editDeck
                     group: "[Channel1]"
                     height: root.maximizeLibrary ? 80 : root.show4decks ? root.bandContentHeight / 2 : root.bandContentHeight
                     minimized: root.maximizeLibrary
@@ -600,7 +591,6 @@ Item {
                 Deck {
                     id: deck2
 
-                    editMode: root.editDeck
                     group: "[Channel2]"
                     height: root.maximizeLibrary ? 80 : root.show4decks ? root.bandContentHeight / 2 : root.bandContentHeight
                     minimized: root.maximizeLibrary
@@ -635,7 +625,6 @@ Item {
                     sourceComponent: Component {
                         Deck {
                             anchors.fill: parent
-                            editMode: root.editDeck
                             group: deck3.group
                             minimized: root.maximizeLibrary
                         }
@@ -667,7 +656,6 @@ Item {
                     sourceComponent: Component {
                         Deck {
                             anchors.fill: parent
-                            editMode: root.editDeck
                             group: deck4.group
                             minimized: root.maximizeLibrary
                         }
@@ -727,26 +715,13 @@ Item {
                     }
                 }
                 Loader {
-                    id: effects
-
-                    active: root.showEffects && !root.maximizeLibrary
-                    height: active ? implicitHeight : 0
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: inputRack.bottom
-                    sourceComponent: Component {
-                        Skin.EffectRow {
-                        }
-                    }
-                }
-                Loader {
                     id: samplers
 
                     active: root.showSamplers && !root.maximizeLibrary
                     height: active ? implicitHeight : 0
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: effects.bottom
+                    anchors.top: inputRack.bottom
                     sourceComponent: Component {
                         Skin.SamplerRow {
                         }
@@ -797,9 +772,5 @@ Item {
                 }
             }
         }
-    }
-
-    Skin.ParamixCustomize {
-        id: customizePopup
     }
 }

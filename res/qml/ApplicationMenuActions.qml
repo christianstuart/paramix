@@ -48,7 +48,6 @@ Item {
     property alias viewShowCoverArt: viewShowCoverArtAction
     property alias viewShowKeywheel: viewShowKeywheelAction
     property alias viewShowMicrophone: viewShowMicrophoneAction
-    property alias viewShowPreviewDeck: viewShowPreviewDeckAction
     property alias viewShowVinylControl: viewShowVinylControlAction
 
     signal focusLibrarySearchRequested
@@ -181,16 +180,6 @@ Item {
         text: qsTranslate("WMainMenuBar", "Show Vinyl Control Section")
 
         onTriggered: showVinylControl.toggle()
-    }
-    Action {
-        id: viewShowPreviewDeckAction
-
-        checkable: true
-        checked: showPreviewDecksControl.value > 0
-        shortcut: root.configuredMenuShortcut("ViewMenu_ShowPreviewDeck", "Ctrl+4", root.shortcutRevision)
-        text: qsTranslate("WMainMenuBar", "Show Preview Deck")
-
-        onTriggered: showPreviewDecksControl.toggle()
     }
     Action {
         id: viewShowCoverArtAction
@@ -427,12 +416,6 @@ Item {
 
         group: "[Skin]"
         key: "show_vinylcontrol"
-    }
-    Mixxx.ControlProxy {
-        id: showPreviewDecksControl
-
-        group: "[Skin]"
-        key: "show_preview_decks"
     }
     Mixxx.ControlProxy {
         id: showLibraryCoverArtControl

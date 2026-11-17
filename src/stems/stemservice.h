@@ -21,7 +21,7 @@ class TrackCollectionManager;
 
 namespace mixxx::stems {
 
-class DemucsOnnxSeparator;
+class StemSeparator;
 
 /// One queued export. The set is written to `outputDirectory/<setName>`.
 struct StemExportRequest {
@@ -136,7 +136,7 @@ class StemService : public QThread, public Singleton<StemService> {
     StemService(UserSettingsPointer pConfig, mixxx::DbConnectionPoolPtr pDbConnectionPool);
 
     void processJob(Job& job,
-            std::unique_ptr<DemucsOnnxSeparator>* ppSeparator,
+            std::unique_ptr<StemSeparator>* ppSeparator,
             QString* pLoadedModelPath,
             QString* pLoadedDevice,
             StemSetDao& dao);
@@ -144,7 +144,6 @@ class StemService : public QThread, public Singleton<StemService> {
             TrackId trackId, Status status, int progress, const QString& message = QString());
     QString defaultOutputDirectory() const;
     QString defaultSetName(const TrackPointer& pTrack) const;
-    QString modelPath() const;
 
     const UserSettingsPointer m_pConfig;
     const mixxx::DbConnectionPoolPtr m_pDbConnectionPool;

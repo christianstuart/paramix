@@ -15,13 +15,12 @@
 #include "encoder/encodermp3.h"
 #include "encoder/encodervorbis.h"
 #endif
-#include "encoder/encoderwave.h"
-#include "encoder/encodersndfileflac.h"
-
-#include "encoder/encodermp3settings.h"
-#include "encoder/encodervorbissettings.h"
-#include "encoder/encoderwavesettings.h"
 #include "encoder/encoderflacsettings.h"
+#include "encoder/encodermp3settings.h"
+#include "encoder/encodersndfileflac.h"
+#include "encoder/encodervorbissettings.h"
+#include "encoder/encoderwave.h"
+#include "encoder/encoderwavesettings.h"
 
 #ifdef __OPUS__
 #include "encoder/encoderopus.h"
@@ -33,8 +32,7 @@
 
 EncoderFactory EncoderFactory::factory;
 
-const EncoderFactory& EncoderFactory::getFactory()
-{
+const EncoderFactory& EncoderFactory::getFactory() {
     return factory;
 }
 
@@ -48,18 +46,17 @@ EncoderFactory::EncoderFactory() {
 #ifdef __OPUS__
     m_formats.append(Encoder::Format{"Opus", ENCODING_OPUS, false, "opus"});
 #endif
-    m_formats.append(Encoder::Format{"AAC", ENCODING_AAC, false, "aac"});
-    m_formats.append(Encoder::Format{"HE-AAC", ENCODING_HEAAC, false, "aac"});
-    m_formats.append(Encoder::Format{"HE-AACv2", ENCODING_HEAACV2, false, "aac"});
+    // shortcut: AAC is deliberately unlisted until EncoderFdkAac::processFIFO()
+    // stops segfaulting on real audio (invalid vector access in the encode
+    // loop). The encoder itself stays wired up so re-listing is the only
+    // change needed once it is fixed.
 }
 
-const QList<Encoder::Format> EncoderFactory::getFormats() const
-{
+const QList<Encoder::Format> EncoderFactory::getFormats() const {
     return m_formats;
 }
 
-Encoder::Format EncoderFactory::getSelectedFormat(UserSettingsPointer pConfig) const
-{
+Encoder::Format EncoderFactory::getSelectedFormat(UserSettingsPointer pConfig) const {
     return getFormatFor(pConfig->getValueString(ConfigKey(RECORDING_PREF_KEY, "Encoding")));
 }
 Encoder::Format EncoderFactory::getFormatFor(const QString& formatText) const {
@@ -69,7 +66,7 @@ Encoder::Format EncoderFactory::getFormatFor(const QString& formatText) const {
         }
     }
     qWarning() << "Format: " << formatText << " not recognized! Returning format "
-        << m_formats.first().internalName;
+               << m_formats.first().internalName;
     return m_formats.first();
 }
 
@@ -122,7 +119,7 @@ EncoderPointer EncoderFactory::createEncoder(
         pEncoder->setEncoderSettings(*pSettings);
     } else {
         qWarning() << "Unsupported format requested! "
-                << QString(pSettings ? pSettings->getFormat() : QString("NULL"));
+                   << QString(pSettings ? pSettings->getFormat() : QString("NULL"));
         DEBUG_ASSERT(false);
         pEncoder = std::make_shared<EncoderWave>(pCallback);
     }

@@ -13,7 +13,7 @@ Item {
 
     required property bool show4decks
 
-    implicitHeight: 44
+    implicitHeight: 34
     implicitWidth: 320
 
     Rectangle {
@@ -54,7 +54,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             columnSpacing: 2
             rowSpacing: 2
-            width: root.show4decks ? 34 : 16
+            width: root.show4decks ? 26 : 12
 
             Repeater {
                 model: root.show4decks ? 4 : 2
@@ -64,8 +64,8 @@ Item {
 
                     Layout.column: show4decks ? index % 2 : 0
                     Layout.row: root.show4decks ? parseInt(index / 2) : index
-                    implicitHeight: 16
-                    implicitWidth: 16
+                    implicitHeight: 12
+                    implicitWidth: 12
 
                     Skin.ControlButton {
                         id: deckButton
@@ -78,8 +78,9 @@ Item {
                         text: qsTr("%1").arg(index + 1)
                         toggleable: true
 
-                        // A 16 px key leaves 4 px after Button.qml's 6 px label
-                        // margins, so the digit was elided to nothing.
+                        // A key this small leaves nothing after Button.qml's
+                        // 6 px label margins, so the digit was elided to
+                        // nothing.
                         contentItem: Text {
                             color: deckButton.labelColor
                             font.family: Theme.fontFamily
@@ -115,7 +116,7 @@ Item {
             orientation: Qt.Horizontal
 
             handleImage {
-                height: 28
+                height: 20
             }
         }
         GridLayout {
@@ -126,7 +127,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             columnSpacing: 2
             rowSpacing: 2
-            width: root.show4decks ? 34 : 16
+            width: root.show4decks ? 26 : 12
 
             Repeater {
                 model: root.show4decks ? 4 : 2
@@ -136,8 +137,8 @@ Item {
 
                     Layout.column: show4decks ? index % 2 : 0
                     Layout.row: root.show4decks ? parseInt(index / 2) : index
-                    implicitHeight: 16
-                    implicitWidth: 16
+                    implicitHeight: 12
+                    implicitWidth: 12
 
                     Skin.ControlButton {
                         id: deckButtonRight

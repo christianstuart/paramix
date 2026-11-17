@@ -373,10 +373,18 @@ TEST(QmlThemeUiScaleTest, ScalingShrinksTheSpacingGrid) {
     pTheme->setProperty("uiScale", 1.0);
     EXPECT_EQ(16, pTheme->property("space4").toInt());
     EXPECT_EQ(44, pTheme->property("toolbarHeight").toInt());
+    EXPECT_EQ(22, pTheme->property("fxControlHeight").toInt());
+    EXPECT_EQ(30, pTheme->property("topBarEffectsHeight").toInt());
+    EXPECT_EQ(74, pTheme->property("topBarHeight").toInt());
 
     pTheme->setProperty("uiScale", 0.75);
     EXPECT_EQ(12, pTheme->property("space4").toInt());
     EXPECT_EQ(qRound(44 * 0.75), pTheme->property("toolbarHeight").toInt());
+    EXPECT_EQ(qRound(22 * 0.75), pTheme->property("fxControlHeight").toInt());
+    EXPECT_EQ(qRound(22 * 0.75) + 2 * qRound(4 * 0.75),
+            pTheme->property("topBarEffectsHeight").toInt());
+    EXPECT_EQ(qRound(44 * 0.75) + qRound(22 * 0.75) + 2 * qRound(4 * 0.75),
+            pTheme->property("topBarHeight").toInt());
 }
 
 /// The skin is designed for 1792x1008 and has to stay inside a scaled-down

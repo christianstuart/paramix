@@ -23,7 +23,7 @@ Item {
 
     readonly property real controlValue: readoutControl.value
 
-    implicitHeight: 40
+    implicitHeight: 38
     implicitWidth: 54
 
     function formatReadout(value) {
@@ -59,9 +59,9 @@ Item {
 
         // The bar's top and bottom rules eat into the tile's breathing room, so
         // the caption is pushed down and the readout lifted back off the rule.
-        // The 2 px comes out of the dial, which still reads clearly at 18 px.
+        // The dial keeps its 18 px; the 1 px padding comes out of the tile.
         Item {
-            height: 2
+            height: 1
             width: parent.width
         }
         Skin.SectionText {
@@ -95,7 +95,7 @@ Item {
             width: parent.width
         }
         Item {
-            height: 2
+            height: 1
             width: parent.width
         }
     }

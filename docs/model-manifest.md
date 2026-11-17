@@ -49,8 +49,9 @@ Each object in `models` describes exactly one downloadable model.
 
 | Field            | Type                | Required            | Meaning                                                            |
 |------------------|---------------------|---------------------|--------------------------------------------------------------------|
-| `id`             | string              | **yes**             | Unique model id (e.g. `htdemucs_ft`).                              |
-| `version`        | string              | **yes**             | Semantic version (e.g. `4.0.0`).                                   |
+| `id`             | string              | **yes**             | Unique model id (e.g. `scnet-large`).                              |
+| `family`         | string              | **yes**             | Backend family: `demucs`.                                          |
+| `version`        | string              | **yes**             | Semantic version (e.g. `1.0.0`).                                   |
 | `url`            | string              | one of `url`/`urls` | Primary download URL.                                              |
 | `urls`           | array of strings    | one of `url`/`urls` | Ordered list of download URLs (tried in order).                    |
 | `mirrors`        | array of strings    | no                  | Extra mirror URLs, tried after `url`/`urls`.                       |
@@ -94,35 +95,41 @@ Client behavior (`tools/paramix_model_fetch.py`):
 2. It **refuses** (exit code 2) any model whose `license` object is missing or
    malformed, so a model can never be installed without its license.
 
-Hosting policy (plan §5.9): only **MIT** and **Apache-2.0** weights are hosted on
-`paramix-models`. The default `htdemucs_ft` bag is MIT (retain its
-`LICENSE`/`NOTICE`). Unlicensed community weights (RoFormer, MDX23C, UVR) are
-never hosted; a user-supplied "Max" model stays local. The interactive
-"show size + license, then accept" prompt is an app-layer concern; this
-scaffolding exposes the license and refuses to proceed without it.
+The shipping model is bundled with the app rather than downloaded; this
+manifest scaffolding is kept for a future hosted model. **Demucs
+`htdemucs`** is the shipping model despite its research-only weights (the
+maintainer accepted the risk); see
+[`docs/third-party-models.md`](third-party-models.md). SCNet/SCNet-large stay
+experimental. Unlicensed community weights (RoFormer, MDX23C, UVR) are never
+hosted; a user-supplied "Max" model stays local. The interactive "show size +
+license, then accept" prompt is an app-layer concern; this scaffolding exposes
+the license and refuses to proceed without it.
 
 ## 5. Example manifest
 
-A realistic example (illustrative hash; see below for the runnable fixture):
+A realistic example (illustrative hash; see below for the runnable fixture).
+The example uses the SCNet-large family; Demucs is removed and must not appear
+as a hosted manifest entry.
 
 ```json
 {
   "format_version": 1,
   "models": [
     {
-      "id": "htdemucs_ft",
-      "version": "4.0.0",
-      "url": "https://github.com/christianstuart/paramix-models/releases/download/v4.0.0/htdemucs_ft.onnx",
+      "id": "scnet-large",
+      "family": "scnet-large",
+      "version": "1.0.0",
+      "url": "https://github.com/christianstuart/paramix-models/releases/download/v1.0.0/scnet-large.onnx",
       "mirrors": [
-        "https://cdn.example.com/paramix-models/v4.0.0/htdemucs_ft.onnx"
+        "https://cdn.example.com/paramix-models/v1.0.0/scnet-large.onnx"
       ],
       "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "size_bytes": 630000000,
+      "size_bytes": 45082486,
       "license": {
         "spdx": "MIT",
-        "text": "MIT License\n\nCopyright (c) ...\n..."
+        "text": "MIT License\n\nCopyright (c) 2024 starrytong\n..."
       },
-      "stem_layout": ["drums", "bass", "vocals", "other"],
+      "stem_layout": ["drums", "bass", "other", "vocals"],
       "sample_rate": 44100,
       "required_opset": 17
     }

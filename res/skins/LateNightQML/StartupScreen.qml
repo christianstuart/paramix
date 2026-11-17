@@ -17,7 +17,7 @@ Rectangle {
     color: backgroundColor
 
     function asset(fileName) {
-        return Qt.resolvedUrl("../LateNight/" + schemeDirectory + "/style/" + fileName);
+        return Qt.resolvedUrl("assets/" + schemeDirectory + "/style/" + fileName);
     }
 
     Accessible.name: Mixxx.Core.initializationService

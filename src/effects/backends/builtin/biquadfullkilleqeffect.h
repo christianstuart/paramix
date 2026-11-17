@@ -23,9 +23,11 @@ class BiquadFullKillEQEffectGroupState : public EffectState {
     std::unique_ptr<EngineFilterBiquad1Peaking> m_lowBoost;
     std::unique_ptr<EngineFilterBiquad1Peaking> m_midBoost;
     std::unique_ptr<EngineFilterBiquad1Peaking> m_highBoost;
+    std::unique_ptr<EngineFilterBiquad1Peaking> m_midHighBoost;
     std::unique_ptr<EngineFilterBiquad1LowShelving> m_lowKill;
     std::unique_ptr<EngineFilterBiquad1Peaking> m_midKill;
     std::unique_ptr<EngineFilterBiquad1HighShelving> m_highKill;
+    std::unique_ptr<EngineFilterBiquad1Peaking> m_midHighKill;
     std::unique_ptr<LVMixEQEffectGroupState<EngineFilterBessel4Low>> m_lvMixIso;
 
     mixxx::SampleBuffer m_pLowBuf;
@@ -36,15 +38,18 @@ class BiquadFullKillEQEffectGroupState : public EffectState {
     double m_oldLowBoost;
     double m_oldMidBoost;
     double m_oldHighBoost;
+    double m_oldMidHighBoost;
     double m_oldLowKill;
     double m_oldMidKill;
     double m_oldHighKill;
+    double m_oldMidHighKill;
     double m_oldLow;
     double m_oldMid;
     double m_oldHigh;
 
     double m_loFreqCorner;
     double m_highFreqCorner;
+    double m_midHighCenter;
 
     SINT m_rampHoldOff;
     SINT m_groupDelay;
@@ -86,10 +91,12 @@ class BiquadFullKillEQEffect : public EffectProcessorImpl<BiquadFullKillEQEffect
     EngineEffectParameterPointer m_pPotLow;
     EngineEffectParameterPointer m_pPotMid;
     EngineEffectParameterPointer m_pPotHigh;
+    EngineEffectParameterPointer m_pPotMidHigh;
 
     EngineEffectParameterPointer m_pKillLow;
     EngineEffectParameterPointer m_pKillMid;
     EngineEffectParameterPointer m_pKillHigh;
+    EngineEffectParameterPointer m_pKillMidHigh;
 
     PollingControlProxy m_pLoFreqCorner;
     PollingControlProxy m_pHiFreqCorner;

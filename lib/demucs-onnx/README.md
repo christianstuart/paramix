@@ -1,5 +1,10 @@
 # demucs-onnx (vendored)
 
+> **Shipping runtime (2026-11-16):** this vendored runtime is the separator
+> Paramix ships. The app bundles `models/htdemucs.onnx`; see
+> [`docs/third-party-models.md`](../../docs/third-party-models.md) for the
+> weight licence and the accepted risk.
+
 Header-only C++ runtime for HTDemucs exported at the complex-as-channels
 boundary.
 
@@ -10,8 +15,10 @@ boundary.
 
 Only the header-only library is vendored. Model weights are **not** included.
 The upstream runtime code is MIT, but the HTDemucs v3/v4 weights are Meta's and
-are licensed **CC BY-NC 4.0** (non-commercial), so they must not be
-redistributed with Paramix without a licensing decision.
+have **no explicit weights licence**: the maintainer provides them for
+scientific purposes only. "CC BY-NC 4.0" is a conservative shorthand, not an
+upstream grant. Paramix bundles the converted graph with that risk accepted;
+see [`docs/third-party-models.md`](../../docs/third-party-models.md).
 
 ## Local changes
 

@@ -164,10 +164,12 @@ const QString kParamixShowCoverArtKey = QStringLiteral("ShowCoverArt");
 const QString kParamixShowStemsKey = QStringLiteral("ShowStems");
 const QString kParamixShowHotcuesKey = QStringLiteral("ShowHotcues");
 const QString kParamixShowLibraryKey = QStringLiteral("ShowLibrary");
-const QString kParamixShowPreviewKey = QStringLiteral("ShowPreview");
 const QString kParamixShowJogWheelsKey = QStringLiteral("ShowJogWheels");
+const QString kParamixShowClockKey = QStringLiteral("ShowClock");
+const QString kParamixShowBatteryKey = QStringLiteral("ShowBattery");
+const QString kParamixShowCpuKey = QStringLiteral("ShowCpu");
+const QString kParamixShowGpuKey = QStringLiteral("ShowGpu");
 const QString kParamixFourBandEqKey = QStringLiteral("FourBandEq");
-const QString kParamixBpmInJogKey = QStringLiteral("BpmInJog");
 
 } // namespace
 
@@ -1183,25 +1185,55 @@ PROPERTY_IMPL(kParamixGroup,
         paramixShowLibrary,
         true);
 PROPERTY_IMPL(kParamixGroup,
-        kParamixShowPreviewKey,
-        bool,
-        paramixShowPreview,
-        true);
-PROPERTY_IMPL(kParamixGroup,
         kParamixShowJogWheelsKey,
         bool,
         paramixShowJogWheels,
         false);
 PROPERTY_IMPL(kParamixGroup,
+        kParamixShowClockKey,
+        bool,
+        paramixShowClock,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowBatteryKey,
+        bool,
+        paramixShowBattery,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowCpuKey,
+        bool,
+        paramixShowCpu,
+        true);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixShowGpuKey,
+        bool,
+        paramixShowGpu,
+        true);
+PROPERTY_IMPL(kParamixGroup,
         kParamixFourBandEqKey,
         bool,
         paramixFourBandEq,
         false);
-PROPERTY_IMPL(kParamixGroup,
-        kParamixBpmInJogKey,
-        bool,
-        paramixBpmInJog,
-        true);
+
+void QmlConfigProxy::notifyParamixSettingsChanged() {
+    emit paramixColorSchemeChanged();
+    emit paramixAccentColorChanged();
+    emit paramixFontFamilyChanged();
+    emit paramixFontScaleChanged();
+    emit paramixUiScaleChanged();
+    emit paramixMotionScaleChanged();
+    emit paramixShowWaveformsChanged();
+    emit paramixShowCoverArtChanged();
+    emit paramixShowStemsChanged();
+    emit paramixShowHotcuesChanged();
+    emit paramixShowLibraryChanged();
+    emit paramixShowJogWheelsChanged();
+    emit paramixShowClockChanged();
+    emit paramixShowBatteryChanged();
+    emit paramixShowCpuChanged();
+    emit paramixShowGpuChanged();
+    emit paramixFourBandEqChanged();
+}
 
 // static
 QmlConfigProxy* QmlConfigProxy::create(QQmlEngine* pQmlEngine, QJSEngine*) {

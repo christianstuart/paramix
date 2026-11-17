@@ -432,7 +432,7 @@ QtObject {
     readonly property color white: "#D9D9D9"
 
     function lateNightAsset(directory, fileName) {
-        return Qt.resolvedUrl("../../LateNight/" + ColorScheme.name + "/" + directory + "/" + fileName);
+        return Qt.resolvedUrl("../assets/" + ColorScheme.name + "/" + directory + "/" + fileName);
     }
     function lateNightButton(fileName) {
         return lateNightAsset("buttons", fileName);

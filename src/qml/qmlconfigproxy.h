@@ -369,15 +369,18 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     set_paramixShowHotcues NOTIFY paramixShowHotcuesChanged);
     Q_PROPERTY(bool paramixShowLibrary READ paramixShowLibrary WRITE
                     set_paramixShowLibrary NOTIFY paramixShowLibraryChanged);
-    Q_PROPERTY(bool paramixShowPreview READ paramixShowPreview WRITE
-                    set_paramixShowPreview NOTIFY paramixShowPreviewChanged);
     Q_PROPERTY(bool paramixShowJogWheels READ paramixShowJogWheels WRITE
                     set_paramixShowJogWheels NOTIFY paramixShowJogWheelsChanged);
+    Q_PROPERTY(bool paramixShowClock READ paramixShowClock WRITE
+                    set_paramixShowClock NOTIFY paramixShowClockChanged);
+    Q_PROPERTY(bool paramixShowBattery READ paramixShowBattery WRITE
+                    set_paramixShowBattery NOTIFY paramixShowBatteryChanged);
+    Q_PROPERTY(bool paramixShowCpu READ paramixShowCpu WRITE
+                    set_paramixShowCpu NOTIFY paramixShowCpuChanged);
+    Q_PROPERTY(bool paramixShowGpu READ paramixShowGpu WRITE
+                    set_paramixShowGpu NOTIFY paramixShowGpuChanged);
     Q_PROPERTY(bool paramixFourBandEq READ paramixFourBandEq WRITE
                     set_paramixFourBandEq NOTIFY paramixFourBandEqChanged);
-    // BPM and pitch readout in the jog hub (default) or above the tempo fader.
-    Q_PROPERTY(bool paramixBpmInJog READ paramixBpmInJog WRITE
-                    set_paramixBpmInJog NOTIFY paramixBpmInJogChanged);
 
     // Colors
     Q_PROPERTY(QVariantList hotcueColorPalette READ hotcueColorPalette NOTIFY
@@ -561,10 +564,12 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(bool, paramixShowStems);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowHotcues);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowLibrary);
-    PROPERTY_DECL_ACCESSOR(bool, paramixShowPreview);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowJogWheels);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowClock);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowBattery);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowCpu);
+    PROPERTY_DECL_ACCESSOR(bool, paramixShowGpu);
     PROPERTY_DECL_ACCESSOR(bool, paramixFourBandEq);
-    PROPERTY_DECL_ACCESSOR(bool, paramixBpmInJog);
 
     // Kbps, 32..512
     PROPERTY_DECL_ACCESSOR(int, stemAacBitrate);
@@ -684,10 +689,12 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void paramixShowStemsChanged();
     void paramixShowHotcuesChanged();
     void paramixShowLibraryChanged();
-    void paramixShowPreviewChanged();
     void paramixShowJogWheelsChanged();
+    void paramixShowClockChanged();
+    void paramixShowBatteryChanged();
+    void paramixShowCpuChanged();
+    void paramixShowGpuChanged();
     void paramixFourBandEqChanged();
-    void paramixBpmInJogChanged();
 
     void stemAacBitrateChanged();
     void stemModelPathChanged();
@@ -695,6 +702,8 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void stemGpuAccelerationChanged();
 
   private:
+    void notifyParamixSettingsChanged() override;
+
     template<typename Type, typename Signal>
     void setConfigValueAndNotify(
             const QString& group,
