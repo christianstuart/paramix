@@ -1,15 +1,21 @@
 #include "preferences/dialog/dlgpreferences.h"
 
 #include <QApplication>
+#include <QColor>
 #include <QDialog>
 #include <QEvent>
+#include <QKeyEvent>
 #include <QMoveEvent>
 #include <QPalette>
 #include <QResizeEvent>
 #include <QScreen>
 #include <QScrollArea>
+#include <QShortcut>
 #include <QSlider>
+#include <QStackedWidget>
 #include <QStyle>
+#include <QTabWidget>
+#include <QTimer>
 #include <QtGlobal>
 
 #include "controllers/dlgprefcontrollers.h"
@@ -70,6 +76,35 @@ DlgPreferences::DlgPreferences(
     setupUi(this);
     fixSliderStyle();
     contentsTreeWidget->setHeaderHidden(true);
+
+    searchResultsTreeWidget->setHeaderHidden(true);
+    settingsSearchEdit->installEventFilter(this);
+    connect(settingsSearchEdit,
+            &QLineEdit::textChanged,
+            this,
+            &DlgPreferences::updateSearchResults);
+    connect(settingsSearchEdit, &QLineEdit::returnPressed, this, [this] {
+        if (QTreeWidgetItem* pItem = searchResultsTreeWidget->currentItem()) {
+            activateSearchResult(pItem);
+        }
+    });
+    connect(searchResultsTreeWidget,
+            &QTreeWidget::itemClicked,
+            this,
+            [this](QTreeWidgetItem* pItem, int) {
+                activateSearchResult(pItem);
+            });
+    connect(searchResultsTreeWidget,
+            &QTreeWidget::itemActivated,
+            this,
+            [this](QTreeWidgetItem* pItem, int) {
+                activateSearchResult(pItem);
+            });
+    auto* pFindShortcut = new QShortcut(QKeySequence::Find, this);
+    connect(pFindShortcut, &QShortcut::activated, this, [this] {
+        settingsSearchEdit->setFocus();
+        settingsSearchEdit->selectAll();
+    });
 
     // Add '&' to default button labels to always have Alt shortcuts, indpependent
     // of operating system.
@@ -143,9 +178,6 @@ DlgPreferences::DlgPreferences(
             "ic_preferences_vinyl.svg");
 #endif // __VINYLCONTROL__
 
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         DlgPrefInterface* pInterfacePage = new DlgPrefInterface(this,
                 pScreensaverManager,
@@ -304,6 +336,15 @@ DlgPreferences::~DlgPreferences() {
     delete m_pControllersDlg;
 }
 
+void DlgPreferences::keyPressEvent(QKeyEvent* pEvent) {
+    if (pEvent->key() == Qt::Key_Escape && m_searchActive) {
+        settingsSearchEdit->clear();
+        pEvent->accept();
+        return;
+    }
+    QDialog::keyPressEvent(pEvent);
+}
+
 void DlgPreferences::changePage(QTreeWidgetItem* pCurrent, QTreeWidgetItem* pPrevious) {
     if (!pCurrent) {
         pCurrent = pPrevious;
@@ -322,6 +363,142 @@ void DlgPreferences::changePage(QTreeWidgetItem* pCurrent, QTreeWidgetItem* pPre
     }
 }
 
+void DlgPreferences::rebuildSearchIndex() {
+    m_searchIndex.clear();
+    for (const PreferencesPage& page : std::as_const(m_allPages)) {
+        if (page.pDlg && page.pTreeItem) {
+            m_searchIndex.addPage(page.pTreeItem->text(0), page.pDlg);
+        }
+    }
+    m_searchIndexDirty = false;
+}
+
+void DlgPreferences::updateSearchResults(const QString& query) {
+    const QString trimmedQuery = query.trimmed();
+    if (trimmedQuery.isEmpty()) {
+        m_searchActive = false;
+        m_searchResultTargets.clear();
+        searchResultsTreeWidget->clear();
+        searchResultsTreeWidget->hide();
+        contentsTreeWidget->show();
+        return;
+    }
+
+    // Refresh the index when a search starts so dynamic page content is covered.
+    if (!m_searchActive || m_searchIndexDirty) {
+        rebuildSearchIndex();
+    }
+    m_searchActive = true;
+
+    m_searchResultTargets.clear();
+    searchResultsTreeWidget->clear();
+    for (const mixxx::preferences::SearchPageResult& pageResult :
+            m_searchIndex.search(trimmedQuery)) {
+        auto* pPageItem = new QTreeWidgetItem(searchResultsTreeWidget);
+        pPageItem->setText(0, pageResult.title);
+        m_searchResultTargets.insert(pPageItem, {pageResult.pPage, pageResult.pPage});
+        for (const PreferencesPage& page : std::as_const(m_allPages)) {
+            if (page.pDlg == pageResult.pPage) {
+                pPageItem->setIcon(0, page.pTreeItem->icon(0));
+                break;
+            }
+        }
+        for (const mixxx::preferences::SearchMatch& match : pageResult.matches) {
+            auto* pItem = new QTreeWidgetItem(pPageItem);
+            pItem->setText(0, match.label);
+            m_searchResultTargets.insert(pItem, {pageResult.pPage, match.pWidget});
+        }
+    }
+
+    if (searchResultsTreeWidget->topLevelItemCount() == 0) {
+        auto* pItem = new QTreeWidgetItem(searchResultsTreeWidget);
+        //: Preferences search: shown when no setting matches the query
+        pItem->setText(0, tr("No settings found for \"%1\"").arg(trimmedQuery));
+        pItem->setFlags(Qt::NoItemFlags);
+    } else {
+        searchResultsTreeWidget->setCurrentItem(
+                searchResultsTreeWidget->topLevelItem(0));
+    }
+    searchResultsTreeWidget->expandAll();
+    contentsTreeWidget->hide();
+    searchResultsTreeWidget->show();
+}
+
+void DlgPreferences::activateSearchResult(QTreeWidgetItem* pItem) {
+    const auto targetIt = m_searchResultTargets.constFind(pItem);
+    if (targetIt == m_searchResultTargets.constEnd()) {
+        return;
+    }
+    QWidget* pPage = targetIt->pPage;
+    QWidget* pWidget = targetIt->pWidget;
+
+    for (const PreferencesPage& page : std::as_const(m_allPages)) {
+        if (page.pDlg == pPage) {
+            contentsTreeWidget->setCurrentItem(page.pTreeItem);
+            break;
+        }
+    }
+    if (pWidget == pPage) {
+        return;
+    }
+
+    // Make a tab or stacked page holding the setting current.
+    for (QWidget* pChild = pWidget; pChild && pChild != pPage;
+            pChild = pChild->parentWidget()) {
+        QWidget* pParent = pChild->parentWidget();
+        if (!pParent) {
+            break;
+        }
+        if (auto* pTabWidget = qobject_cast<QTabWidget*>(pParent)) {
+            pTabWidget->setCurrentWidget(pChild);
+            break;
+        }
+        if (auto* pStackedWidget = qobject_cast<QStackedWidget*>(pParent)) {
+            if (auto* pTabWidget =
+                            qobject_cast<QTabWidget*>(pParent->parentWidget())) {
+                pTabWidget->setCurrentWidget(pChild);
+            } else {
+                pStackedWidget->setCurrentWidget(pChild);
+            }
+            break;
+        }
+    }
+
+    QWidget* pViewport = pPage->parentWidget();
+    QWidget* pScrollArea = pViewport ? pViewport->parentWidget() : nullptr;
+    if (auto* pScrollAreaWidget = qobject_cast<QScrollArea*>(pScrollArea)) {
+        pScrollAreaWidget->ensureWidgetVisible(pWidget, 16, 16);
+    }
+    revealWidget(pPage, pWidget);
+    if (pWidget->focusPolicy() != Qt::NoFocus) {
+        pWidget->setFocus(Qt::OtherFocusReason);
+    }
+}
+
+void DlgPreferences::revealWidget(QWidget* pPage, QWidget* pWidget) {
+    if (!pPage->isAncestorOf(pWidget) || !pWidget->isVisible()) {
+        return;
+    }
+    QColor color = palette().color(QPalette::Highlight);
+    color.setAlpha(80);
+    auto* pOverlay = new QWidget(pPage);
+    pOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    pOverlay->setStyleSheet(QStringLiteral(
+            "background-color: rgba(%1, %2, %3, %4);"
+            "border: 1px solid rgba(%1, %2, %3, 180);")
+                    .arg(color.red())
+                    .arg(color.green())
+                    .arg(color.blue())
+                    .arg(color.alpha()));
+    pOverlay->setGeometry(QRect(pWidget->mapTo(pPage, QPoint(0, 0)), pWidget->size())
+                    .adjusted(-3, -3, 3, 3));
+    pOverlay->show();
+    pOverlay->raise();
+    QTimer::singleShot(1400, pOverlay, [pOverlay] {
+        pOverlay->deleteLater();
+    });
+}
+
 void DlgPreferences::showSoundHardwarePage(
         std::optional<mixxx::preferences::SoundHardwareTab> tab) {
     switchToPage(m_soundPage.pTreeItem->text(0), m_soundPage.pDlg);
@@ -336,6 +513,29 @@ void DlgPreferences::showSoundHardwareInputPage() {
 }
 
 bool DlgPreferences::eventFilter(QObject* o, QEvent* e) {
+    if (o == settingsSearchEdit && e->type() == QEvent::KeyPress) {
+        auto* pKeyEvent = static_cast<QKeyEvent*>(e);
+        if (pKeyEvent->key() == Qt::Key_Escape &&
+                !settingsSearchEdit->text().isEmpty()) {
+            settingsSearchEdit->clear();
+            return true;
+        }
+        if (pKeyEvent->key() == Qt::Key_Down &&
+                searchResultsTreeWidget->isVisible() &&
+                searchResultsTreeWidget->topLevelItemCount() > 0) {
+            QTreeWidgetItem* pItem = searchResultsTreeWidget->topLevelItem(0);
+            if (pItem->flags() & Qt::ItemIsEnabled) {
+                searchResultsTreeWidget->setCurrentItem(pItem);
+                searchResultsTreeWidget->setFocus();
+                return true;
+            }
+        }
+    }
+
+    if (o != this) {
+        return QWidget::eventFilter(o, e);
+    }
+
     // Send a close signal if dialog is closing
     if (e->type() == QEvent::Hide) {
         onHide();
@@ -490,6 +690,10 @@ void DlgPreferences::onShow() {
 
     // Notify children that we are about to show.
     emit showDlg();
+
+    // Every session starts on the page tree, with a fresh search index.
+    m_searchIndexDirty = true;
+    settingsSearchEdit->clear();
 }
 
 void DlgPreferences::slotButtonPressed(QAbstractButton* pButton) {
@@ -578,6 +782,7 @@ void DlgPreferences::addPageWidget(const PreferencesPage& page,
     sa->setWidget(pageCopy.pDlg);
     pagesWidget->addWidget(sa);
     m_allPages.append(pageCopy);
+    m_searchIndexDirty = true;
 
     int iframe = 2 * sa->frameWidth();
     m_pageSizeHint = m_pageSizeHint.expandedTo(
@@ -619,6 +824,7 @@ void DlgPreferences::removePageWidget(DlgPreferencePage* pWidget) {
     m_allPages.removeAt(index);
     pagesWidget->removeWidget(pScrollArea);
     delete pScrollArea;
+    m_searchIndexDirty = true;
 }
 
 void DlgPreferences::expandTreeItem(QTreeWidgetItem* pItem) {

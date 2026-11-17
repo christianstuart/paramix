@@ -1599,6 +1599,7 @@ add_library(
   src/preferences/dialog/dlgpreferencepage.cpp
   src/preferences/dialog/dlgpreferences.cpp
   src/preferences/dialog/dlgpreferencesdlg.ui
+  src/preferences/dialog/preferencessearch.cpp
   src/preferences/dialog/dlgprefinterface.cpp
   src/preferences/dialog/dlgprefinterfacedlg.ui
   src/preferences/dialog/dlgprefkey.cpp
@@ -3046,6 +3047,7 @@ if(BUILD_TESTING)
     src/test/playlisttest.cpp
     src/test/portmidicontroller_test.cpp
     src/test/portmidienumeratortest.cpp
+    src/test/preferencessearchtest.cpp
     src/test/queryutiltest.cpp
     src/test/rangelist_test.cpp
     src/test/readaheadmanager_test.cpp

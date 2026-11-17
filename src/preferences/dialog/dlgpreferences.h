@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QDir>
 #include <QEvent>
+#include <QHash>
 #include <QRect>
 #include <QStringList>
 #include <memory>
@@ -10,6 +11,7 @@
 #include "control/controlpushbutton.h"
 #include "preferences/constants.h"
 #include "preferences/dialog/dlgpreferencepage.h"
+#include "preferences/dialog/preferencessearch.h"
 #include "preferences/dialog/ui_dlgpreferencesdlg.h"
 #include "preferences/settingsmanager.h"
 #include "preferences/usersettings.h"
@@ -19,6 +21,7 @@ class DlgPrefControllers;
 class DlgPrefSound;
 class EffectsManager;
 class Library;
+class QKeyEvent;
 class SoundManager;
 class VinylControlManager;
 
@@ -89,12 +92,22 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
   protected:
     bool eventFilter(QObject*, QEvent*) override;
     void changeEvent(QEvent* pEvent) override;
+    void keyPressEvent(QKeyEvent* pEvent) override;
     void moveEvent(QMoveEvent* e) override;
     void resizeEvent(QResizeEvent* e) override;
 
   private:
+    struct SearchResultTarget {
+        QWidget* pPage;
+        QWidget* pWidget;
+    };
+
     DlgPreferencePage* currentPage();
     void fixSliderStyle();
+    void rebuildSearchIndex();
+    void updateSearchResults(const QString& query);
+    void activateSearchResult(QTreeWidgetItem* pItem);
+    void revealWidget(QWidget* pPage, QWidget* pWidget);
     QList<PreferencesPage> m_allPages;
     void onShow();
     void onHide();
@@ -108,6 +121,11 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
     std::unique_ptr<DlgPrefSound> m_pSoundDlg;
     PreferencesPage m_soundPage;
     DlgPrefControllers* m_pControllersDlg;
+
+    mixxx::preferences::SearchIndex m_searchIndex;
+    QHash<QTreeWidgetItem*, SearchResultTarget> m_searchResultTargets;
+    bool m_searchIndexDirty = true;
+    bool m_searchActive = false;
 
     QSize m_pageSizeHint;
 
