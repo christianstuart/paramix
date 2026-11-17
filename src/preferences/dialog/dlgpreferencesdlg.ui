@@ -22,6 +22,43 @@
      <property name="childrenCollapsible">
       <bool>false</bool>
      </property>
+     <widget class="QWidget" name="leftPane">
+      <property name="minimumSize">
+       <size>
+        <width>140</width>
+        <height>0</height>
+       </size>
+      </property>
+      <layout class="QVBoxLayout" name="leftPaneLayout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QLineEdit" name="settingsSearchEdit">
+         <property name="toolTip">
+          <string>Search all settings by name</string>
+         </property>
+         <property name="accessibleName">
+          <string>Search settings</string>
+         </property>
+         <property name="placeholderText">
+          <string>Search settings</string>
+         </property>
+         <property name="clearButtonEnabled">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
      <widget class="QTreeWidget" name="contentsTreeWidget">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -61,6 +98,36 @@
         <string>1</string>
        </property>
       </column>
+     </widget>
+       </item>
+       <item>
+        <widget class="QTreeWidget" name="searchResultsTreeWidget">
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+         <property name="accessibleName">
+          <string>Search results</string>
+         </property>
+         <property name="headerHidden">
+          <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <property name="rootIsDecorated">
+          <bool>true</bool>
+         </property>
+         <property name="uniformRowHeights">
+          <bool>true</bool>
+         </property>
+         <column>
+          <property name="text">
+           <string>1</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
      </widget>
      <widget class="QWidget" name="layoutWidget">
       <layout class="QVBoxLayout">
