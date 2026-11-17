@@ -195,7 +195,7 @@
      <property name="title">
       <string>Deck Equalizers</string>
      </property>
-     <layout class="QVBoxLayout" name="DeckEqualizerCheckboxes" stretch="0,0,0,0,0,0,0">
+     <layout class="QVBoxLayout" name="DeckEqualizerCheckboxes" stretch="0,0,0,0,0,0,0,0">
       <item>
        <widget class="QCheckBox" name="CheckBoxEqOnly">
         <property name="toolTip">
@@ -314,6 +314,17 @@
        <widget class="QCheckBox" name="CheckBoxStemAutoReset">
         <property name="text">
          <string>Reset stem controls on track load</string>
+        </property>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QCheckBox" name="checkBoxParamixFourBandEq">
+        <property name="toolTip">
+         <string>Adds a fourth EQ knob between HIGH and MID. Requires the BQ EQ/ISO equalizer.</string>
+        </property>
+        <property name="text">
+         <string>Add a fourth EQ band between HIGH and MID</string>
         </property>
        </widget>
       </item>
@@ -641,6 +652,7 @@
   <tabstop>CheckBoxBypass</tabstop>
   <tabstop>CheckBoxEqAutoReset</tabstop>
   <tabstop>CheckBoxGainAutoReset</tabstop>
+  <tabstop>checkBoxParamixFourBandEq</tabstop>
   <tabstop>SliderHiEQ</tabstop>
   <tabstop>SliderLoEQ</tabstop>
   <tabstop>comboBoxMainEq</tabstop>

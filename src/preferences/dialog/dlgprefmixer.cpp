@@ -16,6 +16,8 @@
 #include "engine/enginexfader.h"
 #include "mixer/playermanager.h"
 #include "moc_dlgprefmixer.cpp"
+#include "qml/qmlconfigproxybase.h"
+#include "util/cmdlineargs.h"
 #include "util/make_const_iterator.h"
 #include "util/math.h"
 #include "util/rescaler.h"
@@ -29,6 +31,8 @@ const ConfigKey kEqsOnlyKey = ConfigKey(kMixerProfile, QStringLiteral("EQsOnly")
 const ConfigKey kSingleEqKey = ConfigKey(kMixerProfile, QStringLiteral("SingleEQEffect"));
 const ConfigKey kEqAutoResetKey = ConfigKey(kMixerProfile, QStringLiteral("EqAutoReset"));
 const ConfigKey kGainAutoResetKey = ConfigKey(kMixerProfile, QStringLiteral("GainAutoReset"));
+const ConfigKey kParamixFourBandEqKey =
+        ConfigKey(QStringLiteral("[Paramix]"), QStringLiteral("FourBandEq"));
 #ifdef __STEM__
 const ConfigKey kStemAutoResetKey = ConfigKey(kMixerProfile, QStringLiteral("stem_auto_reset"));
 #endif
@@ -174,6 +178,13 @@ DlgPrefMixer::DlgPrefMixer(
             &DlgPrefMixer::slotStemAutoResetToggled);
 #else
     CheckBoxStemAutoReset->hide();
+#endif
+#ifdef MIXXX_USE_QML
+    if (!CmdlineArgs::Instance().isQml()) {
+        checkBoxParamixFourBandEq->hide();
+    }
+#else
+    checkBoxParamixFourBandEq->hide();
 #endif
     connect(CheckBoxBypass,
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
@@ -524,6 +535,7 @@ void DlgPrefMixer::slotResetToDefaults() {
 #ifdef __STEM__
     CheckBoxStemAutoReset->setChecked(true);
 #endif
+    checkBoxParamixFourBandEq->setChecked(false);
 
     setDefaultShelves();
     comboBoxMainEq->setCurrentIndex(0); // '---' no EQ
@@ -738,6 +750,13 @@ void DlgPrefMixer::slotApply() {
 #ifdef __STEM__
     m_pConfig->set(kStemAutoResetKey, ConfigValue(m_stemAutoReset ? 1 : 0));
 #endif
+    m_pConfig->set(kParamixFourBandEqKey,
+            ConfigValue(checkBoxParamixFourBandEq->isChecked()));
+#ifdef MIXXX_USE_QML
+    if (CmdlineArgs::Instance().isQml()) {
+        mixxx::qml::QmlConfigProxyBase::notifyParamixSettings();
+    }
+#endif
     applyDeckEQs();
     applyQuickEffects();
 
@@ -797,6 +816,9 @@ void DlgPrefMixer::slotUpdate() {
     m_stemAutoReset = m_pConfig->getValue(kStemAutoResetKey, true);
     CheckBoxStemAutoReset->setChecked(m_stemAutoReset);
 #endif
+
+    checkBoxParamixFourBandEq->setChecked(
+            m_pConfig->getValue(kParamixFourBandEqKey, false));
 
     QString eqBaypassCfg = m_pConfig->getValueString(kEnableEqsKey);
     m_eqBypass = !(eqBaypassCfg == "yes" || eqBaypassCfg == "1" || eqBaypassCfg.isEmpty());

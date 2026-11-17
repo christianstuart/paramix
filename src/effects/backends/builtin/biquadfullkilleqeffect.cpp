@@ -4,6 +4,7 @@
 #include "effects/backends/effectmanifest.h"
 #include "effects/defs.h"
 #include "engine/effects/engineeffectparameter.h"
+#include "util/assert.h"
 #include "util/math.h"
 
 namespace {
@@ -63,12 +64,13 @@ EffectManifestPointer BiquadFullKillEQEffect::getManifest() {
     pManifest->setDescription(
             QObject::tr(
                     "A 3-band Equalizer that combines an Equalizer and an "
-                    "Isolator circuit to offer gentle slopes and full kill.") +
+                    "Isolator circuit to offer gentle slopes and full kill, "
+                    "plus an optional mid-high band.") +
             " " + EqualizerUtil::adjustFrequencyShelvesTip());
     pManifest->setEffectRampsFromDry(true);
     pManifest->setIsMixingEQ(true);
 
-    EqualizerUtil::createCommonParameters(pManifest.data(), false);
+    EqualizerUtil::createCommonParameters(pManifest.data(), false, true);
     return pManifest;
 }
 
@@ -82,14 +84,17 @@ BiquadFullKillEQEffectGroupState::BiquadFullKillEQEffectGroupState(
           m_oldLowBoost(0),
           m_oldMidBoost(0),
           m_oldHighBoost(0),
+          m_oldMidHighBoost(0),
           m_oldLowKill(0),
           m_oldMidKill(0),
           m_oldHighKill(0),
+          m_oldMidHighKill(0),
           m_oldLow(1.0),
           m_oldMid(1.0),
           m_oldHigh(1.0),
           m_loFreqCorner(0),
           m_highFreqCorner(0),
+          m_midHighCenter(0),
           m_rampHoldOff(LVMixEQEffectGroupStateConstants::kRampDone),
           m_groupDelay(0),
           m_oldSampleRate(kStartupSamplerate) {
@@ -101,6 +106,10 @@ BiquadFullKillEQEffectGroupState::BiquadFullKillEQEffectGroupState(
             kStartupSamplerate, kStartupMidFreq, kQBoost);
     m_highBoost = std::make_unique<EngineFilterBiquad1Peaking>(
             kStartupSamplerate, LVMixEQEffectGroupStateConstants::kStartupHiFreq, kQBoost);
+    // Starts at twice the mid centre and settles between mid and high in
+    // setFilters(); the exact split depends on the user's shelf frequencies.
+    m_midHighBoost = std::make_unique<EngineFilterBiquad1Peaking>(
+            kStartupSamplerate, kStartupMidFreq * 2, kQBoost);
     m_lowKill =
             std::make_unique<EngineFilterBiquad1LowShelving>(kStartupSamplerate,
                     LVMixEQEffectGroupStateConstants::kStartupLoFreq * 2,
@@ -111,6 +120,8 @@ BiquadFullKillEQEffectGroupState::BiquadFullKillEQEffectGroupState(
             kStartupSamplerate,
             LVMixEQEffectGroupStateConstants::kStartupHiFreq / 2,
             kQHighKillShelve);
+    m_midHighKill = std::make_unique<EngineFilterBiquad1Peaking>(
+            kStartupSamplerate, kStartupMidFreq * 2, kQKill);
     m_lvMixIso = std::make_unique<
             LVMixEQEffectGroupState<EngineFilterBessel4Low>>(engineParameters);
 
@@ -128,6 +139,10 @@ void BiquadFullKillEQEffectGroupState::setFilters(
     double lowCenter = getCenterFrequency(kMinimumFrequency, lowFreqCorner);
     double midCenter = getCenterFrequency(lowFreqCorner, highFreqCorner);
     double highCenter = getCenterFrequency(highFreqCorner, kMaximumFrequency);
+    // The optional fourth band peeks between the existing mid and high bands,
+    // so the three classic bands keep their original centre frequencies.
+    double midHighCenter = getCenterFrequency(midCenter, highCenter);
+    m_midHighCenter = midHighCenter;
 
     m_lowBoost->setFrequencyCorners(
             sampleRate, lowCenter, kQBoost, m_oldLowBoost);
@@ -135,12 +150,16 @@ void BiquadFullKillEQEffectGroupState::setFilters(
             sampleRate, midCenter, kQBoost, m_oldMidBoost);
     m_highBoost->setFrequencyCorners(
             sampleRate, highCenter, kQBoost, m_oldHighBoost);
+    m_midHighBoost->setFrequencyCorners(
+            sampleRate, midHighCenter, kQBoost, m_oldMidHighBoost);
     m_lowKill->setFrequencyCorners(
             sampleRate, lowCenter * 2, kQLowKillShelve, m_oldLowKill);
     m_midKill->setFrequencyCorners(
             sampleRate, midCenter, kQKill, m_oldMidKill);
     m_highKill->setFrequencyCorners(
             sampleRate, highCenter / 2, kQHighKillShelve, m_oldHighKill);
+    m_midHighKill->setFrequencyCorners(
+            sampleRate, midHighCenter, kQKill, m_oldMidHighKill);
 
     m_lvMixIso->setFilters(sampleRate, lowFreqCorner, highFreqCorner);
 }
@@ -155,9 +174,11 @@ void BiquadFullKillEQEffect::loadEngineEffectParameters(
     m_pPotLow = parameters.value("low");
     m_pPotMid = parameters.value("mid");
     m_pPotHigh = parameters.value("high");
+    m_pPotMidHigh = parameters.value("midHigh");
     m_pKillLow = parameters.value("killLow");
     m_pKillMid = parameters.value("killMid");
     m_pKillHigh = parameters.value("killHigh");
+    m_pKillMidHigh = parameters.value("killMidHigh");
 }
 
 // BiquadFullKillEQEffect::~BiquadFullKillEQEffect() {
@@ -187,6 +208,7 @@ void BiquadFullKillEQEffect::processChannel(
     double bqGainLow = 0;
     double bqGainMid = 0;
     double bqGainHigh = 0;
+    double bqGainMidHigh = 0;
     if (enableState != EffectEnableState::Disabling) {
         bqGainLow = knobValueToBiquadGainDb(
                 m_pPotLow->value(), m_pKillLow->toBool());
@@ -194,6 +216,8 @@ void BiquadFullKillEQEffect::processChannel(
                 m_pPotMid->value(), m_pKillMid->toBool());
         bqGainHigh = knobValueToBiquadGainDb(
                 m_pPotHigh->value(), m_pKillHigh->toBool());
+        bqGainMidHigh = knobValueToBiquadGainDb(
+                m_pPotMidHigh->value(), m_pKillMidHigh->toBool());
     }
 
     int activeFilters = 0;
@@ -216,47 +240,26 @@ void BiquadFullKillEQEffect::processChannel(
     if (bqGainHigh < 0.0 || pState->m_oldHighKill < 0.0) {
         ++activeFilters;
     }
-
-    QVarLengthArray<const CSAMPLE*, 6> inBuffer;
-    QVarLengthArray<CSAMPLE*, 6> outBuffer;
-
-    if (activeFilters % 2 == 0) {
-        inBuffer.append(pInput);
-        outBuffer.append(pState->m_tempBuf.data());
-
-        inBuffer.append(pState->m_tempBuf.data());
-        outBuffer.append(pOutput);
-
-        inBuffer.append(pOutput);
-        outBuffer.append(pState->m_tempBuf.data());
-
-        inBuffer.append(pState->m_tempBuf.data());
-        outBuffer.append(pOutput);
-
-        inBuffer.append(pOutput);
-        outBuffer.append(pState->m_tempBuf.data());
-
-        inBuffer.append(pState->m_tempBuf.data());
-        outBuffer.append(pOutput);
-    } else {
-        inBuffer.append(pInput);
-        outBuffer.append(pOutput);
-
-        inBuffer.append(pOutput);
-        outBuffer.append(pState->m_tempBuf.data());
-
-        inBuffer.append(pState->m_tempBuf.data());
-        outBuffer.append(pOutput);
-
-        inBuffer.append(pOutput);
-        outBuffer.append(pState->m_tempBuf.data());
-
-        inBuffer.append(pState->m_tempBuf.data());
-        outBuffer.append(pOutput);
-
-        inBuffer.append(pOutput);
-        outBuffer.append(pState->m_tempBuf.data());
+    if (bqGainMidHigh > 0.0 || pState->m_oldMidHighBoost > 0.0) {
+        ++activeFilters;
     }
+    if (bqGainMidHigh < 0.0 || pState->m_oldMidHighKill < 0.0) {
+        ++activeFilters;
+    }
+
+    QVarLengthArray<const CSAMPLE*, 8> inBuffer;
+    QVarLengthArray<CSAMPLE*, 8> outBuffer;
+
+    // Alternate between the effect buffer and the output so each filter reads
+    // the previous filter's result. The first buffer is chosen so the last
+    // active filter always lands in pOutput.
+    CSAMPLE* const outBuffers[] = {pOutput, pState->m_tempBuf.data()};
+    const int firstOutIndex = activeFilters % 2 == 0 ? 1 : 0;
+    for (int i = 0; i < activeFilters; ++i) {
+        inBuffer.append(i == 0 ? pInput : outBuffer[i - 1]);
+        outBuffer.append(outBuffers[(firstOutIndex + i) % 2]);
+    }
+    DEBUG_ASSERT(outBuffer.isEmpty() || outBuffer[outBuffer.size() - 1] == pOutput);
 
     int bufIndex = 0;
 
@@ -380,6 +383,46 @@ void BiquadFullKillEQEffect::processChannel(
         pState->m_highKill->pauseFilter();
     }
 
+    if (bqGainMidHigh > 0.0 || pState->m_oldMidHighBoost > 0.0) {
+        if (bqGainMidHigh != pState->m_oldMidHighBoost) {
+            pState->m_midHighBoost->setFrequencyCorners(engineParameters.sampleRate(),
+                    pState->m_midHighCenter,
+                    kQBoost,
+                    bqGainMidHigh);
+            pState->m_oldMidHighBoost = bqGainMidHigh;
+        }
+        if (bqGainMidHigh > 0.0) {
+            pState->m_midHighBoost->process(
+                    inBuffer[bufIndex], outBuffer[bufIndex], engineParameters.samplesPerBuffer());
+        } else {
+            pState->m_midHighBoost->processAndPauseFilter(
+                    inBuffer[bufIndex], outBuffer[bufIndex], engineParameters.samplesPerBuffer());
+        }
+        ++bufIndex;
+    } else {
+        pState->m_midHighBoost->pauseFilter();
+    }
+
+    if (bqGainMidHigh < 0.0 || pState->m_oldMidHighKill < 0.0) {
+        if (bqGainMidHigh != pState->m_oldMidHighKill) {
+            pState->m_midHighKill->setFrequencyCorners(engineParameters.sampleRate(),
+                    pState->m_midHighCenter,
+                    kQKill,
+                    bqGainMidHigh);
+            pState->m_oldMidHighKill = bqGainMidHigh;
+        }
+        if (bqGainMidHigh < 0.0) {
+            pState->m_midHighKill->process(
+                    inBuffer[bufIndex], outBuffer[bufIndex], engineParameters.samplesPerBuffer());
+        } else {
+            pState->m_midHighKill->processAndPauseFilter(
+                    inBuffer[bufIndex], outBuffer[bufIndex], engineParameters.samplesPerBuffer());
+        }
+        ++bufIndex;
+    } else {
+        pState->m_midHighKill->pauseFilter();
+    }
+
     if (activeFilters == 0 && pOutput != pInput) {
         SampleUtil::copy(pOutput, pInput, engineParameters.samplesPerBuffer());
     }
@@ -388,9 +431,11 @@ void BiquadFullKillEQEffect::processChannel(
         pState->m_lowBoost->pauseFilter();
         pState->m_midBoost->pauseFilter();
         pState->m_highBoost->pauseFilter();
+        pState->m_midHighBoost->pauseFilter();
         pState->m_lowKill->pauseFilter();
         pState->m_midKill->pauseFilter();
         pState->m_highKill->pauseFilter();
+        pState->m_midHighKill->pauseFilter();
     }
 
     if (enableState == EffectEnableState::Disabling) {

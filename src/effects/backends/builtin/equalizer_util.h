@@ -7,7 +7,9 @@
 class EqualizerUtil {
   public:
     // Creates common EQ parameters like low/mid/high gain and kill buttons.
-    static void createCommonParameters(EffectManifest* pManifest, bool linear) {
+    // `withMidHigh` appends the optional fourth band used by the Paramix mixer.
+    static void createCommonParameters(
+            EffectManifest* pManifest, bool linear, bool withMidHigh = false) {
         EffectManifestParameter::ValueScaler valueScaler =
                 EffectManifestParameter::ValueScaler::Logarithmic;
         double maximum = 4.0;
@@ -66,6 +68,25 @@ class EqualizerUtil {
         killHigh->setValueScaler(EffectManifestParameter::ValueScaler::Toggle);
         killHigh->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
         killHigh->setRange(0, 0, 1);
+
+        if (withMidHigh) {
+            EffectManifestParameterPointer midHigh = pManifest->addParameter();
+            midHigh->setId("midHigh");
+            midHigh->setName(QObject::tr("Mid High"));
+            midHigh->setDescription(QObject::tr("Gain for Mid-High Filter"));
+            midHigh->setValueScaler(valueScaler);
+            midHigh->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
+            midHigh->setNeutralPointOnScale(0.5);
+            midHigh->setRange(0, 1.0, maximum);
+
+            EffectManifestParameterPointer killMidHigh = pManifest->addParameter();
+            killMidHigh->setId("killMidHigh");
+            killMidHigh->setName(QObject::tr("Kill Mid High"));
+            killMidHigh->setDescription(QObject::tr("Kill the Mid-High Filter"));
+            killMidHigh->setValueScaler(EffectManifestParameter::ValueScaler::Toggle);
+            killMidHigh->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
+            killMidHigh->setRange(0, 0, 1);
+        }
     }
 
     static QString adjustFrequencyShelvesTip() {
