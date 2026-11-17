@@ -18,7 +18,10 @@ Item {
     readonly property int sideMargin: Theme.space3
     readonly property int tileWidth: root.width < 1200 ? 56 : 64
 
-    implicitHeight: 54
+    // 42 is the practical floor for the bar: the 38 px output tiles plus the
+    // two 2 px section rules. It was 54 while the crossfader well carried
+    // 16 px assignment keys and the tiles had more padding.
+    implicitHeight: 42
 
     Skin.SectionBackground {
         anchors.fill: parent
@@ -32,7 +35,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         color: Theme.borderStrong
-        height: 3
+        height: 2
         z: 2
     }
     Rectangle {
@@ -40,7 +43,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         color: Theme.borderStrong
-        height: 3
+        height: 2
         z: 2
     }
     Mixxx.ControlProxy {
@@ -60,7 +63,7 @@ Item {
         spacing: Theme.space2
 
         OutputTile {
-            height: 40
+            height: 38
             group: "[Master]"
             key: "balance"
             label: qsTr("BAL")
@@ -70,7 +73,7 @@ Item {
         OutputTile {
             enabled: boothEnabledControl.value > 0
             group: "[Master]"
-            height: 40
+            height: 38
             key: "booth_gain"
             label: qsTr("BOOTH")
             opacity: enabled ? 1 : 0.45
@@ -84,7 +87,7 @@ Item {
             width: 1
         }
         OutputTile {
-            height: 40
+            height: 38
             group: "[Master]"
             key: "headGain"
             label: qsTr("HEAD")
@@ -92,7 +95,7 @@ Item {
             width: root.tileWidth
         }
         OutputTile {
-            height: 40
+            height: 38
             group: "[Master]"
             key: "headMix"
             label: qsTr("MIX")
@@ -127,10 +130,10 @@ Item {
         anchors.right: splitButton.left
         anchors.rightMargin: Theme.space2
         anchors.verticalCenter: parent.verticalCenter
-        // Three 12 px rows plus 2 px gaps fill the bar's 40 px content
+        // Three 12 px rows plus 1 px gaps fill the bar's 38 px content
         // height, so the recording mono key can join the two output keys
         // without growing the bar.
-        spacing: 2
+        spacing: 1
 
         MonoRow {
             accessibleName: qsTr("Mono master output")
@@ -154,7 +157,7 @@ Item {
 
     // Headphone split toggle, pinned to the far right of the bar. The key is a
     // little smaller than the tiles so it keeps its clearance from the two
-    // section rules now that they are 3 px thick.
+    // section rules now that they are 2 px thick.
     Skin.ControlButton {
         id: splitButton
 
