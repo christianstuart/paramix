@@ -42,6 +42,9 @@ class DlgPrefInterface : public DlgPreferencePage, public Ui::DlgPrefControlsDlg
     void slotSetSkinPreview();
     void slotUpdateSkins();
     void slotUpdateSchemes();
+    void slotParamixAccentColor();
+    void slotParamixAccentDefault();
+    void slotParamixFontScaleChanged(int value);
 
   signals:
     void reloadUserInterface();
@@ -72,6 +75,7 @@ class DlgPrefInterface : public DlgPreferencePage, public Ui::DlgPrefControlsDlg
     QString m_colorScheme;
     QString m_colorSchemeOnUpdate;
     QString m_localeOnUpdate;
+    QString m_paramixAccentColor;
     mixxx::preferences::MultiSamplingMode m_multiSampling;
     bool m_forceHardwareAcceleration;
     mixxx::preferences::Tooltips m_tooltipMode;

@@ -11,8 +11,8 @@ import QtQuick 2.12
 /// so un-migrated components keep working.
 ///
 /// The values are injected from `Mixxx.Config` by `main.qml`, which keeps this
-/// singleton loadable by the QML tests without the C++ module. A skin or the
-/// customizer can switch the scheme, accent, font and motion scale at runtime.
+/// singleton loadable by the QML tests without the C++ module. A skin or
+/// Preferences can switch the scheme, accent, font and motion scale at runtime.
 QtObject {
     id: theme
 
@@ -271,8 +271,8 @@ QtObject {
     readonly property int radiusPill: 999
 
     // ── Motion ─────────────────────────────────────────────────────────────
-    // Fast feedback, no overshoot. `motionScale` is user-adjustable in the
-    // customizer (snappy → relaxed).
+    // Fast feedback, no overshoot. `motionScale` is user-adjustable in
+    // Preferences > Interface (Snappy to Relaxed).
     readonly property int motionFast: Math.round(60 * motionScale)
     readonly property int motionNormal: Math.round(100 * motionScale)
     readonly property int motionSlow: Math.round(160 * motionScale)
@@ -297,6 +297,9 @@ QtObject {
     readonly property int masterTempoMinWidth: 1100
     readonly property int recordingBoxMinWidth: 1200
     readonly property int masterMeterMinWidth: 1400
+    /// Below this the toolbar status cluster would collide with the centred
+    /// master tempo / recording box.
+    readonly property int toolbarStatusMinWidth: 1000
 
     /// Height the deck needs for its fixed parts: info bar, waveform overview,
     /// pane and toolbar. The band uses it so the deck can never be clipped by a
@@ -311,7 +314,8 @@ QtObject {
     // strip, each at its own deck width rather than the window's. The row is
     // main column 490 + 5 + tempo 60 (+ 5 + spinny 140) + 8 of deck margin; a
     // gate below that sum lets the row outgrow the deck, which clips it.
-    // The jog wheel is opt-in (Customize > Jog wheels). Between the first two
+    // The jog wheel is opt-in (Preferences > Interface > Show a jog wheel).
+    // Between the first two
     // gates there is room for it or the tempo strip, not both, and it wins.
     readonly property int deckSpinnyMinWidth: 643
     readonly property int deckFullRowMinWidth: 708

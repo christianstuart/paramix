@@ -15,7 +15,6 @@ Item {
     required property ApplicationWindow applicationWindow
     property alias menuBar: nativeApplicationMenuLoader.item
 
-    property alias editDeck: editDeckButton.checked
     property var focusedDeck: null
     // Layout visibility is driven by the View menu in the toolbar. The stored
     // state is kept independently of window size so shrinking the window only
@@ -23,12 +22,14 @@ Item {
     property bool fourDecksRequested: false
     property bool maximizeLibrary: false
     readonly property int numDecks: 4
-    readonly property int numPreviewDecks: 1
     readonly property int numSamplers: 16
     readonly property bool show4decks: fourDecksRequested && root.height > 515
-    /// Height the deck band reserves: the taller of the mixer and the deck, so a
-    /// short mixer can never clip the deck's panes.
-    readonly property int bandContentHeight: Math.max(mixer.implicitHeight, Theme.deckMinHeight)
+    /// Height the deck band reserves: the taller of the mixer and the deck
+    /// rows. Four decks need two deck rows even when the mixer's EQ columns
+    /// are short (three bands), so the decks cannot be squeezed below their
+    /// minimum.
+    readonly property int bandContentHeight: Math.max(mixer.implicitHeight,
+            Theme.deckMinHeight * (root.show4decks ? 2 : 1))
     /// The deck/mixer band may never reserve more height than the window leaves
     /// under the toolbar. Without this the vertical split honours a minimum that
     /// is larger than the window and paints the band past the bottom edge
@@ -49,11 +50,7 @@ Item {
     Loader {
         id: nativeApplicationMenuLoader
 
-        // The classic UI uses the native WMainMenuBar; the QML skin has to carry
-        // its own menu, so build one on every desktop platform. Without this
-        // Windows and Linux (no AppMenu registrar) had no File/Library/Options
-        // menus at all.
-        active: Qt.platform.os !== "android" && Qt.platform.os !== "ios"
+        active: Qt.platform.os === "osx" || (Mixxx.Application.supportsGlobalMenuBar && root.applicationWindow.visibility !== Window.FullScreen)
 
         sourceComponent: Skin.MainMenuBar {
             actions: applicationMenuActions
@@ -99,14 +96,6 @@ Item {
 
         onInitializedChanged: {
             value = root.numSamplers;
-        }
-    }
-    Mixxx.ControlProxy {
-        group: "[App]"
-        key: "num_preview_decks"
-
-        onInitializedChanged: {
-            value = root.numPreviewDecks;
         }
     }
     Mixxx.ControlProxy {
@@ -249,6 +238,12 @@ Item {
                 Item {
                     Layout.fillWidth: true
                 }
+                // CPU / GPU / clock / battery. Each item is optional; the whole
+                // cluster hides before it can collide with the centred tempo.
+                TopBarStatus {
+                    Layout.alignment: Qt.AlignVCenter
+                    visible: root.width >= Theme.toolbarStatusMinWidth
+                }
                 // Layout visibility lives here instead of a row of toggles on
                 // the left: one key that opens a checkable menu.
                 Skin.Button {
@@ -330,15 +325,6 @@ Item {
                     }
                 }
                 Skin.Button {
-                    id: editDeckButton
-
-                    activeColor: Theme.textOnAccent
-                    checkable: true
-                    text: qsTr("Edit")
-
-                    Accessible.name: qsTr("Edit deck layout")
-                }
-                Skin.Button {
                     id: showDevToolsButton
 
                     activeColor: Theme.textOnAccent
@@ -376,19 +362,6 @@ Item {
                     Accessible.name: qsTr("Preferences")
 
                     onClicked: Mixxx.PreferencesDialog.show()
-                }
-                Skin.Button {
-                    id: customizeInterfaceButton
-
-                    activeColor: Theme.textOnAccent
-                    icon.height: 16
-                    icon.source: "images/sliders.svg"
-                    icon.width: 16
-                    implicitWidth: implicitHeight
-
-                    Accessible.name: qsTr("Customize interface")
-
-                    onClicked: customizePopup.open()
                 }
             }
         }
@@ -515,7 +488,6 @@ Item {
                 Deck {
                     id: deck1
 
-                    editMode: root.editDeck
                     group: "[Channel1]"
                     height: root.maximizeLibrary ? 80 : root.show4decks ? root.bandContentHeight / 2 : root.bandContentHeight
                     minimized: root.maximizeLibrary
@@ -600,7 +572,6 @@ Item {
                 Deck {
                     id: deck2
 
-                    editMode: root.editDeck
                     group: "[Channel2]"
                     height: root.maximizeLibrary ? 80 : root.show4decks ? root.bandContentHeight / 2 : root.bandContentHeight
                     minimized: root.maximizeLibrary
@@ -635,7 +606,6 @@ Item {
                     sourceComponent: Component {
                         Deck {
                             anchors.fill: parent
-                            editMode: root.editDeck
                             group: deck3.group
                             minimized: root.maximizeLibrary
                         }
@@ -667,7 +637,6 @@ Item {
                     sourceComponent: Component {
                         Deck {
                             anchors.fill: parent
-                            editMode: root.editDeck
                             group: deck4.group
                             minimized: root.maximizeLibrary
                         }
@@ -797,9 +766,5 @@ Item {
                 }
             }
         }
-    }
-
-    Skin.ParamixCustomize {
-        id: customizePopup
     }
 }

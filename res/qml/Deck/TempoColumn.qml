@@ -17,10 +17,6 @@ ColumnLayout {
     required property var currentTrack
     required property string group
 
-    /// BPM and pitch live in the jog hub unless the user moved them above the
-    /// fader in Customize Paramix.
-    readonly property bool bpmInJog: Mixxx.Config.paramixBpmInJog !== false
-
     spacing: Theme.space1
 
     Mixxx.ControlProxy {
@@ -41,7 +37,6 @@ ColumnLayout {
         Layout.fillWidth: true
         opacity: trackLoadedControl.value ? 1 : 0
         spacing: 0
-        visible: !root.bpmInJog
 
         Behavior on opacity {
             NumberAnimation {

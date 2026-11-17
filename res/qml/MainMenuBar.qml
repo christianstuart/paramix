@@ -76,9 +76,6 @@ MenuBar {
             action: root.actions.viewShowVinylControl
         }
         MenuItem {
-            action: root.actions.viewShowPreviewDeck
-        }
-        MenuItem {
             action: root.actions.viewShowCoverArt
         }
         MenuItem {

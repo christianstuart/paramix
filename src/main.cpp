@@ -17,6 +17,7 @@
 #include "coreservices.h"
 #include "errordialoghandler.h"
 #include "mixxxapplication.h"
+#include "preferences/configobject.h"
 #ifdef MIXXX_USE_QML
 #include "mixer/playermanager.h"
 #include "qml/qmlapplication.h"
@@ -69,21 +70,24 @@ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
     auto pCoreServices = std::make_shared<mixxx::CoreServices>(args, pApp);
 #ifdef MIXXX_USE_QML
     QString mainQmlFilePath;
-    bool loadQml = args.isQml();
-    if (!loadQml && args.getDeveloper()) {
-        mixxx::skin::SkinLoader skinLoader(pCoreServices->getSettings());
-        const mixxx::skin::SkinPointer pSkin = skinLoader.getConfiguredSkin();
-        if (pSkin && pSkin->type() == mixxx::skin::SkinType::QML) {
-            loadQml = true;
-            mainQmlFilePath = pSkin->mainQmlFilePath();
-        }
-    }
+    // The Paramix QML skin (res/qml) is the interface. The classic QtWidgets
+    // skins were removed from res/skins, so there is no widgets UI to fall back
+    // to and --new-ui is kept only as an accepted no-op alias.
+    bool loadQml = true;
     if (loadQml) {
         // This is a workaround to support Qt 6.4.2, currently shipped on
         // Ubuntu 24.04 See
         // https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-2770811094
         // for further details
         qputenv("QT_QUICK_TABLEVIEW_COMPAT_VERSION", "6.4");
+        // Qt Quick reads its vsync switch before the first window exists, so
+        // the persisted Preferences > Waveform setting is applied here.
+        if (!pCoreServices->getSettings()->getValue(
+                    ConfigKey(QStringLiteral("[Waveform]"),
+                            QStringLiteral("QtQuickVSync")),
+                    true)) {
+            qputenv("QSG_NO_VSYNC", QByteArrayLiteral("1"));
+        }
         mixxx::qml::QmlApplication qmlApplication(pApp, pCoreServices, mainQmlFilePath);
         if (!qmlApplication.isReady()) {
             exitCode = kFatalErrorOnStartupExitCode;

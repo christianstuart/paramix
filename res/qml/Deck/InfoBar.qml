@@ -14,10 +14,8 @@ import "../Theme"
 Rectangle {
     id: root
 
-    property list<string> availableData: ["none", "title", "year", "time", "artist", "key", "rating"]
     readonly property var currentTrack: deckPlayer?.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
-    property bool editMode: false
     required property string group
     property color lineColor: Theme.border
     property bool minimized: false
@@ -366,25 +364,6 @@ Rectangle {
             type: "rating"
         }
     }
-    Component {
-        id: editCellDelegate
-
-        Skin.ComboBox {
-            required property int index
-            readonly property var modelData: parent.model
-            required property string type
-
-            Layout.fillHeight: true
-            Layout.fillWidth: index == 0
-            Layout.preferredWidth: index == 0 ? 0 : rightColumnWidth
-            currentIndex: root.availableData.indexOf(type)
-            model: root.availableData
-
-            onCurrentIndexChanged: {
-                modelData.setProperty(index, "type", root.availableData[currentIndex]);
-            }
-        }
-    }
     // The two text rows fill the header band; the old 20 px bottom inset was a
     // workaround for the shorter band and left the lower half empty.
     ColumnLayout {
@@ -412,7 +391,7 @@ Rectangle {
             Layout.preferredHeight: 22
 
             Repeater {
-                delegate: root.editMode ? editCellDelegate : cellDelegate
+                delegate: cellDelegate
                 model: parent.model
             }
             // Tempo-master badge: neutral when another deck leads the sync,
@@ -435,7 +414,7 @@ Rectangle {
             visible: !root.minimized
 
             Repeater {
-                delegate: root.editMode ? editCellDelegate : cellDelegate
+                delegate: cellDelegate
                 model: parent.model
             }
         }

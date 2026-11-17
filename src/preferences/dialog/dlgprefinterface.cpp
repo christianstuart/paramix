@@ -1,5 +1,6 @@
 #include "preferences/dialog/dlgprefinterface.h"
 
+#include <QColorDialog>
 #include <QDir>
 #include <QList>
 #include <QLocale>
@@ -41,6 +42,23 @@ const QString kMultiSamplingKey = QStringLiteral("multi_sampling");
 const QString kForceHardwareAccelerationKey = QStringLiteral("force_hardware_acceleration");
 const QString kHideMenuBarKey = QStringLiteral("hide_menubar");
 
+const QString kParamixGroup = QStringLiteral("[Paramix]");
+const QString kParamixColorSchemeKey = QStringLiteral("ColorScheme");
+const QString kParamixAccentColorKey = QStringLiteral("AccentColor");
+const QString kParamixFontFamilyKey = QStringLiteral("FontFamily");
+const QString kParamixFontScaleKey = QStringLiteral("FontScale");
+const QString kParamixMotionScaleKey = QStringLiteral("MotionScale");
+const QString kParamixShowWaveformsKey = QStringLiteral("ShowWaveforms");
+const QString kParamixShowCoverArtKey = QStringLiteral("ShowCoverArt");
+const QString kParamixShowStemsKey = QStringLiteral("ShowStems");
+const QString kParamixShowHotcuesKey = QStringLiteral("ShowHotcues");
+const QString kParamixShowLibraryKey = QStringLiteral("ShowLibrary");
+const QString kParamixShowJogWheelsKey = QStringLiteral("ShowJogWheels");
+const QString kParamixShowClockKey = QStringLiteral("ShowClock");
+const QString kParamixShowBatteryKey = QStringLiteral("ShowBattery");
+const QString kParamixShowCpuKey = QStringLiteral("ShowCpu");
+const QString kParamixShowGpuKey = QStringLiteral("ShowGpu");
+
 // TODO move these to a common *_defs.h file, some are also used by e.g. MixxxMainWindow
 const bool kStartInFullscreenDefault = false;
 const bool kHideMenuBarDefault = true;
@@ -61,6 +79,37 @@ DlgPrefInterface::DlgPrefInterface(
           m_minScaleFactor(1.0),
           m_dDevicePixelRatio(1.0) {
     setupUi(this);
+
+#ifdef MIXXX_USE_QML
+    if (CmdlineArgs::Instance().isQml()) {
+        comboBoxParamixColorScheme->addItems({QStringLiteral("Paramix Dark"),
+                QStringLiteral("Paramix Midnight"),
+                QStringLiteral("Paramix High Contrast")});
+        comboBoxParamixFont->addItems(
+                {QStringLiteral("Helvetica Neue"), QStringLiteral("Helvetica")});
+        comboBoxParamixMotion->addItem(tr("Snappy"), 0.75);
+        comboBoxParamixMotion->addItem(tr("Balanced"), 1.0);
+        comboBoxParamixMotion->addItem(tr("Relaxed"), 1.35);
+        connect(pushButtonParamixAccentColor,
+                &QPushButton::clicked,
+                this,
+                &DlgPrefInterface::slotParamixAccentColor);
+        connect(pushButtonParamixAccentDefault,
+                &QPushButton::clicked,
+                this,
+                &DlgPrefInterface::slotParamixAccentDefault);
+        connect(sliderParamixFontScale,
+                &QSlider::valueChanged,
+                this,
+                &DlgPrefInterface::slotParamixFontScaleChanged);
+    } else {
+        groupBoxParamix->hide();
+        groupBoxTopBar->hide();
+    }
+#else
+    groupBoxParamix->hide();
+    groupBoxTopBar->hide();
+#endif
 
     updateScreenMetrics();
 
@@ -121,7 +170,7 @@ DlgPrefInterface::DlgPrefInterface(
     ComboBoxLocale->insertItem(0, QStringLiteral("System"), "");
     ComboBoxLocale->insertSeparator(1);
 
-    if (pSkinLoader) {
+    if (pSkinLoader && !CmdlineArgs::Instance().isQml()) {
         // Skin configurations
         warningLabel->setText(kWarningIconHtmlString +
                 tr("The minimum size of the selected skin is bigger than your "
@@ -132,7 +181,9 @@ DlgPrefInterface::DlgPrefInterface(
         slotUpdateSchemes();
         slotSetSkinPreview();
         const auto* const pScreen = getScreen();
-        if (m_pSkin->fitsScreenSize(*pScreen)) {
+        if (m_pSkin && m_pSkin->fitsScreenSize(*pScreen)) {
+            warningLabel->hide();
+        } else if (!m_pSkin) {
             warningLabel->hide();
         } else {
             warningLabel->show();
@@ -312,6 +363,10 @@ void DlgPrefInterface::slotUpdateSchemes() {
 
     // Re-populates the scheme combobox and attempts to pick the color scheme from config file.
     // Since this involves opening a file we won't do this as part of regular slotUpdate
+    if (!m_pSkin) {
+        ComboBoxSchemeconf->setEnabled(false);
+        return;
+    }
     const QList<QString> schlist = m_pSkin->colorschemes();
 
     ComboBoxSchemeconf->clear();
@@ -380,6 +435,61 @@ void DlgPrefInterface::slotUpdate() {
     checkBoxHideMenuBar->setChecked(m_pConfig->getValue(
             ConfigKey(kConfigGroup, kHideMenuBarKey), kHideMenuBarDefault));
 
+#ifdef MIXXX_USE_QML
+    if (CmdlineArgs::Instance().isQml()) {
+        const QString colorScheme = m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixColorSchemeKey),
+                QStringLiteral("Paramix Dark"));
+        int colorSchemeIndex = comboBoxParamixColorScheme->findText(colorScheme);
+        comboBoxParamixColorScheme->setCurrentIndex(colorSchemeIndex < 0 ? 0 : colorSchemeIndex);
+
+        m_paramixAccentColor = m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixAccentColorKey), QString());
+        pushButtonParamixAccentColor->setText(m_paramixAccentColor.isEmpty()
+                        ? tr("Choose...")
+                        : m_paramixAccentColor);
+
+        const QString fontFamily = m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixFontFamilyKey),
+                QStringLiteral("Helvetica Neue"));
+        int fontIndex = comboBoxParamixFont->findText(fontFamily);
+        comboBoxParamixFont->setCurrentIndex(fontIndex < 0 ? 0 : fontIndex);
+
+        const double fontScale = m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixFontScaleKey), 1.0);
+        sliderParamixFontScale->setValue(qRound(fontScale * 100));
+
+        const double motionScale = m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixMotionScaleKey), 1.0);
+        int motionIndex = comboBoxParamixMotion->findData(motionScale);
+        if (motionIndex < 0) {
+            motionIndex = comboBoxParamixMotion->findData(1.0);
+        }
+        comboBoxParamixMotion->setCurrentIndex(motionIndex);
+
+        checkBoxParamixShowWaveforms->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowWaveformsKey), true));
+        checkBoxParamixShowCoverArt->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowCoverArtKey), true));
+        checkBoxParamixShowStemStrip->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowStemsKey), true));
+        checkBoxParamixShowHotcues->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowHotcuesKey), true));
+        checkBoxParamixShowLibrary->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowLibraryKey), true));
+        checkBoxParamixShowJogWheels->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowJogWheelsKey), false));
+        checkBoxParamixShowClock->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowClockKey), true));
+        checkBoxParamixShowBattery->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowBatteryKey), true));
+        checkBoxParamixShowCpu->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowCpuKey), true));
+        checkBoxParamixShowGpu->setChecked(m_pConfig->getValue(
+                ConfigKey(kParamixGroup, kParamixShowGpuKey), true));
+    }
+#endif
+
     loadTooltipPreferenceFromConfig();
 
     comboBoxScreensaver->setCurrentIndex(comboBoxScreensaver->findData(
@@ -407,6 +517,27 @@ void DlgPrefInterface::slotResetToDefaults() {
     checkBoxHideMenuBar->setChecked(kHideMenuBarDefault);
     // Also show the menu bar hint again on next start?
     // Use bool member to set [Config],show_menubar_hint to 1 in slotApply()
+
+#ifdef MIXXX_USE_QML
+    if (CmdlineArgs::Instance().isQml()) {
+        comboBoxParamixColorScheme->setCurrentIndex(0);
+        m_paramixAccentColor = QString();
+        pushButtonParamixAccentColor->setText(tr("Choose..."));
+        comboBoxParamixFont->setCurrentIndex(0);
+        sliderParamixFontScale->setValue(100);
+        comboBoxParamixMotion->setCurrentIndex(comboBoxParamixMotion->findData(1.0));
+        checkBoxParamixShowWaveforms->setChecked(true);
+        checkBoxParamixShowCoverArt->setChecked(true);
+        checkBoxParamixShowStemStrip->setChecked(true);
+        checkBoxParamixShowHotcues->setChecked(true);
+        checkBoxParamixShowLibrary->setChecked(true);
+        checkBoxParamixShowJogWheels->setChecked(false);
+        checkBoxParamixShowClock->setChecked(true);
+        checkBoxParamixShowBattery->setChecked(true);
+        checkBoxParamixShowCpu->setChecked(true);
+        checkBoxParamixShowGpu->setChecked(true);
+    }
+#endif
 
     // Inhibit the screensaver
     comboBoxScreensaver->setCurrentIndex(comboBoxScreensaver->findData(
@@ -438,6 +569,27 @@ void DlgPrefInterface::slotSetTooltips() {
     } else if (radioButtonTooltipsOnlyKbdShortcuts->isChecked()) {
         m_tooltipMode = mixxx::preferences::Tooltips::OnlyKbdShortcuts;
     }
+}
+
+void DlgPrefInterface::slotParamixAccentColor() {
+    const QColor initial = m_paramixAccentColor.isEmpty()
+            ? palette().highlight().color()
+            : QColor(m_paramixAccentColor);
+    const QColor color = QColorDialog::getColor(initial, this, tr("Accent color"));
+    if (!color.isValid()) {
+        return;
+    }
+    m_paramixAccentColor = color.name();
+    pushButtonParamixAccentColor->setText(m_paramixAccentColor);
+}
+
+void DlgPrefInterface::slotParamixAccentDefault() {
+    m_paramixAccentColor = QString();
+    pushButtonParamixAccentColor->setText(tr("Choose..."));
+}
+
+void DlgPrefInterface::slotParamixFontScaleChanged(int value) {
+    labelParamixFontScaleValue->setText(QString::number(value) + QStringLiteral("%"));
 }
 
 void DlgPrefInterface::notifyRebootNecessary() {
@@ -473,7 +625,7 @@ void DlgPrefInterface::slotSetSkinDescription() {
         return;
     }
 
-    const QString description = m_pSkin->description();
+    const QString description = m_pSkin ? m_pSkin->description() : QString();
     if (!description.isEmpty()) {
         skinDescriptionText->show();
         skinDescriptionText->setText(description);
@@ -483,7 +635,7 @@ void DlgPrefInterface::slotSetSkinDescription() {
 }
 
 void DlgPrefInterface::slotSetSkinPreview() {
-    if (!m_pSkinLoader) {
+    if (!m_pSkinLoader || !m_pSkin) {
         return;
     }
 
@@ -501,7 +653,7 @@ void DlgPrefInterface::slotSetSkin(int) {
     }
 
     QString newSkinName = ComboBoxSkinconf->currentData().toString();
-    if (newSkinName == m_pSkin->name()) {
+    if (!m_pSkin || newSkinName == m_pSkin->name()) {
         return;
     }
 
@@ -522,7 +674,9 @@ void DlgPrefInterface::slotSetSkin(int) {
 }
 
 void DlgPrefInterface::slotApply() {
-    if (m_pSkinLoader) {
+    // m_pSkin is null when no classic skin is installed; there is nothing to
+    // persist, and the QML interface does not read these keys.
+    if (m_pSkin) {
         m_pConfig->set(ConfigKey(kConfigGroup, kResizableSkinKey), m_pSkin->name());
         m_pConfig->set(ConfigKey(kConfigGroup, kSchemeKey), m_colorScheme);
     }
@@ -539,6 +693,42 @@ void DlgPrefInterface::slotApply() {
     m_pConfig->set(ConfigKey(kConfigGroup, kHideMenuBarKey),
             ConfigValue(checkBoxHideMenuBar->isChecked()));
     emit menuBarAutoHideChanged();
+
+#ifdef MIXXX_USE_QML
+    if (CmdlineArgs::Instance().isQml()) {
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixColorSchemeKey),
+                comboBoxParamixColorScheme->currentText());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixAccentColorKey),
+                m_paramixAccentColor);
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixFontFamilyKey),
+                comboBoxParamixFont->currentText());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixFontScaleKey),
+                sliderParamixFontScale->value() / 100.0);
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixMotionScaleKey),
+                comboBoxParamixMotion->currentData().toDouble());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowWaveformsKey),
+                checkBoxParamixShowWaveforms->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowCoverArtKey),
+                checkBoxParamixShowCoverArt->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowStemsKey),
+                checkBoxParamixShowStemStrip->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowHotcuesKey),
+                checkBoxParamixShowHotcues->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowLibraryKey),
+                checkBoxParamixShowLibrary->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowJogWheelsKey),
+                checkBoxParamixShowJogWheels->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowClockKey),
+                checkBoxParamixShowClock->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowBatteryKey),
+                checkBoxParamixShowBattery->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowCpuKey),
+                checkBoxParamixShowCpu->isChecked());
+        m_pConfig->setValue(ConfigKey(kParamixGroup, kParamixShowGpuKey),
+                checkBoxParamixShowGpu->isChecked());
+        mixxx::qml::QmlConfigProxyBase::notifyParamixSettings();
+    }
+#endif
 
     m_pConfig->setValue(ConfigKey(kControlsGroup, kTooltipsKey),
             m_tooltipMode);

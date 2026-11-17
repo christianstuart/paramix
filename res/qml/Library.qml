@@ -1,5 +1,4 @@
 import "." as Skin
-import Mixxx 1.0 as Mixxx
 import Qt.labs.qmlmodels
 import QtQml
 import QtQuick
@@ -10,8 +9,8 @@ import QtQuick.Shapes 1.6
 import "Theme"
 import "Library" as LibraryComponent
 
-/// Library pane: source tree (with the search field at its top), preview deck
-/// and track list. There is no separate library toolbar any more.
+/// Library pane: source tree (with the search field at its top) and track list.
+/// There is no separate library toolbar any more.
 Item {
     id: root
 
@@ -107,16 +106,6 @@ Item {
 
                 onSearchEdited: searchDebounce.restart()
                 onSearchCleared: root.clearSearch()
-            }
-            Skin.PreviewDeck {
-                SplitView.maximumHeight: 200
-                SplitView.minimumHeight: 100
-                SplitView.preferredHeight: 100
-                // Hidden when the tree's minimum, this deck and the handle do
-                // not fit, instead of painting past the library's bottom.
-                visible: Mixxx.Config.paramixShowPreview
-                         && sideBarSplitView.height >= libraryBrowser.SplitView.minimumHeight
-                                                       + SplitView.minimumHeight + 8
             }
         }
         Item {

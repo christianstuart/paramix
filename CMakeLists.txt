@@ -2388,7 +2388,7 @@ if(WIN32)
   # shoutidjc/shout.h checks for WIN32 to see if we are on Windows.
   target_compile_definitions(mixxx-lib PUBLIC WIN32)
 
-  target_link_libraries(mixxx-lib PRIVATE comctl32 shell32)
+  target_link_libraries(mixxx-lib PRIVATE comctl32 shell32 pdh)
 
   if(MSVC)
     target_link_options(mixxx-lib PUBLIC /entry:mainCRTStartup)
@@ -4119,6 +4119,7 @@ if(QML)
       src/qml/qmltrackproxy.cpp
       src/qml/qmlspinnyposition.cpp
       src/qml/qmlstemserviceproxy.cpp
+      src/qml/qmlsystemmonitorproxy.cpp
       src/qml/qmlvinylsignalquality.cpp
       src/qml/qmlvisibleeffectsmodel.cpp
       src/qml/qmlvumeteritem.cpp

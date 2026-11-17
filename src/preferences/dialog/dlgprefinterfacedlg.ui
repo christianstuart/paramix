@@ -321,6 +321,227 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="groupBoxParamix">
+     <property name="title">
+      <string>Paramix</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_Paramix">
+      <item row="0" column="0">
+       <widget class="QLabel" name="labelParamixColorScheme">
+        <property name="text">
+         <string>Color scheme</string>
+        </property>
+        <property name="buddy">
+         <cstring>comboBoxParamixColorScheme</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="comboBoxParamixColorScheme"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="labelParamixAccentColor">
+        <property name="text">
+         <string>Accent color</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_ParamixAccent">
+        <item>
+         <widget class="QPushButton" name="pushButtonParamixAccentColor">
+          <property name="text">
+           <string>Choose...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButtonParamixAccentDefault">
+          <property name="text">
+           <string>Default</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_ParamixAccent">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="labelParamixFont">
+        <property name="text">
+         <string>Interface font</string>
+        </property>
+        <property name="buddy">
+         <cstring>comboBoxParamixFont</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="comboBoxParamixFont"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="labelParamixFontScale">
+        <property name="text">
+         <string>Font size</string>
+        </property>
+        <property name="buddy">
+         <cstring>sliderParamixFontScale</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_ParamixFontScale">
+        <item>
+         <widget class="QSlider" name="sliderParamixFontScale">
+          <property name="minimum">
+           <number>85</number>
+          </property>
+          <property name="maximum">
+           <number>135</number>
+          </property>
+          <property name="singleStep">
+           <number>5</number>
+          </property>
+          <property name="pageStep">
+           <number>5</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelParamixFontScaleValue">
+          <property name="minimumSize">
+           <size>
+            <width>40</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string notr="true">100%</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="labelParamixMotion">
+        <property name="text">
+         <string>Animation speed</string>
+        </property>
+        <property name="buddy">
+         <cstring>comboBoxParamixMotion</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QComboBox" name="comboBoxParamixMotion"/>
+      </item>
+      <item row="5" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkBoxParamixShowWaveforms">
+        <property name="text">
+         <string>Show the waveform stack above the decks</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkBoxParamixShowCoverArt">
+        <property name="text">
+         <string>Show cover art in the deck header</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkBoxParamixShowStemStrip">
+        <property name="text">
+         <string>Show the stem mixer tab on each deck</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkBoxParamixShowHotcues">
+        <property name="text">
+         <string>Show the hotcue grid</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkBoxParamixShowLibrary">
+        <property name="text">
+         <string>Show the library pane</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0" colspan="2">
+       <widget class="QCheckBox" name="checkBoxParamixShowJogWheels">
+        <property name="text">
+         <string>Show a jog wheel on each deck</string>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="0" colspan="2">
+       <widget class="QLabel" name="labelParamixRestartHint">
+        <property name="text">
+         <string>Changes apply immediately.</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBoxTopBar">
+     <property name="title">
+      <string>Top bar</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_TopBar">
+      <item>
+       <widget class="QCheckBox" name="checkBoxParamixShowClock">
+        <property name="text">
+         <string>Show the clock</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxParamixShowBattery">
+        <property name="text">
+         <string>Show the battery icon</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxParamixShowCpu">
+        <property name="text">
+         <string>Show CPU usage</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxParamixShowGpu">
+        <property name="text">
+         <string>Show GPU usage</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -348,6 +569,22 @@
   <tabstop>radioButtonTooltipsLibraryAndSkin</tabstop>
   <tabstop>multiSamplingComboBox</tabstop>
   <tabstop>checkBoxForceHardwareAcceleration</tabstop>
+  <tabstop>comboBoxParamixColorScheme</tabstop>
+  <tabstop>pushButtonParamixAccentColor</tabstop>
+  <tabstop>pushButtonParamixAccentDefault</tabstop>
+  <tabstop>comboBoxParamixFont</tabstop>
+  <tabstop>sliderParamixFontScale</tabstop>
+  <tabstop>comboBoxParamixMotion</tabstop>
+  <tabstop>checkBoxParamixShowWaveforms</tabstop>
+  <tabstop>checkBoxParamixShowCoverArt</tabstop>
+  <tabstop>checkBoxParamixShowStemStrip</tabstop>
+  <tabstop>checkBoxParamixShowHotcues</tabstop>
+  <tabstop>checkBoxParamixShowLibrary</tabstop>
+  <tabstop>checkBoxParamixShowJogWheels</tabstop>
+  <tabstop>checkBoxParamixShowClock</tabstop>
+  <tabstop>checkBoxParamixShowBattery</tabstop>
+  <tabstop>checkBoxParamixShowCpu</tabstop>
+  <tabstop>checkBoxParamixShowGpu</tabstop>
  </tabstops>
  <resources/>
  <connections/>

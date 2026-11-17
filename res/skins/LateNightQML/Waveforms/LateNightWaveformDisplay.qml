@@ -220,7 +220,7 @@ Item {
                 align: "bottom|right"
                 color: LateNightTheme.waveformDefaultMarkColor
                 disabledOpacity: 0.25
-                endIcon: Qt.resolvedUrl("../../LateNight/classic/style/mark_jump_%1.svg")
+                endIcon: Qt.resolvedUrl("../assets/classic/style/mark_jump_%1.svg")
                 text: " %1 "
                 textColor: LateNightTheme.waveformMarkerTextColor
             }
@@ -236,7 +236,7 @@ Item {
                 align: 'top|left'
                 color: root.loopColor
                 control: "loop_start_position"
-                icon: Qt.resolvedUrl("../../LateNight/classic/style/mark_loop.svg")
+                icon: Qt.resolvedUrl("../assets/classic/style/mark_loop.svg")
                 text: '↻'
                 textColor: LateNightTheme.waveformMarkerTextColor
             }
@@ -250,7 +250,7 @@ Item {
                 align: 'top|right'
                 color: root.introOutroColor
                 control: "intro_start_position"
-                icon: Qt.resolvedUrl("../../LateNight/classic/style/mark_intro.svg")
+                icon: Qt.resolvedUrl("../assets/classic/style/mark_intro.svg")
                 text: '◢'
                 textColor: LateNightTheme.waveformMarkerTextColor
                 visibilityControl: "[Skin],show_intro_outro_cues"
@@ -259,7 +259,7 @@ Item {
                 align: 'top|left'
                 color: root.introOutroColor
                 control: "intro_end_position"
-                icon: Qt.resolvedUrl("../../LateNight/classic/style/mark_intro.svg")
+                icon: Qt.resolvedUrl("../assets/classic/style/mark_intro.svg")
                 text: '◢'
                 textColor: LateNightTheme.waveformMarkerTextColor
                 visibilityControl: "[Skin],show_intro_outro_cues"
@@ -268,7 +268,7 @@ Item {
                 align: 'top|right'
                 color: root.introOutroColor
                 control: "outro_start_position"
-                icon: Qt.resolvedUrl("../../LateNight/classic/style/mark_outro.svg")
+                icon: Qt.resolvedUrl("../assets/classic/style/mark_outro.svg")
                 text: '◣'
                 textColor: LateNightTheme.waveformMarkerTextColor
                 visibilityControl: "[Skin],show_intro_outro_cues"
@@ -277,7 +277,7 @@ Item {
                 align: 'top|left'
                 color: root.introOutroColor
                 control: "outro_end_position"
-                icon: Qt.resolvedUrl("../../LateNight/classic/style/mark_outro.svg")
+                icon: Qt.resolvedUrl("../assets/classic/style/mark_outro.svg")
                 text: '◣'
                 visibilityControl: "[Skin],show_intro_outro_cues"
             }
