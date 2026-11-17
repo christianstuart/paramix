@@ -11,6 +11,9 @@ ComboBox {
     property list<var> footerItems: []
     property int popupMaxItem: 6
     property alias popupWidth: popupItem.width
+    /// Left inset for the closed-combo text. Effects selectors use it to clear
+    /// the dropdown chevron, which the flat style draws at the left edge.
+    property int textLeftPadding: Theme.space1
 
     readonly property int itemHeight: 28
     readonly property real windowHeight: Window.height
@@ -52,7 +55,7 @@ ComboBox {
         color: Theme.textPrimary
         elide: root.clip ? Text.ElideNone : Text.ElideRight
         font: root.font
-        leftPadding: Theme.space1
+        leftPadding: root.textLeftPadding
         text: root.displayText
         verticalAlignment: Text.AlignVCenter
     }

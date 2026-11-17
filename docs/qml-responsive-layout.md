@@ -38,7 +38,7 @@ without clipping; every value is logical px.
 
 | Band | Needs | Set by |
 |---|---|---|
-| Toolbar | 44 high, ~390 wide | `Theme.toolbarHeight`; per-key 26x56 minimums |
+| Top bar | 44 high (main row) + 30 high (effects strip), ~390 wide without effects | `Theme.toolbarHeight` + `Theme.topBarEffectsHeight`; per-key 26x56 minimums |
 | Mixer | 152 wide, ~190 high | `Mixer.qml` `implicitWidth`; `EqColumn` sets the height |
 | Output bar | 42 high | `Mixer/OutputBar.qml` `implicitHeight` |
 | Deck | ~1265 wide with spinny, ~457 without, ~386 with tempo hidden; 232 high | `Theme.deckMinHeight`; `Deck.qml` DelegateChooser `minWidth` 620 / 270 / 200 |
@@ -180,7 +180,7 @@ fonts; without it only the bundled ones exist. The audit reports text over
 text, text larger than its box, short labels elided and children outside their
 parent. Knob art 3-5 px taller than its hit box is reported and intended.
 
-Not covered: four-deck mode, the effects and sampler rows, maximized library,
+Not covered: four-deck mode, the sampler row, maximized library,
 and popups. The dump only sees the default two-deck layout.
 
 ## Deck fixes after the first run
@@ -253,6 +253,23 @@ instead of ~253, about 75 % of its previous height.
 **The pane cannot go much below 72:** BeatJump needs its eyebrow plus two rows,
 and the stems pane needs an 18 px header plus lane rows. Reaching a strict 2/3
 would clip both.
+
+## Top bar effects (2026-11-16)
+
+The standard effects moved from a deck-band row into a second top-bar row, so the deck band gained
+the old 168 px back and the effects stay visible with the library maximized. The strip is
+`Theme.topBarEffectsHeight` (30 px at uiScale 1) and the whole top bar is `Theme.topBarHeight`
+(74 px); `MainWindow.bandMinimumHeight` subtracts it.
+
+| Part | Compact rule |
+|---|---|
+| Standard unit | Status key + power dot + A-D deck assignment + three selector/On pairs + D/W; super knob appears from `Theme.fxSuperMinWidth` (1100) |
+| Deck assignment | Four independent toggle keys per chain; any combination of decks A-D can be active at once |
+| Selectors | `Layout.fillWidth`, elide, full name in a tooltip; never a fixed 300 px |
+
+The per-deck quick chains stay in the mixer; they are not duplicated in the strip. The strip is
+measured by `QmlResponsiveBoundsTest` at the same five sizes as the rest of the skin. At 1280 the
+bounds test still passes; the deck band is 30 px shorter than before.
 
 ## Still open
 
