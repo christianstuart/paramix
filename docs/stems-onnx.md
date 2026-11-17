@@ -1,5 +1,9 @@
 # Stem separation with the demucs-onnx runtime
 
+> **Update 2026-11-16:** Demucs is now the shipping model. This file documents
+> the `demucs-onnx` runtime and its integration; see
+> [`docs/third-party-models.md`](third-party-models.md) for the weight licence.
+
 **Status:** Stems 2 spike, validated locally on Windows x64 CPU with ONNX Runtime
 1.32.0 and the `HRSadeghi/demucs-onnx` `htdemucs` graph.
 
@@ -113,11 +117,15 @@ progress and non-zero energy.
 
 ## Licensing
 
-The runtime code is MIT. The **HTDemucs weights are not MIT**: Meta's v3/v4
-checkpoints are **CC BY-NC 4.0** (non-commercial). The plan/board text that
-called the weights MIT is wrong. They are suitable for local validation, but
+The runtime code is MIT. The **HTDemucs weights are not MIT**: there is no
+explicit weights licence, and Meta's maintainer states they are provided for
+scientific purposes only. "CC BY-NC 4.0" is a conservative shorthand for that
+position, not an upstream grant. They are suitable for local validation, but
 they must not be bundled or redistributed with Paramix until a licensing
-decision lands (ADR-005 / packaging).
+decision lands (ADR-005 / packaging). See
+[`docs/third-party-models.md`](third-party-models.md) for the evidence and for
+the three GPL-2.0-compatible candidates (SCNet-large, SCNet, Open-Unmix
+`umxhq`). This backend remains HTDemucs-only.
 
 ## Known limits in this spike
 
@@ -127,8 +135,8 @@ decision lands (ADR-005 / packaging).
 - Only four-source models are accepted; `htdemucs_6s` is rejected.
 - Cancellation is implemented by unwinding from the output sink, because
   `demucs::Separator` has no cancellation callback.
-- The caller supplies planar stereo at `sampleRate()` (44.1 kHz). Resampling
-  from the source track rate is not wired yet; the vendored `resample.hpp` is
-  available for it.
+- The caller supplies planar stereo at `sampleRate()` (44.1 kHz). The service
+  resamples the source track to that rate and the eight outputs back to the
+  source rate, so this wrapper never sees a rate mismatch.
 - The CI job below covers Linux x64 CPU only. Windows and macOS jobs follow
   once the packaging/runtime distribution decision is made.

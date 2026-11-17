@@ -16,7 +16,7 @@ file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 into a commercial-grade DJ application with four headline features:
 
 1. A new beatgrid engine (downbeats, confidence, tempo maps, non-destructive editing).
-2. Offline 4-stem separation comparable to Traktor (HTDemucs via ONNX Runtime).
+2. Offline 4-stem separation comparable to Traktor (Demucs via ONNX Runtime).
 3. A 4-stem waveform (stacked lanes **and** tinted composite).
 4. A general UI overhaul, rebranded as **Paramix** (new QML skin as default).
 
@@ -51,13 +51,13 @@ receive Qt signals); `parented_ptr`/`make_parented` for Qt ownership.
 
 | # | Decision |
 |---|---|
-| 1 | Default separator `htdemucs_ft` (~630 MB fp16); single `htdemucs` only as low-end fallback |
+| 1 | Separation uses the bundled Demucs checkpoint; the UI has no model choice. SCNet is experimental and not offered in the UI; Open-Unmix was removed. |
 | 2 | Separation on demand + optional batch; **no** auto-separate on import |
 | 3 | Downbeats/bars are **required in v1** |
 | 4 | `.stem.mp4` **export** (Traktor interop) in v1 |
 | 5 | New **Paramix QML skin** is default and highly customizable |
 | 6 | Windows x64, Linux x64 (+arm64 where feasible), macOS arm64 **and** x86_64 |
-| 7 | Models are **download-only via GitHub Releases**; nothing in git or installers (MIT license prompt, SHA-256, resume, install-from-file) |
+| 7 | Models are **bundled with the app**; weights stay out of git. Demucs is the only shipping model (see `docs/third-party-models.md`) |
 | 8 | Rebrand as **Paramix**; brand-only in v1 (keep `~/.mixxx` data dir) |
 
 Program option chosen: **B "Traktor-class"** (~20–24 weeks, 6–8 agents), with Option A as the
@@ -116,7 +116,7 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
 **In progress.** Present: `docs/adr/` (ADR-001 Proposed, ADR-002 and ADR-003 accepted for
 review), `src/stems/` (`StemSeparatorBackend`, `StemSeparation`), and the proven 8-channel FLAC
 container. Still absent: `SoundSourceStemCache`, the `STEM_SEPARATION` flag,
-`src/analyzer/plugins/beatml/`, and the `stem_cache`
+`src/analyzer/plugins/analyzerqueenmarybeats.*`, and the `stem_cache`
 table (schema is at revision 40; the plan needs 41). The QML skin lives in `res/qml` (there is no
 `res/skins/Paramix` directory; QML skins are discovered from `res/qml` in developer mode). Present
 from upstream: `src/track/beat*`,
@@ -188,6 +188,7 @@ stem separation is CPU-only; per-column hide/reorder and search history/completi
 | Pre-/post-roll marking | **Removed.** `WaveformRendererPreroll` is no longer instantiated by `res/qml/WaveformDisplay.qml`; the zone before the track start is empty background. The tiled triangle texture was what looked like repeated junk at the start of a track, four rows deep in split-stem mode. |
 | Waveform band height | **Done.** With the library visible the deck waveform strip is 160 px (`SplitView.preferredHeight`), i.e. 80 px per deck and 20 px per stem lane; the extra height comes from the library pane, which is the only flexible item in that split. |
 | Four-deck waveform strip | **Done.** Only channels 1 and 2 get a waveform row in the top strip; with four decks enabled those two keep the full half height instead of splitting into four. Decks 3-4 stay fully usable from their deck panes. |
+| Source-rate resampling | **Verified.** #28 resamples a native-rate track to the model's 44.1 kHz and the eight outputs back to the exact source frame count, so export and cache stay at the source rate. End-to-end at 96 kHz with the real graph: 192,000 frames out for 2 s in, stem sum aligned with the input (correlation > 0.9), level within 10 %, no digitally silent frames. Test: `DemucsOnnxSeparatorTest.ResamplesSourceRateAroundSeparation`. |
 
 ---
 
@@ -285,7 +286,7 @@ and the tree builds and runs locally on `buildenv/` + `build-fast/`. Remaining, 
 7. **`build-asan/` (4.7 GB, untracked) needs a keep/delete decision.** It is ignored by git; nothing
    in the tree depends on it.
 8. **Phase 0 ADRs 001-005 and the plan §7.3 spikes** remain from the program plan (ONNX
-   `htdemucs_ft` benchmark, Beat This! F-measure, 8-channel FLAC round-trip, four-lane 60 fps check,
+   SCNet benchmark, Queen Mary F-measure, 8-channel FLAC round-trip, four-lane 60 fps check,
    GitHub Releases model-download dry run).
 9. Revisit the macOS x86_64 `-DQML=OFF` CI gap as its own scoped commit, with the 120-minute timeout
    already in place.
@@ -318,7 +319,7 @@ tools/paramix_verify.sh                   # repo checks + clang-format + CMake f
 ## 8. Agent ownership map (from plan §7.1)
 
 A0 architect/integrator (docs/adr, CMakeLists, contracts) · A1 beatgrid core (`src/track/beat*`,
-`src/proto/beats.proto`) · A2 beat ML (`src/analyzer/plugins/beatml/`) · A3 stem runtime
+`src/proto/beats.proto`) · A2 beatgrid baseline (`src/analyzer/plugins/analyzerqueenmarybeats.*`, `src/analyzer/plugins/rbxport/`) · A3 stem runtime
 (`src/stems/` separator/model) · A4 stem pipeline/DB (`stemcache`, DAO, `res/schema.xml`) ·
 A5 audio engine (`src/engine/`, `src/mixer/`) · A6 waveform (`src/waveform/`,
 `src/rendergraph/`, `res/shaders/`) · A7 QML/UX (`res/skins/Paramix/`, `res/qml/`, `src/qml/`) ·
@@ -330,6 +331,14 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
 ---
 
 ## 9. Work log
+
+- **2026-11-16** — **Preferences search.** The settings dialog's sidebar gained a search field
+  (`settingsSearchEdit` in `dlgpreferencesdlg.ui`) that indexes the visible labels, group-box
+  titles and button texts of every preference page, plus tooltips and the items of a label's buddy
+  combo box (`preferences/dialog/preferencessearch.*`). Matches are grouped per page; activating
+  one opens the page, switches the enclosing tab/stacked page, scrolls to the control and flashes
+  it. Ctrl+F focuses the field, Down enters the results, Esc clears the search. Unit test:
+  `PreferencesSearchTest`.
 
 - **2026-11-14** — **Exit-path crash fixed.** `QmlApplication` called `exit(-1)` from inside its
   constructor when the existing-profile guard fired, which ran static destructors while
@@ -404,6 +413,28 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   needs a new `rendergraph::Material`, two qsb shaders derived from `res/shaders/rgbsignal.frag`,
   and a whole-track texture upload - a rewrite rather than a wiring change. Plan and file list are
   captured in the session notes; not started to avoid an unvalidated rewrite across every deck.
+- **2026-11-16** — **Qt Quick vsync is a setting.** `[Waveform],QtQuickVSync` (default true) is
+  read in `main.cpp` before `QmlApplication` is constructed; when false it sets `QSG_NO_VSYNC=1`.
+  Preferences > Waveform > Graphics API Status now has a "VSync" checkbox below the average frame
+  rate (restart required). The pre-existing `[Waveform],VSync` key is the legacy `VSyncThread` mode
+  and is left alone. Measured default: threaded render loop, D3D11 FLIP swapchain (max frame latency
+  2), "Animation Driver: using vsync: 8.33 ms", 3884 frames in a 45 s run (≈120 fps once the UI is
+  up). With the toggle off Qt logs "Swap interval is 0" and "animation driver switched to timer mode".
+- **2026-11-15** — **Waveform stutter: updates follow the panel rate.** New
+  `[Waveform],RefreshRate` (`Mixxx.Config.waveformRefreshRate`, "Monitor refresh") selects the deck
+  waveform update rate. It is reachable from the gear's Preferences > Waveform page, whose old
+  frame-rate row is relabeled "Monitor refresh" (0 = Auto); the QML `Settings.qml` popup also has the
+  row but that popup is not wired into the app (the gear opens the classic dialog). `0` is the default
+  "Auto (N Hz)" and follows `QScreen::refreshRate()` of the primary screen; the list also offers
+  30-240 Hz as a manual cap. `WaveformDisplay.qml` now runs at that rate instead of the hidden
+  `[Waveform],FrameRate`
+  (60 fps), and `QmlWaveformDisplay::slotFrameSwapped()` refreshes on every presented frame when the
+  rate matches the screen, because the elapsed-timer path can come up 1 ms short and halve the rate.
+  Why this is the fix: the play head is extrapolated one *waveform* interval ahead
+  (`getPlaySlipAtNextVSync`), which only lands on the next present when the waveform ticks once per
+  vsync; 60 fps on a 144 Hz panel produces alternating 2/3-vsync steps, i.e. the visible jumps.
+  Still open: during stems/analysis the adaptive 30 fps cap extrapolates 33 ms while presenting
+  sooner, and the extrapolation still assumes one update per present.
 - **2026-11-15** — **Mono keys became lamps.** The output bar's mono toggles are no longer square
   keys: each is a 10 px round lamp (dark ring when off, accent filled when on, hover lifts the face)
   with the caption at `fontSizeXs - 1`, and the first one now reads "OUT MONO". The lamp was later
@@ -772,3 +803,13 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   strip now always renders only channels 1 and 2, each keeping half the height, even with four decks
   enabled; decks 3 and 4 have no waveform row (their panes are unchanged). `StemLaneStrip` rows are
   quarter-height so they stay aligned with the renderer's lanes.
+- **2026-11-15** — **Resampling verified end-to-end after the #29-#34 pull.** The #28 resampler
+  survived the later `StemService` rewrite unchanged: the source opens at its native rate, the
+  source-rate free-space preflight is intact, and both the input and the eight output channels go
+  through `resamplePlanar`. What was missing was proof on a non-44.1 kHz track, so the new env-gated
+  test `DemucsOnnxSeparatorTest.ResamplesSourceRateAroundSeparation` runs 2 s of 96 kHz audio
+  through the legacy `htdemucs` graph (pending removal): 192,000 frames out, the four stems sum back onto the input
+  (correlation > 0.9), level within 10 %, zero digitally silent frames. It skips the synthetic tiny
+  graph, whose fixed shapes are not a separator. Stale "resampling not wired" notes in
+  `stems-onnx.md`, `stem-file-export.md` and `handoff-stems-integration.md` were corrected.
+- **2026-11-16** — **Dead skin components deleted; deck band given its height back.** Removed the unreachable `Settings.qml` popup and its 28 `Settings/*` pages plus the single-use helpers only it used (`FormButton`, `ActionPopup`, `ActionButton`, `InputField`) and the zero-reference duplicates (`StemKnob`, `CrossfaderRow`, `IntroOutroButton` + behavior) — about 9.6k QML lines. `Theme.deckMinHeight` 192 -> 232 with a new `Theme.deckPaneHeight` (112), so the deck's fixed parts (44 header + 22 toolbar + 112 pane) fit and the waveform overview gets the remainder instead of 20 px. Stem lanes wrap to 2x2 and hide their QuickFX row below 64 px; the FX-assign column is no longer 0 px; the loop card fits its 62 px of content; the info bar uses its full band; BeatJump drops its size strip under a 420 px pane. Also: the QML menu bar is built on every desktop platform (Windows/Linux had no File/Library/Options/Help), the window minimum comes from `Theme.minWindowWidth/Height` (1280x720), the crossfader assignment keys fit their well, EQ kill / FX enable moved from double-click (which also reset the knob) to right-click, dropdowns flip up at the window edge, the track menu gained a shortcut column, and the preview pane is a real `[PreviewDeck1]` drop target. The bounds test now drives the Theme window tokens, fails on a non-settling layout, and checks collapsed items, the FX column and the pane height. Details: `docs/qml-responsive-layout.md`.

@@ -1,5 +1,9 @@
 # Parallel work: coordination guide for additional contributors
 
+> **Update 2026-11-16:** separation uses the bundled Demucs model; SCNet stays
+> experimental and Open-Unmix was removed. See
+> [`docs/third-party-models.md`](third-party-models.md).
+
 This document tells a second team of agents and developers (starting with Bradley's) what they can
 work on **concurrently** with the main Paramix workstream without colliding with it.
 
@@ -90,7 +94,7 @@ The remaining project backlog on the [Program Board](https://github.com/users/ch
 ### 3. Stems 2 - ONNX Runtime inference backend (implemented, PR #19)
 - **Status:** In review. The MIT header-only demucs-onnx runtime is vendored under `lib/demucs-onnx/`; `DemucsOnnxSeparator` wraps `demucs::Separator`; `STEM_SEPARATION` is AUTO/ON/OFF; a dedicated Linux ORT CI workflow runs.
 - **Scope:** ONNX Runtime session and execution-provider fallback, chunking, track-level normalization, overlap-add, four-stem output and the factory seam. Validated with the demucs-onnx `htdemucs` graph on Windows x64 CPU.
-- **Licensing:** the runtime is MIT; the HTDemucs weights are CC BY-NC 4.0, not MIT, and are not committed.
+- **Licensing:** the runtime is MIT; the HTDemucs weights are **not MIT** and have no explicit licence (research/scientific use only, per the maintainer), so they are not committed. The GPL-2.0-compatible candidates are SCNet-large, SCNet, and Open-Unmix `umxhq`; see [`docs/third-party-models.md`](third-party-models.md).
 - **Files:** `lib/demucs-onnx/`, `src/stems/demucsonnxseparator.*`, `src/stems/stemseparatorfactory.*`, `cmake/modules/Findonnxruntime.cmake`, `.github/workflows/stems-onnx.yml`, `docs/stems-onnx.md`.
 - **Remaining:** wire the shared limiter and resampling, add Windows/macOS ORT CI, and the model manager/ADR-005.
 

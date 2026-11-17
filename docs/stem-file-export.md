@@ -122,7 +122,12 @@ is a separate, user-facing artifact.
 - Cache invalidation and generation directories. The cache is keyed only by
   track id today; a changed source file or a new model overwrites it on the
   next run rather than taking a new generation.
-- Resampling: separation requires 44.1 kHz input for now.
+- Resampling is wired: a source at any rate is band-limited resampled to the
+  model's 44.1 kHz for separation, and the eight separated channels are
+  resampled back to the source rate and exact source frame count. Export and
+  cache therefore stay at the source rate.
+  `DemucsOnnxSeparatorTest.ResamplesSourceRateAroundSeparation` covers 96 kHz
+  with real weights.
 - The service holds the decoded stereo track and the eight-channel output in
   memory, about 1 GB for a ten-minute track. The cache/writer path should stream
   before very long tracks are supported.

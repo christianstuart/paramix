@@ -18,17 +18,17 @@ Paramix runs on Windows, GNU/Linux and macOS (Apple Silicon and Intel).
 ### Stem separation
 
 - Four stems — drums, bass, vocals, other — generated locally from any supported audio file.
-- High-quality **HTDemucs** separation by default, with an optional higher-quality model tier.
+- High-quality local separation with a bundled model (see
+  `docs/third-party-models.md`).
 - Runs **on demand** or as a **batch job** across a selection of tracks, with progress, pause,
   cancel and resume. Separation happens in the background and never blocks playback.
 - Results are cached on disk, so a separated track loads instantly the next time.
 - **GPU acceleration** where the inference runtime exposes a provider (DirectML/CUDA on
-  Windows, CUDA on Linux) with automatic CPU fallback and an opt-out in Settings. macOS runs on
-  the CPU for now; the CoreML provider is prepared but not enabled yet.
-- **Model downloads only:** the separation models are fetched once from the Paramix model
-  releases with SHA-256 verification and an MIT license prompt. Nothing is bundled in the
-  installer, and audio never leaves your machine. Offline installs are supported through
-  "Install from file" in Settings.
+  Windows, CoreML/WebGPU on macOS, CUDA/ROCm on Linux) with automatic CPU fallback and an
+  opt-out in Settings.
+- **Model included:** the separation model ships with the app, so separation works
+  offline out of the box. Audio never leaves your machine. See
+  `docs/third-party-models.md` for the model details and licence.
 
 ### Stem mixing and waveforms
 
@@ -86,7 +86,7 @@ low-latency, real-time-safe playback.
 
 Build from source (see [Building](#building)), then:
 
-1. Open **Settings → Stems** and download the separation model once.
+1. Optionally open **Settings → Stems** to choose where stem files are written.
 2. Right-click a track (or a selection) in the library and choose **Separate stems**.
 3. Load the track, then mix the four stem channels with the deck's stem strip.
 
@@ -101,7 +101,7 @@ playable immediately with the original mix until the stems are ready.
 | macOS 13+ (Apple Silicon and Intel) | supported |
 | GNU/Linux x64 (and arm64 where the toolchain allows) | supported |
 
-Separation requires a one-time model download. Everything else works offline out of the box.
+The separation model is bundled, so everything works offline out of the box.
 
 ## Building
 

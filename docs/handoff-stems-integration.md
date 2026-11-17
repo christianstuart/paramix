@@ -1,5 +1,9 @@
 # Handoff: stem integration
 
+> **Update 2026-11-16:** separation uses the bundled Demucs checkpoint, which is
+> the only shipping model. SCNet remains experimental and Open-Unmix was removed.
+> See [`docs/third-party-models.md`](third-party-models.md).
+
 **Date:** 2026-11-13
 **Repository:** `C:\Users\Bradl\paramix` (GitHub `christianstuart/paramix`)
 **Purpose:** continue the Paramix stem work in a fresh chat without replaying the
@@ -197,13 +201,19 @@ The implementation and docs stack is merged to `main`. Start at B.
 
 ### D. Backend follow-ups
 
-- Wire the shared limiter and 44.1 kHz resampling into the ONNX wrapper. The
-  vendored `lib/demucs-onnx/include/demucs/resample.hpp` is available; the
-  input track may be 48/96 kHz.
+- ~~Wire the shared limiter and 44.1 kHz resampling into the ONNX wrapper.~~
+  **Done in #28**, in `StemService` rather than the wrapper: the source opens at
+  its native rate, `StemResampler` converts to the model rate and back to the
+  exact source frame count, and the shared limiter runs on the source-rate
+  output. Verified end-to-end at 96 kHz against the real graph (frame count,
+  stem-sum alignment, level and no digital-silence runs).
 - Add Windows and macOS ORT CI jobs once runtime distribution is decided.
-- Model manager and ADR-005: the **HTDemucs weights are CC BY-NC 4.0**, not
-  MIT. A distribution decision is required before shipping weights. The
-  `paramix-models` repository is the intended host.
+- Model manager and ADR-005: the **HTDemucs weights are not MIT** and have no
+  explicit licence; the maintainer provides them for scientific purposes only.
+  A distribution decision is required before shipping weights. The
+  `paramix-models` repository is the intended host. The GPL-2.0-compatible
+  candidates are SCNet-large, SCNet, and Open-Unmix `umxhq`; see
+  [`docs/third-party-models.md`](third-party-models.md).
 
 ### E. Verification before opening the next PR
 
@@ -218,8 +228,10 @@ and keep new workflow files separate from `.github/workflows/ci.yml`.
 
 ## 6. Risks, gotchas and ownership
 
-- **Weights licence:** CC BY-NC 4.0. Do not commit or bundle them. The runtime
-  code is MIT.
+- **Weights licence:** no explicit licence; the maintainer states the HTDemucs
+  weights are for scientific purposes only ("CC BY-NC 4.0" is a conservative
+  shorthand, not a grant). Do not commit or bundle them. The runtime code is
+  MIT. See [`docs/third-party-models.md`](third-party-models.md).
 - **Traktor:** writing is dropped; reading `.stem.mp4` stays. Do not
   reintroduce the NI `moov/udta/stem` writer.
 - **ALAC is CAF:** libsndfile writes ALAC in `.caf`, not `.m4a`. AAC is an ADTS

@@ -23,3 +23,8 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 The full license text is in LICENSE. Upstream copyright headers and notices are
 retained throughout the source tree. "Mixxx" is a trademark of the Mixxx
 project; Paramix is not affiliated with or endorsed by the Mixxx project.
+
+Third-party components and their licences are recorded in
+docs/third-party-models.md. Paramix bundles its stem-separation weights; the
+Demucs checkpoint is distributed for research use only and is not covered by
+the MIT licence of its code.
