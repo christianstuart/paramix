@@ -8,21 +8,23 @@ import "../Theme"
 /// Loop section: set in/out, toggle/reloop, fixed beatloops, a loop-roll row
 /// and an editable beatloop size.
 ///
-/// Laid out as an eyebrow with the editable size, then three compact rows on a
-/// flat panel. A small status dot reports whether the loop is active without
-/// turning the panel into a coloured card. Fixed size keys use
-/// `beatloop_<size>_toggle`; the roll row is momentary and uses
+/// Laid out as a header row with the editable size and the Loop key, then
+/// three 15 px rows on a flat panel. A small status dot reports whether the
+/// loop is active without turning the panel into a coloured card. Fixed size
+/// keys use `beatloop_<size>_toggle`; the roll row is momentary and uses
 /// `beatlooproll_<size>_activate`.
 Rectangle {
     id: root
 
     property color buttonColor: root.loaded ? Theme.textSecondary : Theme.textMuted
-    /// Sizes offered as fixed keys and as rolls. The size field can still take
-    /// any value (3, 1/3, ...) the engine accepts.
+    /// Sizes offered as fixed keys. The size field and the wheel reach the
+    /// full engine range (1/32 to 512 beats).
     readonly property var fixedSizes: [0.5, 1, 2, 4, 8]
     required property string group
     readonly property bool loaded: trackLoadedControl.value > 0
     readonly property var rollSizes: [0.5, 1, 2, 4]
+    /// 1 + 12 + 3 * 15 + 3 * 1 + 2 = 62, the height the deck gives the card.
+    readonly property int rowHeight: 15
 
     border.color: Theme.border
     border.width: 1
@@ -50,25 +52,58 @@ Rectangle {
     }
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 2
+        anchors.margins: 1
         spacing: 1
 
         RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 12
-            spacing: Theme.space1
+            spacing: 2
 
-            Text {
-                color: Theme.textMuted
-                font.capitalization: Font.AllUppercase
-                font.family: Theme.fontFamily
-                font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Theme.fontSizeXs
+            // Starts a loop of the size in the field, so a typed 3 (or 1/3)
+            // is actually reachable without a matching fixed key. A plain
+            // Button with clicked() works for both pointer and keyboard.
+            Skin.Button {
+                id: loopActivateButton
+
+                Accessible.description: qsTr("Start a loop over the set number of beats")
+                Accessible.name: qsTr("Beatloop")
+                Layout.preferredHeight: 12
+                Layout.preferredWidth: 30
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Beatloop")
+                ToolTip.visible: loopActivateButton.hovered
+                enabled: root.loaded
+                implicitHeight: 12
+                implicitWidth: 30
                 text: qsTr("Loop")
-                verticalAlignment: Text.AlignVCenter
+
+                contentItem: Text {
+                    anchors.fill: parent
+                    anchors.leftMargin: 2
+                    anchors.rightMargin: 2
+                    color: loopActivateButton.labelColor
+                    elide: Text.ElideRight
+                    font.capitalization: Font.AllUppercase
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Math.min(Theme.fontSizeXs, 10)
+                    font.weight: Theme.fontWeightDemiBold
+                    horizontalAlignment: Text.AlignHCenter
+                    text: loopActivateButton.text
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: beatloopActivateControl.trigger()
+
+                Mixxx.ControlProxy {
+                    id: beatloopActivateControl
+
+                    group: root.group
+                    key: "beatloop_activate"
+                }
             }
-            // The size is editable: typing 3 (or 1/3) sticks, which the
-            // power-of-two keyboard row below cannot express on its own.
+            // The size is editable: 3 or 1/3 stick, which the power-of-two
+            // fixed keys below cannot express. Enter or focus loss commits.
             Rectangle {
                 id: sizeField
 
@@ -109,9 +144,11 @@ Rectangle {
                     text: beatloopSize.valueText
                     verticalAlignment: TextInput.AlignVCenter
 
+                    // Esc restores the control value before focus leaves, so
+                    // the focus-loss commit below is a no-op.
                     Keys.onEscapePressed: {
-                        this.focus = false;
                         this.update();
+                        this.focus = false;
                     }
                     onAccepted: {
                         beatloopSize.commitText(this.text);
@@ -120,6 +157,7 @@ Rectangle {
                     }
                     onActiveFocusChanged: {
                         if (!activeFocus) {
+                            beatloopSize.commitText(this.text);
                             this.update();
                         }
                     }
@@ -135,6 +173,7 @@ Rectangle {
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Beatloop Anchor")
                 ToolTip.visible: loopAnchorButton.hovered
+                enabled: root.loaded
                 group: root.group
                 implicitHeight: 12
                 implicitWidth: 18
@@ -169,9 +208,9 @@ Rectangle {
         RowLayout {
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 14
-            Layout.preferredHeight: 18
-            spacing: Theme.space1
+            Layout.minimumHeight: 13
+            Layout.preferredHeight: root.rowHeight
+            spacing: 2
 
             Skin.ControlButton {
                 id: loopInButton
@@ -184,7 +223,7 @@ Rectangle {
                 activeColor: Theme.textOnAccent
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: 18
+                implicitHeight: root.rowHeight
                 key: "loop_in"
                 normalColor: root.buttonColor
                 text: qsTr("In")
@@ -224,7 +263,7 @@ Rectangle {
                 activeColor: Theme.textOnAccent
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: 18
+                implicitHeight: root.rowHeight
                 key: "loop_out"
                 normalColor: root.buttonColor
                 text: qsTr("Out")
@@ -262,12 +301,12 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 40
                 ToolTip.delay: 500
-                ToolTip.text: qsTr("Reloop")
+                ToolTip.text: loopEnabled.value ? qsTr("Exit loop") : qsTr("Reloop")
                 ToolTip.visible: loopRecallButton.hovered
                 activeColor: Theme.textOnAccent
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: 18
+                implicitHeight: root.rowHeight
                 key: loopEnabled.value ? "loop_enabled" : "reloop_toggle"
                 normalColor: root.buttonColor
                 // "Rel" is the hardware shorthand; the full word elides to
@@ -295,8 +334,8 @@ Rectangle {
         RowLayout {
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 14
-            Layout.preferredHeight: 18
+            Layout.minimumHeight: 13
+            Layout.preferredHeight: root.rowHeight
             spacing: 1
 
             Skin.ControlButton {
@@ -311,7 +350,7 @@ Rectangle {
                 ToolTip.visible: loopSizeHalveButton.hovered
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: 18
+                implicitHeight: root.rowHeight
                 implicitWidth: 14
                 key: "loop_halve"
                 text: qsTr("◀")
@@ -335,9 +374,26 @@ Rectangle {
                     enabled: root.loaded
                     group: root.group
                     highlight: fixedLoopEnabled.value > 0
-                    implicitHeight: 18
+                    implicitHeight: root.rowHeight
                     key: `beatloop_${fixedLoopButton.modelData}_toggle`
                     text: beatloopSize.formatBeatSize(fixedLoopButton.modelData)
+
+                    // Tight face: at fontScale 1.35 the default 6 px label
+                    // margins elide "1/2" in a 29 px key.
+                    contentItem: Text {
+                        anchors.fill: parent
+                        anchors.leftMargin: 1
+                        anchors.rightMargin: 1
+                        color: fixedLoopButton.labelColor
+                        elide: Text.ElideRight
+                        font.capitalization: Font.AllUppercase
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeXs
+                        font.weight: Theme.fontWeightDemiBold
+                        horizontalAlignment: Text.AlignHCenter
+                        text: fixedLoopButton.text
+                        verticalAlignment: Text.AlignVCenter
+                    }
 
                     Mixxx.ControlProxy {
                         id: fixedLoopEnabled
@@ -359,7 +415,7 @@ Rectangle {
                 ToolTip.visible: loopSizeDoubleButton.hovered
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: 18
+                implicitHeight: root.rowHeight
                 implicitWidth: 14
                 key: "loop_double"
                 text: qsTr("▶")
@@ -375,17 +431,18 @@ Rectangle {
         RowLayout {
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 14
-            Layout.preferredHeight: 18
-            spacing: Theme.space1
+            Layout.minimumHeight: 13
+            Layout.preferredHeight: root.rowHeight
+            spacing: 2
 
             Text {
-                Layout.preferredWidth: 24
+                Layout.preferredWidth: 30
                 color: Theme.textMuted
+                elide: Text.ElideRight
                 font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
                 font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Theme.fontSizeXs
+                font.pixelSize: Math.min(Theme.fontSizeXs, 10)
                 text: qsTr("Roll")
                 verticalAlignment: Text.AlignVCenter
             }
@@ -407,7 +464,7 @@ Rectangle {
                     ToolTip.visible: rollButton.hovered
                     enabled: root.loaded
                     group: root.group
-                    implicitHeight: 18
+                    implicitHeight: root.rowHeight
                     key: `beatlooproll_${rollButton.modelData}_activate`
                     text: beatloopSize.formatBeatSize(rollButton.modelData)
                 }
