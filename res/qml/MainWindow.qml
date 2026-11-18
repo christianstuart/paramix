@@ -120,6 +120,12 @@ Item {
         key: "show_microphones"
     }
     Mixxx.ControlProxy {
+        id: showVinylControl
+
+        group: "[Skin]"
+        key: "show_vinylcontrol"
+    }
+    Mixxx.ControlProxy {
         id: numMicrophones
         group: "[App]"
         key: "num_microphones"
@@ -285,6 +291,7 @@ Item {
                                 libraryItem.checked = root.maximizeLibrary;
                                 auxItem.checked = root.showMicrophoneInputs;
                                 samplersItem.checked = root.showSamplers;
+                                vinylItem.checked = showVinylControl.value > 0;
                             }
 
                             Skin.CheckMenuItem {
@@ -319,6 +326,15 @@ Item {
                                 text: qsTr("Samplers")
 
                                 onTriggered: root.showSamplers = checked
+                            }
+                            Skin.CheckMenuItem {
+                                id: vinylItem
+
+                                checkable: true
+                                enabled: Mixxx.Application.vinylControlAvailable
+                                text: qsTr("Vinyl control")
+
+                                onTriggered: showVinylControl.value = checked ? 1 : 0
                             }
                         }
                     }
