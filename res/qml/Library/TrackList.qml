@@ -199,9 +199,10 @@ Rectangle {
         }
         view.model.sort(horizontalHeader.sortingColumn, horizontalHeader.sortingOrder);
     }
-    function openColumnMenu(x, y) {
+    function openColumnMenu() {
         columnMenu.rebuild();
-        columnMenu.popup(x, y);
+        // Like the source-tree menu, popup() opens at the pointer.
+        columnMenu.popup();
     }
 
     color: Theme.surface0
@@ -291,8 +292,7 @@ Rectangle {
 
                 onTapped: (eventPoint, button) => {
                     if (button === Qt.RightButton) {
-                        const point = column.mapToItem(root, eventPoint.position.x, eventPoint.position.y);
-                        root.openColumnMenu(point.x, point.y);
+                        root.openColumnMenu();
                     } else {
                         root.sortByColumn(index);
                     }
