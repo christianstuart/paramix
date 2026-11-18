@@ -228,11 +228,14 @@ Rectangle {
                     id: keyMouse
 
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    activeFocusOnTab: true
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     enabled: root.deckPlayer?.isLoaded ?? false
                     hoverEnabled: true
 
+                    Keys.onReturnPressed: syncKeyControl.trigger()
+                    Keys.onSpacePressed: syncKeyControl.trigger()
                     onClicked: event => {
                         if (event.button === Qt.RightButton) {
                             resetKeyControl.trigger();

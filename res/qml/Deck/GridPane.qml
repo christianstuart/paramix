@@ -352,7 +352,8 @@ Rectangle {
         implicitHeight: 16
         normalColor: root.buttonColor
 
-        onPressed: markerSet.trigger()
+        // Keyboard activation (Space/Enter) arrives as clicked, not pressed.
+        onClicked: markerSet.trigger()
 
         Mixxx.ControlProxy {
             id: markerPosition

@@ -199,6 +199,8 @@ ColumnLayout {
             enabled: root.loaded
             hoverEnabled: true
 
+            Keys.onReturnPressed: rateDefaultControl.trigger()
+            Keys.onSpacePressed: rateDefaultControl.trigger()
             onClicked: rateDefaultControl.trigger()
         }
     }
