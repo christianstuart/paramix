@@ -268,3 +268,56 @@ Settings -> Stems format controls, the context action, and calling
 writeStemSet() from the separation service after applying the shared limiter.
 Follow the repository rules in AGENTS.md and docs/parallel-work.md.
 ```
+
+---
+
+## 8. Stem detail renderer (2026-11-17)
+
+The deck stem picture no longer uses the analysis summary or the HSV family palette. It is
+now the ported Traktor detail pipeline (`docs/adr/0006-stem-detail-renderer.md`):
+
+- `src/waveform/stemdetail/` holds the entry/config types, the reducer, the colour
+  consumer, the column cache types, the background builder and the two-entry cache.
+- The builder opens the track with `SoundSourceProxy` and
+  `OpenParams::setChannelCount(kAnalysisMaxChannels)`, exactly like `AnalyzerThread`. That
+  resolves both native Paramix stems (`<cache>/<trackId>/stems.flac`, eight interleaved
+  channels in drums/bass/other/vocals order) and Traktor `.stem.mp4`. Stem `s` is
+  de-interleaved from channels `(2s, 2s + 1)`.
+- `allshader::WaveformRendererStem` keeps its class and slot API but now emits four lanes
+  from the cache. `splitStemTracks` no longer changes the lane layout; `opacity` scales
+  lane alpha (0.75, the shipped default, means opaque); `outlineOpacity` and
+  `stemVisualGain` are no-ops.
+- The analysis format is unchanged: `WaveformStemColumn` and the analyzer still serve the
+  other renderers.
+
+### Performance of the detail renderer
+
+The first implementation emitted per-pixel geometry (one rectangle per colour run per
+column). On the Retina QML skin that is ~388,000 vertices / 9.3 MB per frame; profiling
+showed ~55 % of the render thread in the Metal host-to-GPU vertex copy, and the process sat
+at ~100 % CPU with visible stutter. `StemDetailRendererStem` now rasterises the coloured
+rows into one RGBA8 image at device resolution and draws it with four textured quads
+(nearest filtering, pixel-aligned UVs); the lane background is transparent so the deck
+background shows through. The render thread
+is back to waiting for the drawable and the process runs around 30–40 % while playing.
+The texture image covers the viewport plus a margin, so it is rebuilt only a few times
+per second; for tracks whose whole picture fits in a texture (including the test fixture),
+the image covers the whole track and playback performs no texture uploads at all. Between
+rebuilds only the quads' UVs change. `QmlWaveformDisplay` also allows a 1 ms pacing
+tolerance so a 60 Hz display updates the waveform every frame instead of slipping through
+the millisecond timer. The remaining optional step is tiled whole-track textures for long
+tracks, which would remove the last periodic rebuild; the current profile of the render
+thread is already dominated by waiting for the Metal drawable.
+
+### Iterating on the build
+
+`build-main/.ninja_deps` was found corrupt (ninja printed
+`premature end of file; recovering`). With a corrupt deps log, every build rebuilt the PCH
+and all ~860 objects (~6 minutes). Delete the file once and rebuild; incremental edits are
+then ~20 seconds. If it recurs after an interrupted build, remove it again:
+
+```bash
+rm build-main/.ninja_deps
+cmake --build build-main --parallel   # once, full rebuild
+```
+

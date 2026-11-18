@@ -23,6 +23,9 @@ class VSyncThread;
 class GuiTick;
 class VisualsManager;
 class ControlObject;
+#ifdef __STEM__
+class StemDetailCache;
+#endif
 
 class WaveformWidgetAbstractHandle {
   public:
@@ -177,6 +180,13 @@ class WaveformWidgetFactory : public QObject,
     bool widgetTypeSupportsSoftware(WaveformWidgetType::Type type);
     bool widgetTypeSupportsUntilMark() const;
     bool widgetTypeSupportsStems() const;
+
+#ifdef __STEM__
+    /// Process-wide stem detail cache, owned by the factory.
+    StemDetailCache* stemDetailCache() const {
+        return m_pStemDetailCache.get();
+    }
+#endif
 
     void setUntilMarkShowBeats(bool value);
     void setUntilMarkShowTime(bool value);
@@ -378,6 +388,9 @@ class WaveformWidgetFactory : public QObject,
     float m_stemOutlineOpacity;
     float m_stemOpacity;
     bool m_stemSplitTracks;
+#ifdef __STEM__
+    std::unique_ptr<StemDetailCache> m_pStemDetailCache;
+#endif
     std::unique_ptr<ControlObject> m_pStemSplitTracksControl;
 
     bool m_openGlAvailable;

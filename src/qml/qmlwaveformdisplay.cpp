@@ -341,7 +341,11 @@ void QmlWaveformDisplay::requestUpdateAtFrameRate() {
 
     const qint64 elapsedMicros = m_frameRequestTimer.nsecsElapsed() / 1000;
     const qint64 intervalMicros = m_syncInterval.count();
-    if (elapsedMicros >= intervalMicros) {
+    // Frame timers have millisecond granularity; allow a small tolerance so a
+    // display running at (or just under) the requested rate updates every frame
+    // instead of slipping into a 1 ms timer and losing a frame periodically.
+    constexpr qint64 kFramePacingToleranceMicros = 1000;
+    if (elapsedMicros + kFramePacingToleranceMicros >= intervalMicros) {
         m_frameRateTimer.stop();
         m_frameRequestTimer.restart();
         update();

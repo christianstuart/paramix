@@ -2943,6 +2943,11 @@ if(STEM)
       src/sources/soundsourcestem.cpp
       src/track/steminfoimporter.cpp
       src/track/steminfo.cpp
+      src/waveform/stemdetail/stemdetailbuilder.cpp
+      src/waveform/stemdetail/stemdetailcache.cpp
+      src/waveform/stemdetail/stemdetailcolors.cpp
+      src/waveform/stemdetail/stemdetailreducer.cpp
+      src/waveform/stemdetail/stemdetailtrack.cpp
       src/widget/wtrackstemmenu.cpp
       src/widget/wstemlabel.cpp
   )
@@ -2958,6 +2963,7 @@ if(BUILD_TESTING)
   set(
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
+    src/test/stemdetailrenderertest.cpp
     src/test/waveformstemdetailtest.cpp
     src/test/analyzersilence_test.cpp
     src/test/audiotaperpot_test.cpp
@@ -4171,6 +4177,11 @@ if(QML)
       mixxx-qml-lib
       PRIVATE
         src/waveform/renderers/allshader/waveformrendererstem.cpp
+        src/waveform/stemdetail/stemdetailbuilder.cpp
+        src/waveform/stemdetail/stemdetailcache.cpp
+        src/waveform/stemdetail/stemdetailcolors.cpp
+        src/waveform/stemdetail/stemdetailreducer.cpp
+        src/waveform/stemdetail/stemdetailtrack.cpp
         src/qml/qmlstemsmodel.cpp
     )
   endif()

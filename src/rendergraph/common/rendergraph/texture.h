@@ -12,7 +12,12 @@ class Texture;
 
 class rendergraph::Texture {
   public:
-    Texture(Context* pContext, const QImage& image);
+    enum class Filtering {
+        Linear,
+        Nearest,
+    };
+
+    Texture(Context* pContext, const QImage& image, Filtering filtering = Filtering::Linear);
 
     BaseTexture* backendTexture() const {
         return m_pTexture.get();
