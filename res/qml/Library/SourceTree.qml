@@ -272,7 +272,7 @@ Mixxx.LibrarySourceTree {
                 if (transition != PointerDevice.GrabPassive && transition != PointerDevice.GrabExclusive) {
                     return;
                 }
-                trackList.captureDragPreview(track, url => {
+                libraryList.captureDragPreview(track, url => {
                     parent.Drag.imageSource = url;
                 });
             }
