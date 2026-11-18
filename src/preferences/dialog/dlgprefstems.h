@@ -21,6 +21,7 @@ class DlgPrefStems : public DlgPreferencePage, public Ui::DlgStemsDlg {
 
   private slots:
     void slotBrowseOutput();
+    void slotBrowseModel();
     void slotFormatChanged(int index);
 
   private:
@@ -29,5 +30,6 @@ class DlgPrefStems : public DlgPreferencePage, public Ui::DlgStemsDlg {
     const UserSettingsPointer m_pConfig;
     mixxx::stems::StemExportSettings m_settings;
     QString m_outputDirectory;
+    QString m_modelPath;
     bool m_gpuAcceleration = true;
 };

@@ -115,6 +115,16 @@ On this machine the real graph separated one padded 7.8 s window in about 5 s
 on the CPU provider. The test asserts finite output, contiguous offsets,
 progress and non-zero energy.
 
+### Model lookup and Settings
+
+The model path is stored in `[Stems],ModelPath` and can be picked in
+**Settings → Stems → Separation model**. Leave the field empty to auto-detect
+`models/htdemucs.onnx` next to the application, in the repository, beside the
+build directory (`../buildenv/models`), in `../Resources/models`, or in the
+platform user data directory. Only an existing file is accepted; a missing
+model is reported as a failed job instead of being passed to ONNX Runtime.
+The weights themselves are not bundled (see Licensing below).
+
 ## Licensing
 
 The runtime code is MIT. The **HTDemucs weights are not MIT**: there is no

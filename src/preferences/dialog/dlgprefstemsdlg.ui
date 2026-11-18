@@ -36,6 +36,30 @@
         </item>
        </widget>
       </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="labelModelPath">
+        <property name="text">
+         <string>Separation model</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="lineEditModelPath">
+        <property name="placeholderText">
+         <string>Auto-detect models/htdemucs.onnx</string>
+        </property>
+        <property name="toolTip">
+         <string>Demucs ONNX model used for stem separation. Leave empty to search next to the application, in the repository and in the user data directory.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QPushButton" name="pushButtonBrowseModel">
+        <property name="text">
+         <string>Browse...</string>
+        </property>
+       </widget>
+      </item>
       <item row="3" column="0">
        <widget class="QLabel" name="labelOutputDirectory">
         <property name="text">
