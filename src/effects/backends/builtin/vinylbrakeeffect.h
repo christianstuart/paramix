@@ -27,7 +27,10 @@ class VinylBrakeGroupState : public EffectState {
     double rate;
     double phaseFrames;
     double dryMix;
+    double releasePhase;
+    double releaseStartRate;
     bool active;
+    bool releasing;
 };
 
 class VinylBrakeEffect : public EffectProcessorImpl<VinylBrakeGroupState> {
@@ -57,6 +60,7 @@ class VinylBrakeEffect : public EffectProcessorImpl<VinylBrakeGroupState> {
     EngineEffectParameterPointer m_pActiveParameter;
     EngineEffectParameterPointer m_pBrakeTimeParameter;
     EngineEffectParameterPointer m_pCurveParameter;
+    EngineEffectParameterPointer m_pWindUpParameter;
 
     DISALLOW_COPY_AND_ASSIGN(VinylBrakeEffect);
 };

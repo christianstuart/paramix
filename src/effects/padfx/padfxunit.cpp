@@ -103,7 +103,7 @@ PadFxUnit::PadFxUnit(const QString& deckGroup,
                 false,
                 1.0);
         m_pModes[pad]->setStepCount(2);
-        for (int param = 0; param < 4; ++param) {
+        for (int param = 0; param < 5; ++param) {
             m_pParams[pad][param] = std::make_unique<ControlPotmeter>(
                     ConfigKey(m_controlGroup,
                             QStringLiteral("pad%1_param%2").arg(pad + 1).arg(param + 1)),
@@ -151,7 +151,7 @@ PadFxUnit::PadFxUnit(const QString& deckGroup,
         connect(m_pModes[pad].get(), &ControlObject::valueChanged, this, [this, pad](double) {
             slotModeChanged(pad);
         });
-        for (int param = 0; param < 4; ++param) {
+        for (int param = 0; param < 5; ++param) {
             connect(m_pParams[pad][param].get(),
                     &ControlObject::valueChanged,
                     this,
@@ -227,7 +227,7 @@ void PadFxUnit::loadConfig() {
             cfg.targetMask = clampInt(obj.value("target").toInt(1), 1, 15);
             cfg.mode = clampInt(obj.value("mode").toInt(1), 0, 2);
             const QJsonArray params = obj.value("params").toArray();
-            for (int param = 0; param < params.size() && param < 4; ++param) {
+            for (int param = 0; param < params.size() && param < 5; ++param) {
                 cfg.params[param] = clamp01(params.at(param).toDouble(0.5));
             }
         }
@@ -270,7 +270,7 @@ void PadFxUnit::syncControlsFromConfig() {
         m_pEffects[pad]->set(cfg.effect);
         m_pTargets[pad]->set(cfg.targetMask);
         m_pModes[pad]->set(cfg.mode);
-        for (int param = 0; param < 4; ++param) {
+        for (int param = 0; param < 5; ++param) {
             m_pParams[pad][param]->set(cfg.params[param]);
         }
     }
@@ -315,10 +315,16 @@ void PadFxUnit::applyPadParameters(int pad) {
                     pParameter->setValue(0.1 + clamp01(cfg.params[0]) * 1.9);
                 } else if (id == QStringLiteral("curve")) {
                     pParameter->setValue(clamp01(cfg.params[1]));
+                } else if (id == QStringLiteral("wind_up_time")) {
+                    pParameter->setValue(0.05 + clamp01(cfg.params[2]) * 0.95);
                 } else if (id == QStringLiteral("beats")) {
                     pParameter->setValue(0.125 + clamp01(cfg.params[0]) * 1.875);
                 } else if (id == QStringLiteral("feedback")) {
                     pParameter->setValue(clamp01(cfg.params[1]) * 0.95);
+                } else if (id == QStringLiteral("reverb")) {
+                    pParameter->setValue(clamp01(cfg.params[3]) * 0.85);
+                } else if (id == QStringLiteral("reverb_decay")) {
+                    pParameter->setValue(0.15 + clamp01(cfg.params[4]) * 0.85);
                 }
             }
         }
@@ -456,12 +462,18 @@ void PadFxUnit::finishPad(int pad) {
     // The audible gesture is over. Hold the stems with the native mute before
     // dropping the effect gate, otherwise the dry signal can burst through for
     // one callback while the two control changes cross the engine boundary.
+    const auto& cfg = m_config.banks.at(m_config.bank - 1).pads[pad];
     for (int stem = 0; stem < mixxx::padfx::kNumStems; ++stem) {
-        if ((m_config.banks.at(m_config.bank - 1).pads[pad].targetMask & (1 << stem)) != 0) {
+        if ((cfg.targetMask & (1 << stem)) != 0) {
             m_pStemMute[stem]->set(1.0);
         }
     }
-    setEffectActive(pad, false);
+    // Keep the brake gate engaged while the pad is latched. The wind-up is
+    // triggered when the pad is released, after the native mute is cleared, so
+    // the spin-up is audible. Echo Out releases immediately.
+    if (cfg.effect != static_cast<int>(PadEffect::VinylBrake)) {
+        setEffectActive(pad, false);
+    }
     m_runtime[pad].gestureActive = false;
     m_runtime[pad].muteOwned = true;
     m_pPadMuted[pad]->forceSet(1.0);

@@ -39,7 +39,10 @@ void VinylBrakeGroupState::clear() {
     rate = 1.0;
     phaseFrames = 0.0;
     dryMix = 1.0;
+    releasePhase = 0.0;
+    releaseStartRate = 1.0;
     active = false;
+    releasing = false;
 }
 
 // static
@@ -79,6 +82,16 @@ EffectManifestPointer VinylBrakeEffect::getManifest() {
     brakeTime->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
     brakeTime->setRange(0.1, 1.0, 2.0);
 
+    EffectManifestParameterPointer windUp = pManifest->addParameter();
+    windUp->setId("wind_up_time");
+    windUp->setName(QObject::tr("Wind-up Time"));
+    windUp->setShortName(QObject::tr("Wind-up"));
+    windUp->setDescription(QObject::tr(
+            "Seconds to spin the stem back up when the brake is released"));
+    windUp->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
+    windUp->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
+    windUp->setRange(0.05, 0.3, 1.0);
+
     EffectManifestParameterPointer curve = pManifest->addParameter();
     curve->setId("curve");
     curve->setName(QObject::tr("Curve"));
@@ -98,6 +111,7 @@ void VinylBrakeEffect::loadEngineEffectParameters(
     m_pActiveParameter = parameters.value("active");
     m_pBrakeTimeParameter = parameters.value("brake_time");
     m_pCurveParameter = parameters.value("curve");
+    m_pWindUpParameter = parameters.value("wind_up_time");
 }
 
 void VinylBrakeEffect::processChannel(
@@ -129,10 +143,19 @@ void VinylBrakeEffect::processChannel(
         pState->readFrame = static_cast<double>(pState->writeFrame);
         pState->rate = 1.0;
         pState->phaseFrames = 0.0;
+        pState->releasing = false;
+    } else if (!active && pState->active && !pState->releasing) {
+        // Releasing a brake spins the stem back up from the stopped position
+        // before the effect crossfades to dry. This is audible when the pad
+        // layer clears the native stem mute before dropping the gate.
+        pState->releasing = true;
+        pState->releasePhase = 0.0;
+        pState->releaseStartRate = pState->rate;
     }
     pState->active = active;
 
-    const double targetDryMix = active ? 0.0 : 1.0;
+    const bool wetActive = active || pState->releasing;
+    const double targetDryMix = wetActive ? 0.0 : 1.0;
     const int frames = engineParameters.framesPerBuffer();
 
     for (int frame = 0; frame < frames; ++frame) {
@@ -145,7 +168,20 @@ void VinylBrakeEffect::processChannel(
             pState->ring[writeIndex + ch] = pInput[inputOffset + ch];
         }
 
-        if (active) {
+        if (pState->releasing) {
+            const double windUpSeconds = m_pWindUpParameter
+                    ? std::clamp(m_pWindUpParameter->value(), 0.05, 1.0)
+                    : 0.3;
+            pState->releasePhase = std::min(1.0,
+                    pState->releasePhase + 1.0 / (windUpSeconds * sampleRate));
+            const double t = pState->releasePhase;
+            pState->rate = pState->releaseStartRate +
+                    (1.0 - pState->releaseStartRate) * t;
+            pState->readFrame += pState->rate;
+            if (t >= 1.0) {
+                pState->releasing = false;
+            }
+        } else if (active) {
             const double phase = std::min(1.0,
                     pState->phaseFrames / rateStepDenominator);
             pState->rate = std::pow(std::max(0.0, 1.0 - phase), 1.0 + curve * 2.0);
@@ -180,7 +216,7 @@ void VinylBrakeEffect::processChannel(
 
         // Near-zero speed would hold a DC sample; fade the wet path out as the
         // rate approaches zero so the stop is silent rather than a click.
-        const double wetGain = active
+        const double wetGain = wetActive
                 ? std::clamp(pState->rate / 0.08, 0.0, 1.0)
                 : 0.0;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QImage>
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <numeric>
@@ -132,6 +133,8 @@ class allshader::WaveformRendererStem final
     int m_textureDetailSamplesPerColumn;
     float m_textureLaneAlpha;
     unsigned int m_textureMutedMask;
+    std::array<float, mixxx::kMaxSupportedStems> m_muteMix{};
+    unsigned int m_textureMuteMixSignature;
     uint64_t m_textureOrderSignature;
     bool m_textureSlip;
     bool m_textureWholeTrack;
