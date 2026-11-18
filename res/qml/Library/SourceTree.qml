@@ -145,7 +145,7 @@ Mixxx.LibrarySourceTree {
                 if (transition != PointerDevice.GrabPassive && transition != PointerDevice.GrabExclusive) {
                     return;
                 }
-                tableView.captureDragPreview(track, url => {
+                trackList.captureDragPreview(track, url => {
                     parent.Drag.imageSource = url;
                 });
             }
