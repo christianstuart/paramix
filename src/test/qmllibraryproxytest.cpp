@@ -369,6 +369,7 @@ TEST_F(QmlLibraryProxyTest, AutoDjQueueRemoveAndMoveKeepTrackOrder) {
     auto resetQueue = [&]() {
         playlistDao.clearAutoDJQueue();
         ASSERT_TRUE(playlistDao.appendTracksToPlaylist(trackIds, playlistId));
+        pQueueModel->select();
         ASSERT_EQ(5, pQueueModel->rowCount());
     };
 
