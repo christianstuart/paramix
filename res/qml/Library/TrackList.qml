@@ -178,11 +178,11 @@ Rectangle {
         root.sidebar.setColumnHidden(column, hidden);
         root.afterColumnLayoutChange();
     }
-    function openColumnMenu(x, y) {
+    function openColumnMenu() {
         columnMenu.entries = root.columnMenuEntries();
-        columnMenu.x = x;
-        columnMenu.y = y;
-        columnMenu.open();
+        // popup() opens at the cursor like the source-tree menu; open() would
+        // use a parent-relative position.
+        columnMenu.popup();
     }
     function columnMenuEntries() {
         const entries = [];
@@ -297,8 +297,7 @@ Rectangle {
                         return;
                     }
                     if (mouse.button === Qt.RightButton) {
-                        const point = column.mapToItem(root, mouse.x, mouse.y);
-                        root.openColumnMenu(point.x, point.y);
+                        root.openColumnMenu();
                         return;
                     }
                     // The Auto DJ queue does not advertise sorting: the
