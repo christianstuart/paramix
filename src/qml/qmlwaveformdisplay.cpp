@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "control/controlproxy.h"
 #include "library/library.h"
 #include "mixer/basetrackplayer.h"
 #include "moc_qmlwaveformdisplay.cpp"
@@ -56,6 +57,7 @@ QmlWaveformDisplay::QmlWaveformDisplay(QQuickItem* parent)
             0.0,
             0.0);
     setFlag(QQuickItem::ItemHasContents, true);
+    m_interactionTimer.start();
 
     m_frameRateTimer.setSingleShot(true);
     m_frameRateTimer.setTimerType(Qt::PreciseTimer);
@@ -69,6 +71,13 @@ QmlWaveformDisplay::QmlWaveformDisplay(QQuickItem* parent)
             this,
             &QmlWaveformDisplay::slotWindowChanged,
             Qt::DirectConnection);
+    // An item that was hidden or shown again must produce a fresh frame even
+    // while its update loop is idle.
+    connect(this, &QQuickItem::visibleChanged, this, [this]() {
+        if (isVisible()) {
+            update();
+        }
+    });
     slotWindowChanged(window());
 }
 
@@ -225,6 +234,7 @@ void QmlWaveformDisplay::setPosition(double value) {
     if (!m_pTrack || !m_pTrack->internal()) {
         return;
     }
+    noteInteraction();
     m_visualPlayPosition->set(std::clamp(value, 0.0, 1.0),
             1.0,
             0,
@@ -243,6 +253,7 @@ void QmlWaveformDisplay::setPosition(double value) {
 
 void QmlWaveformDisplay::setStaticTrack(QmlTrackProxy* track) {
     m_pTrack = track;
+    noteInteraction();
     if (!m_pTrack) {
         if (!m_pPlayer) {
             setCurrentTrack(nullptr);
@@ -319,11 +330,44 @@ std::chrono::microseconds QmlWaveformDisplay::fromTimerToNextSync(const Performa
 
 void QmlWaveformDisplay::slotFrameSwapped() {
     m_timer.restart();
+    if (!isVisible()) {
+        m_frameRateTimer.stop();
+        m_frameRequestTimer.invalidate();
+        return;
+    }
+    // Without a track there is nothing to animate. Stopping the update loop
+    // lets the window go idle instead of repainting an empty waveform at the
+    // panel rate. Any later track load calls update() again, which restarts the
+    // loop through afterFrameEnd.
+    if (getTrackSamples() <= 0.0 ||
+            (getGroup().isEmpty() && !getTrackInfo())) {
+        m_frameRateTimer.stop();
+        m_frameRequestTimer.invalidate();
+        return;
+    }
     // Matching the panel rate: refresh on every presented frame. The elapsed
     // timer below can come up a millisecond short and skip a frame, which
     // halves the rate and reads as a jump in the scrolling waveform.
+    const bool transportActive =
+            (m_pPlayControl && m_pPlayControl->toBool()) ||
+            (m_pScratchEnableControl && m_pScratchEnableControl->toBool()) ||
+            !m_interactionTimer.isValid() ||
+            m_interactionTimer.elapsed() < kInteractionGraceMs;
+    if (!transportActive) {
+        // A paused waveform is static. Run it at a low rate so marker edits and
+        // seeks still show up quickly, without repainting at 120 Hz forever.
+        // Do not restart an already running timer: afterFrameEnd fires for every
+        // window frame (other animations, the VU ticker), and resetting it each
+        // time would starve the paused waveform completely.
+        if (!m_frameRateTimer.isActive()) {
+            m_frameRateTimer.start(kPausedUpdateIntervalMs);
+        }
+        return;
+    }
+
     const QScreen* pScreen = window() ? window()->screen() : nullptr;
     if (pScreen && m_frameRate >= static_cast<int>(std::lround(pScreen->refreshRate()))) {
+        m_frameRateTimer.stop();
         update();
         return;
     }
@@ -331,7 +375,12 @@ void QmlWaveformDisplay::slotFrameSwapped() {
 }
 
 void QmlWaveformDisplay::requestUpdateAtFrameRate() {
-    if (!window()) {
+    if (!window() || !isVisible()) {
+        return;
+    }
+    if (getTrackSamples() <= 0.0 ||
+            (getGroup().isEmpty() && !getTrackInfo())) {
+        m_frameRateTimer.stop();
         return;
     }
 
@@ -497,6 +546,38 @@ void QmlWaveformDisplay::setGroup(const QString& group) {
     }
 
     WaveformWidgetRenderer::setGroup(group);
+    noteInteraction();
+    m_pPlayControl.reset();
+    m_pScratchEnableControl.reset();
+    m_pCuePointControl.reset();
+    m_pLoopStartControl.reset();
+    m_pLoopEndControl.reset();
+    m_pLoopEnabledControl.reset();
+    m_pTrackSamplesWakeControl.reset();
+    if (!group.isEmpty()) {
+        const auto makeControl = [this, &group](const QString& key) {
+            auto pControl = std::make_unique<ControlProxy>(group, key, this);
+            pControl->connectValueChanged(this, &QmlWaveformDisplay::slotInteraction);
+            return pControl;
+        };
+        m_pPlayControl = makeControl(QStringLiteral("play"));
+        m_pScratchEnableControl =
+                makeControl(QStringLiteral("scratch_position_enable"));
+        m_pCuePointControl = makeControl(QStringLiteral("cue_point"));
+        m_pLoopStartControl = makeControl(QStringLiteral("loop_start_position"));
+        m_pLoopEndControl = makeControl(QStringLiteral("loop_end_position"));
+        m_pLoopEnabledControl = makeControl(QStringLiteral("loop_enabled"));
+        // Keep an independent proxy for the wake-up. init() replaces the
+        // renderer's own track_samples proxy whenever the render stack is
+        // rebuilt, which would silently drop a connection made to it.
+        m_pTrackSamplesWakeControl = std::make_unique<ControlProxy>(
+                group, QStringLiteral("track_samples"), this);
+        m_pTrackSamplesWakeControl->connectValueChanged(
+                this, &QmlWaveformDisplay::slotWaveformUpdated);
+    }
+    // A group change can leave the paused low-rate timer stopped; request one
+    // frame so the new group is drawn immediately.
+    update();
     emit groupChanged(group);
 }
 
@@ -539,6 +620,19 @@ void QmlWaveformDisplay::setCurrentTrack(TrackPointer pTrack) {
 }
 
 void QmlWaveformDisplay::slotWaveformUpdated() {
+    noteInteraction();
+    update();
+}
+
+void QmlWaveformDisplay::noteInteraction() {
+    m_interactionTimer.restart();
+    // Leave the paused cadence immediately; the next frame decides whether to
+    // use the monitor rate or the low-rate paused path.
+    m_frameRateTimer.stop();
+}
+
+void QmlWaveformDisplay::slotInteraction() {
+    noteInteraction();
     update();
 }
 

@@ -153,6 +153,31 @@ TEST(StemDetailReducer, SilentColumnsFillTheCentreRowOnly) {
 
 class StemDetailBuilderTest : public MixxxTest {};
 
+TEST(StemDetailBuilderCancelTest, CancelBeforeQueuedBuildStartsSkipsWork) {
+    StemDetailKey key;
+    key.trackId = TrackId(QVariant(7));
+    key.sampleRate = 44100;
+    key.samplesPerColumn = 64;
+    key.height = 21;
+
+    StemDetailBuilder builder;
+    QSignalSpy spy(&builder, &StemDetailBuilder::built);
+
+    // A cancel issued before the queued build slot runs must not be cleared at
+    // build entry.
+    const quint64 staleGeneration = builder.generation();
+    builder.cancel();
+    builder.build(key, TrackPointer(), staleGeneration);
+    EXPECT_EQ(0, spy.count());
+
+    // The current generation still completes (and reports the missing source
+    // as a null result).
+    builder.build(key, TrackPointer(), builder.generation());
+    ASSERT_EQ(1, spy.count());
+    EXPECT_EQ(nullptr,
+            spy.at(0).at(1).value<std::shared_ptr<const StemDetailTrack>>());
+}
+
 namespace {
 constexpr uint64_t kGoldenFingerprint = 17855010542173845310ull;
 } // namespace
@@ -246,7 +271,7 @@ TEST_F(StemDetailBuilderTest, DecodesParamixEightChannelCacheInStemOrder) {
 
     StemDetailBuilder builder;
     QSignalSpy spy(&builder, &StemDetailBuilder::built);
-    builder.build(key, pTrack);
+    builder.build(key, pTrack, builder.generation());
     ASSERT_EQ(1, spy.count());
     const auto pDetail = spy.at(0)
                                  .at(1)

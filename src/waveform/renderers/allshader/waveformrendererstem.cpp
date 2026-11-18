@@ -226,10 +226,20 @@ bool WaveformRendererStem::preprocessInner() {
         return false;
     }
 
-    const auto stemInfo = pTrack->getStemInfo();
+    // Sample the track metadata at most once a second. The duration, sample
+    // rate and stem count are immutable while the track is loaded, except that
+    // stems can appear after separation finishes; the periodic refresh keeps
+    // that case working without locking Track on every render frame.
+    if (pTrack.get() != m_cachedTrack || m_cacheFramesUntilRefresh-- <= 0) {
+        m_cachedTrack = pTrack.get();
+        m_cachedStemCount = static_cast<int>(pTrack->getStemInfo().size());
+        m_cachedTotalSamples =
+                pTrack->getDuration() * pTrack->getSampleRate().value();
+        m_cacheFramesUntilRefresh = 30;
+    }
     // If this track isn't a stem track, let the regular waveform renderer draw
     // instead of the four-lane stem picture.
-    if (stemInfo.isEmpty()) {
+    if (m_cachedStemCount <= 0) {
         return false;
     }
     const auto positionType = m_isSlipRenderer ? ::WaveformRendererAbstract::Slip
@@ -245,7 +255,7 @@ bool WaveformRendererStem::preprocessInner() {
     }
 
     const int stemCount = static_cast<int>(std::min<qsizetype>(
-            stemInfo.size(), m_stackOrder.size()));
+            m_cachedStemCount, m_stackOrder.size()));
     if (stemCount <= 0) {
         return false;
     }
@@ -258,8 +268,7 @@ bool WaveformRendererStem::preprocessInner() {
     const int pixelLength = std::max(
             1, static_cast<int>(std::lround(length * devicePixelRatio)));
 
-    const double totalSamples =
-            pTrack->getDuration() * pTrack->getSampleRate().value();
+    const double totalSamples = m_cachedTotalSamples;
     if (totalSamples <= 0.0) {
         return false;
     }

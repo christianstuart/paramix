@@ -21,6 +21,10 @@ namespace {
 const mixxx::Logger kLogger("StemDetailBuilder");
 
 constexpr int kMaxStems = mixxx::kMaxSupportedStems;
+// Decode larger blocks than the analysis pipeline's default chunk. The detail
+// builder is a pure sample-by-sample reducer, so block boundaries have no
+// effect on the result, but fewer reads cut per-chunk overhead on long tracks.
+constexpr SINT kReadFramesPerChunk = mixxx::kAnalysisFramesPerChunk * 4;
 
 /// Upper bound for a full-track reduction. A column holds up to `height`
 /// per-row colours, so this caps one lane at roughly 64 MB (four lanes at
@@ -33,11 +37,6 @@ bool isZero(const StemDetailEntry& entry) {
             entry.high == 0.0f;
 }
 
-bool sameEntry(const StemDetailEntry& lhs, const StemDetailEntry& rhs) {
-    return lhs.coverage == rhs.coverage && lhs.low == rhs.low && lhs.mid == rhs.mid &&
-            lhs.high == rhs.high;
-}
-
 uint32_t toRgb24(QRgb color) {
     return static_cast<uint32_t>(color & 0x00ffffffu);
 }
@@ -47,15 +46,18 @@ struct StemStaging {
     std::vector<float> right;
 };
 
-/// Append one compact column, keeping the per-row image when the non-zero rows
-/// hold more than one entry (rare, but required for an exact picture).
+/// Append one compact column, keeping the per-row image only when the non-zero
+/// rows actually quantise to more than one pixel colour.
 void appendColumn(StemDetailLane* pLane,
         const std::vector<StemDetailEntry>& entries,
         int height,
         int columnCount,
         const StemDetailColorParams& params) {
+    DEBUG_ASSERT(height <= 63);
     uint64_t mask = 0;
-    const StemDetailEntry* pFirst = nullptr;
+    std::array<QRgb, 63> rowColors{};
+    uint32_t firstColor = 0;
+    bool haveColor = false;
     bool uniform = true;
     for (int row = 0; row < height; ++row) {
         const StemDetailEntry& entry = entries[static_cast<std::size_t>(row)];
@@ -63,23 +65,31 @@ void appendColumn(StemDetailLane* pLane,
             continue;
         }
         mask |= uint64_t{1} << row;
-        if (!pFirst) {
-            pFirst = &entry;
-        } else if (!sameEntry(*pFirst, entry)) {
+        const QRgb color = stemDetailEntryColor(entry, params);
+        rowColors[static_cast<std::size_t>(row)] = color;
+        const uint32_t rgb = toRgb24(color);
+        if (!haveColor) {
+            firstColor = rgb;
+            haveColor = true;
+        } else if (rgb != firstColor) {
             uniform = false;
         }
     }
 
     StemDetailColumn column;
     const int columnIndex = pLane->columns.size();
-    if (!pFirst) {
+    if (!haveColor) {
         pLane->columns.append(column);
         return;
     }
     column.wave = true;
     column.mask = mask;
     if (uniform) {
-        column.rgba = toRgb24(stemDetailEntryColor(*pFirst, params));
+        // The shipping reducer writes one entry to the whole band, but even
+        // when the float entries differ the quantised pixel colour is usually
+        // identical. Deciding on the pixel colour keeps the compact form (and
+        // avoids the whole-track rowColors arena) without changing a pixel.
+        column.rgba = firstColor;
     } else {
         if (pLane->rowColors.isEmpty()) {
             // Allocate the whole arena so columns built before this one keep
@@ -88,9 +98,10 @@ void appendColumn(StemDetailLane* pLane,
         }
         const int offset = columnIndex * height;
         for (int row = 0; row < height; ++row) {
-            const StemDetailEntry& entry = entries[static_cast<std::size_t>(row)];
             pLane->rowColors[offset + row] =
-                    isZero(entry) ? 0 : stemDetailEntryColor(entry, params);
+                    isZero(entries[static_cast<std::size_t>(row)])
+                    ? 0
+                    : rowColors[static_cast<std::size_t>(row)];
         }
     }
     pLane->columns.append(column);
@@ -99,19 +110,24 @@ void appendColumn(StemDetailLane* pLane,
 } // namespace
 
 StemDetailBuilder::StemDetailBuilder(QObject* parent)
-        : QObject(parent),
-          m_cancel(false) {
+        : QObject(parent) {
     qRegisterMetaType<StemDetailKey>("StemDetailKey");
     qRegisterMetaType<std::shared_ptr<const StemDetailTrack>>(
             "std::shared_ptr<const StemDetailTrack>");
 }
 
 void StemDetailBuilder::cancel() {
-    m_cancel.store(true, std::memory_order_relaxed);
+    m_generation.fetch_add(1, std::memory_order_relaxed);
 }
 
-void StemDetailBuilder::build(const StemDetailKey& key, const TrackPointer& pTrack) {
-    m_cancel.store(false, std::memory_order_relaxed);
+void StemDetailBuilder::build(const StemDetailKey& key,
+        const TrackPointer& pTrack,
+        quint64 generation) {
+    // A cancel may have been issued before this queued slot started. Do not
+    // clear the token and start a full decode nobody is waiting for.
+    if (generation != m_generation.load(std::memory_order_relaxed)) {
+        return;
+    }
 
     if (!pTrack) {
         emit built(key, nullptr);
@@ -195,15 +211,16 @@ void StemDetailBuilder::build(const StemDetailKey& key, const TrackPointer& pTra
         }
     };
 
-    mixxx::SampleBuffer sampleBuffer(mixxx::kAnalysisSamplesPerChunk);
+    mixxx::SampleBuffer sampleBuffer(
+            kReadFramesPerChunk * static_cast<SINT>(channelCount));
     SINT frameIndex = 0;
     int fill = 0;
     while (frameIndex < totalFrames) {
-        if (m_cancel.load(std::memory_order_relaxed)) {
+        if (generation != m_generation.load(std::memory_order_relaxed)) {
             return;
         }
         const SINT framesRequested =
-                std::min<SINT>(mixxx::kAnalysisFramesPerChunk, totalFrames - frameIndex);
+                std::min<SINT>(kReadFramesPerChunk, totalFrames - frameIndex);
         const mixxx::ReadableSampleFrames readable = pSource->readSampleFrames(
                 mixxx::WritableSampleFrames(
                         mixxx::IndexRange::forward(frameIndex, framesRequested),
@@ -248,7 +265,7 @@ void StemDetailBuilder::build(const StemDetailKey& key, const TrackPointer& pTra
 
     pSource->close();
 
-    if (m_cancel.load(std::memory_order_relaxed)) {
+    if (generation != m_generation.load(std::memory_order_relaxed)) {
         return;
     }
     emit built(key, std::move(pDetail));

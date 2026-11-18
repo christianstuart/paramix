@@ -332,6 +332,41 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
 
 ## 9. Work log
 
+- **2026-11-18** — **Performance pass (UI, library, startup, RT, stem detail scheduling).**
+  The stem renderer's final pixels are unchanged; only scheduling and data-path
+  work changed. Details in `docs/performance.md`.
+  - Library cells no longer resolve `cover_art`, `decoration` or `file_url`
+    each; only the cover column asks the model, through new invokables and a
+    model revision property (so colour/cover edits still refresh). The per-cell
+    drag preview/image/shadow moved to one shared list preview. Track proxies
+    are shared per track id (weak `QPointer` cache), and `has_stems` uses the
+    track-id set plus the source model's id lookup.
+  - `refreshHasStems` uses the track model's track-id-to-rows map instead of
+    scanning the library for every finished separation job (proxy-model scan
+    kept as a fallback).
+  - `AsyncImageProvider` has a bounded 32 MB decoded-image cache; the cover
+    column decodes a 2× cell-size thumbnail.
+  - `QmlWaveformDisplay` stops its update loop with no track, runs paused decks
+    at 30 Hz after a 300 ms interaction grace, and wakes immediately on
+    play/scratch/cue/loop/zoom changes. `QmlSpinnyPosition` likewise stops
+    driving frames while the deck is paused. The splash dot animations stop
+    after the splash fades. The library stem badge is only instantiated on rows
+    that have stems.
+  - `EngineDeck` allocates the stem mix buffer in its constructor; the audio
+    callback no longer allocates.
+  - The stem detail builder reads 16k-frame blocks, keeps columns compact when
+    their rows quantise to one colour (same pixels, far less row-colour
+    memory), and cancels builds by generation token instead of an entry-reset
+    flag. The cache no longer posts a queued build on every frame while one is
+    pending, and uses a longer debounce for magnification/height-only changes.
+  - Startup builds the preferences dialog lazily on first show, and the pixmap
+    cache limit is applied on the QML path too.
+  - Added `QmlLibraryTrackListModelTest` and `QmlDlgPreferencesProxyTest`.
+  - Verified: `tools/paramix_verify.sh` PASS; QML startup/responsive tests
+    PASS; library and engine suites PASS. The full non-QML run has four
+    controller single-shot-timer failures and one flaky metadata test on this
+    workstation; those tests fail in isolation and do not touch these files.
+
 - **2026-11-16** — **Effects moved into the top bar.** The standard effect units now live in a
   30 px strip docked under the 44 px toolbar instead of a View > Effects panel in the deck band.
   Each unit shows a status key, power dot, A-D deck assignment keys (multi-select), three effect

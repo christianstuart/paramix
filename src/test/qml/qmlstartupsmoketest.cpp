@@ -407,6 +407,12 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         ASSERT_TRUE(soundConfig.open(QIODevice::WriteOnly | QIODevice::Truncate));
         ASSERT_GT(soundConfig.write("<SoundManagerConfig api=\"None\"/>\n"), 0);
     }
+    // Opt-in audit with a populated library. The database must already exist
+    // and its track paths must be readable on this machine.
+    const QString profileDb = qEnvironmentVariable("PARAMIX_QML_PROFILE_DB");
+    if (!profileDb.isEmpty()) {
+        ASSERT_TRUE(QFile::copy(profileDb, settingsPath + "mixxxdb.sqlite"));
+    }
 
     SettingsPathGuard settingsPathGuard(CmdlineArgs::Instance());
     CmdlineArgs::Instance().setSettingsPath(settingsPath);

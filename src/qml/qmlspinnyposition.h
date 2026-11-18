@@ -5,12 +5,14 @@
 #include <QSharedPointer>
 #include <QString>
 #include <chrono>
+#include <memory>
 
 #include "util/performancetimer.h"
 #include "waveform/isynctimeprovider.h"
 
 class QQuickWindow;
 class VisualPlayPosition;
+class ControlProxy;
 
 namespace mixxx {
 namespace qml {
@@ -69,6 +71,8 @@ class QmlSpinnyPosition : public QQuickItem, public VSyncTimeProvider {
     QString m_group;
     PerformanceTimer m_timer;
     QSharedPointer<VisualPlayPosition> m_visualPlayPosition;
+    std::unique_ptr<ControlProxy> m_pPlayControl;
+    std::unique_ptr<ControlProxy> m_pScratchEnableControl;
     QMetaObject::Connection m_frameConnection;
     std::chrono::microseconds m_syncInterval{kDefaultSyncInterval};
     double m_playPosition{0.0};

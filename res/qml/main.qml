@@ -185,6 +185,11 @@ ApplicationWindow {
 
                         SequentialAnimation on y {
                             loops: Animation.Infinite
+                            // The splash stays in the item tree after it fades
+                            // out. Stop the decorative loop then, otherwise it
+                            // keeps waking the render loop for the whole
+                            // session.
+                            running: splash.opacity > 0
 
                             PauseAnimation {
                                 duration: index * 110
@@ -210,6 +215,7 @@ ApplicationWindow {
                         // and brighten at the top of the arc.
                         SequentialAnimation on opacity {
                             loops: Animation.Infinite
+                            running: splash.opacity > 0
 
                             PauseAnimation {
                                 duration: index * 110

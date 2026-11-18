@@ -13,7 +13,12 @@ Mixxx.LibrarySourceTree {
             preferredWidth: 100
 
             delegate: Rectangle {
-                color: decoration
+                color: {
+                    // Read the revision so a track colour edit triggers the
+                    // invokable again even though this is not a model role.
+                    const revision = tableView && tableView.model ? tableView.model.revision : 0;
+                    return revision >= 0 && tableView ? tableView.model.getDecorationColor(row) : "transparent";
+                }
                 implicitHeight: 30
 
                 Image {
@@ -21,7 +26,18 @@ Mixxx.LibrarySourceTree {
                     asynchronous: true
                     clip: true
                     fillMode: Image.PreserveAspectCrop
-                    source: cover_art
+                    // Ask the list model only for this cell. The row-level
+                    // cover role used to be resolved by every column of every
+                    // row, which made a viewport pay for metadata it never
+                    // displayed.
+                    source: {
+                        const revision = tableView && tableView.model ? tableView.model.revision : 0;
+                        return revision >= 0 && tableView ? tableView.model.getCoverArtUrl(row) : "";
+                    }
+                    // Decode only what this small cell can show. Without a
+                    // sourceSize the provider decodes and keeps a full-size
+                    // cover for every visible row.
+                    sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
                 }
             }
         },
@@ -129,9 +145,9 @@ Mixxx.LibrarySourceTree {
                 if (transition != PointerDevice.GrabPassive && transition != PointerDevice.GrabExclusive) {
                     return;
                 }
-                parent.dragImage.grabToImage(result => {
-                    parent.Drag.imageSource = result.url;
-                }, Qt.size(parent.dragImage.width, parent.dragImage.height));
+                tableView.captureDragPreview(track, url => {
+                    parent.Drag.imageSource = url;
+                });
             }
             tap.onDoubleTapped: {
                 tableView.selectionModel.selectRow(row);

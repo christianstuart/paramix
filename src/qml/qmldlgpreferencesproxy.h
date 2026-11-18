@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QObject>
 #include <QQmlEngine>
+#include <functional>
 #include <memory>
 
 namespace mixxx {
@@ -13,8 +14,13 @@ class QmlDlgPreferencesProxy : public QObject {
     QML_NAMED_ELEMENT(PreferencesDialog)
     QML_SINGLETON
   public:
+    /// The dialog is created on first use. Constructing every preferences page
+    /// at startup costs seconds on a cold profile and is not needed until the
+    /// user opens the dialog.
+    using DialogFactory = std::function<std::shared_ptr<QDialog>()>;
+
     explicit QmlDlgPreferencesProxy(
-            std::shared_ptr<QDialog> pDlgPreferences,
+            DialogFactory dialogFactory,
             QObject* parent = nullptr);
 
     Q_INVOKABLE void show();
@@ -23,7 +29,10 @@ class QmlDlgPreferencesProxy : public QObject {
     static inline std::unique_ptr<QmlDlgPreferencesProxy> s_pInstance;
 
   private:
+    std::shared_ptr<QDialog> ensureDialog();
+
     static inline QJSEngine* s_pJsEngine = nullptr;
+    DialogFactory m_dialogFactory;
     std::shared_ptr<QDialog> m_pDlgPreferences;
 };
 
