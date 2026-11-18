@@ -89,3 +89,10 @@ void RecordingFeature::updateBrowseModel() {
     m_browseModel.setPath(mixxx::FileAccess(
             mixxx::FileInfo(m_pRecordingManager->getRecordingDir())));
 }
+
+void RecordingFeature::stopPendingTasks() {
+    // BrowseTableModel shares a ref-counted browse thread; all references have
+    // to be released before the Library is destroyed.
+    m_browseModel.stopBrowseThread();
+    m_browseModel.releaseBrowseThread();
+}

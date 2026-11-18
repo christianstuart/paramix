@@ -23,6 +23,8 @@ class RecordingFeature final : public LibraryFeature {
 
     TreeItemModel* sidebarModel() const override;
 
+    void stopPendingTasks() override;
+
   public slots:
     void activate() override;
 
