@@ -3,7 +3,6 @@
 #include <QString>
 #include <QVariant>
 #include <algorithm>
-#include <functional>
 #include <utility>
 
 #include "library/autodj/autodjfeature.h"
@@ -285,27 +284,43 @@ void QmlSidebarModelProxy::moveAutoDjTracks(const QList<int>& rows, int delta) {
     if (!m_pAutoDjQueueModel || rows.isEmpty() || delta == 0) {
         return;
     }
-    QList<int> sortedRows = rows;
-    std::sort(sortedRows.begin(), sortedRows.end());
     const int rowCount = m_pAutoDjQueueModel->rowCount();
+    QList<int> sortedRows;
+    sortedRows.reserve(rows.size());
+    for (int row : rows) {
+        if (row >= 0 && row < rowCount) {
+            sortedRows.append(row);
+        }
+    }
+    if (sortedRows.isEmpty()) {
+        return;
+    }
+    std::sort(sortedRows.begin(), sortedRows.end());
+
+    // The selection moves as one block, like WTrackTableView::moveRows(): a
+    // block that already touches the edge it moves toward stays where it is.
     if (delta < 0) {
+        if (sortedRows.first() == 0) {
+            return;
+        }
+        // Top to bottom: each move only shifts the rows above the block, so
+        // the remaining row numbers stay valid and the block keeps its order.
         for (int row : std::as_const(sortedRows)) {
-            if (row > 0) {
-                m_pAutoDjQueueModel->moveTrack(
-                        m_pAutoDjQueueModel->index(row, 0),
-                        m_pAutoDjQueueModel->index(row - 1, 0));
-            }
+            m_pAutoDjQueueModel->moveTrack(
+                    m_pAutoDjQueueModel->index(row, 0),
+                    m_pAutoDjQueueModel->index(row - 1, 0));
         }
         return;
     }
-    // Bottom-up, so that moving a block of rows keeps them adjacent.
-    std::sort(sortedRows.begin(), sortedRows.end(), std::greater<int>());
-    for (int row : std::as_const(sortedRows)) {
-        if (row + 1 >= rowCount) {
-            continue;
-        }
-        // The table model expects the row after the destination. An
-        // out-of-range destination appends at the end of the queue.
+
+    if (sortedRows.last() == rowCount - 1) {
+        return;
+    }
+    // Bottom to top: each move only shifts the rows below the block.
+    for (int i = sortedRows.size() - 1; i >= 0; --i) {
+        const int row = sortedRows.at(i);
+        // The table model expects the row after the destination. A row that
+        // moves to the end passes an out-of-range row, which appends it.
         m_pAutoDjQueueModel->moveTrack(
                 m_pAutoDjQueueModel->index(row, 0),
                 m_pAutoDjQueueModel->index(row + 2, 0));
