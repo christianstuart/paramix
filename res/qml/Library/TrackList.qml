@@ -369,6 +369,7 @@ Rectangle {
                 /// True for the single cell that owns the per-row stem badge.
                 property bool stemBadgeVisible: item.has_stems && item.column === root.titleColumnIndex
                 property var tableView: view
+                property var trackList: root
                 property var track: item.track
 
                 anchors.fill: parent
