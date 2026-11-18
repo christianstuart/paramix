@@ -42,11 +42,15 @@ Item {
         anchors.top: parent.top
         height: 14
 
+        // 2 px inset each side: with the labels edge-to-edge, "CH 1" and the
+        // next channel's dot were a single 2 px gutter apart and read as one
+        // string. The label also carries the deck colour so each dot pairs with
+        // its own number instead of the neighbour's.
         Rectangle {
             anchors.centerIn: parent
             color: "transparent"
             height: 14
-            width: 36
+            width: parent.width - 4
 
             Rectangle {
                 anchors.left: parent.left
@@ -59,9 +63,9 @@ Item {
             Text {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                color: Theme.textMuted
+                color: root.deckColor
                 font.family: Theme.fontFamily
-                font.letterSpacing: Theme.letterSpacingCaps
+                font.letterSpacing: 0
                 font.pixelSize: Theme.fontSizeXs
                 font.weight: Theme.fontWeightDemiBold
                 text: "CH " + root.channelLabel
