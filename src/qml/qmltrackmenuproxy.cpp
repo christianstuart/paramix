@@ -335,14 +335,17 @@ void QmlLibraryTrackMenu::removeSelectedRows(
         } else {
             title = tr("Confirm track removal");
             if (capability == TrackModel::Capability::Remove) {
-                message = tr("Are you sure you want to remove the selected "
-                             "tracks from AutoDJ queue?");
+                message = tr(
+                        "Are you sure you want to remove the selected "
+                        "tracks from AutoDJ queue?");
             } else if (capability == TrackModel::Capability::RemoveCrate) {
-                message = tr("Are you sure you want to remove the selected "
-                             "tracks from this crate?");
+                message = tr(
+                        "Are you sure you want to remove the selected "
+                        "tracks from this crate?");
             } else {
-                message = tr("Are you sure you want to remove the selected "
-                             "tracks from this playlist?");
+                message = tr(
+                        "Are you sure you want to remove the selected "
+                        "tracks from this playlist?");
             }
         }
 

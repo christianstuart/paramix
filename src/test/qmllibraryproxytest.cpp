@@ -514,8 +514,8 @@ TEST_F(QmlLibraryProxyTest, SidebarPlaylistContextMenuEdits) {
     EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove")).isEmpty());
     EXPECT_FALSE(findMenuNode(menu, QStringLiteral("export")).isEmpty());
     EXPECT_TRUE(findMenuNode(menu, QStringLiteral("rename"))
-                        .value(QStringLiteral("enabled"))
-                        .toBool());
+                    .value(QStringLiteral("enabled"))
+                    .toBool());
     EXPECT_EQ(QStringLiteral("Lock"),
             findMenuNode(menu, QStringLiteral("lock"))
                     .value(QStringLiteral("text"))
@@ -531,11 +531,11 @@ TEST_F(QmlLibraryProxyTest, SidebarPlaylistContextMenuEdits) {
                     .value(QStringLiteral("text"))
                     .toString());
     EXPECT_FALSE(findMenuNode(menu, QStringLiteral("rename"))
-                         .value(QStringLiteral("enabled"))
-                         .toBool());
+                    .value(QStringLiteral("enabled"))
+                    .toBool());
     EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove"))
-                         .value(QStringLiteral("enabled"))
-                         .toBool());
+                    .value(QStringLiteral("enabled"))
+                    .toBool());
     sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("lock"));
     QTRY_VERIFY(!playlistDao.isPlaylistLocked(playlistId));
 
@@ -674,8 +674,8 @@ TEST_F(QmlLibraryProxyTest, SidebarCrateContextMenuLocks) {
                     .value(QStringLiteral("text"))
                     .toString());
     EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove"))
-                         .value(QStringLiteral("enabled"))
-                         .toBool());
+                    .value(QStringLiteral("enabled"))
+                    .toBool());
 
     // Invalid rows and drops are ignored.
     sidebar.invokeContextMenuAction(QModelIndex(), QStringLiteral("lock"));
@@ -769,8 +769,7 @@ TEST_F(QmlLibraryProxyTest, TrackMenuDropAndReorderValidateInput) {
         ASSERT_TRUE(file.open(QIODevice::WriteOnly));
         file.write("not audio");
     }
-    EXPECT_EQ(0, menu.importDroppedUrls(sidebar.tracklist(),
-            {QUrl::fromLocalFile(textFile)}));
+    EXPECT_EQ(0, menu.importDroppedUrls(sidebar.tracklist(), {QUrl::fromLocalFile(textFile)}));
 
     // Reordering ignores empty and out-of-range rows.
     menu.moveSelectedRows(sidebar.tracklist(), {}, 0);

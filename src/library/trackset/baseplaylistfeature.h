@@ -154,6 +154,5 @@ class BasePlaylistFeature : public BaseTrackSetFeature {
     bool markTreeItem(TreeItem* pTreeItem);
     QString fetchPlaylistLabel(int playlistId);
 
-
     const bool m_keepHiddenTracks;
 };

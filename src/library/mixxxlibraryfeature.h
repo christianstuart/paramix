@@ -26,7 +26,7 @@ class MixxxLibraryFeature final : public LibraryFeature {
     Q_OBJECT
   public:
     MixxxLibraryFeature(Library* pLibrary,
-                        UserSettingsPointer pConfig);
+            UserSettingsPointer pConfig);
     ~MixxxLibraryFeature() override = default;
 
     QVariant title() override;
@@ -34,7 +34,7 @@ class MixxxLibraryFeature final : public LibraryFeature {
     bool dragMoveAccept(const QList<QUrl>& urls) override;
     TreeItemModel* sidebarModel() const override;
     void bindLibraryWidget(WLibrary* pLibrary,
-                    KeyboardEventFilter* pKeyboard) override;
+            KeyboardEventFilter* pKeyboard) override;
 #ifdef __ENGINEPRIME__
     void bindSidebarWidget(WLibrarySidebar* pSidebarWidget) override;
 #endif

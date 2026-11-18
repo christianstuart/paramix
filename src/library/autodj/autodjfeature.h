@@ -27,8 +27,8 @@ class AutoDJFeature : public LibraryFeature {
     Q_OBJECT
   public:
     AutoDJFeature(Library* pLibrary,
-                  UserSettingsPointer pConfig,
-                  PlayerManagerInterface* pPlayerManager);
+            UserSettingsPointer pConfig,
+            PlayerManagerInterface* pPlayerManager);
     virtual ~AutoDJFeature();
 
     QVariant title() override;
@@ -41,7 +41,7 @@ class AutoDJFeature : public LibraryFeature {
     bool dragMoveAccept(const QList<QUrl>& urls) override;
 
     void bindLibraryWidget(WLibrary* libraryWidget,
-                    KeyboardEventFilter* keyboard) override;
+            KeyboardEventFilter* keyboard) override;
     void bindSidebarWidget(WLibrarySidebar* pSidebarWidget) override;
 
     TreeItemModel* sidebarModel() const override;
