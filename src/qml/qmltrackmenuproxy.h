@@ -61,6 +61,13 @@ class QmlLibraryTrackMenu : public QObject {
     Q_INVOKABLE void setRating(int rating);
     /// Empty string clears the color.
     Q_INVOKABLE void setColor(const QString& hexColor);
+    /// Opens the classic Track Properties dialog for the rows (Ctrl+Enter).
+    Q_INVOKABLE void showProperties(QmlLibraryTrackListModel* pModel,
+            const QList<int>& rows);
+    /// Removes (or hides, for the main library) the rows with the same
+    /// confirmation the classic track table uses.
+    Q_INVOKABLE void removeSelectedRows(QmlLibraryTrackListModel* pModel,
+            const QList<int>& rows);
 
   signals:
     /// Emitted when an action changed the underlying model and the caller
@@ -69,6 +76,9 @@ class QmlLibraryTrackMenu : public QObject {
 
   private:
     void ensureMenu(TrackModel* pTrackModel);
+    /// Loads the source indexes of `rows` into the menu. Returns false if
+    /// no usable row was left.
+    bool selectTracks(QmlLibraryTrackListModel* pModel, const QList<int>& rows);
     QVariantList serializeMenu(QMenu* pMenu) const;
     static void populateLazySubmenus(QMenu* pMenu);
     static QString stripMnemonics(const QString& text);
