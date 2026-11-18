@@ -134,7 +134,6 @@ void WaveformRendererStem::onSetup(const QDomNode&) {
 }
 
 bool WaveformRendererStem::init() {
-    m_pStemGain.clear();
     m_pStemMute.clear();
     m_pPregain.reset();
 
@@ -148,22 +147,12 @@ bool WaveformRendererStem::init() {
         const QString& group = m_waveformRenderer->getGroup();
         for (int stemIdx = 0; stemIdx < mixxx::kMaxSupportedStems; stemIdx++) {
             const QString stemGroup = EngineDeck::getGroupForStem(group, stemIdx);
-            m_pStemGain.emplace_back(
-                    std::make_unique<ControlProxy>(stemGroup,
-                            QStringLiteral("volume")));
             m_pStemMute.emplace_back(
                     std::make_unique<ControlProxy>(stemGroup,
                             QStringLiteral("mute")));
-            auto bringToForeground = [this, stemIdx](double) {
-                if (!m_reorderOnChange) {
-                    return;
-                }
-                m_stackOrder.removeAll(stemIdx);
-                m_stackOrder.append(stemIdx);
-                markDirtyGeometry();
-            };
-            m_pStemGain.back()->connectValueChanged(this, bringToForeground);
-            m_pStemMute.back()->connectValueChanged(this, bringToForeground);
+            // Lane order is fixed to the stem order (drums, bass, other,
+            // vocals). Routing, gain, mute and Pad FX changes must not shuffle
+            // the waveform lanes while the user is mixing.
         }
         // Deck pregain (linear gain) drives the reducer magnification the same
         // way the shipping generator's setMagnification does.
@@ -318,12 +307,16 @@ bool WaveformRendererStem::preprocessInner() {
                 pTrack, samplesPerColumn, laneDeviceHeight, magnification);
     }
     if (!pDetail) {
-        // Keep the previous geometry (if any) instead of clearing the display
-        // while the first build is still running.
-        m_pDetail.reset();
-        m_hasGeometry = false;
-        m_textureValid = false;
-        return false;
+        // Keep the previous geometry and texture while the detail cache is
+        // rebuilding. Clearing here made the stem picture blink out whenever
+        // the zoom, device scale or another renderer rebuilt the detail.
+        if (m_pDetail && m_pDetail->trackId != pTrack->getId()) {
+            m_pDetail.reset();
+            m_hasGeometry = false;
+            m_textureValid = false;
+            return false;
+        }
+        return m_hasGeometry;
     }
     if (m_pDetail && m_pDetail->trackId != pTrack->getId()) {
         m_pDetail.reset();
