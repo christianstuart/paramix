@@ -204,7 +204,7 @@ Mixxx.LibrarySourceTree {
             key: "filetype"
             autoHideWidth: 900
             columnIdx: Mixxx.TrackListColumn.SQLColumns.FileType
-            label: qsTr("File Type")
+            label: qsTr("Type")
             preferredWidth: 70
 
             delegate: DefaultDelegate {
@@ -214,7 +214,7 @@ Mixxx.LibrarySourceTree {
             key: "bitrate"
             autoHideWidth: 1200
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Bitrate
-            label: qsTr("Bitrate")
+            label: qsTr("Kbps")
             preferredWidth: 70
 
             delegate: DefaultDelegate {
