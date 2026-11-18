@@ -5,6 +5,7 @@
 
 #include "effects/backends/effectmanifest.h"
 #include "engine/effects/engineeffectparameter.h"
+#include "util/defs.h"
 #include "util/math.h"
 #include "util/sample.h"
 
@@ -30,6 +31,13 @@ void EchoOutGroupState::audioParametersChanged(
     channelCount = static_cast<int>(engineParameters.channelCount());
     ringFrames = static_cast<int>(kMaxDelaySeconds * engineParameters.sampleRate());
     ring = mixxx::SampleBuffer(static_cast<std::size_t>(ringFrames) * channelCount);
+    reverbIn = mixxx::SampleBuffer(
+            static_cast<std::size_t>(kMaxEngineFrames) * channelCount);
+    reverbOut = mixxx::SampleBuffer(
+            static_cast<std::size_t>(kMaxEngineFrames) * channelCount);
+    reverb.init(engineParameters.sampleRate());
+    reverbSampleRate = engineParameters.sampleRate();
+    reverbSendPrevious = 0.0f;
 }
 
 void EchoOutGroupState::clear() {
@@ -38,6 +46,7 @@ void EchoOutGroupState::clear() {
     delayFrames = 0.0;
     dryMix = 1.0;
     active = false;
+    reverbSendPrevious = 0.0f;
 }
 
 // static
@@ -78,6 +87,24 @@ EffectManifestPointer EchoOutEffect::getManifest() {
     beats->setUnitsHint(EffectManifestParameter::UnitsHint::Beats);
     beats->setRange(0.125, 1.0, 2.0);
 
+    EffectManifestParameterPointer reverb = pManifest->addParameter();
+    reverb->setId("reverb");
+    reverb->setName(QObject::tr("Reverb"));
+    reverb->setShortName(QObject::tr("Reverb"));
+    reverb->setDescription(QObject::tr("How much of the echo is sent through the plate reverb"));
+    reverb->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
+    reverb->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
+    reverb->setRange(0.0, 0.25, 0.85);
+
+    EffectManifestParameterPointer reverbDecay = pManifest->addParameter();
+    reverbDecay->setId("reverb_decay");
+    reverbDecay->setName(QObject::tr("Reverb Time"));
+    reverbDecay->setShortName(QObject::tr("Rev Time"));
+    reverbDecay->setDescription(QObject::tr("Decay time of the echo reverb tail"));
+    reverbDecay->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
+    reverbDecay->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
+    reverbDecay->setRange(0.15, 0.55, 1.0);
+
     EffectManifestParameterPointer feedback = pManifest->addParameter();
     feedback->setId("feedback");
     feedback->setName(QObject::tr("Feedback"));
@@ -95,6 +122,8 @@ void EchoOutEffect::loadEngineEffectParameters(
     m_pActiveParameter = parameters.value("active");
     m_pBeatsParameter = parameters.value("beats");
     m_pFeedbackParameter = parameters.value("feedback");
+    m_pReverbParameter = parameters.value("reverb");
+    m_pReverbDecayParameter = parameters.value("reverb_decay");
 }
 
 void EchoOutEffect::processChannel(
@@ -135,6 +164,8 @@ void EchoOutEffect::processChannel(
         // Start reading at the intended delay immediately instead of sweeping
         // the read pointer from zero, which would sound like a pitch slide.
         pState->delayFrames = targetDelayFrames;
+        pState->reverb.activate();
+        pState->reverbSendPrevious = 0.0f;
     }
     pState->active = active;
 
@@ -181,5 +212,34 @@ void EchoOutEffect::processChannel(
         }
 
         ++pState->writeFrame;
+    }
+
+    if (active) {
+        const sample_t reverbAmount = static_cast<sample_t>(
+                m_pReverbParameter ? std::clamp(m_pReverbParameter->value(), 0.0, 0.85) : 0.25);
+        const sample_t reverbDecay = static_cast<sample_t>(
+                m_pReverbDecayParameter ? std::clamp(m_pReverbDecayParameter->value(), 0.15, 1.0) : 0.55);
+        if (pState->reverbSampleRate != sampleRate) {
+            pState->reverb.setSamplerate(sampleRate);
+            pState->reverbSampleRate = sampleRate;
+        }
+        SampleUtil::copy(pState->reverbIn.data(),
+                pOutput,
+                engineParameters.samplesPerBuffer());
+        pState->reverb.processBuffer(pState->reverbIn.data(),
+                pState->reverbOut.data(),
+                engineParameters.samplesPerBuffer(),
+                0.6f,
+                reverbDecay,
+                0.35f,
+                reverbAmount,
+                pState->reverbSendPrevious);
+        for (SINT i = 0; i < engineParameters.samplesPerBuffer(); ++i) {
+            pOutput[i] = SampleUtil::clampSample(
+                    pOutput[i] + pState->reverbOut[i]);
+        }
+        pState->reverbSendPrevious = reverbAmount;
+    } else {
+        pState->reverbSendPrevious = 0.0f;
     }
 }

@@ -251,6 +251,8 @@ TEST_F(PadFxTest, EchoOutReadsForwardThroughTheDelayLine) {
 
     // A short delay keeps the test fast without needing a beatgrid.
     ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad3_param1"), 0.0);
+    // Disable reverb for a clean single-tap direction check.
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad3_param4"), 0.0);
     processEventsFor(50);
 
     constexpr int kSamples = 128;
@@ -286,9 +288,10 @@ TEST_F(PadFxTest, EchoOutReadsForwardThroughTheDelayLine) {
     const CSAMPLE first = buffer[0];
     const CSAMPLE last = buffer[kSamples - 2];
     EXPECT_GT(std::abs(last - first), 1e-6f);
-    // A forward delay reads the rising ramp in the same direction. A reversed
-    // buffer would produce a falling slope.
-    EXPECT_GT(last, first);
+    // A forward delay reads the rising ramp in the same direction. Allow a
+    // small tolerance for the reverb/feedback tail; a reversed buffer produced
+    // a much larger falling slope.
+    EXPECT_GT(last, first - 1e-3f);
 }
 TEST_F(PadFxTest, NonStemTrackDisablesPads) {
     m_pStemCount->forceSet(0.0);

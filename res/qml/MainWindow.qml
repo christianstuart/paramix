@@ -312,6 +312,7 @@ Item {
                                 previewDeckItem.checked = showPreviewDecks.value > 0 ||
                                         (previewDeckBar.item && previewDeckBar.item.revealed) ||
                                         previewDeckPlaying.value > 0;
+                                padFxItem.checked = padFxWindow.visible;
                             }
 
                             Skin.CheckMenuItem {
@@ -338,6 +339,14 @@ Item {
                                 text: qsTr("Mic / Aux")
 
                                 onTriggered: showMicrophonesControl.value = checked ? 1 : 0
+                            }
+                            Skin.CheckMenuItem {
+                                id: padFxItem
+
+                                checkable: true
+                                text: qsTr("Pad FX")
+
+                                onTriggered: checked ? padFxWindow.show() : padFxWindow.close()
                             }
                             Skin.CheckMenuItem {
                                 id: samplersItem
@@ -369,6 +378,28 @@ Item {
                                     showPreviewDecks.value = checked ? 1 : 0;
                                 }
                             }
+                        }
+                    }
+                    Skin.Button {
+                        id: showPadFxButton
+
+                        activeColor: Theme.textOnAccent
+                        Layout.preferredWidth: 72
+                        checkable: true
+                        checked: padFxWindow.visible
+                        text: qsTr("Pad FX")
+
+                        Accessible.name: qsTr("Show Pad FX window")
+
+                        onClicked: {
+                            if (padFxWindow.visible)
+                                padFxWindow.close();
+                            else
+                                padFxWindow.show();
+                        }
+
+                        Skin.PadFxWindow {
+                            id: padFxWindow
                         }
                     }
                     Skin.Button {

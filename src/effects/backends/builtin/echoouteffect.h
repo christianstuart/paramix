@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Reverb.h>
+
 #include "effects/backends/effectprocessor.h"
 #include "engine/engine.h"
 #include "util/class.h"
@@ -26,6 +28,11 @@ class EchoOutGroupState : public EffectState {
     double delayFrames;
     double dryMix;
     bool active;
+    mixxx::SampleBuffer reverbIn;
+    mixxx::SampleBuffer reverbOut;
+    MixxxPlateX2 reverb;
+    float reverbSampleRate;
+    float reverbSendPrevious;
 };
 
 class EchoOutEffect : public EffectProcessorImpl<EchoOutGroupState> {
@@ -55,6 +62,8 @@ class EchoOutEffect : public EffectProcessorImpl<EchoOutGroupState> {
     EngineEffectParameterPointer m_pActiveParameter;
     EngineEffectParameterPointer m_pBeatsParameter;
     EngineEffectParameterPointer m_pFeedbackParameter;
+    EngineEffectParameterPointer m_pReverbParameter;
+    EngineEffectParameterPointer m_pReverbDecayParameter;
 
     DISALLOW_COPY_AND_ASSIGN(EchoOutEffect);
 };

@@ -23,7 +23,8 @@ standard effect units and from the per-stem Quick Effects.
 2. When the brake reaches zero, the pad sets the stems' native **Mute**. The
    pad stays lit while it owns the mute.
 3. Press the pad again. The previous mute states are restored and the stems
-   return to live audio.
+   spin back up over the configured wind-up time before returning to live
+   audio.
 
 Because Pad FX run before the stem fader and mute, the mute is applied only
 after the brake ramp, so the brake sound itself is audible.
@@ -37,9 +38,11 @@ rewind to where the brake started.
 1. Press the pad. The dry signal is cut and the stem repeats into the delay
    line. The delay line is continuously pre-filled, so the first repeat is
    immediate.
-2. When the configured tail ends, the pad sets the affected stems' native
+2. The echo tail runs through the plate reverb using the configured echo and
+   reverb times.
+3. When the configured tail ends, the pad sets the affected stems' native
    **Mute** and releases. The pad LED turns off.
-3. Pressing the same pad again clears the pad-owned mute without triggering a
+4. Pressing the same pad again clears the pad-owned mute without triggering a
    second echo.
 
 ### Momentary mode
@@ -64,9 +67,11 @@ several stems applies the effect to each of them independently.
 
 ## Software controls
 
-The Pad FX pane is a deck pane next to Cue, Move, Grid, and Stem. It contains a
-bank selector, four pad rows, and per-row effect, target, and mode controls.
-Pad FX are disabled when the deck has no stem track.
+Pad FX live in a dedicated window, closed by default. Open it from the
+**Pad FX** toolbar key or **View → Pad FX**. The window has one column per deck,
+so all four decks are addressable at once; each column has its own A–D bank
+selector, four pad cards, stem target toggles, effect and mode selectors, and
+parameter knobs. Pad FX are disabled for decks without a stem track.
 
 ## Control mapping
 
@@ -80,17 +85,18 @@ Every deck exposes one stable control group:
   effect1..effect4    0..2        Off / Vinyl Brake / Echo Out
   target1..target4    1..15       stem mask for each pad
   mode1..mode4        0..2        Momentary / Toggle / One Shot
-  pad1_param1..pad1_param4        normalized effect parameters
-  pad2_param1..pad2_param4
-  pad3_param1..pad3_param4
-  pad4_param1..pad4_param4
+  pad1_param1..pad1_param5        normalized effect parameters
+  pad2_param1..pad2_param5
+  pad3_param1..pad3_param5
+  pad4_param1..pad4_param5
 ```
 
 Parameter meaning:
 
-- Vinyl Brake: `param1` = brake time, `param2` = curve.
+- Vinyl Brake: `param1` = wind-down time, `param2` = curve, `param3` =
+  wind-up time.
 - Echo Out: `param1` = delay in beats, `param2` = feedback, `param3` = tail
-  in beats.
+  in beats, `param4` = reverb send, `param5` = reverb decay time.
 
 A controller mapping only needs `bank` and `pad1..pad4`. A pad press sends
 `1`; release sends `0`. The pad layer decides whether that is a toggle, a

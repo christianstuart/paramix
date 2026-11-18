@@ -95,7 +95,7 @@ class PadFxUnit : public QObject {
             m_pTargets;
     std::array<std::unique_ptr<ControlPotmeter>, mixxx::padfx::kNumPadsPerBank>
             m_pModes;
-    std::array<std::array<std::unique_ptr<ControlPotmeter>, 4>,
+    std::array<std::array<std::unique_ptr<ControlPotmeter>, 5>,
             mixxx::padfx::kNumPadsPerBank>
             m_pParams;
 

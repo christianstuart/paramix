@@ -120,6 +120,7 @@ WaveformRendererStem::WaveformRendererStem(
           m_textureDetailSamplesPerColumn(0),
           m_textureLaneAlpha(0.0f),
           m_textureMutedMask(0),
+          m_textureMuteMixSignature(0),
           m_textureOrderSignature(0),
           m_textureSlip(false),
           m_textureWholeTrack(false),
@@ -364,6 +365,7 @@ bool WaveformRendererStem::preprocessInner() {
 
     const uint selectedStems = m_waveformRenderer->getSelectedStems();
     unsigned int mutedMask = 0;
+    constexpr float kMuteFadeStep = 1.0f / 12.0f;
     for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
         const int stemIdx = laneStems.at(laneIndex);
         const bool stemMuted = selectedStems
@@ -372,6 +374,18 @@ bool WaveformRendererStem::preprocessInner() {
         if (stemMuted) {
             mutedMask |= 1u << laneIndex;
         }
+        float& mix = m_muteMix[stemIdx];
+        const float target = stemMuted ? 1.0f : 0.0f;
+        if (mix < target) {
+            mix = std::min(target, mix + kMuteFadeStep);
+        } else if (mix > target) {
+            mix = std::max(target, mix - kMuteFadeStep);
+        }
+    }
+    unsigned int muteMixSignature = 0;
+    for (float mix : m_muteMix) {
+        muteMixSignature = muteMixSignature * 33u +
+                static_cast<unsigned int>(std::lround(mix * 255.0f));
     }
 
     uint64_t orderSignature = 0;
@@ -465,6 +479,7 @@ bool WaveformRendererStem::preprocessInner() {
             m_textureDetailSamplesPerColumn != detailSamplesPerColumn ||
             m_textureLaneAlpha != laneAlpha ||
             m_textureMutedMask != mutedMask ||
+            m_textureMuteMixSignature != muteMixSignature ||
             m_textureOrderSignature != orderSignature ||
             m_textureSlip != m_isSlipRenderer ||
             m_textureWholeTrack != useWholeTrackTexture;
@@ -509,9 +524,9 @@ bool WaveformRendererStem::preprocessInner() {
                 const StemDetailLane& lane =
                         pDetail->lanes[static_cast<std::size_t>(
                                 laneStems.at(laneIndex))];
-                const bool muted = (mutedMask >> laneIndex) & 1u;
-                const float alpha =
-                        muted ? laneAlpha * kGhostedStemOpacity : laneAlpha;
+                const float ghostMix = m_muteMix[laneStems.at(laneIndex)];
+                const float alpha = laneAlpha *
+                        (1.0f + (kGhostedStemOpacity - 1.0f) * ghostMix);
                 const int alphaByte = std::clamp(
                         static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
                 if (alphaByte == 0) {
@@ -566,6 +581,7 @@ bool WaveformRendererStem::preprocessInner() {
         m_textureDetailSamplesPerColumn = detailSamplesPerColumn;
         m_textureLaneAlpha = laneAlpha;
         m_textureMutedMask = mutedMask;
+        m_textureMuteMixSignature = muteMixSignature;
         m_textureOrderSignature = orderSignature;
         m_textureSlip = m_isSlipRenderer;
         m_textureWholeTrack = useWholeTrackTexture;
