@@ -39,10 +39,22 @@ class BasePlaylistFeature : public BaseTrackSetFeature {
     void selectPlaylistInSidebar(int playlistId, bool select = true);
     int getSiblingPlaylistIdOf(QModelIndex& start);
 
+    /// True if the playlist behind `index` is locked. Used to build the QML
+    /// sidebar context menu.
+    bool isItemLocked(const QModelIndex& index) const;
+
   public slots:
     void activateChild(const QModelIndex& index) override;
     virtual void activatePlaylist(int playlistId);
     virtual void htmlLinkClicked(const QUrl& link);
+
+    /// Context-menu entry points for the QML sidebar (see
+    /// QmlSidebarModelProxy). Each one remembers `index` like the classic
+    /// right-click menu does and then runs the existing feature action.
+    void duplicateItem(const QModelIndex& index);
+    void toggleLockItem(const QModelIndex& index);
+    void exportItem(const QModelIndex& index);
+    void importItem();
 
     virtual void slotPlaylistTableChanged(int playlistId) = 0;
     void slotPlaylistTableChangedAndSelect(int playlistId) {

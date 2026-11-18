@@ -252,9 +252,34 @@ void BasePlaylistFeature::activatePlaylist(int playlistId) {
     emit featureSelect(this, m_lastClickedIndex);
 }
 
+bool BasePlaylistFeature::isItemLocked(const QModelIndex& index) const {
+    const int playlistId = playlistIdFromIndex(index);
+    return playlistId != kInvalidPlaylistId &&
+            m_playlistDao.isPlaylistLocked(playlistId);
+}
+
 void BasePlaylistFeature::renameItem(const QModelIndex& index) {
     m_lastRightClickedIndex = index;
     slotRenamePlaylist();
+}
+
+void BasePlaylistFeature::duplicateItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotDuplicatePlaylist();
+}
+
+void BasePlaylistFeature::toggleLockItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotTogglePlaylistLock();
+}
+
+void BasePlaylistFeature::exportItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotExportPlaylist();
+}
+
+void BasePlaylistFeature::importItem() {
+    slotCreateImportPlaylist();
 }
 
 void BasePlaylistFeature::slotRenamePlaylist() {

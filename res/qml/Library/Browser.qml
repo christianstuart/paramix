@@ -22,10 +22,8 @@ Rectangle {
     // reports edits so the debounce stays in one place.
     readonly property alias searchInput: searchField
 
-    signal searchCleared()
-    signal searchEdited()
-
-    color: Theme.surface1
+    signal searchCleared
+    signal searchEdited
 
     function activateDefaultSource() {
         if (!root.model || root.model.tracklist) {
@@ -34,12 +32,29 @@ Rectangle {
         // activate() ignores invalid indexes, so no validity check is needed.
         root.model.activate(root.model.index(0, 0));
     }
+    function openSourceMenu(index) {
+        if (!index || !index.valid || !root.model) {
+            return;
+        }
+        sourceMenu.nodes = root.model.contextMenu(index);
+        if (sourceMenu.nodes.length === 0) {
+            return;
+        }
+        sourceMenu.menuRow = index.row;
+        sourceMenu.menuColumn = index.column;
+        sourceMenu.rebuild();
+        sourceMenu.popup();
+    }
     function selectRow(index) {
         if (!index) {
             return;
         }
         featureSelection.setCurrentIndex(index, ItemSelectionModel.NoUpdate);
         featureSelection.select(index, ItemSelectionModel.ClearAndSelect | ItemSelectionModel.Rows);
+    }
+    function showDropMessage(message) {
+        dropMessage.messageText = message;
+        dropMessageTimer.restart();
     }
     function toggleNode(row) {
         if (featureView.isExpanded(row)) {
@@ -53,6 +68,8 @@ Rectangle {
         featureView.expand(row);
     }
 
+    color: Theme.surface1
+
     Component.onCompleted: root.activateDefaultSource()
 
     Connections {
@@ -62,7 +79,6 @@ Rectangle {
 
         target: root.model
     }
-
     Rectangle {
         id: treeFrame
 
@@ -90,9 +106,9 @@ Rectangle {
                 Skin.TextField {
                     id: searchField
 
-                    anchors.fill: parent
                     Accessible.name: qsTr("Search the library")
                     Accessible.role: Accessible.EditableText
+                    anchors.fill: parent
                     font.pixelSize: Theme.fontSizeSm
                     placeholderText: qsTranslate("WSearchLineEdit", "Search...")
                     rightPadding: Theme.space2 + (clearButton.visible ? clearButton.width + Theme.space1 : 0)
@@ -103,6 +119,8 @@ Rectangle {
                 Item {
                     id: clearButton
 
+                    Accessible.name: qsTr("Clear search")
+                    Accessible.role: Accessible.Button
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.space2
                     anchors.verticalCenter: parent.verticalCenter
@@ -110,8 +128,6 @@ Rectangle {
                     visible: searchField.text.length > 0
                     width: 14
 
-                    Accessible.name: qsTr("Clear search")
-                    Accessible.role: Accessible.Button
                     Accessible.onPressAction: root.searchCleared()
 
                     Rectangle {
@@ -151,7 +167,6 @@ Rectangle {
                 color: Theme.border
                 implicitHeight: 1
             }
-
             ScrollView {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
@@ -161,6 +176,7 @@ Rectangle {
 
                     Layout.fillWidth: true
                     clip: true
+                    focus: true
                     model: root.model
                     selectionModel: root.featureSelection
 
@@ -172,10 +188,6 @@ Rectangle {
                         required property int hasChildren
                         required property var icon
                         readonly property real indentation: Theme.space3
-                        // Note: the modelIndex() signature changed with Qt 6.4:
-                        // the arguments are (row, column). index() is the
-                        // non-deprecated equivalent.
-                        readonly property var sourceIndex: treeView.index(row, column)
 
                         // Rotate indicator when expanded by the user
                         // (requires TreeView to have a selectionModel)
@@ -191,6 +203,10 @@ Rectangle {
                         required property string label
                         readonly property real padding: Theme.space1
                         required property int row
+                        // Note: the modelIndex() signature changed with Qt 6.4:
+                        // the arguments are (row, column). index() is the
+                        // non-deprecated equivalent.
+                        readonly property var sourceIndex: treeView.index(row, column)
                         readonly property bool topLevel: depth === 0
 
                         // Assigned to by TreeView:
@@ -223,7 +239,7 @@ Rectangle {
                             anchors.rightMargin: Theme.space1
                             anchors.top: parent.top
                             anchors.topMargin: 1
-                            color: current ? Qt.alpha(Theme.accent, 0.18) : rowMouseArea.containsMouse ? Theme.surface3 : "transparent"
+                            color: current ? Qt.alpha(Theme.accent, 0.18) : rowDropArea.containsDrag ? Qt.alpha(Theme.accent, 0.25) : rowMouseArea.containsMouse ? Theme.surface3 : "transparent"
                             radius: Theme.radiusSm
                         }
                         Rectangle {
@@ -243,15 +259,22 @@ Rectangle {
                         MouseArea {
                             id: rowMouseArea
 
-                            acceptedButtons: Qt.LeftButton
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
                             anchors.fill: parent
                             hoverEnabled: true
 
                             onClicked: {
+                                // Keep the tree keyboard-navigable: the Menu key
+                                // acts on the selected source row.
+                                featureView.forceActiveFocus();
                                 root.selectRow(sourceIndex);
                                 // Selecting a source activates it, i.e. shows its
                                 // tracks. Expanding is a separate action.
-                                root.model.activate(sourceIndex);
+                                if (mouse.button === Qt.RightButton) {
+                                    root.openSourceMenu(sourceIndex);
+                                } else {
+                                    root.model.activate(sourceIndex);
+                                }
                             }
                             onDoubleClicked: {
                                 // Double click also expands sources that
@@ -260,6 +283,21 @@ Rectangle {
                                 if (isTreeNode) {
                                     root.toggleNode(row);
                                 }
+                            }
+                        }
+                        DropArea {
+                            id: rowDropArea
+
+                            anchors.fill: parent
+
+                            // Playlists and crates accept dropped tracks and
+                            // folders; the feature decides whether it does.
+                            onDropped: drop => {
+                                if (!drop.hasUrls)
+                                    return;
+                                if (!root.model.dropUrls(sourceIndex, drop.urls))
+                                    root.showDropMessage(qsTr("Nothing was added. Drop audio files or folders onto a playlist or crate."));
+                                drop.acceptProposedAction();
                             }
                         }
                         RowLayout {
@@ -280,11 +318,12 @@ Rectangle {
                                 asynchronous: true
                                 fillMode: Image.PreserveAspectFit
                                 layer.enabled: !!icon
+                                source: icon ?? ""
+                                visible: !!icon
+
                                 layer.effect: ColorOverlay {
                                     color: Theme.accent
                                 }
-                                source: icon ?? ""
-                                visible: !!icon
                             }
                             Label {
                                 id: indicator
@@ -298,6 +337,7 @@ Rectangle {
 
                                 MouseArea {
                                     anchors.fill: parent
+
                                     onClicked: root.toggleNode(row)
                                 }
                             }
@@ -342,7 +382,110 @@ Rectangle {
                             }
                         }
                     }
+
+                    Keys.onPressed: event => {
+                        // Keyboard context menu for the current source row.
+                        if (event.key === Qt.Key_Menu || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))) {
+                            root.openSourceMenu(root.featureSelection.currentIndex);
+                            event.accepted = true;
+                        }
+                    }
                 }
+            }
+        }
+    }
+    Rectangle {
+        id: dropMessage
+
+        property string messageText: ""
+
+        Accessible.name: messageText
+        Accessible.role: Accessible.StaticText
+        anchors.bottom: treeFrame.bottom
+        anchors.bottomMargin: Theme.space2
+        anchors.horizontalCenter: parent.horizontalCenter
+        border.color: Theme.borderStrong
+        border.width: 1
+        color: Theme.surface3
+        height: 26
+        radius: Theme.radiusSm
+        visible: messageText.length > 0 && dropMessageTimer.running
+        width: Math.min(treeFrame.width - 2 * Theme.space2, dropMessageLabel.implicitWidth + 2 * Theme.space3)
+        z: 2
+
+        Text {
+            id: dropMessageLabel
+
+            anchors.centerIn: parent
+            color: Theme.textPrimary
+            elide: Text.ElideRight
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm
+            text: dropMessage.messageText
+            width: parent.width - 2 * Theme.space2
+        }
+    }
+    Timer {
+        id: dropMessageTimer
+
+        interval: 4000
+    }
+    Menu {
+        id: sourceMenu
+
+        property int menuColumn: 0
+        property int menuRow: -1
+        property var nodes: []
+
+        function rebuild() {
+            while (count > 0) {
+                removeItem(itemAt(0));
+            }
+            for (let i = 0; i < nodes.length; ++i) {
+                const node = nodes[i];
+                if (node.kind === "separator") {
+                    addItem(separatorComponent.createObject(sourceMenu));
+                    continue;
+                }
+                const item = actionComponent.createObject(sourceMenu);
+                item.nodeAction = node.action;
+                item.text = node.text;
+                item.enabled = node.enabled;
+                addItem(item);
+            }
+        }
+
+        palette.buttonText: Theme.textPrimary
+        palette.highlight: Theme.accent
+        palette.highlightedText: Theme.textOnAccent
+        palette.mid: Theme.textMuted
+        palette.text: Theme.textPrimary
+        palette.window: Theme.surface2
+        palette.windowText: Theme.textPrimary
+
+        background: Rectangle {
+            border.color: Theme.border
+            border.width: 1
+            color: Theme.surface2
+            implicitWidth: 260
+            radius: Theme.radiusMd
+        }
+
+        Component {
+            id: separatorComponent
+
+            MenuSeparator {
+            }
+        }
+        Component {
+            id: actionComponent
+
+            MenuItem {
+                id: actionItem
+
+                property string nodeAction: ""
+
+                onTriggered: root.model.invokeContextMenuAction(featureView.index(sourceMenu.menuRow, sourceMenu.menuColumn), actionItem.nodeAction)
             }
         }
     }

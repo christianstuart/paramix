@@ -7,6 +7,7 @@
 #include <QPointer>
 #include <QQmlEngine>
 #include <QString>
+#include <QUrl>
 #include <QVariant>
 #include <vector>
 
@@ -102,6 +103,17 @@ class QmlSidebarModelProxy : public SidebarModel {
     /// Moves the given rows one step up (`delta` < 0) or down (`delta` > 0).
     Q_INVOKABLE void moveAutoDjTracks(const QList<int>& rows, int delta);
 
+    /// Context menu of a source-tree row, rendered by Browser.qml. Each node is
+    /// a map with the keys `kind` ("action" or "separator"), `action` (the id
+    /// to pass to invokeContextMenuAction()), `text` and `enabled`.
+    Q_INVOKABLE QVariantList contextMenu(const QModelIndex& index) const;
+    Q_INVOKABLE void invokeContextMenuAction(
+            const QModelIndex& index, const QString& action);
+
+    /// Drops `urls` onto the playlist, crate or source at `index`. Returns
+    /// true if the feature accepted the drop.
+    Q_INVOKABLE bool dropUrls(const QModelIndex& index, const QList<QUrl>& urls);
+
   signals:
     void tracklistChanged();
     void searchTextChanged();
@@ -121,6 +133,7 @@ class QmlSidebarModelProxy : public SidebarModel {
 
     QmlLibraryTrackListModel* trackListForModel(QAbstractItemModel* pModel);
     void activateDefaultSelection();
+    void addFolderToLibrary();
 
     std::vector<parented_ptr<QmlLibraryTrackListColumn>> m_columns;
     QList<TrackListEntry> m_trackLists;
