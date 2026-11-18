@@ -174,7 +174,9 @@ Item {
         id: viewShowVinylControlAction
 
         checkable: true
-        checked: showVinylControl.value > 0
+        // The deck strip is also gated on availability, so a persisted "shown"
+        // value must not read as checked when this build has no vinyl support.
+        checked: showVinylControl.value > 0 && Mixxx.Application.vinylControlAvailable
         enabled: Mixxx.Application.vinylControlAvailable
         shortcut: root.configuredMenuShortcut("ViewMenu_ShowVinylControl", "Ctrl+3", root.shortcutRevision)
         text: qsTranslate("WMainMenuBar", "Show Vinyl Control Section")
