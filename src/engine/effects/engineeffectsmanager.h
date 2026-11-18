@@ -48,6 +48,17 @@ class EngineEffectsManager final : public EffectsRequestHandler {
             CSAMPLE_GAIN newGain = CSAMPLE_GAIN_ONE,
             bool fadeout = false);
 
+    /// Process the per-stem Pad FX EngineEffectChains on the pInOut buffer.
+    /// This is a separate pass from the quick/standard postfader chains, so pad
+    /// effects never run twice when a stem is processed.
+    void processPadFxInPlace(
+            const ChannelHandle& inputHandle,
+            const ChannelHandle& outputHandle,
+            CSAMPLE* pInOut,
+            std::size_t numSamples,
+            mixxx::audio::SampleRate sampleRate,
+            const GroupFeatureState& groupFeatures);
+
     /// Process the postfader EngineEffectChains, leaving the pIn buffer unmodified
     /// and mixing the output into the pOut buffer. Using EngineEffectsManager's
     /// temporary buffers for this avoids the need for ChannelMixer to allocate a

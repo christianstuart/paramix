@@ -27,7 +27,11 @@ inline size_t qHash(const EffectBackendType& backendType) {
 
 enum class SignalProcessingStage {
     Prefader,
-    Postfader
+    Postfader,
+    // Per-stem Pad FX are processed in their own pass, before the stem fader
+    // and Quick FX, so they stay independent of the mixer FX and the standard
+    // effect units.
+    PadFx
 };
 
 inline size_t qHash(

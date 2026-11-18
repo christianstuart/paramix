@@ -64,6 +64,9 @@ void VisibleEffectsList::readEffectsXml(
     // Unhide all effects that are not in either list.
     const auto manifests = pBackendManager->getManifestsForBackend(EffectBackendType::BuiltIn);
     for (const EffectManifestPointer& pManifest : std::as_const(manifests)) {
+        if (pManifest->isPadFxOnly()) {
+            continue;
+        }
         if (!visibleEffects.contains(pManifest) &&
                 !hiddenEffects.contains(pManifest)) {
             // prepend so un-hidden effects are discoverable

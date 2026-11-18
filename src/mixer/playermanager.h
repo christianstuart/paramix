@@ -19,6 +19,7 @@ class BaseTrackPlayer;
 class ControlObject;
 class Deck;
 class EffectsManager;
+class PadFxManager;
 class EngineMixer;
 class Library;
 class Microphone;
@@ -289,6 +290,7 @@ class PlayerManager : public PlayerManagerInterface {
     Library* m_pLibrary;
     SoundManager* m_pSoundManager;
     EffectsManager* m_pEffectsManager;
+    std::unique_ptr<PadFxManager> m_pPadFxManager;
     EngineMixer* m_pEngine;
     SamplerBank* m_pSamplerBank;
     std::unique_ptr<ControlObject> m_pCONumDecks;
