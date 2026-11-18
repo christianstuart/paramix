@@ -223,7 +223,9 @@ Mixxx.LibrarySourceTree {
     ]
 
     component MetaColumn: Mixxx.TrackListColumn {
-        delegate: DefaultDelegate {
+        delegate: Component {
+            DefaultDelegate {
+            }
         }
     }
 
