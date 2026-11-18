@@ -455,7 +455,9 @@ void QmlLibraryTrackMenu::moveSelectedRows(
 }
 
 int QmlLibraryTrackMenu::importDroppedUrls(
-        QmlLibraryTrackListModel* pModel, const QList<QUrl>& urls) {
+        QmlLibraryTrackListModel* pModel,
+        const QList<QUrl>& urls,
+        int destinationRow) {
     if (!pModel || urls.isEmpty()) {
         return 0;
     }
@@ -476,7 +478,12 @@ int QmlLibraryTrackMenu::importDroppedUrls(
     for (const auto& fileInfo : std::as_const(fileInfos)) {
         locations.append(fileInfo.location());
     }
-    return pTrackModel->addTracks(QModelIndex(), locations);
+    // An invalid destination index appends, which is also what dropping below
+    // the last row (destinationRow == rowCount) ends up as.
+    const QModelIndex destination = destinationRow < 0
+            ? QModelIndex()
+            : pModel->mapToSource(pModel->index(destinationRow, 0));
+    return pTrackModel->addTracks(destination, locations);
 }
 
 // static

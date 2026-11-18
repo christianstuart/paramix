@@ -75,10 +75,12 @@ class QmlLibraryTrackMenu : public QObject {
             const QList<int>& rows,
             int destinationRow);
     /// Imports the supported audio files and folders below `urls` into the
-    /// track list's source (and the library). Returns the number of added
-    /// tracks; 0 means nothing usable was dropped.
+    /// track list's source (and the library). `destinationRow` inserts before
+    /// that row; a negative row or one past the end appends. Returns the
+    /// number of added tracks; 0 means nothing usable was dropped.
     Q_INVOKABLE int importDroppedUrls(QmlLibraryTrackListModel* pModel,
-            const QList<QUrl>& urls);
+            const QList<QUrl>& urls,
+            int destinationRow = -1);
 
   signals:
     /// Emitted when an action changed the underlying model and the caller

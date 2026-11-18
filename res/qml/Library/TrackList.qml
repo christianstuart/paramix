@@ -656,18 +656,18 @@ Rectangle {
             // Rows dragged out of this table are reordered; anything else is
             // imported into the source shown here.
             onDropped: drop => {
+                const rowCount = view.selectionModel.modelRowCount();
+                const destination = Math.max(0, Math.min(rowCount, Math.floor((drop.y + view.contentY) / root.rowHeight)));
                 if (drop.source && drop.source.trackList === view) {
                     if (!root.model || !root.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Reorder))
                         return;
-                    const rowCount = view.selectionModel.modelRowCount();
-                    const destination = Math.max(0, Math.min(rowCount, Math.floor((drop.y + view.contentY) / root.rowHeight)));
                     Mixxx.LibraryTrackMenu.moveSelectedRows(root.model, view.selectionModel.selectedRows(), destination);
                     drop.acceptProposedAction();
                     return;
                 }
                 if (!drop.hasUrls)
                     return;
-                if (Mixxx.LibraryTrackMenu.importDroppedUrls(root.model, drop.urls) === 0)
+                if (Mixxx.LibraryTrackMenu.importDroppedUrls(root.model, drop.urls, destination) === 0)
                     root.showDropMessage(qsTr("Nothing was added. Drop audio files or folders onto an unlocked view."));
                 drop.acceptProposedAction();
             }
