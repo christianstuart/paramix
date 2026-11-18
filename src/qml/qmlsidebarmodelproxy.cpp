@@ -1,15 +1,24 @@
 #include "qml/qmlsidebarmodelproxy.h"
 
+#include <QFileDialog>
+#include <QPersistentModelIndex>
+#include <QStandardPaths>
 #include <QString>
+#include <QTimer>
 #include <QVariant>
 #include <algorithm>
 #include <utility>
 
 #include "library/autodj/autodjfeature.h"
 #include "library/autodj/autodjprocessor.h"
+#include "library/browse/browsefeature.h"
 #include "library/library.h"
 #include "library/playlisttablemodel.h"
 #include "library/trackmodel.h"
+#include "library/trackset/crate/cratefeature.h"
+#include "library/trackset/playlistfeature.h"
+#include "library/trackset/setlogfeature.h"
+#include "library/treeitem.h"
 #include "moc_qmlsidebarmodelproxy.cpp"
 #include "qml/qmllibraryproxy.h"
 #include "util/assert.h"
@@ -325,6 +334,292 @@ void QmlSidebarModelProxy::moveAutoDjTracks(const QList<int>& rows, int delta) {
                 m_pAutoDjQueueModel->index(row, 0),
                 m_pAutoDjQueueModel->index(row + 2, 0));
     }
+}
+
+namespace {
+
+void appendMenuAction(QVariantList* pNodes,
+        const QString& action,
+        const QString& text,
+        bool enabled = true) {
+    QVariantMap node;
+    node.insert(QStringLiteral("kind"), QStringLiteral("action"));
+    node.insert(QStringLiteral("action"), action);
+    node.insert(QStringLiteral("text"), text);
+    node.insert(QStringLiteral("enabled"), enabled);
+    pNodes->append(node);
+}
+
+void appendMenuSeparator(QVariantList* pNodes) {
+    if (pNodes->isEmpty()) {
+        return;
+    }
+    QVariantMap node;
+    node.insert(QStringLiteral("kind"), QStringLiteral("separator"));
+    pNodes->append(node);
+}
+
+LibraryFeature* featureForIndex(const SidebarModel* pSidebar,
+        const QList<LibraryFeature*>& features,
+        const QModelIndex& index) {
+    if (!index.isValid()) {
+        return nullptr;
+    }
+    if (index.internalPointer() == pSidebar) {
+        // The internal pointer of a top-level row is the sidebar model itself.
+        return features.value(index.row());
+    }
+    auto* pTreeItem = static_cast<TreeItem*>(index.internalPointer());
+    return pTreeItem ? pTreeItem->feature() : nullptr;
+}
+
+} // namespace
+
+QVariantList QmlSidebarModelProxy::contextMenu(const QModelIndex& index) const {
+    QVariantList nodes;
+    if (!index.isValid() || index.model() != this) {
+        return nodes;
+    }
+    LibraryFeature* pFeature = featureForIndex(this, m_sFeatures, index);
+    if (!pFeature) {
+        return nodes;
+    }
+
+    const bool isRootRow = index.internalPointer() == this;
+    if (isRootRow) {
+        if (dynamic_cast<PlaylistFeature*>(pFeature)) {
+            appendMenuAction(&nodes,
+                    QStringLiteral("createPlaylist"),
+                    tr("Create New Playlist"));
+            appendMenuSeparator(&nodes);
+            appendMenuAction(&nodes,
+                    QStringLiteral("importPlaylist"),
+                    tr("Import Playlist"));
+        } else if (dynamic_cast<CrateFeature*>(pFeature)) {
+            appendMenuAction(&nodes,
+                    QStringLiteral("createCrate"),
+                    tr("Create New Crate"));
+            appendMenuSeparator(&nodes);
+            appendMenuAction(&nodes,
+                    QStringLiteral("importPlaylist"),
+                    tr("Import Playlist"));
+        } else if (dynamic_cast<BrowseFeature*>(pFeature)) {
+            appendMenuAction(&nodes,
+                    QStringLiteral("addToLibrary"),
+                    tr("Add to Library"));
+            appendMenuAction(&nodes,
+                    QStringLiteral("rescanLibrary"),
+                    tr("Rescan Library"));
+        }
+        return nodes;
+    }
+
+    if (auto* pSetlog = dynamic_cast<SetlogFeature*>(pFeature)) {
+        if (pSetlog->isYearIndex(index)) {
+            appendMenuAction(&nodes,
+                    QStringLiteral("lockChildPlaylists"),
+                    tr("Lock all child playlists"));
+            appendMenuAction(&nodes,
+                    QStringLiteral("unlockChildPlaylists"),
+                    tr("Unlock all child playlists"));
+            appendMenuSeparator(&nodes);
+            appendMenuAction(&nodes,
+                    QStringLiteral("purgeChildPlaylists"),
+                    tr("Delete all unlocked child playlists"));
+            return nodes;
+        }
+    }
+    if (auto* pPlaylist = dynamic_cast<BasePlaylistFeature*>(pFeature)) {
+        const bool locked = pPlaylist->isItemLocked(index);
+        auto* pSetlog = dynamic_cast<SetlogFeature*>(pFeature);
+        // Today's history playlist cannot be removed or locked.
+        const bool historyProtected =
+                pSetlog && pSetlog->isCurrentPlaylistIndex(index);
+        appendMenuAction(&nodes,
+                QStringLiteral("rename"),
+                tr("Rename"),
+                !locked);
+        if (!pSetlog) {
+            appendMenuAction(&nodes, QStringLiteral("duplicate"), tr("Duplicate"));
+        }
+        appendMenuAction(&nodes,
+                QStringLiteral("remove"),
+                tr("Remove"),
+                !locked && !historyProtected);
+        appendMenuAction(&nodes,
+                QStringLiteral("lock"),
+                locked ? tr("Unlock") : tr("Lock"),
+                !historyProtected);
+        appendMenuSeparator(&nodes);
+        appendMenuAction(&nodes,
+                QStringLiteral("export"),
+                tr("Export Playlist"));
+        return nodes;
+    }
+    if (auto* pCrate = dynamic_cast<CrateFeature*>(pFeature)) {
+        const bool locked = pCrate->isItemLocked(index);
+        appendMenuAction(&nodes, QStringLiteral("rename"), tr("Rename"), !locked);
+        appendMenuAction(&nodes, QStringLiteral("duplicate"), tr("Duplicate"));
+        appendMenuAction(&nodes, QStringLiteral("remove"), tr("Remove"), !locked);
+        appendMenuAction(&nodes,
+                QStringLiteral("lock"),
+                locked ? tr("Unlock") : tr("Lock"));
+        appendMenuSeparator(&nodes);
+        appendMenuAction(&nodes,
+                QStringLiteral("export"),
+                tr("Export Crate as Playlist"));
+        return nodes;
+    }
+    return nodes;
+}
+
+void QmlSidebarModelProxy::invokeContextMenuAction(
+        const QModelIndex& index, const QString& action) {
+    if (!index.isValid() || index.model() != this || action.isEmpty()) {
+        return;
+    }
+    // Defer: rename/delete open modal dialogs or reset the sidebar model while
+    // QML is still unwinding the menu's trigger handler (the same reason
+    // QmlLibraryTrackMenu::invoke() defers). A reset deletes the TreeItems
+    // behind a plain QModelIndex, so track the row with a persistent index and
+    // drop the action if it did not survive.
+    const QPersistentModelIndex persistentIndex(index);
+    QTimer::singleShot(0, this, [this, persistentIndex, action]() {
+        if (!persistentIndex.isValid()) {
+            return;
+        }
+        invokeContextMenuActionNow(persistentIndex, action);
+    });
+}
+
+void QmlSidebarModelProxy::invokeContextMenuActionNow(
+        const QModelIndex& index, const QString& action) {
+    if (!index.isValid() || index.model() != this || action.isEmpty()) {
+        return;
+    }
+    LibraryFeature* pFeature = featureForIndex(this, m_sFeatures, index);
+    if (!pFeature) {
+        return;
+    }
+
+    if (action == QLatin1String("addToLibrary")) {
+        if (dynamic_cast<BrowseFeature*>(pFeature)) {
+            addFolderToLibrary();
+        }
+        return;
+    }
+    if (action == QLatin1String("rescanLibrary")) {
+        if (!dynamic_cast<BrowseFeature*>(pFeature)) {
+            return;
+        }
+        Library* pLibrary = QmlLibraryProxy::get();
+        TrackCollectionManager* pTrackCollectionManager =
+                pLibrary ? pLibrary->trackCollectionManager() : nullptr;
+        if (pTrackCollectionManager &&
+                !pTrackCollectionManager->isLibraryScanActive()) {
+            pTrackCollectionManager->startLibraryScan();
+        }
+        return;
+    }
+
+    if (index.internalPointer() == this) {
+        Library* pLibrary = QmlLibraryProxy::get();
+        if (!pLibrary) {
+            return;
+        }
+        if (action == QLatin1String("createPlaylist")) {
+            pLibrary->slotCreatePlaylist();
+        } else if (action == QLatin1String("createCrate")) {
+            pLibrary->slotCreateCrate();
+        } else if (action == QLatin1String("importPlaylist")) {
+            if (auto* pPlaylist = dynamic_cast<BasePlaylistFeature*>(pFeature)) {
+                pPlaylist->importItem();
+            } else if (auto* pCrate = dynamic_cast<CrateFeature*>(pFeature)) {
+                pCrate->importItem();
+            }
+        }
+        return;
+    }
+
+    if (auto* pSetlog = dynamic_cast<SetlogFeature*>(pFeature)) {
+        if (action == QLatin1String("lockChildPlaylists")) {
+            pSetlog->lockChildPlaylists(index, true);
+            return;
+        }
+        if (action == QLatin1String("unlockChildPlaylists")) {
+            pSetlog->lockChildPlaylists(index, false);
+            return;
+        }
+        if (action == QLatin1String("purgeChildPlaylists")) {
+            pSetlog->purgeChildPlaylists(index);
+            return;
+        }
+        if (pSetlog->isCurrentPlaylistIndex(index) &&
+                (action == QLatin1String("remove") ||
+                        action == QLatin1String("lock"))) {
+            return;
+        }
+    }
+    if (auto* pPlaylist = dynamic_cast<BasePlaylistFeature*>(pFeature)) {
+        if (action == QLatin1String("rename")) {
+            pPlaylist->renameItem(index);
+        } else if (action == QLatin1String("duplicate")) {
+            pPlaylist->duplicateItem(index);
+        } else if (action == QLatin1String("remove")) {
+            pPlaylist->deleteItem(index);
+        } else if (action == QLatin1String("lock")) {
+            pPlaylist->toggleLockItem(index);
+        } else if (action == QLatin1String("export")) {
+            pPlaylist->exportItem(index);
+        }
+        return;
+    }
+    if (auto* pCrate = dynamic_cast<CrateFeature*>(pFeature)) {
+        if (action == QLatin1String("rename")) {
+            pCrate->renameItem(index);
+        } else if (action == QLatin1String("duplicate")) {
+            pCrate->duplicateItem(index);
+        } else if (action == QLatin1String("remove")) {
+            pCrate->deleteItem(index);
+        } else if (action == QLatin1String("lock")) {
+            pCrate->toggleLockItem(index);
+        } else if (action == QLatin1String("export")) {
+            pCrate->exportItem(index);
+        }
+    }
+}
+
+void QmlSidebarModelProxy::addFolderToLibrary() {
+    Library* pLibrary = QmlLibraryProxy::get();
+    if (!pLibrary) {
+        return;
+    }
+    const QString directory = QFileDialog::getExistingDirectory(
+            nullptr,
+            tr("Add to Library"),
+            QStandardPaths::writableLocation(QStandardPaths::MusicLocation));
+    if (directory.isEmpty()) {
+        return;
+    }
+    if (pLibrary->requestAddDir(directory)) {
+        // A new directory is only visible after the scanner has run.
+        pLibrary->trackCollectionManager()->startLibraryScan();
+    }
+}
+
+bool QmlSidebarModelProxy::dropUrls(
+        const QModelIndex& index, const QList<QUrl>& urls) {
+    if (!index.isValid() || index.model() != this || urls.isEmpty()) {
+        return false;
+    }
+    // dragMoveAccept() lets the feature reject locked or invalid targets;
+    // dropAccept() asserts on those.
+    if (!dragMoveAccept(index, urls)) {
+        return false;
+    }
+    // SidebarModel::dropAccept() forwards to the playlist/crate feature, which
+    // imports unknown tracks and appends them to its track set.
+    return dropAccept(index, urls, nullptr);
 }
 
 void QmlSidebarModelProxy::slotTrackListSearch(const QString& searchText) {

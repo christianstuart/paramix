@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+﻿#include <gtest/gtest.h>
 
 #include <QDialog>
 #include <QEvent>
@@ -6,6 +6,7 @@
 #include <QFileDialog>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTest>
 #include <QTimer>
 #include <initializer_list>
 #include <memory>
@@ -30,8 +31,13 @@
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/trackmodel.h"
+#include "library/trackset/crate/crate.h"
+#include "library/trackset/crate/cratefeature.h"
+#include "library/trackset/playlistfeature.h"
+#include "library/trackset/setlogfeature.h"
 #include "qml/qmllibraryproxy.h"
 #include "qml/qmlsidebarmodelproxy.h"
+#include "qml/qmltrackmenuproxy.h"
 #include "qml/qmltrackproxy.h"
 #include "test/mixxxtest.h"
 #include "track/beats.h"
@@ -68,6 +74,8 @@ class QmlLibraryProxyTest : public MixxxTest {
     void SetUp() override {
         m_previousArgs = CmdlineArgs::Instance();
         ASSERT_TRUE(m_profile.isValid());
+        // Lives for the whole test so the library rows keep a real directory.
+        ASSERT_TRUE(m_libraryTracksDir.isValid());
 
         const QString settingsPath = m_profile.path() + QLatin1Char('/');
         writeTestProfile(settingsPath);
@@ -109,6 +117,7 @@ class QmlLibraryProxyTest : public MixxxTest {
     }
 
     std::unique_ptr<mixxx::qml::QmlLibraryProxy> m_proxy;
+    QTemporaryDir m_libraryTracksDir;
 
   private:
     QTemporaryDir m_profile;
@@ -201,10 +210,10 @@ void activateSidebarRow(mixxx::qml::QmlSidebarModelProxy* pSidebar, int row) {
     pSidebar->activate(pSidebar->index(row, 0));
 }
 
-/// Inserts `count` tracks into the library and returns their IDs in insertion order.
-QList<TrackId> insertLibraryTracks(int count) {
+/// Inserts `count` tracks into the library and returns their IDs in insertion
+/// order. `tempDir` must outlive the returned rows.
+QList<TrackId> insertLibraryTracks(QTemporaryDir& tempDir, int count) {
     QList<TrackId> trackIds;
-    QTemporaryDir tempDir;
     EXPECT_TRUE(tempDir.isValid());
     const QDir dir(tempDir.path());
     QSqlDatabase db = mixxx::qml::QmlLibraryProxy::get()
@@ -251,6 +260,40 @@ QString autoDjQueueOrder(PlaylistTableModel* pQueueModel) {
     QStringList trackIds;
     for (int row = 0; row < pQueueModel->rowCount(); ++row) {
         trackIds.append(pQueueModel->getTrackId(pQueueModel->index(row, 0)).toString());
+    }
+    return trackIds.join(QLatin1Char(','));
+}
+
+/// The menu node with the given action id, or an empty map.
+QVariantMap findMenuNode(const QVariantList& nodes, const QString& action) {
+    for (const QVariant& node : nodes) {
+        const QVariantMap map = node.toMap();
+        if (map.value(QStringLiteral("action")).toString() == action) {
+            return map;
+        }
+    }
+    return {};
+}
+
+/// The child row of `parent` whose data column holds `playlistId`.
+QModelIndex findPlaylistIndex(const mixxx::qml::QmlSidebarModelProxy& sidebar,
+        const QModelIndex& parent,
+        int playlistId) {
+    for (int row = 0; row < sidebar.rowCount(parent); ++row) {
+        const QModelIndex candidate = sidebar.index(row, 0, parent);
+        if (candidate.isValid() &&
+                sidebar.data(candidate, SidebarModel::DataRole).toInt() ==
+                        playlistId) {
+            return candidate;
+        }
+    }
+    return {};
+}
+
+QString playlistTrackOrder(PlaylistTableModel* pModel) {
+    QStringList trackIds;
+    for (int row = 0; row < pModel->rowCount(); ++row) {
+        trackIds.append(pModel->getTrackId(pModel->index(row, 0)).toString());
     }
     return trackIds.join(QLatin1Char(','));
 }
@@ -375,7 +418,7 @@ TEST_F(QmlLibraryProxyTest, AutoDjQueueRemoveAndMoveKeepTrackOrder) {
             dynamic_cast<PlaylistTableModel*>(sidebar.tracklist()->sourceModel());
     ASSERT_NE(nullptr, pQueueModel);
 
-    const QList<TrackId> trackIds = insertLibraryTracks(5);
+    const QList<TrackId> trackIds = insertLibraryTracks(m_libraryTracksDir, 5);
     ASSERT_EQ(5, static_cast<int>(trackIds.size()));
 
     PlaylistDAO& playlistDao =
@@ -435,6 +478,448 @@ TEST_F(QmlLibraryProxyTest, AutoDjQueueRemoveAndMoveKeepTrackOrder) {
     EXPECT_EQ(expectedOrder({0, 1, 2, 3, 4}), autoDjQueueOrder(pQueueModel));
     sidebar.removeAutoDjTracks({-1, 10});
     EXPECT_EQ(expectedOrder({0, 1, 2, 3, 4}), autoDjQueueOrder(pQueueModel));
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarPlaylistContextMenuEdits) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const QString playlistName = QStringLiteral("Parity Editable");
+    const int playlistId = playlistDao.createPlaylist(playlistName);
+    ASSERT_GE(playlistId, 0);
+
+    const int playlistRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistRow, 0);
+    const QModelIndex featureRoot = sidebar.index(playlistRow, 0);
+    ASSERT_TRUE(featureRoot.isValid());
+
+    // The source root offers the create actions.
+    const QVariantList rootMenu = sidebar.contextMenu(featureRoot);
+    EXPECT_FALSE(findMenuNode(rootMenu, QStringLiteral("createPlaylist")).isEmpty());
+    EXPECT_FALSE(findMenuNode(rootMenu, QStringLiteral("importPlaylist")).isEmpty());
+
+    const QModelIndex playlistIndex =
+            findPlaylistIndex(sidebar, featureRoot, playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+
+    QVariantList menu = sidebar.contextMenu(playlistIndex);
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("rename")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("duplicate")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("export")).isEmpty());
+    EXPECT_TRUE(findMenuNode(menu, QStringLiteral("rename"))
+                        .value(QStringLiteral("enabled"))
+                        .toBool());
+    EXPECT_EQ(QStringLiteral("Lock"),
+            findMenuNode(menu, QStringLiteral("lock"))
+                    .value(QStringLiteral("text"))
+                    .toString());
+
+    // Locking is the only entry without a dialog, so it can be exercised for
+    // real. It must also disable the destructive entries.
+    sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("lock"));
+    QTRY_VERIFY(playlistDao.isPlaylistLocked(playlistId));
+    menu = sidebar.contextMenu(playlistIndex);
+    EXPECT_EQ(QStringLiteral("Unlock"),
+            findMenuNode(menu, QStringLiteral("lock"))
+                    .value(QStringLiteral("text"))
+                    .toString());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("rename"))
+                         .value(QStringLiteral("enabled"))
+                         .toBool());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove"))
+                         .value(QStringLiteral("enabled"))
+                         .toBool());
+    sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("lock"));
+    QTRY_VERIFY(!playlistDao.isPlaylistLocked(playlistId));
+
+    // Invalid rows, source roots and unknown actions are no-ops; in particular
+    // they must not open a dialog or change the database.
+    const unsigned int playlistsBefore = playlistDao.playlistCount();
+    sidebar.invokeContextMenuAction(QModelIndex(), QStringLiteral("rename"));
+    sidebar.invokeContextMenuAction(QModelIndex(), QStringLiteral("duplicate"));
+    sidebar.invokeContextMenuAction(QModelIndex(), QStringLiteral("remove"));
+    sidebar.invokeContextMenuAction(QModelIndex(), QStringLiteral("export"));
+    sidebar.invokeContextMenuAction(featureRoot, QStringLiteral("remove"));
+    sidebar.invokeContextMenuAction(featureRoot, QStringLiteral("rename"));
+    sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("unknown"));
+    QTest::qWait(0);
+    EXPECT_EQ(playlistsBefore, playlistDao.playlistCount());
+    EXPECT_EQ(playlistName, playlistDao.getPlaylistName(playlistId));
+
+    // Removing a locked playlist is a no-op and asks nothing.
+    ASSERT_TRUE(playlistDao.setPlaylistLocked(playlistId, true));
+    sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("remove"));
+    QTest::qWait(0);
+    EXPECT_TRUE(playlistDao.playlistExists(playlistId));
+    ASSERT_TRUE(playlistDao.setPlaylistLocked(playlistId, false));
+
+    EXPECT_TRUE(sidebar.contextMenu(QModelIndex()).isEmpty());
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarPlaylistMenuActsOnTheClickedChildRow) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    QList<int> playlistIds;
+    for (int i = 0; i < 4; ++i) {
+        const int id = playlistDao.createPlaylist(
+                QStringLiteral("Parity Child %1").arg(i + 1));
+        ASSERT_GE(id, 0);
+        playlistIds.append(id);
+    }
+
+    const int playlistRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistRow, 0);
+    const QModelIndex featureRoot = sidebar.index(playlistRow, 0);
+    ASSERT_TRUE(featureRoot.isValid());
+
+    // The fourth child is the one that the old row/column reconstruction used
+    // to resolve to the first playlist.
+    const QModelIndex fourthIndex =
+            findPlaylistIndex(sidebar, featureRoot, playlistIds.at(3));
+    ASSERT_TRUE(fourthIndex.isValid());
+
+    sidebar.invokeContextMenuAction(fourthIndex, QStringLiteral("lock"));
+    QTRY_VERIFY(playlistDao.isPlaylistLocked(playlistIds.at(3)));
+    for (int i = 0; i < 3; ++i) {
+        EXPECT_FALSE(playlistDao.isPlaylistLocked(playlistIds.at(i)))
+                << "playlist" << i << "must stay unlocked";
+    }
+
+    // The child model can be rebuilt by these actions, so resolve the row again
+    // and check that the menu now offers to unlock exactly this child.
+    const QModelIndex refreshedIndex =
+            findPlaylistIndex(sidebar, featureRoot, playlistIds.at(3));
+    ASSERT_TRUE(refreshedIndex.isValid());
+    EXPECT_EQ(QStringLiteral("Unlock"),
+            findMenuNode(sidebar.contextMenu(refreshedIndex),
+                    QStringLiteral("lock"))
+                    .value(QStringLiteral("text"))
+                    .toString());
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarCrateContextMenuLocks) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    TrackCollection* pCollection = mixxx::qml::QmlLibraryProxy::get()
+                                           ->trackCollectionManager()
+                                           ->internalCollection();
+    ASSERT_NE(nullptr, pCollection);
+    Crate crate;
+    crate.setName(QStringLiteral("Parity Crate"));
+    CrateId crateId;
+    ASSERT_TRUE(pCollection->insertCrate(crate, &crateId));
+
+    const int crateRow = findFeatureRow<CrateFeature>(sidebar);
+    ASSERT_GE(crateRow, 0);
+    const QModelIndex crateRoot = sidebar.index(crateRow, 0);
+    ASSERT_TRUE(crateRoot.isValid());
+
+    QModelIndex crateIndex;
+    for (int row = 0; row < sidebar.rowCount(crateRoot); ++row) {
+        const QModelIndex candidate = sidebar.index(row, 0, crateRoot);
+        if (candidate.isValid() &&
+                sidebar.data(candidate, SidebarModel::DataRole) ==
+                        crateId.toVariant()) {
+            crateIndex = candidate;
+            break;
+        }
+    }
+    ASSERT_TRUE(crateIndex.isValid());
+
+    QVariantList menu = sidebar.contextMenu(crateIndex);
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("rename")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("duplicate")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("export")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("lock")).isEmpty());
+
+    sidebar.invokeContextMenuAction(crateIndex, QStringLiteral("lock"));
+    const auto crateIsLocked = [&pCollection, crateId]() {
+        Crate crate;
+        return pCollection->crates().readCrateById(crateId, &crate) &&
+                crate.isLocked();
+    };
+    QTRY_VERIFY(crateIsLocked());
+    // Locking rebuilds the crate child model and deletes the TreeItems, so the
+    // old index must not be reused.
+    crateIndex = QModelIndex();
+    for (int row = 0; row < sidebar.rowCount(crateRoot); ++row) {
+        const QModelIndex candidate = sidebar.index(row, 0, crateRoot);
+        if (candidate.isValid() &&
+                sidebar.data(candidate, SidebarModel::DataRole) ==
+                        crateId.toVariant()) {
+            crateIndex = candidate;
+            break;
+        }
+    }
+    ASSERT_TRUE(crateIndex.isValid());
+    menu = sidebar.contextMenu(crateIndex);
+    EXPECT_EQ(QStringLiteral("Unlock"),
+            findMenuNode(menu, QStringLiteral("lock"))
+                    .value(QStringLiteral("text"))
+                    .toString());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove"))
+                         .value(QStringLiteral("enabled"))
+                         .toBool());
+
+    // Invalid rows and drops are ignored.
+    sidebar.invokeContextMenuAction(QModelIndex(), QStringLiteral("lock"));
+    QTest::qWait(0);
+    EXPECT_FALSE(sidebar.dropUrls(QModelIndex(), {}));
+    EXPECT_FALSE(sidebar.dropUrls(QModelIndex(),
+            {QUrl::fromLocalFile(QStringLiteral("parity.mp3"))}));
+}
+
+TEST_F(QmlLibraryProxyTest, TrackListRemoveHonorsLockAndBounds) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    const QList<TrackId> trackIds = insertLibraryTracks(m_libraryTracksDir, 3);
+    ASSERT_EQ(3, static_cast<int>(trackIds.size()));
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const int playlistId = playlistDao.createPlaylist(QStringLiteral("Parity Locked"));
+    ASSERT_GE(playlistId, 0);
+    ASSERT_TRUE(playlistDao.appendTracksToPlaylist(trackIds, playlistId));
+    ASSERT_TRUE(playlistDao.setPlaylistLocked(playlistId, true));
+
+    const int playlistRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistRow, 0);
+    const QModelIndex playlistIndex = findPlaylistIndex(
+            sidebar, sidebar.index(playlistRow, 0), playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+    sidebar.activate(playlistIndex);
+    ASSERT_NE(nullptr, sidebar.tracklist());
+    ASSERT_EQ(3, sidebar.tracklist()->rowCount());
+
+    mixxx::qml::QmlLibraryTrackMenu menu;
+    // A locked playlist ignores the removal without asking for confirmation.
+    menu.removeSelectedRows(sidebar.tracklist(), {0});
+    EXPECT_EQ(3, sidebar.tracklist()->rowCount());
+    // Empty and out-of-range selections are ignored as well.
+    menu.removeSelectedRows(sidebar.tracklist(), {});
+    menu.removeSelectedRows(sidebar.tracklist(), {-1, 99});
+    EXPECT_EQ(3, sidebar.tracklist()->rowCount());
+}
+
+TEST_F(QmlLibraryProxyTest, TrackMenuDropAndReorderValidateInput) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    const QList<TrackId> trackIds = insertLibraryTracks(m_libraryTracksDir, 4);
+    ASSERT_EQ(4, static_cast<int>(trackIds.size()));
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const int playlistId = playlistDao.createPlaylist(QStringLiteral("Parity Reorder"));
+    ASSERT_GE(playlistId, 0);
+    ASSERT_TRUE(playlistDao.appendTracksToPlaylist(trackIds, playlistId));
+
+    const int playlistRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistRow, 0);
+    const QModelIndex playlistIndex = findPlaylistIndex(
+            sidebar, sidebar.index(playlistRow, 0), playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+    sidebar.activate(playlistIndex);
+    ASSERT_NE(nullptr, sidebar.tracklist());
+    auto* pPlaylistModel =
+            dynamic_cast<PlaylistTableModel*>(sidebar.tracklist()->sourceModel());
+    ASSERT_NE(nullptr, pPlaylistModel);
+    ASSERT_EQ(4, pPlaylistModel->rowCount());
+
+    const auto expectedOrder = [&trackIds](std::initializer_list<int> positions) {
+        QStringList ids;
+        for (int position : positions) {
+            ids.append(trackIds.at(position).toString());
+        }
+        return ids.join(QLatin1Char(','));
+    };
+
+    mixxx::qml::QmlLibraryTrackMenu menu;
+    // Nothing usable: no model, empty lists, unsupported files.
+    EXPECT_EQ(0, menu.importDroppedUrls(nullptr, {}));
+    EXPECT_EQ(0, menu.importDroppedUrls(sidebar.tracklist(), {}));
+    QTemporaryDir dropDir;
+    ASSERT_TRUE(dropDir.isValid());
+    const QString textFile = dropDir.filePath(QStringLiteral("notes.txt"));
+    {
+        QFile file(textFile);
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        file.write("not audio");
+    }
+    EXPECT_EQ(0, menu.importDroppedUrls(sidebar.tracklist(),
+            {QUrl::fromLocalFile(textFile)}));
+
+    // Reordering ignores empty and out-of-range rows.
+    menu.moveSelectedRows(sidebar.tracklist(), {}, 0);
+    menu.moveSelectedRows(sidebar.tracklist(), {-1, 42}, 0);
+    EXPECT_EQ(expectedOrder({0, 1, 2, 3}), playlistTrackOrder(pPlaylistModel));
+
+    // A single row moves to the drop row.
+    menu.moveSelectedRows(sidebar.tracklist(), {0}, 2);
+    EXPECT_EQ(expectedOrder({1, 0, 2, 3}), playlistTrackOrder(pPlaylistModel));
+
+    // A block moved past the last row keeps its order.
+    menu.moveSelectedRows(sidebar.tracklist(), {1, 2}, 4);
+    EXPECT_EQ(expectedOrder({1, 3, 0, 2}), playlistTrackOrder(pPlaylistModel));
+}
+
+TEST_F(QmlLibraryProxyTest, TrackListRemoveSuccessPath) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    const QList<TrackId> trackIds = insertLibraryTracks(m_libraryTracksDir, 3);
+    ASSERT_EQ(3, static_cast<int>(trackIds.size()));
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const int playlistId = playlistDao.createPlaylist(QStringLiteral("Parity Remove"));
+    ASSERT_GE(playlistId, 0);
+    ASSERT_TRUE(playlistDao.appendTracksToPlaylist(trackIds, playlistId));
+
+    const int playlistRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistRow, 0);
+    const QModelIndex playlistIndex = findPlaylistIndex(
+            sidebar, sidebar.index(playlistRow, 0), playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+    sidebar.activate(playlistIndex);
+    ASSERT_NE(nullptr, sidebar.tracklist());
+    auto* pPlaylistModel =
+            dynamic_cast<PlaylistTableModel*>(sidebar.tracklist()->sourceModel());
+    ASSERT_NE(nullptr, pPlaylistModel);
+    ASSERT_EQ(3, pPlaylistModel->rowCount());
+
+    // Without the confirmation the removal runs straight through: this is the
+    // path a real Delete key press takes after "Don't ask again".
+    pPlaylistModel->setRequireConfirmationToHideRemoveTracks(false);
+    mixxx::qml::QmlLibraryTrackMenu menu;
+    menu.removeSelectedRows(sidebar.tracklist(), {1});
+    ASSERT_EQ(2, pPlaylistModel->rowCount());
+    EXPECT_EQ(trackIds.at(0).toString() + QLatin1Char(',') +
+                    trackIds.at(2).toString(),
+            playlistTrackOrder(pPlaylistModel));
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarDropsAndImportPlaceTracks) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    const QString wavPath =
+            getTestDir().filePath(QStringLiteral("fixtures/beatgrid_128bpm.wav"));
+    ASSERT_TRUE(QFile::exists(wavPath)) << wavPath.toStdString();
+    const QUrl wavUrl = QUrl::fromLocalFile(wavPath);
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const int playlistId = playlistDao.createPlaylist(QStringLiteral("Parity Drops"));
+    ASSERT_GE(playlistId, 0);
+
+    const int playlistRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistRow, 0);
+    QModelIndex playlistIndex = findPlaylistIndex(
+            sidebar, sidebar.index(playlistRow, 0), playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+    sidebar.activate(playlistIndex);
+    ASSERT_NE(nullptr, sidebar.tracklist());
+    auto* pPlaylistModel =
+            dynamic_cast<PlaylistTableModel*>(sidebar.tracklist()->sourceModel());
+    ASSERT_NE(nullptr, pPlaylistModel);
+
+    mixxx::qml::QmlLibraryTrackMenu menu;
+    // A real audio file placed with a destination row.
+    ASSERT_EQ(1, menu.importDroppedUrls(sidebar.tracklist(), {wavUrl}, 0));
+    ASSERT_EQ(1, pPlaylistModel->rowCount());
+    const TrackId importedId =
+            pPlaylistModel->getTrackId(pPlaylistModel->index(0, 0));
+
+    // A second, distinct file dropped before row 0 is inserted, not appended.
+    const QString secondPath =
+            m_libraryTracksDir.filePath(QStringLiteral("parity-second.wav"));
+    ASSERT_TRUE(QFile::copy(wavPath, secondPath));
+    ASSERT_EQ(1, menu.importDroppedUrls(sidebar.tracklist(), {QUrl::fromLocalFile(secondPath)}, 0));
+    ASSERT_EQ(2, pPlaylistModel->rowCount());
+    const TrackId secondId =
+            pPlaylistModel->getTrackId(pPlaylistModel->index(0, 0));
+    EXPECT_NE(importedId, secondId);
+    EXPECT_EQ(importedId, pPlaylistModel->getTrackId(pPlaylistModel->index(1, 0)));
+
+    // A drop on the playlist row appends through the feature path.
+    EXPECT_TRUE(sidebar.dropUrls(playlistIndex, {wavUrl}));
+    ASSERT_EQ(3, pPlaylistModel->rowCount());
+    EXPECT_EQ(importedId, pPlaylistModel->getTrackId(pPlaylistModel->index(2, 0)));
+
+    // A locked playlist rejects the drop without asking and keeps its rows.
+    ASSERT_TRUE(playlistDao.setPlaylistLocked(playlistId, true));
+    playlistIndex = findPlaylistIndex(
+            sidebar, sidebar.index(playlistRow, 0), playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+    EXPECT_FALSE(sidebar.dropUrls(playlistIndex, {wavUrl}));
+    EXPECT_EQ(3, pPlaylistModel->rowCount());
+    ASSERT_TRUE(playlistDao.setPlaylistLocked(playlistId, false));
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarHistoryProtectsTodaysPlaylist) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const int historyRow = findFeatureRow<SetlogFeature>(sidebar);
+    ASSERT_GE(historyRow, 0);
+    const QModelIndex historyRoot = sidebar.index(historyRow, 0);
+    ASSERT_TRUE(historyRoot.isValid());
+    ASSERT_GE(sidebar.rowCount(historyRoot), 1);
+
+    // The fresh profile has exactly today's history playlist.
+    const QModelIndex todayIndex = sidebar.index(0, 0, historyRoot);
+    ASSERT_TRUE(todayIndex.isValid());
+    const int playlistId = sidebar.data(todayIndex, SidebarModel::DataRole).toInt();
+    ASSERT_TRUE(playlistDao.playlistExists(playlistId));
+
+    const QVariantList menu = sidebar.contextMenu(todayIndex);
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("lock")).isEmpty());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("remove"))
+                    .value(QStringLiteral("enabled"))
+                    .toBool());
+    EXPECT_FALSE(findMenuNode(menu, QStringLiteral("lock"))
+                    .value(QStringLiteral("enabled"))
+                    .toBool());
+
+    // Even a direct invoke must not lock the playlist that is being recorded.
+    sidebar.invokeContextMenuAction(todayIndex, QStringLiteral("lock"));
+    QTest::qWait(0);
+    EXPECT_FALSE(playlistDao.isPlaylistLocked(playlistId));
 }
 
 } // namespace

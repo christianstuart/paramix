@@ -160,6 +160,25 @@ void SetlogFeature::slotDeletePlaylist() {
     }
 }
 
+bool SetlogFeature::isYearIndex(const QModelIndex& index) const {
+    return m_yearNodeId != kInvalidPlaylistId &&
+            playlistIdFromIndex(index) == m_yearNodeId;
+}
+
+bool SetlogFeature::isCurrentPlaylistIndex(const QModelIndex& index) const {
+    return playlistIdFromIndex(index) == m_currentPlaylistId;
+}
+
+void SetlogFeature::lockChildPlaylists(const QModelIndex& index, bool lock) {
+    m_lastRightClickedIndex = index;
+    lockOrUnlockAllChildPlaylists(lock);
+}
+
+void SetlogFeature::purgeChildPlaylists(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotDeleteAllUnlockedChildPlaylists();
+}
+
 void SetlogFeature::onRightClick(const QPoint& globalPos) {
     Q_UNUSED(globalPos);
     m_lastRightClickedIndex = QModelIndex();

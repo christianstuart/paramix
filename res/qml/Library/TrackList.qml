@@ -45,6 +45,14 @@ Rectangle {
         return -1;
     }
 
+    /// State a mutating action is about to disturb: the scroll anchor and the
+    /// selection. Both are lost when the model reloads after the edit.
+    function captureViewState() {
+        return {
+            "topRow": Math.max(0, view.topRow),
+            "rows": view.selectionModel.selectedRows()
+        };
+    }
     function handleRowClick(row, modifiers) {
         // Without this Up/Down stop working as soon as the mouse was used.
         view.forceActiveFocus();
@@ -59,10 +67,39 @@ Rectangle {
     function hasSelectionModifier(modifiers) {
         return (modifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.MetaModifier)) !== 0;
     }
+    /// Restores `state` after the model changed. `rows` reselects that range;
+    /// an empty list keeps the previous selection where it is still valid.
+    function restoreViewState(state, rows) {
+        view.forceLayout();
+        const selection = view.selectionModel;
+        const rowCount = selection.modelRowCount();
+        if (rowCount === 0)
+            return;
+        const wanted = rows && rows.length > 0 ? rows : state.rows;
+        const valid = [];
+        for (let i = 0; i < wanted.length; ++i) {
+            const row = wanted[i];
+            if (row >= 0 && row < rowCount && valid.indexOf(row) < 0)
+                valid.push(row);
+        }
+        if (valid.length > 0) {
+            selection.clear();
+            const flags = ItemSelectionModel.Rows | ItemSelectionModel.Select;
+            for (let i = 0; i < valid.length; ++i)
+                selection.select(selection.model.index(valid[i], 0), flags);
+            selection.setCurrentIndex(selection.model.index(valid[0], 0), ItemSelectionModel.NoUpdate);
+            selection.anchorRow = valid[0];
+        }
+        view.positionViewAtRow(Math.min(Math.max(0, state.topRow), rowCount - 1), TableView.AlignTop, 0);
+    }
     function selectRow(row) {
         if (root.suppressPlainSelect)
             return;
         view.selectionModel.selectSingleton(row);
+    }
+    function showDropMessage(message) {
+        dropMessage.text = message;
+        dropMessageTimer.restart();
     }
     function showTrackMenu(row, position) {
         view.forceActiveFocus();
@@ -83,6 +120,11 @@ Rectangle {
     }
 
     color: Theme.surface0
+
+    // Keyboard focus starts on the track list, so the arrows and Delete act on
+    // tracks rather than on the source tree. Clicking a source row moves focus
+    // there for as long as the user navigates sources.
+    Component.onCompleted: view.forceActiveFocus()
 
     LibraryComponent.Control {
         id: libraryControl
@@ -619,12 +661,27 @@ Rectangle {
                 break;
             case Qt.Key_Return:
             case Qt.Key_Enter:
-                view.loadSelectedTrackIntoNextAvailableDeck(false);
+                if ((event.modifiers & (Qt.ControlModifier | Qt.MetaModifier)) !== 0) {
+                    Mixxx.LibraryTrackMenu.showProperties(root.model, selection.selectedRows());
+                } else {
+                    view.loadSelectedTrackIntoNextAvailableDeck(false);
+                }
                 break;
+            case Qt.Key_Delete:
+            case Qt.Key_Backspace:
+                {
+                    const rows = selection.selectedRows();
+                    if (rows.length === 0)
+                        break;
+                    const state = root.captureViewState();
+                    // removeSelectedRows() confirms and hides/removes according to
+                    // the capabilities of the active source.
+                    Mixxx.LibraryTrackMenu.removeSelectedRows(root.model, rows);
+                    // Select the row that took the place of the first removed one.
+                    root.restoreViewState(state, [Math.min(rows[0], selection.modelRowCount() - 1)]);
+                    break;
+                }
             default:
-                // Delete / Shift+Delete are not wired: the track menu proxy
-                // only exposes invoke(index) into the serialized WTrackMenu,
-                // whose Remove/Hide actions carry no stable identifier.
                 return;
             }
             event.accepted = true;
@@ -634,6 +691,59 @@ Rectangle {
             if (view.updateColumnSize()) {
                 // forceLayout is costly - only invoke if there was a change in the column layouts
                 view.forceLayout();
+            }
+        }
+
+        DropArea {
+            id: trackDropArea
+
+            anchors.fill: parent
+
+            // Rows dragged out of this table are reordered; anything else is
+            // imported into the source shown here.
+            onDropped: drop => {
+                const rowCount = view.selectionModel.modelRowCount();
+                const destination = Math.max(0, Math.min(rowCount, Math.floor((drop.y + view.contentY) / root.rowHeight)));
+                const state = root.captureViewState();
+                if (drop.source && drop.source.trackList === view) {
+                    if (!root.model || !root.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Reorder))
+                        return;
+                    const rows = view.selectionModel.selectedRows();
+                    if (rows.length === 0)
+                        return;
+                    Mixxx.LibraryTrackMenu.moveSelectedRows(root.model, rows, destination);
+                    // The block starts at the drop row, or is shifted up by its
+                    // own length when it was moved down.
+                    let start = destination;
+                    if (destination > rows[rows.length - 1])
+                        start = destination - rows.length;
+                    const moved = [];
+                    for (let i = 0; i < rows.length; ++i)
+                        moved.push(start + i);
+                    root.restoreViewState(state, moved);
+                    drop.acceptProposedAction();
+                    return;
+                }
+                if (!drop.hasUrls)
+                    return;
+                const count = Mixxx.LibraryTrackMenu.importDroppedUrls(root.model, drop.urls, destination);
+                if (count === 0) {
+                    root.showDropMessage(qsTr("Nothing was added. Drop audio files or folders onto an unlocked view."));
+                } else if (root.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Reorder)) {
+                    // Playlists keep insertion order, so the new rows are known.
+                    const added = [];
+                    for (let i = 0; i < count; ++i)
+                        added.push(Math.min(destination, rowCount) + i);
+                    root.restoreViewState(state, added);
+                } else {
+                    // A sorted source places the tracks wherever they belong.
+                    root.restoreViewState(state, []);
+                }
+                drop.acceptProposedAction();
+            }
+            onEntered: drag => {
+                // Accept URL drops and internal row drags only.
+                drag.accepted = drag.hasUrls || (drag.source && drag.source.trackList === view);
             }
         }
     }
@@ -655,5 +765,48 @@ Rectangle {
     }
     LibraryComponent.TrackMenu {
         id: trackMenu
+    }
+    Rectangle {
+        id: dropMessage
+
+        property alias text: dropMessageLabel.text
+
+        Accessible.name: dropMessageLabel.text
+        Accessible.role: Accessible.StaticText
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.space3
+        anchors.horizontalCenter: parent.horizontalCenter
+        border.color: Theme.borderStrong
+        border.width: 1
+        color: Theme.surface3
+        height: 26
+        radius: Theme.radiusSm
+        visible: dropMessageLabel.text.length > 0 && dropMessageTimer.running
+        width: Math.min(root.width - 2 * Theme.space3, dropMessageLabel.implicitWidth + 2 * Theme.space3)
+        z: 2
+
+        Text {
+            id: dropMessageLabel
+
+            anchors.centerIn: parent
+            color: Theme.textPrimary
+            elide: Text.ElideRight
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm
+            width: parent.width - 2 * Theme.space2
+        }
+    }
+    Timer {
+        id: dropMessageTimer
+
+        interval: 4000
+    }
+    Rectangle {
+        anchors.fill: view
+        border.color: Theme.accent
+        border.width: 2
+        color: "transparent"
+        visible: trackDropArea.containsDrag
+        z: 1
     }
 }
