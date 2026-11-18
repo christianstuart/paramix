@@ -199,10 +199,28 @@ Rectangle {
         }
         view.model.sort(horizontalHeader.sortingColumn, horizontalHeader.sortingOrder);
     }
-    function openColumnMenu() {
-        columnMenu.rebuild();
-        // Like the source-tree menu, popup() opens at the pointer.
-        columnMenu.popup();
+    function openColumnMenu(x, y) {
+        columnMenu.model = root.columnMenuEntries();
+        columnMenu.x = Math.max(0, Math.min(x, root.width - columnMenu.width));
+        columnMenu.y = Math.max(0, Math.min(y, root.height - columnMenu.height));
+        columnMenu.open();
+    }
+    function columnMenuEntries() {
+        const entries = [];
+        if (!root.model)
+            return entries;
+        const columns = root.model.columns;
+        for (let i = 0; i < columns.length; ++i) {
+            // The cover thumbnail has no label and is not selectable.
+            if (columns[i].label.length === 0)
+                continue;
+            entries.push({
+                "column": i,
+                "hidden": columns[i].hidden,
+                "label": columns[i].label
+            });
+        }
+        return entries;
     }
 
     color: Theme.surface0
@@ -292,7 +310,8 @@ Rectangle {
 
                 onTapped: (eventPoint, button) => {
                     if (button === Qt.RightButton) {
-                        root.openColumnMenu();
+                        const point = column.mapToItem(root, eventPoint.position.x, eventPoint.position.y);
+                        root.openColumnMenu(point.x, point.y);
                     } else {
                         root.sortByColumn(index);
                     }
@@ -914,62 +933,82 @@ Rectangle {
         y: horizontalHeader.y
         z: 20
     }
-    // Right-click on the column header: add or remove metadata columns. The
-    // layout is shared by every library source and saved by SourceTree.qml.
-    Menu {
+    // Right-click on the column header: add or remove metadata columns. A plain
+    // Popup with text rows is used instead of a Menu, because the Menu items
+    // relied on palette styling that did not render in this skin.
+    Popup {
         id: columnMenu
 
-        padding: Theme.space1
+        property var model: []
 
-        palette.buttonText: Theme.textPrimary
-        palette.highlight: Theme.accent
-        palette.highlightedText: Theme.textOnAccent
-        palette.mid: Theme.textMuted
-        palette.text: Theme.textPrimary
-        palette.window: Theme.surface2
-        palette.windowText: Theme.textPrimary
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        height: Math.min(420, columnMenu.model.length * 29 + 2 * padding)
+        padding: Theme.space1
+        parent: root
+        width: 260
 
         background: Rectangle {
             border.color: Theme.borderStrong
             border.width: 1
             color: Theme.surface2
-            implicitWidth: 260
             radius: Theme.radiusMd
         }
 
-        function rebuild() {
-            while (count > 0) {
-                const item = itemAt(0);
-                removeItem(item);
-                item.destroy();
+        ListView {
+            id: list
+
+            anchors.fill: parent
+            clip: true
+            model: columnMenu.model
+            spacing: 1
+
+            delegate: Item {
+                id: menuRow
+
+                required property var modelData
+
+                height: 28
+                width: ListView.view.width
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: rowMouse.containsMouse ? Theme.surface3 : "transparent"
+                    radius: Theme.radiusXs
+                }
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.leftMargin: Theme.space2
+                    anchors.verticalCenter: parent.verticalCenter
+                    border.color: menuRow.modelData.hidden ? Theme.borderStrong : Theme.accent
+                    border.width: 1
+                    color: menuRow.modelData.hidden ? "transparent" : Theme.accent
+                    height: 12
+                    radius: Theme.radiusXs
+                    width: 12
+                }
+                Text {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.space2 + 16
+                    anchors.rightMargin: Theme.space2
+                    color: Theme.textPrimary
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm
+                    text: menuRow.modelData.label
+                    verticalAlignment: Text.AlignVCenter
+                }
+                MouseArea {
+                    id: rowMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+
+                    onClicked: {
+                        root.setColumnHidden(menuRow.modelData.column, !menuRow.modelData.hidden);
+                        columnMenu.close();
+                    }
+                }
             }
-            if (!root.model)
-                return;
-            const columns = root.model.columns;
-            for (let i = 0; i < columns.length; ++i) {
-                // The cover thumbnail has no label and is not selectable.
-                if (columns[i].label.length === 0)
-                    continue;
-                const item = columnMenuItemComponent.createObject(columnMenu);
-                if (!item)
-                    continue;
-                item.text = columns[i].label;
-                item.checked = !columns[i].hidden;
-                item.columnIndex = i;
-                addItem(item);
-            }
-        }
-    }
-    Component {
-        id: columnMenuItemComponent
-
-        MenuItem {
-            id: columnMenuItem
-
-            property int columnIndex: -1
-
-            checkable: true
-            onTriggered: root.setColumnHidden(columnMenuItem.columnIndex, !checked)
         }
     }
     Rectangle {
