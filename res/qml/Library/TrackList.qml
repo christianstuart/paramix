@@ -45,6 +45,14 @@ Rectangle {
         return -1;
     }
 
+    /// State a mutating action is about to disturb: the scroll anchor and the
+    /// selection. Both are lost when the model reloads after the edit.
+    function captureViewState() {
+        return {
+            "topRow": Math.max(0, view.topRow),
+            "rows": view.selectionModel.selectedRows()
+        };
+    }
     function handleRowClick(row, modifiers) {
         // Without this Up/Down stop working as soon as the mouse was used.
         view.forceActiveFocus();
@@ -58,6 +66,31 @@ Rectangle {
     }
     function hasSelectionModifier(modifiers) {
         return (modifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.MetaModifier)) !== 0;
+    }
+    /// Restores `state` after the model changed. `rows` reselects that range;
+    /// an empty list keeps the previous selection where it is still valid.
+    function restoreViewState(state, rows) {
+        view.forceLayout();
+        const selection = view.selectionModel;
+        const rowCount = selection.modelRowCount();
+        if (rowCount === 0)
+            return;
+        const wanted = rows && rows.length > 0 ? rows : state.rows;
+        const valid = [];
+        for (let i = 0; i < wanted.length; ++i) {
+            const row = wanted[i];
+            if (row >= 0 && row < rowCount && valid.indexOf(row) < 0)
+                valid.push(row);
+        }
+        if (valid.length > 0) {
+            selection.clear();
+            const flags = ItemSelectionModel.Rows | ItemSelectionModel.Select;
+            for (let i = 0; i < valid.length; ++i)
+                selection.select(selection.model.index(valid[i], 0), flags);
+            selection.setCurrentIndex(selection.model.index(valid[0], 0), ItemSelectionModel.NoUpdate);
+            selection.anchorRow = valid[0];
+        }
+        view.positionViewAtRow(Math.min(Math.max(0, state.topRow), rowCount - 1), TableView.AlignTop, 0);
     }
     function selectRow(row) {
         if (root.suppressPlainSelect)
@@ -631,10 +664,18 @@ Rectangle {
                 break;
             case Qt.Key_Delete:
             case Qt.Key_Backspace:
-                // removeSelectedRows() confirms and hides/removes according to
-                // the capabilities of the active source.
-                Mixxx.LibraryTrackMenu.removeSelectedRows(root.model, selection.selectedRows());
-                break;
+                {
+                    const rows = selection.selectedRows();
+                    if (rows.length === 0)
+                        break;
+                    const state = root.captureViewState();
+                    // removeSelectedRows() confirms and hides/removes according to
+                    // the capabilities of the active source.
+                    Mixxx.LibraryTrackMenu.removeSelectedRows(root.model, rows);
+                    // Select the row that took the place of the first removed one.
+                    root.restoreViewState(state, [Math.min(rows[0], selection.modelRowCount() - 1)]);
+                    break;
+                }
             default:
                 return;
             }
@@ -658,17 +699,41 @@ Rectangle {
             onDropped: drop => {
                 const rowCount = view.selectionModel.modelRowCount();
                 const destination = Math.max(0, Math.min(rowCount, Math.floor((drop.y + view.contentY) / root.rowHeight)));
+                const state = root.captureViewState();
                 if (drop.source && drop.source.trackList === view) {
                     if (!root.model || !root.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Reorder))
                         return;
-                    Mixxx.LibraryTrackMenu.moveSelectedRows(root.model, view.selectionModel.selectedRows(), destination);
+                    const rows = view.selectionModel.selectedRows();
+                    if (rows.length === 0)
+                        return;
+                    Mixxx.LibraryTrackMenu.moveSelectedRows(root.model, rows, destination);
+                    // The block starts at the drop row, or is shifted up by its
+                    // own length when it was moved down.
+                    let start = destination;
+                    if (destination > rows[rows.length - 1])
+                        start = destination - rows.length;
+                    const moved = [];
+                    for (let i = 0; i < rows.length; ++i)
+                        moved.push(start + i);
+                    root.restoreViewState(state, moved);
                     drop.acceptProposedAction();
                     return;
                 }
                 if (!drop.hasUrls)
                     return;
-                if (Mixxx.LibraryTrackMenu.importDroppedUrls(root.model, drop.urls, destination) === 0)
+                const count = Mixxx.LibraryTrackMenu.importDroppedUrls(root.model, drop.urls, destination);
+                if (count === 0) {
                     root.showDropMessage(qsTr("Nothing was added. Drop audio files or folders onto an unlocked view."));
+                } else if (root.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Reorder)) {
+                    // Playlists keep insertion order, so the new rows are known.
+                    const added = [];
+                    for (let i = 0; i < count; ++i)
+                        added.push(Math.min(destination, rowCount) + i);
+                    root.restoreViewState(state, added);
+                } else {
+                    // A sorted source places the tracks wherever they belong.
+                    root.restoreViewState(state, []);
+                }
                 drop.acceptProposedAction();
             }
             onEntered: drag => {
