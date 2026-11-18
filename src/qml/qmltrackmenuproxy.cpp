@@ -4,6 +4,7 @@
 #include <QCheckBox>
 #include <QKeySequence>
 #include <QMenu>
+#include <QMessageBox>
 #include <QMetaObject>
 #include <QTimer>
 #include <QWidget>
@@ -97,18 +98,28 @@ void QmlLibraryTrackMenu::ensureMenu(TrackModel* pTrackModel) {
 
 QVariantList QmlLibraryTrackMenu::open(
         QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
+    if (!selectTracks(pModel, rows)) {
+        return {};
+    }
+    m_pMenu->updateMenus();
+    forwardAboutToShow(m_pMenu.get());
+    return serializeMenu(m_pMenu.get());
+}
+
+bool QmlLibraryTrackMenu::selectTracks(
+        QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
     m_actions.clear();
     m_checkBoxes.clear();
     if (!pModel) {
-        return {};
+        return false;
     }
     auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
     if (!pTrackModel) {
-        return {};
+        return false;
     }
     ensureMenu(pTrackModel);
     if (!m_pMenu) {
-        return {};
+        return false;
     }
 
     QModelIndexList trackIndices;
@@ -125,13 +136,11 @@ QVariantList QmlLibraryTrackMenu::open(
         trackIndices.append(sourceIndex.sibling(sourceIndex.row(), 0));
     }
     if (trackIndices.isEmpty()) {
-        return {};
+        return false;
     }
 
     m_pMenu->loadTrackModelIndices(trackIndices);
-    m_pMenu->updateMenus();
-    forwardAboutToShow(m_pMenu.get());
-    return serializeMenu(m_pMenu.get());
+    return true;
 }
 
 QVariantList QmlLibraryTrackMenu::serializeMenu(QMenu* pMenu) const {
@@ -260,6 +269,20 @@ void QmlLibraryTrackMenu::setRating(int rating) {
     }
 }
 
+void QmlLibraryTrackMenu::showProperties(
+        QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
+    if (!selectTracks(pModel, rows)) {
+        return;
+    }
+    // Match WTrackTableView: properties are only editable for metadata models.
+    if (!m_pTrackModel ||
+            !m_pTrackModel->hasCapabilities(
+                    TrackModel::Capability::EditMetadata)) {
+        return;
+    }
+    m_pMenu->slotShowDlgTrackInfo();
+}
+
 void QmlLibraryTrackMenu::setColor(const QString& hexColor) {
     if (!m_pMenu) {
         return;
@@ -268,6 +291,89 @@ void QmlLibraryTrackMenu::setColor(const QString& hexColor) {
         m_pMenu->setSelectionColor(RgbColor::nullopt());
     } else {
         m_pMenu->setSelectionColor(RgbColor::fromQString(hexColor));
+    }
+}
+
+void QmlLibraryTrackMenu::removeSelectedRows(
+        QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
+    if (!pModel || rows.isEmpty()) {
+        return;
+    }
+    auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
+    if (!pTrackModel || pTrackModel->isLocked()) {
+        return;
+    }
+
+    // Same capability order and confirmation as
+    // WTrackTableView::hideOrRemoveSelectedTracks(): Remove wins for the Auto
+    // DJ queue, then crates, playlists and finally hiding from the library.
+    TrackModel::Capability capability;
+    if (pTrackModel->hasCapabilities(TrackModel::Capability::Remove)) {
+        capability = TrackModel::Capability::Remove;
+    } else if (pTrackModel->hasCapabilities(
+                       TrackModel::Capability::RemoveCrate)) {
+        capability = TrackModel::Capability::RemoveCrate;
+    } else if (pTrackModel->hasCapabilities(
+                       TrackModel::Capability::RemovePlaylist)) {
+        capability = TrackModel::Capability::RemovePlaylist;
+    } else if (pTrackModel->hasCapabilities(TrackModel::Capability::Hide)) {
+        capability = TrackModel::Capability::Hide;
+    } else {
+        return;
+    }
+
+    if (pTrackModel->getRequireConfirmationToHideRemoveTracks()) {
+        QString title;
+        QString message;
+        if (capability == TrackModel::Capability::Hide) {
+            title = tr("Confirm track hide");
+            message = tr("Are you sure you want to hide the selected tracks?");
+        } else {
+            title = tr("Confirm track removal");
+            if (capability == TrackModel::Capability::Remove) {
+                message = tr("Are you sure you want to remove the selected "
+                             "tracks from AutoDJ queue?");
+            } else if (capability == TrackModel::Capability::RemoveCrate) {
+                message = tr("Are you sure you want to remove the selected "
+                             "tracks from this crate?");
+            } else {
+                message = tr("Are you sure you want to remove the selected "
+                             "tracks from this playlist?");
+            }
+        }
+
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Question);
+        msg.setWindowTitle(title);
+        msg.setText(message);
+        QCheckBox notAgainCB(tr("Don't ask again during this session"));
+        notAgainCB.setCheckState(Qt::Unchecked);
+        msg.setCheckBox(&notAgainCB);
+        msg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+        msg.setDefaultButton(QMessageBox::Cancel);
+        if (msg.exec() != QMessageBox::Ok) {
+            return;
+        }
+        if (notAgainCB.isChecked()) {
+            pTrackModel->setRequireConfirmationToHideRemoveTracks(false);
+        }
+    }
+
+    QModelIndexList indices;
+    indices.reserve(rows.size());
+    for (int row : rows) {
+        const QModelIndex sourceIndex = pModel->mapToSource(pModel->index(row, 0));
+        if (sourceIndex.isValid()) {
+            indices.append(sourceIndex.sibling(sourceIndex.row(), 0));
+        }
+    }
+    if (indices.isEmpty()) {
+        return;
+    }
+    if (capability == TrackModel::Capability::Hide) {
+        pTrackModel->hideTracks(indices);
+    } else {
+        pTrackModel->removeTracks(indices);
     }
 }
 

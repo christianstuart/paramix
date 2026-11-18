@@ -619,12 +619,19 @@ Rectangle {
                 break;
             case Qt.Key_Return:
             case Qt.Key_Enter:
-                view.loadSelectedTrackIntoNextAvailableDeck(false);
+                if ((event.modifiers & (Qt.ControlModifier | Qt.MetaModifier)) !== 0) {
+                    Mixxx.LibraryTrackMenu.showProperties(root.model, selection.selectedRows());
+                } else {
+                    view.loadSelectedTrackIntoNextAvailableDeck(false);
+                }
+                break;
+            case Qt.Key_Delete:
+            case Qt.Key_Backspace:
+                // removeSelectedRows() confirms and hides/removes according to
+                // the capabilities of the active source.
+                Mixxx.LibraryTrackMenu.removeSelectedRows(root.model, selection.selectedRows());
                 break;
             default:
-                // Delete / Shift+Delete are not wired: the track menu proxy
-                // only exposes invoke(index) into the serialized WTrackMenu,
-                // whose Remove/Hide actions carry no stable identifier.
                 return;
             }
             event.accepted = true;
