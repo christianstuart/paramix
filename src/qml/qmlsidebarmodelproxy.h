@@ -83,6 +83,14 @@ class QmlSidebarModelProxy : public SidebarModel {
     /// Columns used for all track models created by this proxy.
     void setColumns(const QList<QmlLibraryTrackListColumn*>& columns);
 
+    /// Column layout shared by every source. Changing it updates the cached
+    /// models and every model created later.
+    Q_INVOKABLE void moveColumn(int from, int to);
+    Q_INVOKABLE void setColumnHidden(int column, bool hidden);
+    /// Ordered list of maps with the keys `key` and `hidden`.
+    Q_INVOKABLE QVariantList columnLayout() const;
+    Q_INVOKABLE void applyColumnLayout(const QVariantList& layout);
+
     QHash<int, QByteArray> roleNames() const override;
     QVariant data(const QModelIndex& index, int role) const override;
 
@@ -120,6 +128,7 @@ class QmlSidebarModelProxy : public SidebarModel {
     void autoDjActiveChanged();
     void autoDjTransitionSecondsChanged();
     void autoDjRepeatChanged();
+    void columnLayoutChanged();
 
   private slots:
     void slotShowTrackModel(QAbstractItemModel* pModel);
@@ -134,6 +143,7 @@ class QmlSidebarModelProxy : public SidebarModel {
     QmlLibraryTrackListModel* trackListForModel(QAbstractItemModel* pModel);
     void activateDefaultSelection();
     void addFolderToLibrary();
+    void applyColumnsToTrackLists();
     void invokeContextMenuActionNow(
             const QModelIndex& index, const QString& action);
 

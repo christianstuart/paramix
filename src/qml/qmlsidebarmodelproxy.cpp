@@ -2,10 +2,13 @@
 
 #include <QFileDialog>
 #include <QPersistentModelIndex>
+#include <QSet>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <QVariant>
+#include <QVariantMap>
 #include <algorithm>
 #include <utility>
 
@@ -146,14 +149,111 @@ void QmlSidebarModelProxy::setColumns(
         // Take a snapshot: the QML-owned template objects may be garbage
         // collected whereas the models created later must stay intact.
         m_columns.emplace_back(make_parented<QmlLibraryTrackListColumn>(this,
+                pColumn->key(),
                 pColumn->label(),
                 pColumn->fillSpan(),
                 pColumn->columnIdx(),
                 pColumn->preferredWidth(),
                 pColumn->autoHideWidth(),
                 pColumn->delegate(),
-                pColumn->role()));
+                pColumn->role(),
+                pColumn->hidden()));
     }
+}
+
+QVariantList QmlSidebarModelProxy::columnLayout() const {
+    QVariantList layout;
+    layout.reserve(static_cast<qsizetype>(m_columns.size()));
+    for (const auto& pColumn : m_columns) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("key"), pColumn->key());
+        entry.insert(QStringLiteral("hidden"), pColumn->hidden());
+        layout.append(entry);
+    }
+    return layout;
+}
+
+void QmlSidebarModelProxy::applyColumnsToTrackLists() {
+    QStringList orderKeys;
+    QStringList hiddenKeys;
+    orderKeys.reserve(static_cast<qsizetype>(m_columns.size()));
+    for (const auto& pColumn : m_columns) {
+        orderKeys.append(pColumn->key());
+        if (pColumn->hidden()) {
+            hiddenKeys.append(pColumn->key());
+        }
+    }
+    for (const auto& entry : std::as_const(m_trackLists)) {
+        entry.pTrackList->applyColumnLayout(orderKeys, hiddenKeys);
+    }
+}
+
+void QmlSidebarModelProxy::moveColumn(int from, int to) {
+    const int count = static_cast<int>(m_columns.size());
+    if (from < 0 || from >= count || to < 0 || to >= count || from == to) {
+        return;
+    }
+    auto column = std::move(m_columns[from]);
+    m_columns.erase(m_columns.begin() + from);
+    m_columns.insert(m_columns.begin() + to, std::move(column));
+    applyColumnLayout(columnLayout());
+}
+
+void QmlSidebarModelProxy::setColumnHidden(int column, bool hidden) {
+    if (column < 0 || column >= static_cast<int>(m_columns.size())) {
+        return;
+    }
+    if (m_columns[column]->hidden() == hidden) {
+        return;
+    }
+    m_columns[column]->setHidden(hidden);
+    applyColumnLayout(columnLayout());
+}
+
+void QmlSidebarModelProxy::applyColumnLayout(const QVariantList& layout) {
+    QStringList orderKeys;
+    QStringList hiddenKeys;
+    for (const QVariant& item : layout) {
+        const QVariantMap entry = item.toMap();
+        const QString key = entry.value(QStringLiteral("key")).toString();
+        if (key.isEmpty()) {
+            continue;
+        }
+        orderKeys.append(key);
+        if (entry.value(QStringLiteral("hidden")).toBool()) {
+            hiddenKeys.append(key);
+        }
+    }
+
+    std::vector<parented_ptr<QmlLibraryTrackListColumn>> ordered;
+    ordered.reserve(m_columns.size());
+    QSet<QString> placed;
+    for (const QString& key : std::as_const(orderKeys)) {
+        if (placed.contains(key)) {
+            continue;
+        }
+        for (auto& pColumn : m_columns) {
+            if (pColumn && pColumn->key() == key) {
+                ordered.push_back(std::move(pColumn));
+                placed.insert(key);
+                break;
+            }
+        }
+    }
+    // Columns missing from the saved layout keep their relative order.
+    for (auto& pColumn : m_columns) {
+        if (pColumn) {
+            ordered.push_back(std::move(pColumn));
+        }
+    }
+
+    const QSet<QString> hidden(hiddenKeys.begin(), hiddenKeys.end());
+    m_columns = std::move(ordered);
+    for (auto& pColumn : m_columns) {
+        pColumn->setHidden(hidden.contains(pColumn->key()));
+    }
+    applyColumnsToTrackLists();
+    emit columnLayoutChanged();
 }
 
 QmlLibraryTrackListModel* QmlSidebarModelProxy::trackListForModel(

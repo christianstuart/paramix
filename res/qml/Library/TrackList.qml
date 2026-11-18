@@ -17,6 +17,14 @@ Rectangle {
     /// selection after an action changed the underlying model.
     property int contextRow: -1
     required property var model
+    /// Sidebar proxy. Column order and visibility are shared by every source,
+    /// so the header edits the sidebar, not just this view's model.
+    property var sidebar
+    /// Width a filled column keeps before the table scrolls horizontally.
+    readonly property int minimumColumnWidth: 64
+    /// Gap under the pointer while a header is dragged; -1 when idle.
+    property int columnDropSlot: -1
+    property real columnDropX: 0
     /// Rows are uniform, so keyboard paging and scrolling can be computed
     /// without a row height provider.
     readonly property int rowHeight: 28
@@ -118,6 +126,81 @@ Rectangle {
         }
         trackMenu.popupFor(root.model, selection.selectedRows());
     }
+    /// Returns the gap under `pointerX` (root coordinates) and the x position
+    /// where the drop marker belongs. Hidden columns have no width, so only the
+    /// visible cells decide the slot.
+    function columnGapBefore(pointerX) {
+        const columns = root.model ? root.model.columns : null;
+        if (!columns)
+            return {"slot": 0, "x": 0};
+        // Measure in view content coordinates so a horizontally scrolled table
+        // still drops at the header cell under the pointer.
+        const viewLeft = view.mapToItem(root, 0, 0).x;
+        const contentX = pointerX - viewLeft + view.contentX;
+        let x = 0;
+        for (let i = 0; i < columns.length; ++i) {
+            const width = view.columnWidthProvider(i);
+            if (width <= 0)
+                continue;
+            if (contentX < x + width / 2)
+                return {"slot": i, "x": viewLeft + x - view.contentX};
+            x += width;
+        }
+        return {"slot": columns.length, "x": viewLeft + x - view.contentX};
+    }
+    function updateColumnDrop(pointerX) {
+        const gap = root.columnGapBefore(pointerX);
+        root.columnDropSlot = gap.slot;
+        root.columnDropX = gap.x;
+    }
+    function moveColumnToSlot(from, slot) {
+        root.columnDropSlot = -1;
+        if (!root.sidebar || !root.model)
+            return;
+        // The slot is the gap before a column; after removing the dragged
+        // column every later gap moves one to the left.
+        let to = slot > from ? slot - 1 : slot;
+        to = Math.max(0, Math.min(root.model.columns.length - 1, to));
+        if (to === from)
+            return;
+        // The sort indicator cannot follow the moved column.
+        horizontalHeader.sortingColumn = -1;
+        root.sidebar.moveColumn(from, to);
+        root.afterColumnLayoutChange();
+    }
+    function afterColumnLayoutChange() {
+        view.updateColumnSize();
+        view.forceLayout();
+    }
+    function setColumnHidden(column, hidden) {
+        if (!root.sidebar)
+            return;
+        root.sidebar.setColumnHidden(column, hidden);
+        root.afterColumnLayoutChange();
+    }
+    function openColumnMenu(x, y) {
+        columnMenu.entries = root.columnMenuEntries();
+        columnMenu.x = x;
+        columnMenu.y = y;
+        columnMenu.open();
+    }
+    function columnMenuEntries() {
+        const entries = [];
+        if (!root.model)
+            return entries;
+        const columns = root.model.columns;
+        for (let i = 0; i < columns.length; ++i) {
+            // The cover thumbnail has no label and is not a selectable column.
+            if (columns[i].label.length === 0)
+                continue;
+            entries.push({
+                "column": i,
+                "hidden": columns[i].hidden,
+                "label": columns[i].label
+            });
+        }
+        return entries;
+    }
 
     color: Theme.surface0
 
@@ -188,19 +271,36 @@ Rectangle {
             required property string display
             required property int index
 
+            /// Set once the pointer moved far enough to be a column drag.
+            property bool dragMoved: false
+            /// The click that follows a drop must not also sort the column.
+            property bool suppressClick: false
+            property int pressX: 0
+            property int pressedButton: Qt.NoButton
+
             Accessible.name: qsTr("Sort by %1").arg(display)
             Accessible.role: Accessible.Button
             implicitHeight: 32
             implicitWidth: columnName.contentWidth + Theme.space2
+            opacity: column.dragMoved ? 0.45 : 1
 
             MouseArea {
                 id: columnMouseHandler
 
-                acceptedButtons: Qt.LeftButton
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 anchors.fill: parent
                 hoverEnabled: true
 
-                onClicked: {
+                onClicked: mouse => {
+                    if (column.suppressClick) {
+                        column.suppressClick = false;
+                        return;
+                    }
+                    if (mouse.button === Qt.RightButton) {
+                        const point = column.mapToItem(root, mouse.x, mouse.y);
+                        root.openColumnMenu(point.x, point.y);
+                        return;
+                    }
                     // The Auto DJ queue does not advertise sorting: the
                     // processor always plays row 0, so sorting would change the
                     // playback order. Sorting a regular playlist still works.
@@ -213,6 +313,36 @@ Rectangle {
                         horizontalHeader.sortingOrder = Qt.AscendingOrder;
                     }
                     view.model.sort(horizontalHeader.sortingColumn, horizontalHeader.sortingOrder);
+                }
+                onPositionChanged: mouse => {
+                    if (!pressed || column.pressedButton !== Qt.LeftButton)
+                        return;
+                    if (!column.dragMoved && Math.abs(mouse.x - column.pressX) < 6)
+                        return;
+                    column.dragMoved = true;
+                    const point = column.mapToItem(root, mouse.x, 0);
+                    root.updateColumnDrop(point.x);
+                }
+                onPressed: mouse => {
+                    column.dragMoved = false;
+                    column.suppressClick = false;
+                    column.pressedButton = mouse.button;
+                    column.pressX = mouse.x;
+                }
+                onReleased: mouse => {
+                    if (!column.dragMoved || column.pressedButton !== Qt.LeftButton)
+                        return;
+                    const from = index;
+                    const slot = root.columnDropSlot;
+                    column.dragMoved = false;
+                    column.suppressClick = true;
+                    // The reorder rebuilds the header delegates, so move out of
+                    // the finished gesture before the view is laid out again.
+                    Qt.callLater(() => root.moveColumnToSlot(from, slot));
+                }
+                onCanceled: {
+                    column.dragMoved = false;
+                    root.columnDropSlot = -1;
                 }
             }
             Text {
@@ -360,13 +490,29 @@ Rectangle {
                 return columnDef.preferredWidth;
             }
             const span = columnDef.fillSpan || 1;
-            return span * (view.width - view.usedWidth) / view.dynamicColumnCount;
+            return Math.max(root.minimumColumnWidth,
+                    span * (view.width - view.usedWidth) / view.dynamicColumnCount);
         }
         keyNavigationEnabled: false
         model: root.model
         pointerNavigationEnabled: false
         reuseItems: true
 
+        ScrollBar.horizontal: ScrollBar {
+            id: horizontalScrollBar
+
+            policy: ScrollBar.AsNeeded
+            height: 10
+
+            background: Rectangle {
+                color: "transparent"
+            }
+            contentItem: Rectangle {
+                color: horizontalScrollBar.pressed ? Theme.accent : Theme.borderStrong
+                implicitHeight: 4
+                radius: Theme.radiusXs
+            }
+        }
         ScrollBar.vertical: ScrollBar {
             id: verticalScrollBar
 
@@ -765,6 +911,50 @@ Rectangle {
     }
     LibraryComponent.TrackMenu {
         id: trackMenu
+    }
+    // Drop marker while a column header is dragged.
+    Rectangle {
+        id: columnDropIndicator
+
+        color: Theme.accent
+        height: horizontalHeader.height
+        visible: root.columnDropSlot >= 0
+        width: 2
+        x: root.columnDropX - width / 2
+        y: horizontalHeader.y
+        z: 20
+    }
+    // Right-click on the column header: add or remove metadata columns. The
+    // layout is shared by every library source and saved by SourceTree.qml.
+    Menu {
+        id: columnMenu
+
+        property var entries: []
+
+        background: Rectangle {
+            border.color: Theme.borderStrong
+            border.width: 1
+            color: Theme.surface2
+            radius: Theme.radiusMd
+        }
+        padding: Theme.space1
+
+        Instantiator {
+            model: columnMenu.entries
+
+            delegate: MenuItem {
+                required property var modelData
+
+                checkable: true
+                checked: !modelData.hidden
+                text: modelData.label
+
+                onTriggered: root.setColumnHidden(modelData.column, !checked)
+            }
+
+            onObjectAdded: (index, object) => columnMenu.insertItem(index, object)
+            onObjectRemoved: (index, object) => columnMenu.removeItem(object)
+        }
     }
     Rectangle {
         id: dropMessage
