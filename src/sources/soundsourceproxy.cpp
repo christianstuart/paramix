@@ -197,6 +197,11 @@ QList<QMimeType> mimeTypesForFileType(const QString& fileType) {
 
 // static
 bool SoundSourceProxy::registerProviders() {
+    // The provider registry is process-wide. A second CoreServices instance
+    // (for example one per test) must not append duplicate providers to it.
+    if (!s_supportedFileNamePatterns.isEmpty()) {
+        return true;
+    }
     // Initialize built-in file types.
     // Fallback providers should be registered before specialized
     // providers to ensure that they are only after the specialized

@@ -40,7 +40,6 @@
 #include "qml/qmltrackmenuproxy.h"
 #include "qml/qmltrackproxy.h"
 #include "test/mixxxtest.h"
-#include "test/soundsourceproviderregistration.h"
 #include "track/beats.h"
 #include "track/track.h"
 #include "util/cmdlineargs.h"
@@ -70,7 +69,7 @@ void writeTestProfile(const QString& settingsPath) {
     ASSERT_GT(soundConfig.write("<SoundManagerConfig api=\"None\"/>\n"), 0);
 }
 
-class QmlLibraryProxyTest : public MixxxTest, SoundSourceProviderRegistration {
+class QmlLibraryProxyTest : public MixxxTest {
   protected:
     void SetUp() override {
         m_previousArgs = CmdlineArgs::Instance();
