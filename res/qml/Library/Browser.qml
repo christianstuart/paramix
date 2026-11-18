@@ -36,12 +36,14 @@ Rectangle {
         if (!index || !index.valid || !root.model) {
             return;
         }
+        // Keep the model index itself: index.row is the row inside the parent,
+        // not the view row, so rebuilding it from row/column would act on a
+        // different source (e.g. the first playlist instead of the fourth).
+        sourceMenu.sourceIndex = index;
         sourceMenu.nodes = root.model.contextMenu(index);
         if (sourceMenu.nodes.length === 0) {
             return;
         }
-        sourceMenu.menuRow = index.row;
-        sourceMenu.menuColumn = index.column;
         sourceMenu.rebuild();
         sourceMenu.popup();
     }
@@ -433,9 +435,8 @@ Rectangle {
     Menu {
         id: sourceMenu
 
-        property int menuColumn: 0
-        property int menuRow: -1
         property var nodes: []
+        property var sourceIndex: null
 
         function rebuild() {
             while (count > 0) {
@@ -485,7 +486,7 @@ Rectangle {
 
                 property string nodeAction: ""
 
-                onTriggered: root.model.invokeContextMenuAction(featureView.index(sourceMenu.menuRow, sourceMenu.menuColumn), actionItem.nodeAction)
+                onTriggered: root.model.invokeContextMenuAction(sourceMenu.sourceIndex, actionItem.nodeAction)
             }
         }
     }
