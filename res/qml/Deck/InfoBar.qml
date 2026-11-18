@@ -188,10 +188,6 @@ Rectangle {
             roleValue: "key"
 
             Cell {
-                Accessible.description: qsTr("Click to match the key of the other deck, right click to reset it to the track key")
-                Accessible.name: Mixxx.KeyUtils.keyIsValid(visualKeyControl.value) ? qsTr("Key %1").arg(Mixxx.KeyUtils.keyToString(visualKeyControl.value)) : qsTr("Key")
-                Accessible.role: Accessible.Button
-
                 // Right-aligned so the key reads as part of the rating cluster
                 // instead of floating in the middle of its fixed column.
                 Layout.rightMargin: Theme.space2
@@ -227,6 +223,9 @@ Rectangle {
                 MouseArea {
                     id: keyMouse
 
+                    Accessible.description: qsTr("Click to match the key of the other deck, right click to reset it to the track key")
+                    Accessible.name: Mixxx.KeyUtils.keyIsValid(visualKeyControl.value) ? qsTr("Key %1").arg(Mixxx.KeyUtils.keyToString(visualKeyControl.value)) : qsTr("Key")
+                    Accessible.role: Accessible.Button
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     activeFocusOnTab: true
                     anchors.fill: parent
@@ -243,6 +242,13 @@ Rectangle {
                             syncKeyControl.trigger();
                         }
                     }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    border.color: Theme.focusRing
+                    border.width: 1
+                    color: "transparent"
+                    visible: keyMouse.activeFocus
                 }
             }
         }
@@ -494,14 +500,11 @@ Rectangle {
         }
     }
 
-    /// Small status pill in the deck header: reads "MASTER" and lights in the
-    /// accent while this deck is the sync leader, i.e. the deck the other
-    /// synced decks take their tempo from. Clicking it requests or releases
-    /// tempo leadership (sync_leader), which is the same explicit off/on the
-    /// classic leader key offered.
-    ///
-    /// Three states, straight from the sync_leader light: off (muted outline),
-    /// soft leader (accent outline) and explicit leader (solid accent).
+    /// Small status pill in the deck header: reads "MASTER" and turns accent
+    /// while this deck is the sync leader (soft or explicit), i.e. the deck
+    /// the other synced decks take their tempo from. Clicking it requests
+    /// tempo leadership (sync_leader); pressing again does nothing, so a
+    /// stray click cannot demote the deck.
     component MasterPill: Rectangle {
         id: pill
 
@@ -512,25 +515,25 @@ Rectangle {
         readonly property int leaderValue: Math.round(leaderControl.value)
         readonly property bool loaded: root.deckPlayer?.isLoaded ?? false
 
-        function toggleLeader() {
-            if (!pill.loaded) {
+        function requestLeader() {
+            if (!pill.loaded || pill.isMaster) {
                 return;
             }
-            leaderControl.value = pill.isMaster ? 0 : 1;
+            leaderControl.value = 1;
         }
 
         Accessible.checkable: true
         Accessible.checked: pill.isMaster
-        Accessible.description: qsTr("Takes over tempo leadership from the other deck; click again to release it")
-        Accessible.name: pill.isExplicitLeader ? qsTr("Tempo master, explicit leader") : pill.isSoftLeader ? qsTr("Tempo master, soft leader") : qsTr("Not tempo master")
+        Accessible.description: pill.isMaster ? qsTr("This deck is the sync leader; the other decks take its tempo") : qsTr("Takes over tempo leadership from the other deck")
+        Accessible.name: pill.isExplicitLeader ? qsTr("Tempo master, explicit leader") : pill.isSoftLeader ? qsTr("Tempo master, soft leader") : qsTr("Set as tempo master")
         Accessible.role: Accessible.Button
         ToolTip.delay: 500
-        ToolTip.text: qsTr("Enable Sync Leader")
+        ToolTip.text: pill.isMaster ? qsTr("Tempo master") : qsTr("Set as tempo master")
         ToolTip.visible: pillMouse.containsMouse
         activeFocusOnTab: true
         border.color: pill.activeFocus ? Theme.focusRing : pill.isMaster ? Theme.accent : Theme.borderStrong
         border.width: 1
-        color: pill.isExplicitLeader ? Theme.accent : "transparent"
+        color: pill.isMaster ? Theme.accent : "transparent"
         implicitHeight: 16
         implicitWidth: pillLabel.implicitWidth + 12
         radius: height / 2
@@ -541,14 +544,14 @@ Rectangle {
             }
         }
 
-        Keys.onReturnPressed: pill.toggleLeader()
-        Keys.onSpacePressed: pill.toggleLeader()
+        Keys.onReturnPressed: pill.requestLeader()
+        Keys.onSpacePressed: pill.requestLeader()
 
         Text {
             id: pillLabel
 
             anchors.centerIn: parent
-            color: pill.isExplicitLeader ? Theme.textOnAccent : pill.isSoftLeader ? Theme.accent : Theme.textMuted
+            color: pill.isMaster ? Theme.textOnAccent : Theme.textMuted
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
             font.letterSpacing: Theme.letterSpacingCaps
@@ -567,11 +570,11 @@ Rectangle {
 
             acceptedButtons: Qt.LeftButton
             anchors.fill: parent
-            cursorShape: pill.loaded ? Qt.PointingHandCursor : Qt.ArrowCursor
+            cursorShape: pill.loaded && !pill.isMaster ? Qt.PointingHandCursor : Qt.ArrowCursor
             enabled: pill.loaded
             hoverEnabled: true
 
-            onClicked: pill.toggleLeader()
+            onClicked: pill.requestLeader()
         }
         Mixxx.ControlProxy {
             id: leaderControl
