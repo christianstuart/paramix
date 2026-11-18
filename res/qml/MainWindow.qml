@@ -126,6 +126,12 @@ Item {
         key: "show_vinylcontrol"
     }
     Mixxx.ControlProxy {
+        id: showPreviewDecks
+
+        group: "[Skin]"
+        key: "show_preview_decks"
+    }
+    Mixxx.ControlProxy {
         id: numMicrophones
         group: "[App]"
         key: "num_microphones"
@@ -292,6 +298,7 @@ Item {
                                 auxItem.checked = root.showMicrophoneInputs;
                                 samplersItem.checked = root.showSamplers;
                                 vinylItem.checked = showVinylControl.value > 0;
+                                previewDeckItem.checked = showPreviewDecks.value > 0;
                             }
 
                             Skin.CheckMenuItem {
@@ -335,6 +342,14 @@ Item {
                                 text: qsTr("Vinyl control")
 
                                 onTriggered: showVinylControl.value = checked ? 1 : 0
+                            }
+                            Skin.CheckMenuItem {
+                                id: previewDeckItem
+
+                                checkable: true
+                                text: qsTr("Preview deck")
+
+                                onTriggered: showPreviewDecks.value = checked ? 1 : 0
                             }
                         }
                     }
@@ -708,6 +723,23 @@ Item {
                     visible: !root.maximizeLibrary
                 }
                 Loader {
+                    id: previewDeckBar
+
+                    // Kept active while hidden so preview playback started from
+                    // the keyboard can reveal the bar instead of playing unseen.
+                    active: true
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: outputBar.bottom
+                    height: visible ? implicitHeight : 0
+                    visible: showPreviewDecks.value > 0 && !root.maximizeLibrary
+                    sourceComponent: Component {
+                        MixerComponents.PreviewDeckBar {
+                            anchors.fill: parent
+                        }
+                    }
+                }
+                Loader {
                     id: inputRack
 
                     active: root.showMicrophoneInputs &&
@@ -715,7 +747,7 @@ Item {
                             !root.maximizeLibrary
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: outputBar.bottom
+                    anchors.top: previewDeckBar.bottom
                     height: active ? implicitHeight : 0
                     visible: active
                     sourceComponent: Component {
