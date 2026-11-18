@@ -60,7 +60,12 @@ QString defaultModelPath() {
             QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("..")),
             QDir(QCoreApplication::applicationDirPath())
                     .filePath(QStringLiteral("../Resources")),
-            QDir(QDir::currentPath()).filePath(QStringLiteral(".."))};
+            QDir(QDir::currentPath()).filePath(QStringLiteral("..")),
+            // Development builds keep the downloaded model outside the build
+            // directory, so also look beside it.
+            QDir(QCoreApplication::applicationDirPath())
+                    .filePath(QStringLiteral("../buildenv")),
+            QDir(QDir::currentPath()).filePath(QStringLiteral("buildenv"))};
     for (const QString& dataLocation :
             QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
         roots.append(QDir(dataLocation).filePath(QStringLiteral("paramix")));
@@ -71,13 +76,14 @@ QString defaultModelPath() {
             return candidate;
         }
     }
-    return QDir(roots.first()).filePath(relative);
+    return {};
 }
 
 const mixxx::Logger kLogger("StemService");
 
 constexpr char kGroup[] = "[Stems]";
 constexpr char kOutputDirectoryKey[] = "OutputDirectory";
+constexpr char kModelPathKey[] = "ModelPath";
 
 /// Leave at least this much free space after a job, so a full disk does not
 /// take the library database with it.
@@ -142,7 +148,12 @@ bool StemService::queueExport(const StemExportRequest& request) {
     const QString setName = request.setName.trimmed().isEmpty()
             ? uniqueStemSetName(outputDirectory, defaultSetName(request.track))
             : sanitizeStemSetName(request.setName);
-    const QString modelPathValue = defaultModelPath();
+    QString modelPathValue = m_pConfig->getValue(
+                                              ConfigKey(kGroup, kModelPathKey), QString())
+                                     .trimmed();
+    if (modelPathValue.isEmpty()) {
+        modelPathValue = defaultModelPath();
+    }
     StemQueueRecord queued;
     queued.trackId = trackId;
     queued.outputDirectory = outputDirectory;
