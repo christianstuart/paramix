@@ -67,6 +67,7 @@ class PadFxUnit : public QObject {
     void setEffectActive(int pad, bool active);
     void setPadActiveControl(int pad, bool active);
     void restoreMuteOwned(int pad);
+    void stopPad(int pad);
     int stemCount() const;
     double padDurationSeconds(int pad) const;
     double bpm() const;
