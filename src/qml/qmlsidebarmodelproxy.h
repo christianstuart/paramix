@@ -134,6 +134,8 @@ class QmlSidebarModelProxy : public SidebarModel {
     QmlLibraryTrackListModel* trackListForModel(QAbstractItemModel* pModel);
     void activateDefaultSelection();
     void addFolderToLibrary();
+    void invokeContextMenuActionNow(
+            const QModelIndex& index, const QString& action);
 
     std::vector<parented_ptr<QmlLibraryTrackListColumn>> m_columns;
     QList<TrackListEntry> m_trackLists;

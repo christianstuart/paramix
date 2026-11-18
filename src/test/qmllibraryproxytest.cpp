@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <QCoreApplication>
 #include <QDialog>
 #include <QEvent>
 #include <QFile>
@@ -518,6 +519,7 @@ TEST_F(QmlLibraryProxyTest, SidebarPlaylistContextMenuEdits) {
     // Locking is the only entry without a dialog, so it can be exercised for
     // real. It must also disable the destructive entries.
     sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("lock"));
+    QCoreApplication::processEvents();
     EXPECT_TRUE(playlistDao.isPlaylistLocked(playlistId));
     menu = sidebar.contextMenu(playlistIndex);
     EXPECT_EQ(QStringLiteral("Unlock"),
@@ -531,6 +533,7 @@ TEST_F(QmlLibraryProxyTest, SidebarPlaylistContextMenuEdits) {
                          .value(QStringLiteral("enabled"))
                          .toBool());
     sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("lock"));
+    QCoreApplication::processEvents();
     EXPECT_FALSE(playlistDao.isPlaylistLocked(playlistId));
 
     // Invalid rows, source roots and unknown actions are no-ops; in particular
@@ -543,12 +546,14 @@ TEST_F(QmlLibraryProxyTest, SidebarPlaylistContextMenuEdits) {
     sidebar.invokeContextMenuAction(featureRoot, QStringLiteral("remove"));
     sidebar.invokeContextMenuAction(featureRoot, QStringLiteral("rename"));
     sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("unknown"));
+    QCoreApplication::processEvents();
     EXPECT_EQ(playlistsBefore, playlistDao.playlistCount());
     EXPECT_EQ(playlistName, playlistDao.getPlaylistName(playlistId));
 
     // Removing a locked playlist is a no-op and asks nothing.
     ASSERT_TRUE(playlistDao.setPlaylistLocked(playlistId, true));
     sidebar.invokeContextMenuAction(playlistIndex, QStringLiteral("remove"));
+    QCoreApplication::processEvents();
     EXPECT_TRUE(playlistDao.playlistExists(playlistId));
     ASSERT_TRUE(playlistDao.setPlaylistLocked(playlistId, false));
 
@@ -592,6 +597,7 @@ TEST_F(QmlLibraryProxyTest, SidebarCrateContextMenuLocks) {
     EXPECT_FALSE(findMenuNode(menu, QStringLiteral("lock")).isEmpty());
 
     sidebar.invokeContextMenuAction(crateIndex, QStringLiteral("lock"));
+    QCoreApplication::processEvents();
     Crate lockedCrate;
     ASSERT_TRUE(pCollection->crates().readCrateById(crateId, &lockedCrate));
     EXPECT_TRUE(lockedCrate.isLocked());

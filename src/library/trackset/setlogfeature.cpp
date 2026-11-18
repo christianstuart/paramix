@@ -165,6 +165,10 @@ bool SetlogFeature::isYearIndex(const QModelIndex& index) const {
             playlistIdFromIndex(index) == m_yearNodeId;
 }
 
+bool SetlogFeature::isCurrentPlaylistIndex(const QModelIndex& index) const {
+    return playlistIdFromIndex(index) == m_currentPlaylistId;
+}
+
 void SetlogFeature::lockChildPlaylists(const QModelIndex& index, bool lock) {
     m_lastRightClickedIndex = index;
     lockOrUnlockAllChildPlaylists(lock);

@@ -3,6 +3,7 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QString>
+#include <QTimer>
 #include <QVariant>
 #include <algorithm>
 #include <utility>
@@ -429,15 +430,25 @@ QVariantList QmlSidebarModelProxy::contextMenu(const QModelIndex& index) const {
     }
     if (auto* pPlaylist = dynamic_cast<BasePlaylistFeature*>(pFeature)) {
         const bool locked = pPlaylist->isItemLocked(index);
-        appendMenuAction(&nodes, QStringLiteral("rename"), tr("Rename"), !locked);
-        if (!dynamic_cast<SetlogFeature*>(pFeature)) {
-            // History playlists are created by the session, not duplicated.
+        auto* pSetlog = dynamic_cast<SetlogFeature*>(pFeature);
+        // Today's history playlist cannot be removed or locked.
+        const bool historyProtected =
+                pSetlog && pSetlog->isCurrentPlaylistIndex(index);
+        appendMenuAction(&nodes,
+                QStringLiteral("rename"),
+                tr("Rename"),
+                !locked);
+        if (!pSetlog) {
             appendMenuAction(&nodes, QStringLiteral("duplicate"), tr("Duplicate"));
         }
-        appendMenuAction(&nodes, QStringLiteral("remove"), tr("Remove"), !locked);
+        appendMenuAction(&nodes,
+                QStringLiteral("remove"),
+                tr("Remove"),
+                !locked && !historyProtected);
         appendMenuAction(&nodes,
                 QStringLiteral("lock"),
-                locked ? tr("Unlock") : tr("Lock"));
+                locked ? tr("Unlock") : tr("Lock"),
+                !historyProtected);
         appendMenuSeparator(&nodes);
         appendMenuAction(&nodes,
                 QStringLiteral("export"),
@@ -461,16 +472,34 @@ void QmlSidebarModelProxy::invokeContextMenuAction(
     if (!index.isValid() || index.model() != this || action.isEmpty()) {
         return;
     }
+    // Defer: rename/delete open modal dialogs or reset the sidebar model while
+    // QML is still unwinding the menu's trigger handler (the same reason
+    // QmlLibraryTrackMenu::invoke() defers).
+    QTimer::singleShot(0, this, [this, index, action]() {
+        invokeContextMenuActionNow(index, action);
+    });
+}
+
+void QmlSidebarModelProxy::invokeContextMenuActionNow(
+        const QModelIndex& index, const QString& action) {
+    if (!index.isValid() || index.model() != this || action.isEmpty()) {
+        return;
+    }
     LibraryFeature* pFeature = featureForIndex(this, m_sFeatures, index);
     if (!pFeature) {
         return;
     }
 
     if (action == QLatin1String("addToLibrary")) {
-        addFolderToLibrary();
+        if (dynamic_cast<BrowseFeature*>(pFeature)) {
+            addFolderToLibrary();
+        }
         return;
     }
     if (action == QLatin1String("rescanLibrary")) {
+        if (!dynamic_cast<BrowseFeature*>(pFeature)) {
+            return;
+        }
         Library* pLibrary = QmlLibraryProxy::get();
         TrackCollectionManager* pTrackCollectionManager =
                 pLibrary ? pLibrary->trackCollectionManager() : nullptr;
@@ -511,6 +540,11 @@ void QmlSidebarModelProxy::invokeContextMenuAction(
         }
         if (action == QLatin1String("purgeChildPlaylists")) {
             pSetlog->purgeChildPlaylists(index);
+            return;
+        }
+        if (pSetlog->isCurrentPlaylistIndex(index) &&
+                (action == QLatin1String("remove") ||
+                        action == QLatin1String("lock"))) {
             return;
         }
     }
@@ -560,6 +594,11 @@ void QmlSidebarModelProxy::addFolderToLibrary() {
 bool QmlSidebarModelProxy::dropUrls(
         const QModelIndex& index, const QList<QUrl>& urls) {
     if (!index.isValid() || index.model() != this || urls.isEmpty()) {
+        return false;
+    }
+    // dragMoveAccept() lets the feature reject locked or invalid targets;
+    // dropAccept() asserts on those.
+    if (!dragMoveAccept(index, urls)) {
         return false;
     }
     // SidebarModel::dropAccept() forwards to the playlist/crate feature, which
