@@ -92,16 +92,19 @@ Column {
 
         Accessible.name: qsTr("Quick effect preset")
         Accessible.role: Accessible.ComboBox
-        clip: true
         currentIndex: fxSelect.value == -1 ? 0 : fxSelect.value
-        font.pixelSize: Theme.fontSizeXs
+        // 36 px strip: drop the theme padding so the preset name has 28 px of
+        // text instead of 16, and elide rather than hard-cut the longer ones.
+        font.pixelSize: Theme.fontSizeSm
         implicitHeight: 16
         indicator.width: 0
+        leftPadding: Theme.space1
         model: Mixxx.EffectsManager.quickChainPresetModel
         popupMaxItem: 8
         popupWidth: 100
-        rightPadding: Theme.space1
+        rightPadding: 0
         spacing: Theme.space1
+        textLeftPadding: 0
         textRole: "display"
         width: parent.width
 
