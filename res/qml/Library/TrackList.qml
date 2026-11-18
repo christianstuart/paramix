@@ -17,6 +17,9 @@ Rectangle {
     /// Rows are uniform, so keyboard paging and scrolling can be computed
     /// without a row height provider.
     readonly property int rowHeight: 28
+    /// Capabilities are per model, not per cell. Resolve them once here
+    /// instead of invoking the model from every delegate.
+    readonly property var capabilities: model ? model.getCapabilities() : Mixxx.LibraryTrackListModel.Capability.None
     /// Column that renders the title text. The stem badge is drawn in its
     /// left gutter, so it appears exactly once per row instead of on every
     /// cell. Looked up by SQL column instead of by index so a reordered or
@@ -340,10 +343,7 @@ Rectangle {
             id: item
 
             required property int column
-            required property url cover_art
-            required property color decoration
             required property var display
-            required property string file_url
             required property bool has_stems
             required property int row
             required property bool selected
@@ -359,11 +359,8 @@ Rectangle {
             Loader {
                 id: loader
 
-                property var capabilities: root.model ? root.model.getCapabilities() : Mixxx.LibraryTrackListModel.Capability.None
-                property url cover_art: item.cover_art
-                property color decoration: item.decoration
+                property var capabilities: root.capabilities
                 property var display: item.display
-                property url file_url: item.file_url
                 /// `has_stems` from the track list model, mirrored for the
                 /// column delegates (see `SourceTree.qml`).
                 property bool has_stems: item.has_stems
@@ -385,28 +382,36 @@ Rectangle {
             }
             // One decorative badge per row, in the left gutter of the title
             // column. No pointer handlers, so row clicks/drags are unaffected.
-            Item {
-                id: stemBadge
+            // Instantiate it only for rows that actually have stems; a Repeater
+            // and three rectangles in every cell is a lot of unused items.
+            Loader {
+                id: stemBadgeLoader
 
-                Accessible.ignored: true
+                active: loader.stemBadgeVisible
                 anchors.verticalCenter: parent.verticalCenter
                 height: 12
-                visible: loader.stemBadgeVisible
+                visible: active
                 width: 12
                 x: Theme.space1
 
-                Column {
-                    anchors.centerIn: parent
-                    spacing: 1
+                sourceComponent: Component {
+                    Item {
+                        Accessible.ignored: true
 
-                    Repeater {
-                        model: 3
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 1
 
-                        Rectangle {
-                            color: Theme.accent
-                            height: 2
-                            radius: 1
-                            width: 10
+                            Repeater {
+                                model: 3
+
+                                Rectangle {
+                                    color: Theme.accent
+                                    height: 2
+                                    radius: 1
+                                    width: 10
+                                }
+                            }
                         }
                     }
                 }
@@ -651,5 +656,69 @@ Rectangle {
     }
     LibraryComponent.TrackMenu {
         id: trackMenu
+    }
+    // One drag preview for the whole list. It used to be instantiated in every
+    // cell (a hidden rectangle, two labels and a layout), which added several
+    // thousand items to a full viewport for an overlay that only exists while
+    // the user is dragging a row.
+    Item {
+        id: dragPreview
+
+        property string artistText
+        property string titleText
+        height: 85
+        // Grabbed behind the table. Rendering is only needed for the grab, so
+        // the preview never participates in the visible layout.
+        visible: false
+        width: 190
+        x: 0
+        y: 0
+        z: -1
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: Theme.space1
+            border.color: Theme.border
+            border.width: 1
+            color: Theme.surface2
+            radius: Theme.radiusMd
+
+            Column {
+                anchors.fill: parent
+                anchors.margins: Theme.space2
+                spacing: 0
+
+                Text {
+                    color: Theme.textPrimary
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm
+                    font.weight: Theme.fontWeightDemiBold
+                    text: dragPreview.titleText.length > 0 ? dragPreview.titleText : qsTr("Unknown title")
+                    width: parent.width
+                }
+                Text {
+                    color: Theme.textSecondary
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeXs
+                    text: dragPreview.artistText.length > 0 ? dragPreview.artistText : qsTr("Unknown artist")
+                    width: parent.width
+                }
+            }
+        }
+    }
+    function captureDragPreview(track, callback) {
+        dragPreview.titleText = track ? track.title : "";
+        dragPreview.artistText = track ? track.artist : "";
+        // Render the off-screen preview for one frame so grabToImage sees a
+        // fully laid-out item, then hide it again.
+        dragPreview.visible = true;
+        Qt.callLater(function() {
+            dragPreview.grabToImage(function(result) {
+                dragPreview.visible = false;
+                callback(result.url);
+            }, Qt.size(dragPreview.width, dragPreview.height));
+        });
     }
 }

@@ -10,6 +10,7 @@
 #include <QSGSimpleRectNode>
 #include <QTimer>
 #include <chrono>
+#include <memory>
 
 #include "qml/qmlplayerproxy.h"
 #include "qml/qmlwaveformrenderer.h"
@@ -21,6 +22,7 @@
 #include "waveform/widgets/waveformwidgettype.h"
 
 class WaveformRendererAbstract;
+class ControlProxy;
 
 namespace allshader {
 class WaveformWidget;
@@ -105,6 +107,8 @@ class QmlWaveformDisplay : public QQuickItem, VSyncTimeProvider, public Waveform
     double getPosition() const;
     void setZoom(double zoom) {
         WaveformWidgetRenderer::setZoom(zoom);
+        noteInteraction();
+        update();
         emit zoomChanged();
     }
     int getFrameRate() const {
@@ -148,6 +152,7 @@ class QmlWaveformDisplay : public QQuickItem, VSyncTimeProvider, public Waveform
     void slotTrackLoading(TrackPointer pNewTrack, TrackPointer pOldTrack);
     void slotTrackUnloaded();
     void slotWaveformUpdated();
+    void slotInteraction();
 
     void slotFrameSwapped();
     void slotWindowChanged(QQuickWindow* window);
@@ -164,6 +169,13 @@ class QmlWaveformDisplay : public QQuickItem, VSyncTimeProvider, public Waveform
   private:
     void setCurrentTrack(TrackPointer pTrack);
     void requestUpdateAtFrameRate();
+    /// Remember that something the waveform displays changed. Paused decks
+    /// then run at full rate for a short grace period instead of repainting a
+    /// static picture at the monitor rate forever.
+    void noteInteraction();
+
+    static constexpr int kPausedUpdateIntervalMs = 33;
+    static constexpr int kInteractionGraceMs = 300;
 
     // Properties
     QPointer<QmlPlayerProxy> m_pPlayer;
@@ -171,7 +183,17 @@ class QmlWaveformDisplay : public QQuickItem, VSyncTimeProvider, public Waveform
 
     PerformanceTimer m_timer;
     QElapsedTimer m_frameRequestTimer;
+    QElapsedTimer m_interactionTimer;
     QTimer m_frameRateTimer;
+    std::unique_ptr<ControlProxy> m_pPlayControl;
+    std::unique_ptr<ControlProxy> m_pScratchEnableControl;
+    std::unique_ptr<ControlProxy> m_pCuePointControl;
+    std::unique_ptr<ControlProxy> m_pLoopStartControl;
+    std::unique_ptr<ControlProxy> m_pLoopEndControl;
+    std::unique_ptr<ControlProxy> m_pLoopEnabledControl;
+    // Owned by this item, unlike WaveformWidgetRenderer::m_pTrackSamplesControlObject,
+    // which init() replaces when the render stack is (re)built.
+    std::unique_ptr<ControlProxy> m_pTrackSamplesWakeControl;
     QmlTrackProxy* m_pTrack;
     QSharedPointer<VisualPlayPosition> m_visualPlayPosition;
 

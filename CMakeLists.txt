@@ -3145,6 +3145,8 @@ if(BUILD_TESTING)
         src/test/qmleffectsproxytest.cpp
         src/test/qmlkeyutilstest.cpp
         src/test/qmllibraryproxytest.cpp
+        src/test/qmllibrarytracklistmodeltest.cpp
+        src/test/qmldlgpreferencesproxytest.cpp
         src/test/qmlspinnypositiontest.cpp
         src/test/qmlskincontrolcreatortest.cpp
         src/test/qmlwaveformoverviewtest.cpp

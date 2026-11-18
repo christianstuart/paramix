@@ -7,14 +7,24 @@ namespace mixxx {
 namespace qml {
 
 QmlDlgPreferencesProxy::QmlDlgPreferencesProxy(
-        std::shared_ptr<QDialog> pDlgPreferences,
+        DialogFactory dialogFactory,
         QObject* parent)
         : QObject(parent),
-          m_pDlgPreferences(pDlgPreferences) {
+          m_dialogFactory(std::move(dialogFactory)) {
+}
+
+std::shared_ptr<QDialog> QmlDlgPreferencesProxy::ensureDialog() {
+    if (!m_pDlgPreferences && m_dialogFactory) {
+        m_pDlgPreferences = m_dialogFactory();
+    }
+    return m_pDlgPreferences;
 }
 
 void QmlDlgPreferencesProxy::show() {
-    m_pDlgPreferences->show();
+    const auto pDlgPreferences = ensureDialog();
+    if (pDlgPreferences) {
+        pDlgPreferences->show();
+    }
 }
 
 // static

@@ -242,18 +242,29 @@ QmlApplication::QmlApplication(
 
     setupSpinnyCoverControls();
 
-    // FIXME: DlgPreferences has some initialization logic that must be executed
-    // before the GUI is shown, at least for the effects system.
-    std::shared_ptr<QDialog> pDlgPreferences =
-            m_pCoreServices->makeDlgPreferences();
-    // Without this, QApplication will quit when the last QWidget QWindow is
-    // closed because it does not take into account the window created by
-    // the QQmlApplicationEngine.
-    pDlgPreferences->setAttribute(Qt::WA_QuitOnClose, false);
+    // Building every preferences page costs seconds on a cold profile and is
+    // only needed when the user opens the dialog. Create it on first use. The
+    // effects engine itself is initialized by CoreServices; the QML effects UI
+    // does not depend on the legacy preferences dialog.
+    auto pDlgPreferencesCache = std::make_shared<std::shared_ptr<QDialog>>();
+    auto getDlgPreferences =
+            [this, pDlgPreferencesCache]() -> std::shared_ptr<QDialog> {
+        if (!*pDlgPreferencesCache) {
+            *pDlgPreferencesCache = m_pCoreServices->makeDlgPreferences();
+            if (*pDlgPreferencesCache) {
+                // Without this, QApplication will quit when the last QWidget
+                // QWindow is closed because it does not take into account the
+                // window created by the QQmlApplicationEngine.
+                (*pDlgPreferencesCache)
+                        ->setAttribute(Qt::WA_QuitOnClose, false);
+            }
+        }
+        return *pDlgPreferencesCache;
+    };
 
     auto inputWarningVisible = std::make_shared<bool>(false);
     auto showNoInputConfiguredWarning =
-            [pDlgPreferences, inputWarningVisible](const QString& message) {
+            [getDlgPreferences, inputWarningVisible](const QString& message) {
                 if (*inputWarningVisible) {
                     return;
                 }
@@ -273,6 +284,10 @@ QmlApplication::QmlApplication(
                 const bool accepted = msgBox.clickedButton() == msgBox.button(QMessageBox::Ok);
                 *inputWarningVisible = false;
                 if (accepted) {
+                    const auto pDlgPreferences = getDlgPreferences();
+                    if (!pDlgPreferences) {
+                        return;
+                    }
                     pDlgPreferences->show();
                     if (!QMetaObject::invokeMethod(pDlgPreferences.get(),
                                 "showSoundHardwareInputPage",
@@ -324,7 +339,7 @@ QmlApplication::QmlApplication(
     // Since DlgPreferences is only meant to be used in the main QML engine, it
     // follows a strict singleton pattern design
     QmlDlgPreferencesProxy::s_pInstance =
-            std::make_unique<QmlDlgPreferencesProxy>(pDlgPreferences, this);
+            std::make_unique<QmlDlgPreferencesProxy>(getDlgPreferences, this);
     QmlRecordingProxy::s_pRecordingManager = m_pCoreServices->getRecordingManager();
     QmlApplicationProxy::registerReloadCallback([this]() {
         QTimer::singleShot(0, this, [this]() {

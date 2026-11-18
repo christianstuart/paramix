@@ -4,6 +4,7 @@
 #include <QSGNode>
 #include <cmath>
 
+#include "control/controlproxy.h"
 #include "moc_qmlspinnyposition.cpp"
 #include "waveform/visualplayposition.h"
 
@@ -46,10 +47,24 @@ void QmlSpinnyPosition::setGroup(const QString& group) {
     }
 
     m_group = group;
+    m_pPlayControl.reset();
+    m_pScratchEnableControl.reset();
     if (m_group.isEmpty()) {
         m_visualPlayPosition.reset();
     } else {
         m_visualPlayPosition = VisualPlayPosition::getVisualPlayPosition(m_group);
+        m_pPlayControl = std::make_unique<ControlProxy>(
+                m_group, QStringLiteral("play"), this);
+        m_pScratchEnableControl = std::make_unique<ControlProxy>(
+                m_group, QStringLiteral("scratch_position_enable"), this);
+        // A state change must produce a frame even while the paused position
+        // is not changing.
+        m_pPlayControl->connectValueChanged(this, [this](double) {
+            update();
+        });
+        m_pScratchEnableControl->connectValueChanged(this, [this](double) {
+            update();
+        });
     }
     resetPositions();
     emit groupChanged(m_group);
@@ -84,7 +99,15 @@ void QmlSpinnyPosition::slotFrameSwapped() {
     }
     m_haveFrameInterval = true;
     refresh();
-    update();
+    // A paused platter does not move. Refresh the QML angle binding so a seek
+    // is picked up when another frame happens, but do not request a new frame
+    // ourselves; play/scratch state changes wake the loop.
+    const bool transportActive =
+            (m_pPlayControl && m_pPlayControl->toBool()) ||
+            (m_pScratchEnableControl && m_pScratchEnableControl->toBool());
+    if (transportActive) {
+        update();
+    }
 }
 
 std::chrono::microseconds QmlSpinnyPosition::fromTimerToNextSync(

@@ -14,6 +14,7 @@
 
 class QOpenGLTexture;
 class ControlProxy;
+class Track;
 
 namespace allshader {
 class WaveformRendererStem;
@@ -139,6 +140,15 @@ class allshader::WaveformRendererStem final
     int m_textureColumns;
     std::shared_ptr<const StemDetailTrack> m_pDetail;
     GeometryKey m_geometryKey;
+
+    // Track metadata is immutable for a loaded track except for the stem
+    // count. Sampling it once a second avoids repeated Track mutex
+    // acquisitions on the render thread while still picking up stems that
+    // finish separating after the track was loaded.
+    const Track* m_cachedTrack = nullptr;
+    int m_cachedStemCount = 0;
+    double m_cachedTotalSamples = 0.0;
+    int m_cacheFramesUntilRefresh = 0;
 
     DISALLOW_COPY_AND_ASSIGN(WaveformRendererStem);
 };

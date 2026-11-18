@@ -51,7 +51,11 @@ class StemDetailCache final : public QObject {
     void scheduleBuild(const StemDetailKey& key, const TrackPointer& pTrack);
 
     static constexpr int kMaxEntries = 2;
-    static constexpr int kDebounceMilliseconds = 150;
+    static constexpr int kDebounceMilliseconds = 250;
+    /// A pregain or lane-height change keeps the same shape of picture and
+    /// only re-renders magnitudes. Wait longer so a knob sweep or a live
+    /// resize does not decode the whole file several times.
+    static constexpr int kShapeDebounceMilliseconds = 800;
 
     mutable QMutex m_mutex;
     QThread* m_pThread;
@@ -62,6 +66,11 @@ class StemDetailCache final : public QObject {
     bool m_hasPending = false;
     bool m_buildInFlight = false;
     StemDetailKey m_inFlightKey;
+    /// Last key for which a build was queued. request() is called every frame
+    /// while a build is running; without this, every frame would post another
+    /// queued invocation to the cache thread.
+    StemDetailKey m_lastScheduledKey;
+    bool m_hasLastScheduledKey = false;
     QList<StemDetailKey> m_order;
     QList<std::shared_ptr<const StemDetailTrack>> m_details;
     QSet<StemDetailKey> m_failed;

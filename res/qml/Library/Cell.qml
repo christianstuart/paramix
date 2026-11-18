@@ -1,19 +1,22 @@
-import Qt5Compat.GraphicalEffects
 import QtQuick
-import QtQuick.Layouts
 import "../Theme"
 
 /// One track list cell. Owns the row background (selection, hover, zebra
-/// stripes) and the drag image shown while dragging a track.
+/// stripes) and the drag payload. The drag image itself is shared by the list
+/// (see TrackList.qml), so a viewport does not instantiate a preview per cell.
 Rectangle {
     id: root
 
-    readonly property alias dragImage: dragImageEffect
-
     Drag.dragType: Drag.Automatic
     Drag.mimeData: {
-        "text/uri-list": file_url.toString(),
-        "text/plain": file_url.toString()
+        // Use the track object instead of a separate model role. The list
+        // delegate is reused for every column, so resolving the URL once per
+        // cell would be repeated work for no benefit.
+        const location = track ? track.trackLocationUrl.toString() : "";
+        return {
+            "text/uri-list": location,
+            "text/plain": location
+        };
     }
     Drag.supportedActions: Qt.CopyAction
     anchors.fill: parent
@@ -39,72 +42,5 @@ Rectangle {
         color: selected ? Qt.alpha(Theme.accent, 0.35) : Theme.border
         height: 1
         opacity: selected ? 1.0 : 0.4
-    }
-    Item {
-        id: dragImageSource
-
-        height: 85
-        visible: false
-        width: 190
-
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: Theme.space1
-            border.color: Theme.border
-            border.width: 1
-            color: Theme.surface2
-            radius: Theme.radiusMd
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.space2
-                spacing: Theme.space2
-
-                Image {
-                    id: cover
-
-                    Layout.fillHeight: true
-                    Layout.preferredWidth: cover_art ? 60 : 0
-                    asynchronous: true
-                    clip: true
-                    fillMode: Image.PreserveAspectFit
-                    source: cover_art
-                }
-                ColumnLayout {
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    Text {
-                        Layout.fillWidth: true
-                        color: Theme.textPrimary
-                        elide: Text.ElideRight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSm
-                        font.weight: Theme.fontWeightDemiBold
-                        text: track ? track.title : qsTr("Unknown title")
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        color: Theme.textSecondary
-                        elide: Text.ElideRight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeXs
-                        text: track ? track.artist : qsTr("Unknown artist")
-                    }
-                }
-            }
-        }
-    }
-    DropShadow {
-        id: dragImageEffect
-
-        anchors.fill: dragImageSource
-        color: Qt.rgba(0, 0, 0, 0.5)
-        horizontalOffset: 0
-        radius: 10
-        source: dragImageSource
-        verticalOffset: 0
-        visible: false
     }
 }

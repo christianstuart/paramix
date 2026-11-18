@@ -68,6 +68,14 @@ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
 
     int exitCode;
     auto pCoreServices = std::make_shared<mixxx::CoreServices>(args, pApp);
+
+    // The size of cached pixmaps increases with the square of devicePixelRatio
+    // (this covers both, operating system scaling and Mixxx preferences
+    // scaling). This cache is shared by the QML image stack too, so set it
+    // before either UI path is loaded.
+    QPixmapCache::setCacheLimit(static_cast<int>(kPixmapCacheLimitAt100PercentZoom *
+            pow(pApp->devicePixelRatio(), 2.0f)));
+
 #ifdef MIXXX_USE_QML
     QString mainQmlFilePath;
     // The Paramix QML skin (res/qml) is the interface. The classic QtWidgets
@@ -113,11 +121,6 @@ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
                 &mixxx::CoreServices::initializationProgressUpdate,
                 &mainWindow,
                 &MixxxMainWindow::initializationProgressUpdate);
-
-        // The size of cached pixmaps increases with the square of devicePixelRatio
-        // (this covers both, operating system scaling and Mixxx preferences scaling)
-        QPixmapCache::setCacheLimit(static_cast<int>(kPixmapCacheLimitAt100PercentZoom *
-                pow(pApp->devicePixelRatio(), 2.0f)));
 
         pCoreServices->initialize();
 

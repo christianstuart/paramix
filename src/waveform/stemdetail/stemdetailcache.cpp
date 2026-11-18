@@ -71,6 +71,14 @@ std::shared_ptr<const StemDetailTrack> StemDetailCache::request(
         if (m_failed.contains(key)) {
             return pDetail;
         }
+        if (m_hasLastScheduledKey && m_lastScheduledKey == key) {
+            // A build for this exact viewport is already queued or running.
+            // request() runs on every frame, so do not post another queued
+            // invocation until that build completes.
+            return pDetail;
+        }
+        m_lastScheduledKey = key;
+        m_hasLastScheduledKey = true;
     }
 
     // request() may run on a render thread. The debounce timer and the worker
@@ -92,15 +100,31 @@ void StemDetailCache::scheduleBuild(const StemDetailKey& key,
     }
 
     std::shared_ptr<const StemDetailTrack> pDetail;
+    int debounceMs = kDebounceMilliseconds;
     {
         QMutexLocker locker(&m_mutex);
         if (findUnlocked(key, &pDetail)) {
             return;
         }
+        for (const auto& pExisting : std::as_const(m_details)) {
+            if (!pExisting || pExisting->trackId != key.trackId ||
+                    pExisting->laneCount <= 0) {
+                continue;
+            }
+            const StemDetailLane& lane = pExisting->lanes.front();
+            if (lane.spc == key.samplesPerColumn &&
+                    (lane.height != key.height ||
+                            pExisting->magnification != key.magnification)) {
+                debounceMs = kShapeDebounceMilliseconds;
+            }
+            break;
+        }
         m_pendingKey = key;
         m_pendingTrack = pTrack;
         m_hasPending = true;
     }
+    m_debounce.stop();
+    m_debounce.setInterval(debounceMs);
     m_debounce.start();
 }
 
@@ -169,11 +193,15 @@ void StemDetailCache::startPendingBuild() {
     m_buildInFlight = true;
     m_hasPending = false;
 
+    // Capture the post-cancel generation. A build that was queued before this
+    // cancel carries an older token and exits before decoding anything.
+    const quint64 generation = m_pBuilder->generation();
     QMetaObject::invokeMethod(m_pBuilder,
             "build",
             Qt::QueuedConnection,
             Q_ARG(StemDetailKey, m_inFlightKey),
-            Q_ARG(TrackPointer, m_pendingTrack));
+            Q_ARG(TrackPointer, m_pendingTrack),
+            Q_ARG(quint64, generation));
     m_pendingTrack.reset();
 }
 
@@ -186,6 +214,9 @@ void StemDetailCache::onBuilt(const StemDetailKey& key,
     m_buildInFlight = false;
     if (!pDetail) {
         QMutexLocker locker(&m_mutex);
+        if (m_hasLastScheduledKey && m_lastScheduledKey == key) {
+            m_hasLastScheduledKey = false;
+        }
         if (m_failed.size() > 16) {
             m_failed.clear();
         }
@@ -193,5 +224,11 @@ void StemDetailCache::onBuilt(const StemDetailKey& key,
         return;
     }
     insert(key, pDetail);
+    {
+        QMutexLocker locker(&m_mutex);
+        if (m_hasLastScheduledKey && m_lastScheduledKey == key) {
+            m_hasLastScheduledKey = false;
+        }
+    }
     emit detailReady();
 }

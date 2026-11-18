@@ -7,11 +7,13 @@
 #include "engine/controls/bpmcontrol.h"
 #include "engine/effects/engineeffectsmanager.h"
 #include "engine/effects/groupfeaturestate.h"
+#include "engine/engine.h"
 #include "engine/enginebuffer.h"
 #include "engine/enginepregain.h"
 #include "moc_enginedeck.cpp"
 #include "track/track.h"
 #include "util/assert.h"
+#include "util/defs.h"
 #include "util/sample.h"
 
 EngineDeck::EngineDeck(
@@ -60,6 +62,13 @@ EngineDeck::EngineDeck(
     if (!primaryDeck) {
         return;
     }
+
+    // Allocate the stem mix buffer once, off the audio thread. Its maximum
+    // size is bounded by the engine's maximum frame count and the number of
+    // stem input channels, so processStem() never has to allocate while the
+    // real-time callback is running.
+    m_stemBuffer = mixxx::SampleBuffer(
+            kMaxEngineFrames * mixxx::kMaxEngineChannelInputCount);
 
     connect(m_pBuffer, &EngineBuffer::trackLoaded, this, &EngineDeck::slotTrackLoaded);
 
@@ -138,8 +147,15 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
     unsigned int stemCount = chCount / mixxx::kEngineChannelOutputCount;
     SINT numFrames = bufferSize / mixxx::kEngineChannelOutputCount;
     std::size_t allChannelBufferSize = bufferSize * stemCount;
-    if (m_stemBuffer.size() < static_cast<SINT>(allChannelBufferSize)) {
-        m_stemBuffer = mixxx::SampleBuffer(allChannelBufferSize);
+    // The buffer is allocated once in the constructor for the maximum engine
+    // block size. Never allocate on the audio thread.
+    const std::size_t maxStemBufferSize =
+            static_cast<std::size_t>(kMaxEngineFrames) *
+            static_cast<std::size_t>(mixxx::kMaxEngineChannelInputCount);
+    VERIFY_OR_DEBUG_ASSERT(allChannelBufferSize <= maxStemBufferSize &&
+            allChannelBufferSize <=
+                    static_cast<std::size_t>(m_stemBuffer.size())) {
+        return;
     }
     m_pBuffer->process(m_stemBuffer.data(), allChannelBufferSize);
 

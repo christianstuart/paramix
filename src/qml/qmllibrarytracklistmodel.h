@@ -1,8 +1,11 @@
 #pragma once
+#include <QColor>
 #include <QIdentityProxyModel>
+#include <QPointer>
 #include <QQmlEngine>
 #include <QSet>
 #include <QTimer>
+#include <QUrl>
 
 #include "library/trackmodel.h"
 #include "qml/qmllibrarytracklistcolumn.h"
@@ -16,6 +19,11 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     Q_OBJECT
     QML_NAMED_ELEMENT(LibraryTrackListModel)
     Q_PROPERTY(QQmlListProperty<mixxx::qml::QmlLibraryTrackListColumn> columns READ columns FINAL)
+    /// Monotonic counter bumped whenever the model's data changes. The cover
+    /// column binds to this so its invokable-based bindings re-evaluate when a
+    /// track's colour or cover changes (a plain function call has no model
+    /// dependency).
+    Q_PROPERTY(int revision READ revision NOTIFY revisionChanged FINAL)
     QML_UNCREATABLE("Only accessible via Mixxx.Library")
 
   public:
@@ -68,9 +76,15 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
                 parent_qlist_clear};
     }
 
+    int revision() const {
+        return m_revision;
+    }
+
     QVariant data(const QModelIndex& index, int role) const override;
     int columnCount(const QModelIndex& index = QModelIndex()) const override;
     Q_INVOKABLE QUrl getUrl(int row) const;
+    Q_INVOKABLE QUrl getCoverArtUrl(int row) const;
+    Q_INVOKABLE QColor getDecorationColor(int row) const;
     Q_INVOKABLE mixxx::qml::QmlTrackProxy* getTrack(int row) const;
     Q_INVOKABLE TrackModel::Capabilities getCapabilities() const;
     Q_INVOKABLE bool hasCapabilities(TrackModel::Capabilities caps) const;
@@ -85,8 +99,10 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     /// Emitted after a search was applied to the underlying track model so
     /// that owners can remember the query and restore it later.
     void searchRequested(const QString& searchText);
+    void revisionChanged();
 
   private:
+    void bumpRevision();
     /// Connects to StemService::instance() once it exists. Start-up may create
     /// the service after this model, so a bounded retry timer is used.
     void ensureStemServiceConnected();
@@ -95,11 +111,22 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     /// `populateStemInfo` is true the cached stem metadata is attached to the
     /// track first, mirroring what opening a cached stem source would do.
     void refreshHasStems(TrackId trackId, bool populateStemInfo);
+
+    /// Returns a shared QmlTrackProxy for a track. QML keeps the returned
+    /// object alive (JavaScript ownership); the model only caches weak
+    /// references so reusing the same track in several cells does not create a
+    /// new proxy (and its cue/beat/stem models) per cell.
+    QmlTrackProxy* trackProxyForTrack(const TrackPointer& pTrack) const;
+
     /// Track ids with an exported stem set. Used for the has_stems role so the
     /// badge also shows before the stem metadata is loaded into the track.
     QSet<TrackId> m_stemTrackIds;
 
+    mutable QHash<TrackId, QPointer<QmlTrackProxy>> m_trackProxies;
+    mutable int m_trackProxySweepCountdown = 0;
+
     std::vector<parented_ptr<QmlLibraryTrackListColumn>> m_columns;
+    int m_revision = 0;
 
     QTimer m_stemServiceRetryTimer;
     bool m_stemServiceConnected = false;

@@ -11,6 +11,7 @@
 
 #include "library/basetracktablemodel.h"
 #include "library/columncache.h"
+#include "library/proxytrackmodel.h"
 #include "moc_qmllibrarytracklistmodel.cpp"
 #include "qml/asyncimageprovider.h"
 #include "qml/qmllibrarytracklistcolumn.h"
@@ -82,6 +83,27 @@ QmlLibraryTrackListModel::QmlLibraryTrackListModel(
             this,
             &QmlLibraryTrackListModel::ensureStemServiceConnected);
     ensureStemServiceConnected();
+
+    // The cover column uses invokables instead of required model roles, so it
+    // needs an explicit dependency to re-evaluate when a track's colour or
+    // cover art changes.
+    connect(this,
+            &QAbstractItemModel::dataChanged,
+            this,
+            [this](const QModelIndex&, const QModelIndex&, const QVector<int>&) {
+                bumpRevision();
+            });
+    connect(this,
+            &QAbstractItemModel::modelReset,
+            this,
+            &QmlLibraryTrackListModel::bumpRevision);
+    connect(this,
+            &QAbstractItemModel::layoutChanged,
+            this,
+            [this](const QList<QPersistentModelIndex>&,
+                    QAbstractItemModel::LayoutChangeHint) {
+                bumpRevision();
+            });
 }
 
 void QmlLibraryTrackListModel::ensureStemServiceConnected() {
@@ -135,22 +157,83 @@ void QmlLibraryTrackListModel::refreshHasStems(
     if (lastColumn < 0) {
         return;
     }
-    const int rows = rowCount();
-    for (int row = 0; row < rows; ++row) {
-        const auto pTrack = pTrackModel->getTrack(sourceModel()->index(row, 0));
-        if (!pTrack || pTrack->getId() != trackId) {
-            continue;
+    // The track model already maintains a track-id to row index. Use it
+    // instead of walking every row for every finished separation job, which
+    // turns a batch of jobs into quadratic work on large libraries. A
+    // sorting/filtering ProxyTrackModel reports rows from its composed model,
+    // so keep the row scan for that case.
+    QVector<int> rows;
+    if (dynamic_cast<ProxyTrackModel*>(pTrackModel) != nullptr) {
+        for (int row = 0; row < rowCount(); ++row) {
+            if (pTrackModel->getTrackId(sourceModel()->index(row, 0)) == trackId) {
+                rows.append(row);
+            }
         }
-        if (populateStemInfo && pTrack->getStemInfo().isEmpty()) {
-            // The stem metadata is normally imported when the cached source is
-            // opened. Separation finished in the background, so attach it here
-            // to make the row and the HasStems role reflect the new cache.
-            pTrack->setStemInfo(mixxx::stems::StemCache::stemInfo());
+    } else {
+        rows = pTrackModel->getTrackRows(trackId);
+    }
+    bool stemInfoPopulated = false;
+    for (int row : rows) {
+        if (populateStemInfo && !stemInfoPopulated) {
+            const auto pTrack = pTrackModel->getTrack(sourceModel()->index(row, 0));
+            if (pTrack && pTrack->getStemInfo().isEmpty()) {
+                // The stem metadata is normally imported when the cached
+                // source is opened. Separation finished in the background, so
+                // attach it here to make the row and the HasStems role reflect
+                // the new cache.
+                pTrack->setStemInfo(mixxx::stems::StemCache::stemInfo());
+            }
+            stemInfoPopulated = true;
         }
         emit dataChanged(index(row, 0),
                 index(row, lastColumn),
                 QVector<int>{HasStems});
     }
+}
+
+void QmlLibraryTrackListModel::bumpRevision() {
+    ++m_revision;
+    emit revisionChanged();
+}
+
+QmlTrackProxy* QmlLibraryTrackListModel::trackProxyForTrack(
+        const TrackPointer& pTrack) const {
+    if (!pTrack) {
+        return nullptr;
+    }
+    const TrackId trackId = pTrack->getId();
+    if (trackId.isValid()) {
+        const auto it = m_trackProxies.constFind(trackId);
+        if (it != m_trackProxies.constEnd()) {
+            QmlTrackProxy* pProxy = it.value().data();
+            if (pProxy) {
+                return pProxy;
+            }
+        }
+    }
+
+    auto pProxy = make_qml_owned<QmlTrackProxy>(pTrack);
+    if (trackId.isValid()) {
+        m_trackProxies.insert(trackId, QPointer<QmlTrackProxy>(pProxy.get()));
+        // Sweeping the weak cache on every insert is quadratic once QML's GC
+        // lags a fast scroll. Sweep periodically, and clear the weak entries
+        // outright if the cache is still huge; sharing is re-established on
+        // the next request.
+        if (m_trackProxySweepCountdown-- <= 0) {
+            m_trackProxySweepCountdown = 256;
+            for (auto it = m_trackProxies.begin(); it != m_trackProxies.end();) {
+                if (it.value().isNull()) {
+                    it = m_trackProxies.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            if (m_trackProxies.size() > 4096) {
+                m_trackProxies.clear();
+            }
+        }
+    }
+    return pProxy.get();
 }
 
 QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role) const {
@@ -176,39 +259,23 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         if (pTrackModel == nullptr) {
             return {};
         }
-        auto pTrack = make_qml_owned<QmlTrackProxy>(pTrackModel->getTrack(
-                QIdentityProxyModel::mapToSource(proxyIndex)));
-        return QVariant::fromValue(pTrack.get());
-    }
-    case Qt::DecorationRole: {
-        if (pTrackTableModel == nullptr) {
-            return {};
-        };
-        return colorFromRgbCode(QIdentityProxyModel::data(
-                proxyIndex.siblingAtColumn(pTrackTableModel->fieldIndex(
-                        ColumnCache::COLUMN_LIBRARYTABLE_COLOR)),
-                Qt::DisplayRole)
-                        .toDouble());
-    }
-    case CoverArt: {
-        QString location;
-        if (pTrackTableModel != nullptr) {
-            location = QIdentityProxyModel::data(
-                    proxyIndex.siblingAtColumn(pTrackTableModel->fieldIndex(
-                            ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)),
-                    Qt::DisplayRole)
-                               .toString();
-        } else if (pTrackModel != nullptr) {
-            auto pTrack = pTrackModel->getTrack(
-                    QIdentityProxyModel::mapToSource(proxyIndex));
-            location = pTrack->getCoverInfo().coverLocation;
+        const QModelIndex sourceIndex = QIdentityProxyModel::mapToSource(proxyIndex);
+        // Most cells in a row request the same track. The id lookup lets the
+        // cached proxy answer without loading the track again.
+        const TrackId trackId = pTrackModel->getTrackId(sourceIndex);
+        if (trackId.isValid()) {
+            const auto it = m_trackProxies.constFind(trackId);
+            if (it != m_trackProxies.constEnd() && !it.value().isNull()) {
+                return QVariant::fromValue(it.value().data());
+            }
         }
-        if (location.isEmpty()) {
-            return {};
-        }
-
-        return AsyncImageProvider::trackLocationToCoverArtUrl(location);
+        const auto pTrack = pTrackModel->getTrack(sourceIndex);
+        return QVariant::fromValue(trackProxyForTrack(pTrack));
     }
+    case Qt::DecorationRole:
+        return getDecorationColor(proxyIndex.row());
+    case CoverArt:
+        return getCoverArtUrl(proxyIndex.row());
     case FileURL: {
         if (pTrackModel == nullptr) {
             return {};
@@ -216,18 +283,23 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         return pTrackModel->getTrackUrl(QIdentityProxyModel::mapToSource(proxyIndex));
     }
     case HasStems: {
-        // Cheap check on the already loaded track. The stem service status is
-        // intentionally not queried per cell, because that may hit the database.
+        // The stem service status is intentionally not queried per cell,
+        // because that may hit the database. The id lookup is cheaper than
+        // loading the whole track, and most rows will already be in the set.
         if (pTrackModel == nullptr) {
             return false;
         }
-        const auto pTrack = pTrackModel->getTrack(
-                QIdentityProxyModel::mapToSource(proxyIndex));
-        if (!pTrack) {
+        const TrackId trackId =
+                pTrackModel->getTrackId(QIdentityProxyModel::mapToSource(proxyIndex));
+        if (!trackId.isValid()) {
             return false;
         }
-        return !pTrack->getStemInfo().isEmpty() ||
-                m_stemTrackIds.contains(pTrack->getId());
+        if (m_stemTrackIds.contains(trackId)) {
+            return true;
+        }
+        const auto pTrack = pTrackModel->getTrack(
+                QIdentityProxyModel::mapToSource(proxyIndex));
+        return pTrack && !pTrack->getStemInfo().isEmpty();
     }
     case Delegate:
         return QVariant::fromValue(pColumn->delegate());
@@ -277,6 +349,50 @@ QUrl QmlLibraryTrackListModel::getUrl(int row) const {
     return pTrackModel->getTrackUrl(sourceModel()->index(row, 0));
 }
 
+QUrl QmlLibraryTrackListModel::getCoverArtUrl(int row) const {
+    const QModelIndex rowIndex = index(row, 0);
+    if (!rowIndex.isValid()) {
+        return {};
+    }
+    auto* const pTrackTableModel = qobject_cast<BaseTrackTableModel*>(sourceModel());
+    auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());
+
+    QString location;
+    if (pTrackTableModel != nullptr) {
+        location = QIdentityProxyModel::data(
+                rowIndex.siblingAtColumn(pTrackTableModel->fieldIndex(
+                        ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)),
+                Qt::DisplayRole)
+                           .toString();
+    } else if (pTrackModel != nullptr) {
+        const auto pTrack = pTrackModel->getTrack(rowIndex);
+        if (!pTrack) {
+            return {};
+        }
+        location = pTrack->getCoverInfo().coverLocation;
+    }
+    if (location.isEmpty()) {
+        return {};
+    }
+    return AsyncImageProvider::trackLocationToCoverArtUrl(location);
+}
+
+QColor QmlLibraryTrackListModel::getDecorationColor(int row) const {
+    const QModelIndex rowIndex = index(row, 0);
+    if (!rowIndex.isValid()) {
+        return {};
+    }
+    auto* const pTrackTableModel = qobject_cast<BaseTrackTableModel*>(sourceModel());
+    if (pTrackTableModel == nullptr) {
+        return {};
+    }
+    return colorFromRgbCode(QIdentityProxyModel::data(
+            rowIndex.siblingAtColumn(pTrackTableModel->fieldIndex(
+                    ColumnCache::COLUMN_LIBRARYTABLE_COLOR)),
+            Qt::DisplayRole)
+                    .toDouble());
+}
+
 QmlTrackProxy* QmlLibraryTrackListModel::getTrack(int row) const {
     auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());
 
@@ -284,7 +400,8 @@ QmlTrackProxy* QmlLibraryTrackListModel::getTrack(int row) const {
         // TODO search for column with role
         return {};
     }
-    return make_qml_owned<QmlTrackProxy>(pTrackModel->getTrack(sourceModel()->index(row, 0)));
+    return trackProxyForTrack(
+            pTrackModel->getTrack(sourceModel()->index(row, 0)));
 }
 
 TrackModel::Capabilities QmlLibraryTrackListModel::getCapabilities() const {
