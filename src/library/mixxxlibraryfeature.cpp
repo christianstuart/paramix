@@ -235,7 +235,6 @@ void MixxxLibraryFeature::activate() {
 void MixxxLibraryFeature::activateChild(const QModelIndex& index) {
     QString itemName = index.data().toString();
     emit saveModelState();
-    emit switchToView(itemName);
     if (itemName == kMissingTitle) {
         MissingTableModel* pModel = missingModel();
         pModel->select();
@@ -251,6 +250,9 @@ void MixxxLibraryFeature::activateChild(const QModelIndex& index) {
             emit restoreSearch(m_pHiddenView->currentSearch());
         }
     }
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the view of this child has to win in the classic UI.
+    emit switchToView(itemName);
     emit enableCoverArtDisplay(true);
 }
 

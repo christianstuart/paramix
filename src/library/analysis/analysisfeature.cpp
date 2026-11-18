@@ -155,13 +155,15 @@ AnalysisLibraryTableModel* AnalysisFeature::analysisModel() {
 
 void AnalysisFeature::activate() {
     // qDebug() << "AnalysisFeature::activate()";
-    emit switchToView(kViewName);
     AnalysisLibraryTableModel* pModel = analysisModel();
     pModel->select();
     emit showTrackModel(pModel);
     if (m_pAnalysisView) {
         emit restoreSearch(m_pAnalysisView->currentSearch());
     }
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the analysis view has to win in the classic UI.
+    emit switchToView(kViewName);
     emit enableCoverArtDisplay(true);
 }
 

@@ -199,12 +199,14 @@ TreeItemModel* AutoDJFeature::sidebarModel() const {
 
 void AutoDJFeature::activate() {
     //qDebug() << "AutoDJFeature::activate()";
-    emit switchToView(m_viewName);
     emit disableSearch();
     emit enableCoverArtDisplay(true);
     PlaylistTableModel* pModel = autoDjQueueModel();
     pModel->select();
     emit showTrackModel(pModel);
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the Auto DJ view has to win in the classic UI.
+    emit switchToView(m_viewName);
 }
 
 PlaylistTableModel* AutoDJFeature::autoDjQueueModel() const {

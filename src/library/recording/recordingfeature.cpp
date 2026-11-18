@@ -77,10 +77,12 @@ void RecordingFeature::bindLibraryWidget(WLibrary* pLibraryWidget,
 void RecordingFeature::activate() {
     updateBrowseModel();
     emit refreshBrowseModel();
-    emit switchToView(kViewName);
     emit requestRestoreSearch();
     emit enableCoverArtDisplay(false);
     emit showTrackModel(&m_proxyModel);
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the recording view has to win in the classic UI.
+    emit switchToView(kViewName);
 }
 
 void RecordingFeature::updateBrowseModel() {
