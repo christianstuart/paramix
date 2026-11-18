@@ -24,6 +24,8 @@ class SetlogFeature : public BasePlaylistFeature {
 
     /// True if `index` is a year group node rather than a history playlist.
     bool isYearIndex(const QModelIndex& index) const;
+    /// True for the playlist that is currently being recorded (today's).
+    bool isCurrentPlaylistIndex(const QModelIndex& index) const;
 
   public slots:
     void onRightClick(const QPoint& globalPos) override;
