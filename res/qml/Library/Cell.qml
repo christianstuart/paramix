@@ -9,15 +9,40 @@ Rectangle {
     id: root
 
     readonly property alias dragImage: dragImageEffect
+    /// The track table this cell belongs to. The table's drop handler uses it
+    /// to tell an internal row drag from a drag that comes from outside Mixxx.
+    readonly property var trackList: tableView
 
     Drag.dragType: Drag.Automatic
     Drag.mimeData: {
-        "text/uri-list": file_url.toString(),
-        "text/plain": file_url.toString()
+        // Dragging a selected row moves the whole selection.
+        const selection = trackList ? trackList.selectionModel : null;
+        let urls = [];
+        if (selection && selected) {
+            urls = selection.selectedTrackUrls();
+        }
+        if (urls.length === 0) {
+            urls = [file_url.toString()];
+        }
+        return {
+            "text/uri-list": urls.join("\n"),
+            "text/plain": urls.join("\n")
+        };
     }
     Drag.supportedActions: Qt.CopyAction
     anchors.fill: parent
     color: selected ? Qt.alpha(Theme.accent, 0.22) : hoverHandler.hovered ? Theme.surfaceHover : (row % 2 == 0 ? Theme.surface1 : Theme.surface0)
+
+    Drag.onActiveChanged: {
+        // Starting a drag on an unselected row acts on that row, like a press
+        // in the classic table.
+        if (!Drag.active || selected) {
+            return;
+        }
+        if (trackList && trackList.selectionModel) {
+            trackList.selectionModel.selectSingleton(row);
+        }
+    }
 
     HoverHandler {
         id: hoverHandler

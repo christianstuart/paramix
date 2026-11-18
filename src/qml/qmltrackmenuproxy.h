@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QQmlEngine>
+#include <QUrl>
 #include <QVariantList>
 #include <memory>
 
@@ -68,6 +69,16 @@ class QmlLibraryTrackMenu : public QObject {
     /// confirmation the classic track table uses.
     Q_INVOKABLE void removeSelectedRows(QmlLibraryTrackListModel* pModel,
             const QList<int>& rows);
+    /// Moves the rows to `destinationRow` (drag and drop reordering of a
+    /// playlist). Ignored by sources without the reorder capability.
+    Q_INVOKABLE void moveSelectedRows(QmlLibraryTrackListModel* pModel,
+            const QList<int>& rows,
+            int destinationRow);
+    /// Imports the supported audio files and folders below `urls` into the
+    /// track list's source (and the library). Returns the number of added
+    /// tracks; 0 means nothing usable was dropped.
+    Q_INVOKABLE int importDroppedUrls(QmlLibraryTrackListModel* pModel,
+            const QList<QUrl>& urls);
 
   signals:
     /// Emitted when an action changed the underlying model and the caller

@@ -64,6 +64,10 @@ Rectangle {
             return;
         view.selectionModel.selectSingleton(row);
     }
+    function showDropMessage(message) {
+        dropMessage.text = message;
+        dropMessageTimer.restart();
+    }
     function showTrackMenu(row, position) {
         view.forceActiveFocus();
         root.contextRow = row;
@@ -643,6 +647,35 @@ Rectangle {
                 view.forceLayout();
             }
         }
+
+        DropArea {
+            id: trackDropArea
+
+            anchors.fill: parent
+
+            // Rows dragged out of this table are reordered; anything else is
+            // imported into the source shown here.
+            onDropped: drop => {
+                if (drop.source && drop.source.trackList === view) {
+                    if (!root.model || !root.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Reorder))
+                        return;
+                    const rowCount = view.selectionModel.modelRowCount();
+                    const destination = Math.max(0, Math.min(rowCount, Math.floor((drop.y + view.contentY) / root.rowHeight)));
+                    Mixxx.LibraryTrackMenu.moveSelectedRows(root.model, view.selectionModel.selectedRows(), destination);
+                    drop.acceptProposedAction();
+                    return;
+                }
+                if (!drop.hasUrls)
+                    return;
+                if (Mixxx.LibraryTrackMenu.importDroppedUrls(root.model, drop.urls) === 0)
+                    root.showDropMessage(qsTr("Nothing was added. Drop audio files or folders onto an unlocked view."));
+                drop.acceptProposedAction();
+            }
+            onEntered: drag => {
+                // Accept URL drops and internal row drags only.
+                drag.accepted = drag.hasUrls || (drag.source && drag.source.trackList === view);
+            }
+        }
     }
     Connections {
         function onRestoreSelectionRequested() {
@@ -662,5 +695,48 @@ Rectangle {
     }
     LibraryComponent.TrackMenu {
         id: trackMenu
+    }
+    Rectangle {
+        id: dropMessage
+
+        property alias text: dropMessageLabel.text
+
+        Accessible.name: dropMessageLabel.text
+        Accessible.role: Accessible.StaticText
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.space3
+        anchors.horizontalCenter: parent.horizontalCenter
+        border.color: Theme.borderStrong
+        border.width: 1
+        color: Theme.surface3
+        height: 26
+        radius: Theme.radiusSm
+        visible: dropMessageLabel.text.length > 0 && dropMessageTimer.running
+        width: Math.min(root.width - 2 * Theme.space3, dropMessageLabel.implicitWidth + 2 * Theme.space3)
+        z: 2
+
+        Text {
+            id: dropMessageLabel
+
+            anchors.centerIn: parent
+            color: Theme.textPrimary
+            elide: Text.ElideRight
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm
+            width: parent.width - 2 * Theme.space2
+        }
+    }
+    Timer {
+        id: dropMessageTimer
+
+        interval: 4000
+    }
+    Rectangle {
+        anchors.fill: view
+        border.color: Theme.accent
+        border.width: 2
+        color: "transparent"
+        visible: trackDropArea.containsDrag
+        z: 1
     }
 }
