@@ -293,6 +293,26 @@ TEST_F(PadFxTest, EchoOutReadsForwardThroughTheDelayLine) {
     // a much larger falling slope.
     EXPECT_GT(last, first - 1e-3f);
 }
+
+TEST_F(PadFxTest, SecondClickDuringGestureStopsThePad) {
+    auto pBrake = m_pEffectsManager->getPadEffectChain(stemGroup(0))->getEffectSlot(0);
+    ASSERT_NE(nullptr, pBrake.data());
+
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
+    processEventsFor(50);
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+    EXPECT_GT(findParameterValue(pBrake, "active"), 0.5);
+
+    // The brake is still winding down; a second click must cancel it instead
+    // of being ignored until the timer expires.
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 0.0);
+    processEventsFor(20);
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
+    processEventsFor(50);
+
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+    EXPECT_NEAR(0.0, findParameterValue(pBrake, "active"), 1e-6);
+}
 TEST_F(PadFxTest, NonStemTrackDisablesPads) {
     m_pStemCount->forceSet(0.0);
     processEventsFor(50);

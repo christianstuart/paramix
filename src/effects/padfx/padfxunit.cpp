@@ -421,12 +421,11 @@ void PadFxUnit::slotPadChanged(int pad) {
         if (stemCount() <= 0 || cfg.effect == static_cast<int>(PadEffect::Off)) {
             return;
         }
-        if (m_runtime[pad].muteOwned) {
-            restoreMuteOwned(pad);
-            setPadActiveControl(pad, false);
-            return;
-        }
-        if (m_runtime[pad].gestureActive) {
+        if (m_runtime[pad].muteOwned || m_runtime[pad].gestureActive) {
+            // A second click always toggles the pad off, even if the brake or
+            // echo gesture is still running. Previously those clicks were
+            // ignored until the gesture timer expired.
+            stopPad(pad);
             return;
         }
 
@@ -481,6 +480,19 @@ void PadFxUnit::finishPad(int pad) {
     const auto mode = static_cast<PadMode>(
             m_config.banks.at(m_config.bank - 1).pads[pad].mode);
     setPadActiveControl(pad, mode == PadMode::Toggle);
+}
+
+void PadFxUnit::stopPad(int pad) {
+    m_padTimers[pad]->stop();
+    if (m_runtime[pad].muteOwned) {
+        restoreMuteOwned(pad);
+    } else {
+        setEffectActive(pad, false);
+        m_runtime[pad].gestureActive = false;
+        setPadActiveControl(pad, false);
+        m_pPadMuted[pad]->forceSet(0.0);
+    }
+    m_runtime[pad].down = false;
 }
 
 void PadFxUnit::restoreMuteOwned(int pad) {
