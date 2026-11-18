@@ -47,9 +47,6 @@ Rectangle {
             return [qsTr("Echo Time"), qsTr("Feedback"), qsTr("Tail"), qsTr("Reverb"), qsTr("Rev Time")][index] || "";
         return "";
     }
-    function setTargetMask(targetControl, mask) {
-        targetControl.value = mask;
-    }
     function toggleTarget(targetControl, bit) {
         const current = Math.round(targetControl.value);
         const next = current ^ (1 << bit);
@@ -98,12 +95,6 @@ Rectangle {
                 font.pixelSize: Theme.fontSizeMd
                 font.weight: Theme.fontWeightDemiBold
                 text: qsTr("Deck %1").arg(root.group.replace(/[^0-9]/g, ""))
-            }
-            Text {
-                color: Theme.textMuted
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeSm
-                text: qsTr("Bank A")
             }
         }
         Text {
@@ -189,7 +180,7 @@ Rectangle {
                         }
                         Skin.ComboBox {
                             Layout.preferredWidth: 112
-                            clip: true
+                            textLeftPadding: Theme.space2
                             currentIndex: Math.max(0, Math.min(2, padCard.effectIndex))
                             model: root.effectNames
                             popupMaxItem: 4
@@ -200,7 +191,7 @@ Rectangle {
                         }
                         Skin.ComboBox {
                             Layout.preferredWidth: 88
-                            clip: true
+                            textLeftPadding: Theme.space2
                             currentIndex: Math.max(0, Math.min(2, Math.round(padMode.value)))
                             model: root.modeNames
                             popupMaxItem: 4
@@ -234,30 +225,6 @@ Rectangle {
 
                                 onClicked: root.toggleTarget(padTarget, index)
                             }
-                        }
-                        Skin.Button {
-                            implicitHeight: 20
-                            implicitWidth: 38
-                            highlight: padCard.targetMask === 7
-                            text: qsTr("Inst")
-
-                            onClicked: root.setTargetMask(padTarget, 7)
-                        }
-                        Skin.Button {
-                            implicitHeight: 20
-                            implicitWidth: 38
-                            highlight: padCard.targetMask === 8
-                            text: qsTr("Voc")
-
-                            onClicked: root.setTargetMask(padTarget, 8)
-                        }
-                        Skin.Button {
-                            implicitHeight: 20
-                            implicitWidth: 30
-                            highlight: padCard.targetMask === 15
-                            text: qsTr("All")
-
-                            onClicked: root.setTargetMask(padTarget, 15)
                         }
                     }
                     GridLayout {
