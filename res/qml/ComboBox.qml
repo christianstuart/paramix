@@ -96,7 +96,8 @@ ComboBox {
         implicitHeight: root.itemHeight
         padding: 0
         text: root.textAt(itemDlgt.index)
-        width: root.width
+        // Popup rows fill the list; using the trigger width clipped every name.
+        width: ListView.view.width
 
         background: Rectangle {
             color: itemDlgt.highlighted

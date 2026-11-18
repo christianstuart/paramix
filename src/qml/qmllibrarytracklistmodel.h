@@ -4,6 +4,7 @@
 #include <QPointer>
 #include <QQmlEngine>
 #include <QSet>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 
@@ -94,6 +95,11 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
             Qt::Orientation orientation,
             int role = Qt::DisplayRole) const override;
     Q_INVOKABLE void sort(int column, Qt::SortOrder order) override;
+    /// Applies a column order and visibility shared by every source. Keys that
+    /// are missing from `orderKeys` keep their relative order at the end, so a
+    /// saved layout from an older version does not hide newly added columns.
+    void applyColumnLayout(const QStringList& orderKeys,
+            const QStringList& hiddenKeys);
 
   signals:
     /// Emitted after a search was applied to the underlying track model so

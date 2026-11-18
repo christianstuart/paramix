@@ -170,6 +170,7 @@ const QString kParamixShowBatteryKey = QStringLiteral("ShowBattery");
 const QString kParamixShowCpuKey = QStringLiteral("ShowCpu");
 const QString kParamixShowGpuKey = QStringLiteral("ShowGpu");
 const QString kParamixFourBandEqKey = QStringLiteral("FourBandEq");
+const QString kParamixLibraryColumnsKey = QStringLiteral("LibraryColumns");
 
 } // namespace
 
@@ -1214,6 +1215,11 @@ PROPERTY_IMPL(kParamixGroup,
         bool,
         paramixFourBandEq,
         false);
+PROPERTY_IMPL(kParamixGroup,
+        kParamixLibraryColumnsKey,
+        QString,
+        paramixLibraryColumns,
+        QString());
 
 void QmlConfigProxy::notifyParamixSettingsChanged() {
     emit paramixColorSchemeChanged();
@@ -1233,6 +1239,7 @@ void QmlConfigProxy::notifyParamixSettingsChanged() {
     emit paramixShowCpuChanged();
     emit paramixShowGpuChanged();
     emit paramixFourBandEqChanged();
+    emit paramixLibraryColumnsChanged();
 }
 
 // static

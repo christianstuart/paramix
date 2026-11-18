@@ -11,6 +11,8 @@
 #include "library/librarytablemodel.h"
 #include "library/missing_hidden/dlghidden.h"
 #include "library/missing_hidden/dlgmissing.h"
+#include "library/missing_hidden/hiddentablemodel.h"
+#include "library/missing_hidden/missingtablemodel.h"
 #include "library/parser.h"
 #include "library/queryutil.h"
 #include "library/trackcollection.h"
@@ -31,6 +33,8 @@ MixxxLibraryFeature::MixxxLibraryFeature(Library* pLibrary,
           kHiddenTitle(tr("Hidden Tracks")),
           m_pTrackCollection(pLibrary->trackCollectionManager()->internalCollection()),
           m_pLibraryTableModel(nullptr),
+          m_pMissingTableModel(nullptr),
+          m_pHiddenTableModel(nullptr),
           m_pSidebarModel(make_parented<TreeItemModel>(this)),
           m_pMissingView(nullptr),
           m_pHiddenView(nullptr),
@@ -187,9 +191,14 @@ void MixxxLibraryFeature::refreshLibraryModels() {
     }
     if (m_pMissingView) {
         m_pMissingView->onShow();
+    } else if (m_pMissingTableModel) {
+        // QML interface: no dialog view, refresh the model directly.
+        m_pMissingTableModel->select();
     }
     if (m_pHiddenView) {
         m_pHiddenView->onShow();
+    } else if (m_pHiddenTableModel) {
+        m_pHiddenTableModel->select();
     }
 }
 
@@ -226,13 +235,41 @@ void MixxxLibraryFeature::activate() {
 void MixxxLibraryFeature::activateChild(const QModelIndex& index) {
     QString itemName = index.data().toString();
     emit saveModelState();
-    emit switchToView(itemName);
-    if (m_pMissingView && itemName == kMissingTitle) {
-        emit restoreSearch(m_pMissingView->currentSearch());
-    } else if (m_pHiddenView && itemName == kHiddenTitle) {
-        emit restoreSearch(m_pHiddenView->currentSearch());
+    if (itemName == kMissingTitle) {
+        MissingTableModel* pModel = missingModel();
+        pModel->select();
+        emit showTrackModel(pModel);
+        if (m_pMissingView) {
+            emit restoreSearch(m_pMissingView->currentSearch());
+        }
+    } else if (itemName == kHiddenTitle) {
+        HiddenTableModel* pModel = hiddenModel();
+        pModel->select();
+        emit showTrackModel(pModel);
+        if (m_pHiddenView) {
+            emit restoreSearch(m_pHiddenView->currentSearch());
+        }
     }
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the view of this child has to win in the classic UI.
+    emit switchToView(itemName);
     emit enableCoverArtDisplay(true);
+}
+
+MissingTableModel* MixxxLibraryFeature::missingModel() {
+    if (!m_pMissingTableModel) {
+        m_pMissingTableModel = new MissingTableModel(
+                this, m_pLibrary->trackCollectionManager());
+    }
+    return m_pMissingTableModel;
+}
+
+HiddenTableModel* MixxxLibraryFeature::hiddenModel() {
+    if (!m_pHiddenTableModel) {
+        m_pHiddenTableModel = new HiddenTableModel(
+                this, m_pLibrary->trackCollectionManager());
+    }
+    return m_pHiddenTableModel;
 }
 
 bool MixxxLibraryFeature::dropAccept(const QList<QUrl>& urls, QObject* pSource) {

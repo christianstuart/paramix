@@ -76,6 +76,11 @@ RowLayout {
         Item {
             implicitHeight: Math.round(9 * Theme.uiScale)
             implicitWidth: Math.round(18 * Theme.uiScale)
+            // Nudge the glyph up half a pixel so it optically centres with the
+            // percentage text next to it.
+            transform: Translate {
+                y: -0.5
+            }
 
             Rectangle {
                 id: batteryShell

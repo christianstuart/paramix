@@ -2,8 +2,10 @@
 
 #include "controllers/keyboard/keyboardeventfilter.h"
 #include "library/browse/foldertreemodel.h"
+#include "library/library.h"
 #include "library/recording/dlgrecording.h"
 #include "moc_recordingfeature.cpp"
+#include "recording/recordingmanager.h"
 #include "widget/wlibrary.h"
 
 namespace {
@@ -17,7 +19,14 @@ RecordingFeature::RecordingFeature(Library* pLibrary,
         RecordingManager* pRecordingManager)
         : LibraryFeature(pLibrary, pConfig, QStringLiteral("recordings")),
           m_pRecordingManager(pRecordingManager),
-          m_pSidebarModel(new FolderTreeModel(this)) {
+          m_pSidebarModel(new FolderTreeModel(this)),
+          m_browseModel(this,
+                  pLibrary->trackCollectionManager(),
+                  pRecordingManager,
+                  "mixxx.db.model.recording"),
+          m_proxyModel(&m_browseModel, true) {
+    m_proxyModel.setFilterCaseSensitivity(Qt::CaseInsensitive);
+    m_proxyModel.setSortCaseSensitivity(Qt::CaseInsensitive);
 }
 
 QVariant RecordingFeature::title() {
@@ -66,8 +75,24 @@ void RecordingFeature::bindLibraryWidget(WLibrary* pLibraryWidget,
 }
 
 void RecordingFeature::activate() {
+    updateBrowseModel();
     emit refreshBrowseModel();
-    emit switchToView(kViewName);
     emit requestRestoreSearch();
     emit enableCoverArtDisplay(false);
+    emit showTrackModel(&m_proxyModel);
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the recording view has to win in the classic UI.
+    emit switchToView(kViewName);
+}
+
+void RecordingFeature::updateBrowseModel() {
+    m_browseModel.setPath(mixxx::FileAccess(
+            mixxx::FileInfo(m_pRecordingManager->getRecordingDir())));
+}
+
+void RecordingFeature::stopPendingTasks() {
+    // BrowseTableModel shares a ref-counted browse thread; all references have
+    // to be released before the Library is destroyed.
+    m_browseModel.stopBrowseThread();
+    m_browseModel.releaseBrowseThread();
 }

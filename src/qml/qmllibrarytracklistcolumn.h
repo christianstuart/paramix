@@ -16,11 +16,13 @@ namespace qml {
 
 class QmlLibraryTrackListColumn : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString key MEMBER m_key FINAL)
     Q_PROPERTY(QString label MEMBER m_label FINAL)
     Q_PROPERTY(int fillSpan MEMBER m_fillSpan FINAL)
     Q_PROPERTY(int columnIdx MEMBER m_columnIdx FINAL)
     Q_PROPERTY(double preferredWidth MEMBER m_preferredWidth FINAL)
     Q_PROPERTY(double autoHideWidth MEMBER m_autoHideWidth FINAL)
+    Q_PROPERTY(bool hidden MEMBER m_hidden FINAL)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate FINAL)
     Q_PROPERTY(Role role MEMBER m_role FINAL)
     QML_NAMED_ELEMENT(TrackListColumn)
@@ -30,10 +32,21 @@ class QmlLibraryTrackListColumn : public QObject {
         Artist = ColumnCache::COLUMN_LIBRARYTABLE_ARTIST,
         Title = ColumnCache::COLUMN_LIBRARYTABLE_TITLE,
         Year = ColumnCache::COLUMN_LIBRARYTABLE_YEAR,
+        Genre = ColumnCache::COLUMN_LIBRARYTABLE_GENRE,
         Bpm = ColumnCache::COLUMN_LIBRARYTABLE_BPM,
         Key = ColumnCache::COLUMN_LIBRARYTABLE_KEY,
         FileType = ColumnCache::COLUMN_LIBRARYTABLE_FILETYPE,
         Bitrate = ColumnCache::COLUMN_LIBRARYTABLE_BITRATE,
+        AlbumArtist = ColumnCache::COLUMN_LIBRARYTABLE_ALBUMARTIST,
+        Composer = ColumnCache::COLUMN_LIBRARYTABLE_COMPOSER,
+        Grouping = ColumnCache::COLUMN_LIBRARYTABLE_GROUPING,
+        TrackNumber = ColumnCache::COLUMN_LIBRARYTABLE_TRACKNUMBER,
+        Comment = ColumnCache::COLUMN_LIBRARYTABLE_COMMENT,
+        Duration = ColumnCache::COLUMN_LIBRARYTABLE_DURATION,
+        DateAdded = ColumnCache::COLUMN_LIBRARYTABLE_DATETIMEADDED,
+        TimesPlayed = ColumnCache::COLUMN_LIBRARYTABLE_TIMESPLAYED,
+        LastPlayed = ColumnCache::COLUMN_LIBRARYTABLE_LAST_PLAYED_AT,
+        ReplayGain = ColumnCache::COLUMN_LIBRARYTABLE_REPLAYGAIN,
     };
     Q_ENUM(SQLColumns)
     enum class Role {
@@ -47,15 +60,26 @@ class QmlLibraryTrackListColumn : public QObject {
             : QObject(parent) {
     }
     explicit QmlLibraryTrackListColumn(QObject* parent,
+            const QString& key,
             const QString& label,
             int fillSpan,
             int columnIdx,
             double preferredWidth,
             double autoHideWidth,
             QQmlComponent* delegate,
-            Role role);
+            Role role,
+            bool hidden = false);
+    const QString& key() const {
+        return m_key;
+    }
     const QString& label() const {
         return m_label;
+    }
+    bool hidden() const {
+        return m_hidden;
+    }
+    void setHidden(bool hidden) {
+        m_hidden = hidden;
     }
     Role role() const {
         return m_role;
@@ -80,12 +104,14 @@ class QmlLibraryTrackListColumn : public QObject {
     }
 
   private:
+    QString m_key;
     QString m_label;
     Role m_role;
     int m_fillSpan{0};
     int m_columnIdx{-1};
     double m_preferredWidth{-1};
     double m_autoHideWidth{-1};
+    bool m_hidden{false};
     qml_owned_ptr<QQmlComponent> m_pDelegate;
 };
 } // namespace qml

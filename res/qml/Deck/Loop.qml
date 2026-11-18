@@ -79,13 +79,17 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.space1
-        spacing: Theme.space1
+        // The roll keys live in the header row; tightening the row gaps pays
+        // for its extra 6 px so the card stays 62 px tall.
+        spacing: 1
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 10
+            Layout.preferredHeight: 16
 
             Text {
+                id: loopLabel
+
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.textMuted
@@ -94,8 +98,44 @@ Rectangle {
                 font.letterSpacing: Theme.letterSpacingCaps
                 font.pixelSize: Theme.fontSizeXs
                 text: qsTr("Loop")
+                width: Math.max(0, rollKeys.x - 4)
+                elide: Text.ElideRight
+            }
+            Row {
+                id: rollKeys
+
+                anchors.right: loopDot.left
+                anchors.rightMargin: 6
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+
+                Repeater {
+                    model: [0.5, 1, 2, 4]
+
+                    Skin.ControlButton {
+                        required property double modelData
+
+                        activeColor: Theme.textOnAccent
+                        group: root.group
+                        height: 14
+                        // "1/2" needs the 12 px label padding plus its glyphs.
+                        implicitHeight: 14
+                        implicitWidth: 28
+                        key: "beatlooproll_" + modelData + "_activate"
+                        normalColor: root.buttonColor
+                        text: beatloopSize.formatBeatSize(modelData)
+                        width: 28
+
+                        Accessible.description: qsTr("Hold to roll a %1 beat loop")
+                                                 .arg(beatloopSize.formatBeatSize(modelData))
+                        Accessible.name: qsTr("Loop roll %1")
+                                          .arg(beatloopSize.formatBeatSize(modelData))
+                    }
+                }
             }
             Rectangle {
+                id: loopDot
+
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 border.color: loopEnabled.value ? Theme.accent : Theme.borderStrong

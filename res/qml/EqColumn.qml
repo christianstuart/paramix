@@ -14,18 +14,14 @@ import "Theme"
 Column {
     id: root
 
-    required property string group
-    /// The fourth band exists only in the Biquad EQ (4 knobs); other mixing
-    /// equalizers expose 3 (isolators) or a different set (graphic/parametric),
-    /// so the extra knob stays hidden instead of controlling the wrong filter.
-    readonly property bool fourBand: Mixxx.Config.paramixFourBandEq === true
-                                      && eqParameterCount.value === 4
     readonly property var bands: {
-        const bands = [{
+        const bands = [
+            {
                 "label": qsTr("HI"),
                 "key": "parameter3",
                 "statusKey": "button_parameter3"
-            }];
+            }
+        ];
         if (root.fourBand) {
             bands.push({
                 "label": qsTr("M-HI"),
@@ -44,8 +40,13 @@ Column {
         });
         return bands;
     }
+    /// The fourth band exists only in the Biquad EQ (4 knobs); other mixing
+    /// equalizers expose 3 (isolators) or a different set (graphic/parametric),
+    /// so the extra knob stays hidden instead of controlling the wrong filter.
+    readonly property bool fourBand: Mixxx.Config.paramixFourBandEq === true && eqParameterCount.value === 4
+    required property string group
 
-    spacing: 1
+    spacing: 2
 
     Mixxx.ControlProxy {
         id: eqParameterCount
@@ -53,7 +54,6 @@ Column {
         group: "[EqualizerRack1_" + root.group + "_Effect1]"
         key: "num_parameters"
     }
-
     Repeater {
         model: root.bands
 
@@ -66,6 +66,9 @@ Column {
             width: root.width
 
             Skin.EqKnob {
+                // 29 px box (27 px knob + 1 px padding) keeps the 2 px
+                // inter-band gaps at fontScale 1.35 without growing the strip.
+                height: 29
                 knob.color: Theme.textPrimary
                 knob.group: "[EqualizerRack1_" + root.group + "_Effect1]"
                 knob.key: band.modelData.key
@@ -92,18 +95,24 @@ Column {
 
         Accessible.name: qsTr("Quick effect preset")
         Accessible.role: Accessible.ComboBox
-        clip: true
         currentIndex: fxSelect.value == -1 ? 0 : fxSelect.value
-        font.pixelSize: Theme.fontSizeXs
-        implicitHeight: 16
+        // 36 px strip: drop the theme padding so the preset name has 26 px of
+        // text instead of 16, elide rather than hard-cut the longer ones, and
+        // let the height follow the type so fontScale 1.35 does not clip it.
+        font.pixelSize: Theme.fontSizeSm
+        implicitHeight: Math.max(16, Theme.fontSizeSm + 4)
         indicator.width: 0
+        leftPadding: Theme.space1
         model: Mixxx.EffectsManager.quickChainPresetModel
         popupMaxItem: 8
         popupWidth: 100
-        rightPadding: Theme.space1
+        rightPadding: 0
         spacing: Theme.space1
+        textLeftPadding: 0
         textRole: "display"
-        width: parent.width
+        // Leave 2 px on the right so the preset box does not read as touching
+        // the fader in the next strip.
+        width: root.width - 2
 
         onActivated: index => {
             fxSelect.value = index;

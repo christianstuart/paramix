@@ -1,6 +1,7 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQuick.Controls 2.12
 import QtQuick.Shapes
 import QtQuick.Layouts
 import QtQml.Models // DelegateChoice for Qt >= 6.9
@@ -18,14 +19,14 @@ Rectangle {
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
     required property string group
     property color lineColor: Theme.border
+    readonly property int metaSize: Theme.fontSizeXs
     property bool minimized: false
     required property int rightColumnWidth
+    readonly property int secondarySize: root.minimized ? Theme.fontSizeXs : Theme.fontSizeSm
 
     // ── Density and artwork ────────────────────────────────────────────────
     readonly property bool showCoverArt: Mixxx.Config.paramixShowCoverArt !== false && !root.minimized
     readonly property int titleSize: root.minimized ? Theme.fontSizeSm : Theme.fontSizeLg + 1
-    readonly property int secondarySize: root.minimized ? Theme.fontSizeXs : Theme.fontSizeSm
-    readonly property int metaSize: Theme.fontSizeXs
 
     /// Valid track colour, or `null` when the track has none.
     readonly property var trackColorValue: {
@@ -72,7 +73,6 @@ Rectangle {
         visible: root.showCoverArt
         width: 4
     }
-
     Item {
         id: coverArtFrame
 
@@ -108,7 +108,6 @@ Rectangle {
             radius: Theme.radiusSm
         }
     }
-
     DelegateChooser {
         id: cellDelegate
 
@@ -173,9 +172,9 @@ Rectangle {
                     group: root.group
                     key: "playposition"
                 }
-
                 TrackTime {
                     id: time
+
                     display: Mixxx.Config.controlPositionDisplay
                     elapsed: durationControl.value * playPositionControl.value
                     font.pixelSize: root.metaSize
@@ -189,20 +188,67 @@ Rectangle {
             roleValue: "key"
 
             Cell {
+                // Right-aligned so the key reads as part of the rating cluster
+                // instead of floating in the middle of its fixed column.
+                Layout.rightMargin: Theme.space2
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Sync and Reset Key")
+                ToolTip.visible: keyMouse.containsMouse
                 item.color: Theme.textPrimary
                 item.font.family: Theme.fontFamilyMono
                 item.font.pixelSize: root.secondarySize + 1
                 item.font.weight: Theme.fontWeightDemiBold
-                item.text: Mixxx.KeyUtils.keyIsValid(keyControl.value)
-                        ? Mixxx.KeyUtils.keyToString(keyControl.value)
-                        : ""
+                item.horizontalAlignment: Text.AlignRight
+                item.text: Mixxx.KeyUtils.keyIsValid(visualKeyControl.value) ? Mixxx.KeyUtils.keyToString(visualKeyControl.value) : ""
                 visible: root.width > 450
 
                 Mixxx.ControlProxy {
-                    id: keyControl
+                    id: visualKeyControl
 
                     group: root.group
-                    key: "key"
+                    key: "visual_key"
+                }
+                Mixxx.ControlProxy {
+                    id: syncKeyControl
+
+                    group: root.group
+                    key: "sync_key"
+                }
+                Mixxx.ControlProxy {
+                    id: resetKeyControl
+
+                    group: root.group
+                    key: "reset_key"
+                }
+                MouseArea {
+                    id: keyMouse
+
+                    Accessible.description: qsTr("Click to match the key of the other deck, right click to reset it to the track key")
+                    Accessible.name: Mixxx.KeyUtils.keyIsValid(visualKeyControl.value) ? qsTr("Key %1").arg(Mixxx.KeyUtils.keyToString(visualKeyControl.value)) : qsTr("Key")
+                    Accessible.role: Accessible.Button
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    activeFocusOnTab: true
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    enabled: root.deckPlayer?.isLoaded ?? false
+                    hoverEnabled: true
+
+                    Keys.onReturnPressed: syncKeyControl.trigger()
+                    Keys.onSpacePressed: syncKeyControl.trigger()
+                    onClicked: event => {
+                        if (event.button === Qt.RightButton) {
+                            resetKeyControl.trigger();
+                        } else {
+                            syncKeyControl.trigger();
+                        }
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    border.color: Theme.focusRing
+                    border.width: 1
+                    color: "transparent"
+                    visible: keyMouse.activeFocus
                 }
             }
         }
@@ -220,7 +266,7 @@ Rectangle {
                 Accessible.role: Accessible.Button
                 Layout.fillHeight: true
                 Layout.fillWidth: index == 0
-                Layout.preferredWidth: index == 0 ? 0 : rightColumnWidth
+                Layout.preferredWidth: index == 0 ? 0 : stars.implicitWidth
                 visible: root.width > 400
 
                 Mixxx.ControlProxy {
@@ -445,8 +491,8 @@ Rectangle {
             font.pixelSize: isTop ? root.titleSize : root.secondarySize
             font.weight: isTop ? Theme.fontWeightBold : Theme.fontWeightMedium
             horizontalAlignment: index == 0 ? Text.AlignLeft : Text.AlignHCenter
-            visible: root.deckPlayer?.isLoaded
             verticalAlignment: Text.AlignVCenter
+            visible: root.deckPlayer?.isLoaded
 
             Skin.FadeBehavior on visible {
                 fadeTarget: data
@@ -455,19 +501,37 @@ Rectangle {
     }
 
     /// Small status pill in the deck header: reads "MASTER" and turns accent
-    /// blue while this deck is the sync leader (soft or explicit), i.e. the
-    /// deck the other synced decks take their tempo from.
+    /// while this deck is the sync leader (soft or explicit), i.e. the deck
+    /// the other synced decks take their tempo from. Clicking it requests
+    /// tempo leadership (sync_leader); pressing again does nothing, so a
+    /// stray click cannot demote the deck.
     component MasterPill: Rectangle {
         id: pill
 
         required property string group
+        readonly property bool isExplicitLeader: leaderValue >= 2
+        readonly property bool isMaster: leaderValue > 0
+        readonly property bool isSoftLeader: leaderValue === 1
+        readonly property int leaderValue: Math.round(leaderControl.value)
+        readonly property bool loaded: root.deckPlayer?.isLoaded ?? false
 
-        readonly property int syncModeValue: syncModeControl.value
-        readonly property bool isMaster: syncModeValue === 2 || syncModeValue === 3
+        function requestLeader() {
+            if (!pill.loaded || pill.isMaster) {
+                return;
+            }
+            leaderControl.value = 1;
+        }
 
-        Accessible.name: pill.isMaster ? qsTr("Tempo master") : qsTr("Not tempo master")
-        Accessible.role: Accessible.StaticText
-        border.color: pill.isMaster ? Theme.accent : Theme.borderStrong
+        Accessible.checkable: true
+        Accessible.checked: pill.isMaster
+        Accessible.description: pill.isMaster ? qsTr("This deck is the sync leader; the other decks take its tempo") : qsTr("Takes over tempo leadership from the other deck")
+        Accessible.name: pill.isExplicitLeader ? qsTr("Tempo master, explicit leader") : pill.isSoftLeader ? qsTr("Tempo master, soft leader") : qsTr("Set as tempo master")
+        Accessible.role: Accessible.Button
+        ToolTip.delay: 500
+        ToolTip.text: pill.isMaster ? qsTr("Tempo master") : qsTr("Set as tempo master")
+        ToolTip.visible: pillMouse.containsMouse
+        activeFocusOnTab: true
+        border.color: pill.activeFocus ? Theme.focusRing : pill.isMaster ? Theme.accent : Theme.borderStrong
         border.width: 1
         color: pill.isMaster ? Theme.accent : "transparent"
         implicitHeight: 16
@@ -479,6 +543,9 @@ Rectangle {
                 duration: Theme.motionFast
             }
         }
+
+        Keys.onReturnPressed: pill.requestLeader()
+        Keys.onSpacePressed: pill.requestLeader()
 
         Text {
             id: pillLabel
@@ -498,11 +565,22 @@ Rectangle {
                 }
             }
         }
+        MouseArea {
+            id: pillMouse
+
+            acceptedButtons: Qt.LeftButton
+            anchors.fill: parent
+            cursorShape: pill.loaded && !pill.isMaster ? Qt.PointingHandCursor : Qt.ArrowCursor
+            enabled: pill.loaded
+            hoverEnabled: true
+
+            onClicked: pill.requestLeader()
+        }
         Mixxx.ControlProxy {
-            id: syncModeControl
+            id: leaderControl
 
             group: pill.group
-            key: "sync_mode"
+            key: "sync_leader"
         }
     }
 }

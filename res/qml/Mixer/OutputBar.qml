@@ -14,7 +14,6 @@ Item {
     id: root
 
     property bool show4decks: false
-
     readonly property int sideMargin: Theme.space3
     readonly property int tileWidth: root.width < 1200 ? 56 : 64
 
@@ -63,8 +62,8 @@ Item {
         spacing: Theme.space2
 
         OutputTile {
-            height: 38
             group: "[Master]"
+            height: 38
             key: "balance"
             label: qsTr("BAL")
             readoutMode: "balance"
@@ -87,16 +86,16 @@ Item {
             width: 1
         }
         OutputTile {
-            height: 38
             group: "[Master]"
+            height: 38
             key: "headGain"
             label: qsTr("HEAD")
             readoutMode: "gain"
             width: root.tileWidth
         }
         OutputTile {
-            height: 38
             group: "[Master]"
+            height: 38
             key: "headMix"
             label: qsTr("MIX")
             readoutMode: "mix"
@@ -116,9 +115,95 @@ Item {
         show4decks: root.show4decks
         // Centered, so the free half-width is limited by whichever side group
         // reaches closer to the middle; otherwise the keys sit under the tiles.
-        width: Math.max(160, Math.min(360, 2 * (Math.min(
-                root.width / 2 - leftControls.x - leftControls.width,
-                monoButtons.x - root.width / 2) - root.sideMargin)))
+        width: Math.max(160, Math.min(360, 2 * (Math.min(root.width / 2 - leftControls.x - leftControls.width, monoButtons.x - root.width / 2) - root.sideMargin)))
+    }
+
+    // Compact master level meter. The toolbar meter hides below
+    // Theme.masterMeterMinWidth, so the output bar takes over there. Two 8 px
+    // rows keep it inside the bar's 38 px content height; the width is capped
+    // to the gap beside the crossfader so it can never run under the mono keys.
+    Row {
+        id: compactMasterMeter
+
+        readonly property int meterWidth: Math.max(0, Math.min(150, monoButtons.x - x - Theme.space2))
+
+        Accessible.description: qsTr("Left %1 percent, right %2 percent").arg(Math.round(compactMeterLeft.level * 100)).arg(Math.round(compactMeterRight.level * 100))
+        Accessible.name: qsTr("Master output level")
+        Accessible.role: Accessible.ProgressBar
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Theme.space1
+        visible: root.width < Theme.masterMeterMinWidth && meterWidth >= 48
+        width: meterWidth
+        x: crossfaderUnit.x + crossfaderUnit.width + Theme.space2
+
+        Text {
+            id: compactMeterLegend
+
+            anchors.verticalCenter: parent.verticalCenter
+            color: Theme.textMuted
+            font.capitalization: Font.AllUppercase
+            font.family: Theme.fontFamily
+            font.letterSpacing: Theme.letterSpacingCaps
+            font.pixelSize: Theme.fontSizeXs - 1
+            font.weight: Theme.fontWeightDemiBold
+            text: qsTr("Out")
+        }
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3
+            width: compactMasterMeter.width - compactMeterLegend.width - compactMasterMeter.spacing
+
+            Row {
+                height: 8
+                spacing: 3
+                width: parent.width
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.textMuted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeXs
+                    height: 8
+                    horizontalAlignment: Text.AlignHCenter
+                    text: qsTr("L")
+                    verticalAlignment: Text.AlignVCenter
+                    width: 8
+                }
+                HorizontalVuMeter {
+                    id: compactMeterLeft
+
+                    group: "[Main]"
+                    height: 8
+                    key: "vu_meter_left"
+                    width: parent.width - 8 - 3
+                }
+            }
+            Row {
+                height: 8
+                spacing: 3
+                width: parent.width
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.textMuted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeXs
+                    height: 8
+                    horizontalAlignment: Text.AlignHCenter
+                    text: qsTr("R")
+                    verticalAlignment: Text.AlignVCenter
+                    width: 8
+                }
+                HorizontalVuMeter {
+                    id: compactMeterRight
+
+                    group: "[Main]"
+                    height: 8
+                    key: "vu_meter_right"
+                    width: parent.width - 8 - 3
+                }
+            }
+        }
     }
 
     // Mono toggles, stacked to the left of the split key: master (and booth)
@@ -196,31 +281,26 @@ Item {
                 lampControl.value = lamp.active ? 0 : 1;
             }
 
-            border.color: lamp.active
-                    ? Qt.lighter(Theme.accent, 1.45)
-                    : lampMouse.containsMouse
-                      ? Theme.borderStrong
-                      : Theme.border
+            Accessible.name: monoRow.accessibleName
+            Accessible.role: Accessible.Button
+            border.color: lamp.active ? Qt.lighter(Theme.accent, 1.45) : lampMouse.containsMouse ? Theme.borderStrong : Theme.border
             border.width: 1
-            gradient: Gradient {
-                GradientStop {
-                    position: 0.0
-                    color: lamp.active
-                           ? Qt.lighter(Theme.accent, 1.4)
-                           : lampMouse.containsMouse ? Theme.surfaceHover : Theme.surface3
-                }
-                GradientStop {
-                    position: 1.0
-                    color: lamp.active ? Qt.darker(Theme.accent, 1.35) : Theme.surface0
-                }
-            }
             height: 8
             radius: width / 2
             width: 8
             y: 2
 
-            Accessible.name: monoRow.accessibleName
-            Accessible.role: Accessible.Button
+            gradient: Gradient {
+                GradientStop {
+                    color: lamp.active ? Qt.lighter(Theme.accent, 1.4) : lampMouse.containsMouse ? Theme.surfaceHover : Theme.surface3
+                    position: 0.0
+                }
+                GradientStop {
+                    color: lamp.active ? Qt.darker(Theme.accent, 1.35) : Theme.surface0
+                    position: 1.0
+                }
+            }
+
             Accessible.onPressAction: lamp.toggle()
 
             Mixxx.ControlProxy {

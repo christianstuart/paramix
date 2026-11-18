@@ -34,7 +34,12 @@ Item {
     /// under the toolbar. Without this the vertical split honours a minimum that
     /// is larger than the window and paints the band past the bottom edge
     /// instead of shrinking it.
-    readonly property int bandMinimumHeight: Math.min(root.bandContentHeight + outputBar.height,
+    /// Stacked rows below the deck/mixer band: output bar, preview bar, input
+    /// rack and samplers. They have to be reserved too, otherwise the band is
+    /// capped at the deck height and the last row is laid out below the window.
+    readonly property int bandChromeHeight: outputBar.height + previewDeckBar.height +
+            inputRack.height + samplers.height
+    readonly property int bandMinimumHeight: Math.min(root.bandContentHeight + root.bandChromeHeight,
             Math.max(0, root.height - Theme.topBarHeight))
     property bool showSamplers: false
     readonly property bool showMicrophoneInputs: showMicrophonesControl.value > 0
@@ -120,6 +125,24 @@ Item {
         key: "show_microphones"
     }
     Mixxx.ControlProxy {
+        id: showVinylControl
+
+        group: "[Skin]"
+        key: "show_vinylcontrol"
+    }
+    Mixxx.ControlProxy {
+        id: showPreviewDecks
+
+        group: "[Skin]"
+        key: "show_preview_decks"
+    }
+    Mixxx.ControlProxy {
+        id: previewDeckPlaying
+
+        group: "[PreviewDeck1]"
+        key: "play_indicator"
+    }
+    Mixxx.ControlProxy {
         id: numMicrophones
         group: "[App]"
         key: "num_microphones"
@@ -197,17 +220,16 @@ Item {
                     anchors.leftMargin: Theme.space3
                     anchors.rightMargin: Theme.space2
                     spacing: Theme.space2
+                    // Keep the View key and the status cluster above the centred
+                    // master/recording overlays; at 1280-1447 px those overlays
+                    // used to cover the View button, making the layout menu
+                    // unreachable.
+                    z: 2
 
-                    // Brand plate: signal bar, wordmark, deck status dots.
+                    // Brand plate: wordmark, deck status dots.
                     RowLayout {
                         spacing: Theme.space2
 
-                        Rectangle {
-                            color: Theme.accent
-                            implicitHeight: 22
-                            implicitWidth: 3
-                            radius: 1
-                        }
                         ColumnLayout {
                             spacing: 0
 
@@ -286,6 +308,10 @@ Item {
                                 libraryItem.checked = root.maximizeLibrary;
                                 auxItem.checked = root.showMicrophoneInputs;
                                 samplersItem.checked = root.showSamplers;
+                                vinylItem.checked = showVinylControl.value > 0;
+                                previewDeckItem.checked = showPreviewDecks.value > 0 ||
+                                        (previewDeckBar.item && previewDeckBar.item.revealed) ||
+                                        previewDeckPlaying.value > 0;
                             }
 
                             Skin.CheckMenuItem {
@@ -320,6 +346,28 @@ Item {
                                 text: qsTr("Samplers")
 
                                 onTriggered: root.showSamplers = checked
+                            }
+                            Skin.CheckMenuItem {
+                                id: vinylItem
+
+                                checkable: true
+                                enabled: Mixxx.Application.vinylControlAvailable
+                                text: qsTr("Vinyl control")
+
+                                onTriggered: showVinylControl.value = checked ? 1 : 0
+                            }
+                            Skin.CheckMenuItem {
+                                id: previewDeckItem
+
+                                checkable: true
+                                text: qsTr("Preview deck")
+
+                                onTriggered: {
+                                    if (!checked && previewDeckBar.item) {
+                                        previewDeckBar.item.hide();
+                                    }
+                                    showPreviewDecks.value = checked ? 1 : 0;
+                                }
                             }
                         }
                     }
@@ -501,7 +549,7 @@ Item {
                 SplitView.fillHeight: library.active || !Mixxx.Config.paramixShowWaveforms
                 SplitView.maximumHeight: (library.active || !Mixxx.Config.paramixShowWaveforms)
                         ? undefined
-                        : root.bandContentHeight + outputBar.height
+                        : root.bandContentHeight + root.bandChromeHeight
                 SplitView.minimumHeight: root.bandMinimumHeight
 
                 Deck {
@@ -693,6 +741,26 @@ Item {
                     visible: !root.maximizeLibrary
                 }
                 Loader {
+                    id: previewDeckBar
+
+                    // Kept active while hidden so preview playback started from
+                    // the keyboard can reveal the bar instead of playing unseen.
+                    active: true
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: outputBar.bottom
+                    height: visible ? implicitHeight : 0
+                    visible: (showPreviewDecks.value > 0 ||
+                              (previewDeckBar.item && previewDeckBar.item.revealed) ||
+                              previewDeckPlaying.value > 0) &&
+                             !root.maximizeLibrary
+                    sourceComponent: Component {
+                        MixerComponents.PreviewDeckBar {
+                            anchors.fill: parent
+                        }
+                    }
+                }
+                Loader {
                     id: inputRack
 
                     active: root.showMicrophoneInputs &&
@@ -700,7 +768,7 @@ Item {
                             !root.maximizeLibrary
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: outputBar.bottom
+                    anchors.top: previewDeckBar.bottom
                     height: active ? implicitHeight : 0
                     visible: active
                     sourceComponent: Component {
