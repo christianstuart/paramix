@@ -69,7 +69,8 @@ if(PARAMIX_ANALYSIS_BUILD_TESTS AND (PARAMIX_ANALYSIS_STANDALONE OR BUILD_TESTIN
     # the additive downbeat serialization through the real Mixxx types.
     if(TARGET mixxx-lib)
       target_sources(paramix-analysis-test PRIVATE test/mixxx_integration_test.cpp)
-      target_link_libraries(paramix-analysis-test PRIVATE mixxx-lib)
+      target_link_libraries(paramix-analysis-test PRIVATE mixxx-lib
+        mixxx-gitinfostore)
       target_compile_definitions(paramix-analysis-test PRIVATE
         PARAMIX_ANALYSIS_WITH_MIXXX=1
       )
