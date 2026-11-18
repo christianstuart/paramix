@@ -9,6 +9,9 @@
 #include <QTimer>
 #include <QWidget>
 #include <QWidgetAction>
+#include <algorithm>
+#include <functional>
+#include <utility>
 
 #include "library/library.h"
 #include "library/trackmodel.h"
@@ -17,6 +20,7 @@
 #include "qml/qmllibraryproxy.h"
 #include "qml/qmllibrarytracklistmodel.h"
 #include "util/color/rgbcolor.h"
+#include "util/dnd.h"
 #include "widget/wcolorpickeraction.h"
 #include "widget/wstarratingaction.h"
 #include "widget/wtrackmenu.h"
@@ -307,7 +311,7 @@ void QmlLibraryTrackMenu::removeSelectedRows(
     // Same capability order and confirmation as
     // WTrackTableView::hideOrRemoveSelectedTracks(): Remove wins for the Auto
     // DJ queue, then crates, playlists and finally hiding from the library.
-    TrackModel::Capability capability;
+    TrackModel::Capability capability = TrackModel::Capability::None;
     if (pTrackModel->hasCapabilities(TrackModel::Capability::Remove)) {
         capability = TrackModel::Capability::Remove;
     } else if (pTrackModel->hasCapabilities(
@@ -375,6 +379,104 @@ void QmlLibraryTrackMenu::removeSelectedRows(
     } else {
         pTrackModel->removeTracks(indices);
     }
+}
+
+void QmlLibraryTrackMenu::moveSelectedRows(
+        QmlLibraryTrackListModel* pModel,
+        const QList<int>& rows,
+        int destinationRow) {
+    if (!pModel) {
+        return;
+    }
+    auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
+    if (!pTrackModel || pTrackModel->isLocked() ||
+            !pTrackModel->hasCapabilities(TrackModel::Capability::Reorder)) {
+        return;
+    }
+
+    const int rowCount = pModel->rowCount();
+    QList<int> selectedRows;
+    selectedRows.reserve(rows.size());
+    for (int row : rows) {
+        if (row >= 0 && row < rowCount) {
+            selectedRows.append(row);
+        }
+    }
+    if (selectedRows.isEmpty()) {
+        return;
+    }
+    std::sort(selectedRows.begin(), selectedRows.end());
+
+    // Same block semantics as WTrackTableView::moveRows(): a drop inside the
+    // block is a no-op, and rows are moved one by one so the row numbers stay
+    // valid while the model shifts.
+    int destination = destinationRow < 0 ? rowCount : destinationRow;
+    destination = std::min(destination, rowCount);
+    int firstSelRow = selectedRows.first();
+    const int lastSelRow = selectedRows.last();
+    if (destination == firstSelRow && selectedRows.size() == 1) {
+        return;
+    }
+    if (destination >= firstSelRow && destination <= lastSelRow) {
+        if (selectedRows.size() == lastSelRow - firstSelRow + 1) {
+            return;
+        }
+        if (destination != firstSelRow) {
+            return;
+        }
+        // Non-contiguous selection dropped on its first row: use the first gap.
+        while (!selectedRows.isEmpty() && destination == firstSelRow) {
+            selectedRows.removeFirst();
+            if (selectedRows.isEmpty()) {
+                return;
+            }
+            firstSelRow = selectedRows.first();
+            ++destination;
+        }
+    } else if (destination < firstSelRow) {
+        // Move up: process the rows in reverse so the earliest keeps its slot.
+        std::sort(selectedRows.begin(), selectedRows.end(), std::greater<int>());
+    }
+
+    while (!selectedRows.isEmpty()) {
+        const int movedRow = selectedRows.takeFirst();
+        pTrackModel->moveTrack(
+                pModel->mapToSource(pModel->index(movedRow, 0)),
+                pModel->mapToSource(pModel->index(destination, 0)));
+        for (int i = 0; i < selectedRows.size(); ++i) {
+            if (selectedRows[i] > movedRow && destination > selectedRows[i]) {
+                --selectedRows[i];
+            } else if (selectedRows[i] < movedRow &&
+                    destination < selectedRows[i]) {
+                ++selectedRows[i];
+            }
+        }
+    }
+}
+
+int QmlLibraryTrackMenu::importDroppedUrls(
+        QmlLibraryTrackListModel* pModel, const QList<QUrl>& urls) {
+    if (!pModel || urls.isEmpty()) {
+        return 0;
+    }
+    auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
+    if (!pTrackModel || pTrackModel->isLocked() ||
+            !pTrackModel->hasCapabilities(TrackModel::Capability::ReceiveDrops)) {
+        return 0;
+    }
+    // Expands folders and playlist files and filters out unsupported files,
+    // the same way a drop on the classic track table does.
+    const QList<mixxx::FileInfo> fileInfos =
+            DragAndDropHelper::supportedTracksFromUrls(urls, false, true);
+    if (fileInfos.isEmpty()) {
+        return 0;
+    }
+    QList<QString> locations;
+    locations.reserve(fileInfos.size());
+    for (const auto& fileInfo : std::as_const(fileInfos)) {
+        locations.append(fileInfo.location());
+    }
+    return pTrackModel->addTracks(QModelIndex(), locations);
 }
 
 // static
