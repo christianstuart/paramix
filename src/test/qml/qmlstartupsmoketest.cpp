@@ -165,6 +165,15 @@ QObject* resolveTheme(QQuickItem* item) {
     return expression.evaluate().value<QObject*>();
 }
 
+QObject* resolveMixxxConfig(QQuickItem* item) {
+    QQmlContext* pContext = qmlContext(item);
+    if (!pContext) {
+        return nullptr;
+    }
+    QQmlExpression expression(pContext, item, QStringLiteral("Mixxx.Config"));
+    return expression.evaluate().value<QObject*>();
+}
+
 QQuickItem* findItemByClass(QQuickItem* root, const char* classNamePrefix) {
     for (QQuickItem* pChild : root->childItems()) {
         if (QString::fromLatin1(pChild->metaObject()->className())
@@ -401,6 +410,9 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         if (qEnvironmentVariableIsSet("PARAMIX_QML_JOG_WHEELS")) {
             settings->setValue(ConfigKey("[Paramix]", "ShowJogWheels"), 1);
         }
+        // The preview bar is a stacked band row; keep it visible so the bounds
+        // check actually measures it.
+        settings->setValue(ConfigKey("[Skin]", "show_preview_decks"), 1);
         settings->save();
 
         QFile soundConfig(settingsPath + "soundconfig.xml");
@@ -479,7 +491,7 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
     // layout does not converge (the geometry never stops changing, see
     // docs/qml-responsive-layout.md), so an assertion there reports the
     // oscillation rather than a stable overflow. Fix the instability first.
-    for (const QSize& size : boundsTestSizes()) {
+    const auto checkSize = [&](const QSize& size) {
         // The skin sits in a Loader that main.qml sizes (and scales) from the
         // window, and a Loader imposes its own size on its item. That binding
         // re-evaluates when the window's content area changes (the menu bar
@@ -529,7 +541,7 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
                 << "Layout did not converge at " << size.width() << "x"
                 << size.height() << " (geometry kept changing for 8 s)";
 
-        ASSERT_EQ(QSizeF(size), pMainWindow->size())
+        EXPECT_EQ(QSizeF(size), pMainWindow->size())
                 << "The skin was resized behind the test's back";
 
         dumpLayout(pMainWindow, size);
@@ -539,6 +551,19 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
                 << "Items paint outside a " << size.width() << "x" << size.height()
                 << " window:\n"
                 << offenders.join(QLatin1Char('\n')).toStdString();
+
+        // The preview bar has to be reserved by the band, not laid out below
+        // the window. This is the regression that four decks at 720 or a
+        // disabled library used to expose.
+        QQuickItem* pPreviewBar = findItemByClass(pMainWindow, "PreviewDeckBar");
+        EXPECT_NE(nullptr, pPreviewBar);
+        if (pPreviewBar) {
+            EXPECT_TRUE(pPreviewBar->isVisible());
+            const QRectF barRect = pPreviewBar->mapRectToItem(pMainWindow,
+                    QRectF(0, 0, pPreviewBar->width(), pPreviewBar->height()));
+            EXPECT_GE(barRect.top(), -1.0);
+            EXPECT_LE(barRect.bottom(), pMainWindow->height() + 1.0);
+        }
 
         // A single sample catches items mid-transition (a pane fading in, a
         // fader being laid out). Sample a few times and judge the largest
@@ -576,7 +601,30 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
                     << "Deck pane squeezed at " << size.width() << "x" << size.height()
                     << ": " << tallestPane << "px";
         }
+    };
+
+    for (const QSize& size : boundsTestSizes()) {
+        checkSize(size);
     }
+
+    // The two layouts the preview bar used to fall out of: four decks at the
+    // minimum height, and the library switched off. Cover them separately and
+    // together at the shortest asserted height.
+    QObject* pMixxxConfig = resolveMixxxConfig(pMainWindow);
+    ASSERT_NE(nullptr, pMixxxConfig) << "Mixxx.Config singleton not found";
+
+    pMainWindow->setProperty("fourDecksRequested", true);
+    checkSize(QSize(1280, 720));
+
+    pMainWindow->setProperty("fourDecksRequested", false);
+    pMixxxConfig->setProperty("paramixShowLibrary", false);
+    checkSize(QSize(1280, 720));
+
+    pMainWindow->setProperty("fourDecksRequested", true);
+    checkSize(QSize(1280, 720));
+
+    pMixxxConfig->setProperty("paramixShowLibrary", true);
+    pMainWindow->setProperty("fourDecksRequested", false);
 
     application()->removeEventFilter(&rejectFileDialogs);
 }
