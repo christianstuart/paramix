@@ -17,13 +17,11 @@ Item {
     property var sidebar: librarySources.sidebar()
 
     function applySearch() {
-        if (root.sidebar && root.sidebar.tracklist) {
-            // The Auto DJ processor pulls its next track from row 0 of the
-            // queue, so a filter would change the playback order.
-            if (root.sidebar.autoDjActive === true)
-                return;
-            root.sidebar.tracklist.search(libraryBrowser.searchInput.text);
-        }
+        // Always remember the query, also while the Auto DJ source is shown.
+        // QmlSidebarModelProxy::setSearchText() skips the queue itself, because
+        // the processor plays row 0 and a filter would change the order.
+        if (root.sidebar)
+            root.sidebar.search(libraryBrowser.searchInput.text);
     }
     function clearSearch() {
         libraryBrowser.searchInput.text = "";
