@@ -51,8 +51,8 @@ Rectangle {
     }
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.space1
-        spacing: Theme.space1
+        anchors.margins: 2
+        spacing: 2
 
         RowLayout {
             Layout.fillHeight: true
@@ -225,7 +225,7 @@ Rectangle {
             spacing: Theme.space1
 
             GridKey {
-                Accessible.description: qsTr("Moves the beatgrid left by a small amount. Right click: adjust by exactly one half beat.")
+                Accessible.description: qsTr("Moves the beatgrid left by a small amount. Right click: shift later by exactly one half beat.")
                 Accessible.name: qsTr("Adjust beats earlier")
                 ToolTip.text: qsTr("Adjust Beats Earlier")
                 fineKey: "beats_translate_half"
@@ -233,7 +233,7 @@ Rectangle {
                 text: qsTr("◀")
             }
             GridKey {
-                Accessible.description: qsTr("Moves the beatgrid right by a small amount. Right click: adjust by exactly one half beat.")
+                Accessible.description: qsTr("Moves the beatgrid right by a small amount. Right click: shift later by exactly one half beat.")
                 Accessible.name: qsTr("Adjust beats later")
                 ToolTip.text: qsTr("Adjust Beats Later")
                 fineKey: "beats_translate_half"
@@ -324,7 +324,7 @@ Rectangle {
         id: marker
 
         required property string cue
-        readonly property real position: markerPosition.value
+        readonly property bool set: markerEnabled.value > 0
         readonly property string title: {
             switch (marker.cue) {
             case "intro_start":
@@ -348,7 +348,9 @@ Rectangle {
         ToolTip.visible: marker.hovered
         activeFocusOnTab: true
         enabled: root.loaded
-        highlight: root.loaded && marker.position > 0
+        // A marker at 0:00 is valid, so the lamp follows the enabled control
+        // instead of the position value.
+        highlight: root.loaded && marker.set
         implicitHeight: 16
         normalColor: root.buttonColor
 
@@ -356,10 +358,10 @@ Rectangle {
         onClicked: markerSet.trigger()
 
         Mixxx.ControlProxy {
-            id: markerPosition
+            id: markerEnabled
 
             group: root.group
-            key: `${marker.cue}_position`
+            key: `${marker.cue}_enabled`
         }
         Mixxx.ControlProxy {
             id: markerSet
