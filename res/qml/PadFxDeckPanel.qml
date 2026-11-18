@@ -17,7 +17,6 @@ Rectangle {
     required property string group
 
     readonly property string padFxGroup: group.substr(0, group.length - 1) + "_PadFX]"
-    readonly property int bank: Math.round(bankControl.value)
     readonly property int stemCount: Math.max(0, Math.round(stemCountControl.value))
     readonly property var effectNames: [qsTr("Off"), qsTr("Vinyl Brake"), qsTr("Echo Out")]
     readonly property var modeNames: [qsTr("Momentary"), qsTr("Toggle"), qsTr("One Shot")]
@@ -48,13 +47,13 @@ Rectangle {
             return [qsTr("Echo Time"), qsTr("Feedback"), qsTr("Tail"), qsTr("Reverb"), qsTr("Rev Time")][index] || "";
         return "";
     }
-    function setTargetMask(mask) {
-        padTarget.value = mask;
+    function setTargetMask(targetControl, mask) {
+        targetControl.value = mask;
     }
-    function toggleTarget(bit) {
-        const current = Math.round(padTarget.value);
+    function toggleTarget(targetControl, bit) {
+        const current = Math.round(targetControl.value);
         const next = current ^ (1 << bit);
-        padTarget.value = next === 0 ? (1 << bit) : next;
+        targetControl.value = next === 0 ? (1 << bit) : next;
     }
     function stemName(bit) {
         return ["D", "B", "O", "V"][bit] || "";
@@ -62,6 +61,13 @@ Rectangle {
 
     color: Theme.surface1
     radius: Theme.radiusMd
+
+    Component.onCompleted: {
+        // The window exposes one bank per deck; keep the controller-facing
+        // bank control at A and reserve the other banks for future layouts.
+        if (bankControl.value !== 1)
+            bankControl.value = 1;
+    }
 
     Mixxx.ControlProxy {
         id: bankControl
@@ -93,20 +99,11 @@ Rectangle {
                 font.weight: Theme.fontWeightDemiBold
                 text: qsTr("Deck %1").arg(root.group.replace(/[^0-9]/g, ""))
             }
-            Repeater {
-                model: 4
-
-                delegate: Skin.Button {
-                    required property int index
-
-                    implicitHeight: 24
-                    implicitWidth: 24
-                    enabled: root.stemCount > 0
-                    highlight: root.bank === (index + 1)
-                    text: String.fromCharCode(65 + index)
-
-                    onClicked: bankControl.value = index + 1
-                }
+            Text {
+                color: Theme.textMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm
+                text: qsTr("Bank A")
             }
         }
         Text {
@@ -115,7 +112,7 @@ Rectangle {
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeXs
             text: root.stemCount > 0
-                  ? qsTr("Bank %1 · %2 pads").arg(String.fromCharCode(64 + root.bank)).arg(4)
+                  ? qsTr("4 pads")
                   : qsTr("Load or separate a stem track")
         }
 
@@ -128,7 +125,7 @@ Rectangle {
                 required property int index
 
                 Layout.fillWidth: true
-                Layout.preferredHeight: 132
+                Layout.preferredHeight: 150
                 color: Theme.surface2
                 radius: Theme.radiusSm
 
@@ -235,7 +232,7 @@ Rectangle {
                                 highlight: on
                                 text: root.stemName(index)
 
-                                onClicked: root.toggleTarget(index)
+                                onClicked: root.toggleTarget(padTarget, index)
                             }
                         }
                         Skin.Button {
@@ -244,7 +241,7 @@ Rectangle {
                             highlight: padCard.targetMask === 7
                             text: qsTr("Inst")
 
-                            onClicked: root.setTargetMask(7)
+                            onClicked: root.setTargetMask(padTarget, 7)
                         }
                         Skin.Button {
                             implicitHeight: 20
@@ -252,7 +249,7 @@ Rectangle {
                             highlight: padCard.targetMask === 8
                             text: qsTr("Voc")
 
-                            onClicked: root.setTargetMask(8)
+                            onClicked: root.setTargetMask(padTarget, 8)
                         }
                         Skin.Button {
                             implicitHeight: 20
@@ -260,43 +257,30 @@ Rectangle {
                             highlight: padCard.targetMask === 15
                             text: qsTr("All")
 
-                            onClicked: root.setTargetMask(15)
+                            onClicked: root.setTargetMask(padTarget, 15)
                         }
                     }
-                    RowLayout {
+                    GridLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        spacing: Theme.space2
+                        columnSpacing: Theme.space2
+                        columns: 2
+                        rowSpacing: 0
 
                         Repeater {
                             model: 5
 
-                            delegate: Column {
+                            delegate: Skin.PadFxParameter {
                                 required property int index
-                                readonly property string label: root.paramLabel(padCard.effectIndex, index)
+                                readonly property string parameterLabel: root.paramLabel(padCard.effectIndex, index)
 
                                 Layout.fillWidth: true
-                                visible: label.length > 0
-
-                                spacing: 0
-                                Skin.ControlMiniKnob {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    implicitHeight: 30
-                                    implicitWidth: 30
-                                    group: root.padFxGroup
-                                    key: "pad" + padCard.pad + "_param" + (index + 1)
-                                }
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    color: Theme.textSecondary
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeXs
-                                    text: label
-                                }
+                                Layout.preferredWidth: 140
+                                group: root.padFxGroup
+                                key: "pad" + padCard.pad + "_param" + (index + 1)
+                                label: parameterLabel
+                                visible: parameterLabel.length > 0
                             }
-                        }
-                        Item {
-                            Layout.fillWidth: true
                         }
                     }
                 }

@@ -1,8 +1,8 @@
 # Per-stem Pad FX
 
-Paramix adds four **Pad FX banks** per deck. A bank is a page of four
-independent pad effects. Each pad has its own effect, stem target, mode, and
-parameters, so a bank can contain, for example:
+Paramix adds a **Pad FX bank** per deck. A bank is a page of four independent
+pad effects. Each pad has its own effect, stem target, mode, and parameters, so
+a bank can contain, for example:
 
 | Pad | Effect | Target |
 |---|---|---|
@@ -11,9 +11,8 @@ parameters, so a bank can contain, for example:
 | 3 | Echo Out | Instrumental |
 | 4 | Echo Out | Vocals |
 
-Only one bank is active per deck. Switching banks unloads the previous bank's
-effects and loads the new bank's effects. Pad FX are separate from the four
-standard effect units and from the per-stem Quick Effects.
+Each deck has one active Pad FX bank in the window. Pad FX are separate from
+the four standard effect units and from the per-stem Quick Effects.
 
 ## Behavior
 
@@ -69,9 +68,9 @@ several stems applies the effect to each of them independently.
 
 Pad FX live in a dedicated window, closed by default. Open it from the
 **Pad FX** toolbar key or **View → Pad FX**. The window has one column per deck,
-so all four decks are addressable at once; each column has its own A–D bank
-selector, four pad cards, stem target toggles, effect and mode selectors, and
-parameter knobs. Pad FX are disabled for decks without a stem track.
+so all four decks are addressable at once; each column has one bank of four pad
+cards, stem target toggles, effect and mode selectors, and parameter sliders.
+Pad FX are disabled for decks without a stem track.
 
 ## Control mapping
 
@@ -140,7 +139,7 @@ immediately.
 ## Limitations
 
 - Pad FX are disabled for non-stem tracks.
-- Only the active bank is loaded. Effects in other banks do not run, and
-  switching banks cancels any gesture in progress.
+- The window shows one bank per deck. Effects from unused bank configurations
+  are not loaded.
 - A pad effect targeting several stems allocates one effect instance per stem.
   Keep target masks focused if memory use matters on large stem sets.
