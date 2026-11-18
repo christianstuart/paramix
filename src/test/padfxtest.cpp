@@ -151,6 +151,33 @@ TEST_F(PadFxTest, EchoOutLeavesTargetStemMutedAfterTail) {
     EXPECT_EQ(0.0, m_pMutes[3]->get());
 }
 
+TEST_F(PadFxTest, EchoOutNeverReturnsDryBeforeTheNativeMuteLands) {
+    auto pEcho = m_pEffectsManager->getPadEffectChain(stemGroup(0))->getEffectSlot(2);
+    ASSERT_NE(nullptr, pEcho.data());
+
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad3"), 1.0);
+    processEventsFor(50);
+
+    bool sawActive = false;
+    for (int elapsed = 0; elapsed < 3200; elapsed += 50) {
+        processEventsFor(50);
+        const bool effectActive = findParameterValue(pEcho, "active") > 0.5;
+        const bool muted = m_pMutes[0]->get() > 0.5 ||
+                m_pMutes[1]->get() > 0.5 ||
+                m_pMutes[2]->get() > 0.5;
+        sawActive = sawActive || effectActive;
+        // Once the effect gate is down, the native mute must already hold the
+        // stems. Otherwise the dry signal leaks for a few seconds.
+        if (!effectActive && !muted) {
+            EXPECT_TRUE(false) << "dry signal leaked at " << elapsed << " ms";
+            break;
+        }
+    }
+    EXPECT_TRUE(sawActive);
+    EXPECT_EQ(1.0, m_pMutes[0]->get());
+    EXPECT_EQ(1.0, m_pMutes[1]->get());
+    EXPECT_EQ(1.0, m_pMutes[2]->get());
+}
 TEST_F(PadFxTest, BrakeSilencesTheStemBufferAndReleasingRestoresIt) {
     processEventsFor(100);
     auto* pEngineEffects = m_pEffectsManager->getEngineEffectsManager();

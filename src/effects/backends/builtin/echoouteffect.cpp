@@ -169,10 +169,12 @@ void EchoOutEffect::processChannel(
                               pState->ring[indexB + ch] * fraction)
                     : 0.0f;
             const CSAMPLE dry = pInput[inputOffset + ch];
-            // Pre-roll with a dry signal while inactive so the first repeat is
-            // immediately available when the pad engages.
+            // While inactive, pre-roll the dry stem so the last delay window
+            // is available the moment the pad is pressed. While active, stop
+            // feeding new dry audio into the line: an echo out must repeat the
+            // captured window and decay, not keep echoing the live stem.
             pState->ring[writeIndex + ch] = active
-                    ? static_cast<CSAMPLE>(dry + delayed * feedback)
+                    ? static_cast<CSAMPLE>(delayed * feedback)
                     : dry;
             pOutput[inputOffset + ch] = static_cast<CSAMPLE>(
                     dry * pState->dryMix + delayed * (1.0 - pState->dryMix));
