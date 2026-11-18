@@ -17,12 +17,21 @@ import "../Theme"
 Item {
     id: root
 
-    readonly property bool isLoaded: previewPlayer?.trackLoaded === true
+    readonly property bool isLoaded: previewPlayer?.isLoaded === true
     readonly property var previewPlayer: Mixxx.PlayerManager.getPlayer("[PreviewDeck1]")
+
+    /// True while the bar was revealed by playback rather than by the persisted
+    /// show_preview_decks preference. Cleared by an explicit Hide.
+    property bool revealed: false
+
+    function hide() {
+        previewPlay.value = 0;
+        revealed = false;
+    }
 
     Accessible.name: qsTr("Preview deck")
     Accessible.role: Accessible.Grouping
-    implicitHeight: 30
+    implicitHeight: Math.max(28, Math.round(30 * Theme.uiScale))
 
     Rectangle {
         anchors.fill: parent
@@ -93,10 +102,6 @@ Item {
             group: "[PreviewDeck1]"
             key: "LoadSelectedTrackAndPlay"
             text: qsTr("Load")
-
-            // shortcut: the QML library wires LoadSelectedTrackAndPlay for decks
-            // and samplers only, so this key is inert until Control.qml gains a
-            // [PreviewDeck1] handler. Drop-to-preview works meanwhile.
         }
         Skin.ControlButton {
             Accessible.name: playIndicator.value > 0 ? qsTr("Pause preview") : qsTr("Play preview")
@@ -111,7 +116,6 @@ Item {
         }
         Skin.SectionText {
             Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: 24
             horizontalAlignment: Text.AlignRight
             text: qsTr("Gain")
         }
@@ -134,7 +138,7 @@ Item {
             text: "\u00D7"
 
             onClicked: {
-                previewPlay.value = 0;
+                root.hide();
                 showPreviewDecks.value = 0;
             }
         }
@@ -157,11 +161,11 @@ Item {
         group: "[PreviewDeck1]"
         key: "play_indicator"
 
-        // The keyboard and library preview paths all start playback here; make
-        // sure the bar is on screen when they do.
+        // Playback started from the keyboard or the library reveals the bar
+        // without touching the persisted show_preview_decks preference.
         onValueChanged: {
-            if (value > 0 && showPreviewDecks.value === 0) {
-                showPreviewDecks.value = 1;
+            if (value > 0) {
+                root.revealed = true;
             }
         }
     }
@@ -176,5 +180,12 @@ Item {
 
         group: "[Skin]"
         key: "show_preview_decks"
+
+        // An explicit Hide (menu or close key) must also stop the audio.
+        onValueChanged: {
+            if (value === 0) {
+                root.hide();
+            }
+        }
     }
 }

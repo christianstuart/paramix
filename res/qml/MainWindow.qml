@@ -34,7 +34,12 @@ Item {
     /// under the toolbar. Without this the vertical split honours a minimum that
     /// is larger than the window and paints the band past the bottom edge
     /// instead of shrinking it.
-    readonly property int bandMinimumHeight: Math.min(root.bandContentHeight + outputBar.height,
+    /// Stacked rows below the deck/mixer band: output bar, preview bar, input
+    /// rack and samplers. They have to be reserved too, otherwise the band is
+    /// capped at the deck height and the last row is laid out below the window.
+    readonly property int bandChromeHeight: outputBar.height + previewDeckBar.height +
+            inputRack.height + samplers.height
+    readonly property int bandMinimumHeight: Math.min(root.bandContentHeight + root.bandChromeHeight,
             Math.max(0, root.height - Theme.topBarHeight))
     property bool showSamplers: false
     readonly property bool showMicrophoneInputs: showMicrophonesControl.value > 0
@@ -130,6 +135,12 @@ Item {
 
         group: "[Skin]"
         key: "show_preview_decks"
+    }
+    Mixxx.ControlProxy {
+        id: previewDeckPlaying
+
+        group: "[PreviewDeck1]"
+        key: "play_indicator"
     }
     Mixxx.ControlProxy {
         id: numMicrophones
@@ -298,7 +309,9 @@ Item {
                                 auxItem.checked = root.showMicrophoneInputs;
                                 samplersItem.checked = root.showSamplers;
                                 vinylItem.checked = showVinylControl.value > 0;
-                                previewDeckItem.checked = showPreviewDecks.value > 0;
+                                previewDeckItem.checked = showPreviewDecks.value > 0 ||
+                                        (previewDeckBar.item && previewDeckBar.item.revealed) ||
+                                        previewDeckPlaying.value > 0;
                             }
 
                             Skin.CheckMenuItem {
@@ -349,7 +362,12 @@ Item {
                                 checkable: true
                                 text: qsTr("Preview deck")
 
-                                onTriggered: showPreviewDecks.value = checked ? 1 : 0
+                                onTriggered: {
+                                    if (!checked && previewDeckBar.item) {
+                                        previewDeckBar.item.hide();
+                                    }
+                                    showPreviewDecks.value = checked ? 1 : 0;
+                                }
                             }
                         }
                     }
@@ -531,7 +549,7 @@ Item {
                 SplitView.fillHeight: library.active || !Mixxx.Config.paramixShowWaveforms
                 SplitView.maximumHeight: (library.active || !Mixxx.Config.paramixShowWaveforms)
                         ? undefined
-                        : root.bandContentHeight + outputBar.height
+                        : root.bandContentHeight + root.bandChromeHeight
                 SplitView.minimumHeight: root.bandMinimumHeight
 
                 Deck {
@@ -732,7 +750,10 @@ Item {
                     anchors.right: parent.right
                     anchors.top: outputBar.bottom
                     height: visible ? implicitHeight : 0
-                    visible: showPreviewDecks.value > 0 && !root.maximizeLibrary
+                    visible: (showPreviewDecks.value > 0 ||
+                              (previewDeckBar.item && previewDeckBar.item.revealed) ||
+                              previewDeckPlaying.value > 0) &&
+                             !root.maximizeLibrary
                     sourceComponent: Component {
                         MixerComponents.PreviewDeckBar {
                             anchors.fill: parent
