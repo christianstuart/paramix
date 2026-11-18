@@ -121,6 +121,11 @@ Rectangle {
 
     color: Theme.surface0
 
+    // Keyboard focus starts on the track list, so the arrows and Delete act on
+    // tracks rather than on the source tree. Clicking a source row moves focus
+    // there for as long as the user navigates sources.
+    Component.onCompleted: view.forceActiveFocus()
+
     LibraryComponent.Control {
         id: libraryControl
 

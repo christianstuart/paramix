@@ -178,7 +178,6 @@ Rectangle {
 
                     Layout.fillWidth: true
                     clip: true
-                    focus: true
                     model: root.model
                     selectionModel: root.featureSelection
 
