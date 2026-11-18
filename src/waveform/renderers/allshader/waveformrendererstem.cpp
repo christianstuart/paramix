@@ -332,8 +332,9 @@ bool WaveformRendererStem::preprocessInner() {
 
     const int laneCount = std::min(stemCount, pDetail->laneCount);
     if (laneCount <= 0) {
-        m_hasGeometry = false;
-        return false;
+        // A detail refresh can briefly publish an empty lane list. Keep the
+        // last complete picture instead of flashing the underlying waveform.
+        return m_hasGeometry;
     }
 
     const int totalLaneDeviceHeight =
@@ -358,8 +359,7 @@ bool WaveformRendererStem::preprocessInner() {
     }
     const int drawLaneCount = static_cast<int>(laneStems.size());
     if (drawLaneCount <= 0) {
-        m_hasGeometry = false;
-        return false;
+        return m_hasGeometry;
     }
 
     const uint selectedStems = m_waveformRenderer->getSelectedStems();
