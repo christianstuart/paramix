@@ -193,10 +193,15 @@ Rectangle {
                 item.font.family: Theme.fontFamilyMono
                 item.font.pixelSize: root.secondarySize + 1
                 item.font.weight: Theme.fontWeightDemiBold
+                item.horizontalAlignment: Text.AlignRight
                 item.text: Mixxx.KeyUtils.keyIsValid(keyControl.value)
                         ? Mixxx.KeyUtils.keyToString(keyControl.value)
                         : ""
                 visible: root.width > 450
+
+                // Right-aligned so the key reads as part of the rating cluster
+                // instead of floating in the middle of its fixed column.
+                Layout.rightMargin: Theme.space2
 
                 Mixxx.ControlProxy {
                     id: keyControl
@@ -220,7 +225,7 @@ Rectangle {
                 Accessible.role: Accessible.Button
                 Layout.fillHeight: true
                 Layout.fillWidth: index == 0
-                Layout.preferredWidth: index == 0 ? 0 : rightColumnWidth
+                Layout.preferredWidth: index == 0 ? 0 : stars.implicitWidth
                 visible: root.width > 400
 
                 Mixxx.ControlProxy {
