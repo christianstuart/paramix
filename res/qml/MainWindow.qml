@@ -197,6 +197,11 @@ Item {
                     anchors.leftMargin: Theme.space3
                     anchors.rightMargin: Theme.space2
                     spacing: Theme.space2
+                    // Keep the View key and the status cluster above the centred
+                    // master/recording overlays; at 1280-1447 px those overlays
+                    // used to cover the View button, making the layout menu
+                    // unreachable.
+                    z: 2
 
                     // Brand plate: wordmark, deck status dots.
                     RowLayout {
