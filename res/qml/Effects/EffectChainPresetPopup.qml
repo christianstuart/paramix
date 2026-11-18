@@ -18,9 +18,9 @@ Menu {
     property int fontPixelSize: Theme.fontSizeMd
     property color hoverColor: Qt.alpha(Theme.accent, 0.12)
     property color hoverTextColor: Theme.textPrimary
-    property color separatorColor: Theme.border
     // Legacy aliases kept for the LateNightQML skin.
     property color separatorBottomColor: separatorColor
+    property color separatorColor: Theme.border
     property color separatorTopColor: separatorColor
     required property Mixxx.EffectSlotProxy slot1
     required property Mixxx.EffectSlotProxy slot2
@@ -53,6 +53,8 @@ Menu {
     }
 
     Instantiator {
+        id: presetInstantiator
+
         model: Mixxx.EffectsManager.standardChainPresetModel
 
         delegate: Skin.EffectPresetMenuItem {
@@ -79,6 +81,20 @@ Menu {
 
         onObjectAdded: (index, object) => root.insertItem(index, object)
         onObjectRemoved: (index, object) => root.removeItem(object)
+    }
+    Skin.EffectPresetMenuItem {
+        checkedSource: root.checkedSource
+        disabledTextColor: root.disabledTextColor
+        enabled: presetInstantiator.count > 1
+        fontFamily: root.fontFamily
+        fontPixelSize: root.fontPixelSize
+        hoverColor: root.hoverColor
+        hoverTextColor: root.hoverTextColor
+        submenuArrowSource: root.submenuArrowSource
+        text: qsTr("Next Preset")
+        textColor: root.textColor
+
+        onTriggered: root.unit.loadPreset((root.unit.presetIndex + 1) % presetInstantiator.count)
     }
     Skin.EffectPresetMenuSeparator {
         lineColor: root.separatorColor

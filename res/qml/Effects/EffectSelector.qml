@@ -9,6 +9,7 @@ import "../Theme"
 Skin.ComboBox {
     id: root
 
+    readonly property string observedEffectId: root.slot?.effectId ?? ""
     required property Mixxx.EffectSlotProxy slot
 
     function syncCurrentEffect() {
@@ -27,21 +28,21 @@ Skin.ComboBox {
         currentIndex = -1;
     }
 
-    readonly property string observedEffectId: root.slot?.effectId ?? ""
-
     Accessible.name: qsTr("Effect")
     Accessible.role: Accessible.ComboBox
-    implicitHeight: Theme.fxControlHeight
-    model: Mixxx.EffectsManager.visibleEffectsModel
-    textLeftPadding: indicator.width + Theme.space1
-    textRole: "display"
-
     ToolTip.delay: 500
     ToolTip.text: displayText
     ToolTip.visible: hovered
+    implicitHeight: Theme.fxControlHeight
+    model: Mixxx.EffectsManager.visibleEffectsModel
+    // The compact strip leaves the trigger narrow; keep the list wide enough
+    // to read the effect names.
+    popupMaxItem: 8
+    popupWidth: Math.max(width, Math.round(150 * Theme.uiScale))
+    textLeftPadding: indicator.width + Theme.space1
+    textRole: "display"
 
     Component.onCompleted: syncCurrentEffect()
-    onObservedEffectIdChanged: syncCurrentEffect()
     onActivated: index => {
         const effectId = model.get(index).effectId || "";
         if (slot.effectId !== effectId) {
@@ -49,4 +50,5 @@ Skin.ComboBox {
         }
     }
     onCountChanged: syncCurrentEffect()
+    onObservedEffectIdChanged: syncCurrentEffect()
 }
