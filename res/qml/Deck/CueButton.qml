@@ -50,12 +50,13 @@ Skin.ControlButton {
 
         // Cue-stored lamp: `cue_indicator` is Mixxx's classic cue light, so it
         // blinks while a CUE press would move the cue point instead of leaving
-        // a static lamp on the face.
+        // a static lamp on the face. It flips to the dark label colour while
+        // the face is lit, otherwise amber on amber disappears.
         Rectangle {
             anchors.margins: 3
             anchors.right: parent.right
             anchors.top: parent.top
-            color: Theme.warning
+            color: root.highlight ? root.activeColor : Theme.warning
             height: 4
             radius: 2
             visible: cueIndicator.value != 0
@@ -112,14 +113,17 @@ Skin.ControlButton {
         }
     }
     // Shift is the keyboard gesture for cue_set (Shift+D in en_US.kbd.cfg), so
-    // it mirrors that here. Without Shift the handler ignores the press and the
-    // button below still gets the momentary cue_default preview.
+    // it mirrors that here. ReleaseWithinBounds takes an exclusive grab on
+    // press: the unshifted press still falls through to the button below for
+    // the momentary cue_default preview, but a shifted one is claimed outright
+    // so cue_default never also fires.
     Item {
         anchors.fill: parent
 
         TapHandler {
             acceptedButtons: Qt.LeftButton
             acceptedModifiers: Qt.ShiftModifier
+            gesturePolicy: TapHandler.ReleaseWithinBounds
 
             onPressedChanged: {
                 if (pressed) {
