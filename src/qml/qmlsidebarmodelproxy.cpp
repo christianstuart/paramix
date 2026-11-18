@@ -2,9 +2,14 @@
 
 #include <QString>
 #include <QVariant>
+#include <algorithm>
+#include <functional>
 #include <utility>
 
+#include "library/autodj/autodjfeature.h"
+#include "library/autodj/autodjprocessor.h"
 #include "library/library.h"
+#include "library/playlisttablemodel.h"
 #include "library/trackmodel.h"
 #include "moc_qmlsidebarmodelproxy.cpp"
 #include "qml/qmllibraryproxy.h"
@@ -67,7 +72,9 @@ void QmlSidebarModelProxy::expand(const QModelIndex& index) {
 QmlSidebarModelProxy::QmlSidebarModelProxy(QObject* parent)
         : SidebarModel(parent),
           m_pTracklist(nullptr),
-          m_featuresUpdated(false) {
+          m_featuresUpdated(false),
+          m_pAutoDjFeature(nullptr),
+          m_pAutoDjQueueModel(nullptr) {
 }
 QmlSidebarModelProxy::~QmlSidebarModelProxy() = default;
 
@@ -97,6 +104,10 @@ void QmlSidebarModelProxy::update() {
                 &LibraryFeature::showTrackModel,
                 this,
                 &QmlSidebarModelProxy::slotShowTrackModel);
+        if (auto* pAutoDjFeature = dynamic_cast<AutoDJFeature*>(pFeature)) {
+            m_pAutoDjFeature = pAutoDjFeature;
+            m_pAutoDjQueueModel = pAutoDjFeature->autoDjQueueModel();
+        }
     }
     endResetModel();
 
@@ -178,8 +189,11 @@ void QmlSidebarModelProxy::slotShowTrackModel(QAbstractItemModel* pModel) {
     }
     // The search is shared between all sources: apply the remembered query if
     // the model was prepared with a different one (or none at all).
+    // The Auto DJ queue is excluded: the processor pulls its next track from
+    // row 0 of the model, so filtering would change the playback order.
     auto* pTrackModel = dynamic_cast<TrackModel*>(pModel);
-    if (pTrackModel && pTrackModel->currentSearch() != m_searchText) {
+    if (pTrackModel && pModel != m_pAutoDjQueueModel &&
+            pTrackModel->currentSearch() != m_searchText) {
         pTrackList->search(m_searchText);
     }
     // Never destroy a model that has been exposed to QML: switching back to a
@@ -187,8 +201,12 @@ void QmlSidebarModelProxy::slotShowTrackModel(QAbstractItemModel* pModel) {
     if (m_pTracklist == pTrackList) {
         return;
     }
+    const bool wasAutoDjActive = isAutoDjActive();
     m_pTracklist = pTrackList;
     emit tracklistChanged();
+    if (wasAutoDjActive != isAutoDjActive()) {
+        emit autoDjActiveChanged();
+    }
 }
 
 void QmlSidebarModelProxy::setSearchText(const QString& searchText) {
@@ -197,13 +215,101 @@ void QmlSidebarModelProxy::setSearchText(const QString& searchText) {
     }
     m_searchText = searchText;
     emit searchTextChanged();
-    if (m_pTracklist) {
+    // The Auto DJ queue must not be filtered, see slotShowTrackModel().
+    if (m_pTracklist && !isAutoDjActive()) {
         m_pTracklist->search(m_searchText);
     }
 }
 
 void QmlSidebarModelProxy::search(const QString& searchText) {
     setSearchText(searchText);
+}
+
+bool QmlSidebarModelProxy::isAutoDjActive() const {
+    return m_pAutoDjQueueModel && m_pTracklist &&
+            m_pTracklist->sourceModel() == m_pAutoDjQueueModel;
+}
+
+int QmlSidebarModelProxy::autoDjTransitionSeconds() const {
+    if (!m_pAutoDjFeature) {
+        return 0;
+    }
+    return static_cast<int>(m_pAutoDjFeature->autoDjProcessor()->getTransitionTime());
+}
+
+void QmlSidebarModelProxy::setAutoDjTransitionSeconds(int seconds) {
+    if (!m_pAutoDjFeature) {
+        return;
+    }
+    m_pAutoDjFeature->autoDjProcessor()->setTransitionTime(seconds);
+    // AutoDJProcessor does not emit transitionTimeChanged, so notify here.
+    emit autoDjTransitionSecondsChanged();
+}
+
+bool QmlSidebarModelProxy::autoDjRepeat() const {
+    return m_pAutoDjFeature && m_pAutoDjFeature->isRepeatPlaylist();
+}
+
+void QmlSidebarModelProxy::setAutoDjRepeat(bool repeat) {
+    if (!m_pAutoDjFeature) {
+        return;
+    }
+    m_pAutoDjFeature->setRepeatPlaylist(repeat);
+    emit autoDjRepeatChanged();
+}
+
+void QmlSidebarModelProxy::clearAutoDjQueue() {
+    if (!m_pAutoDjFeature) {
+        return;
+    }
+    // AutoDJFeature::clear() is the classic confirmation + DAO clear.
+    m_pAutoDjFeature->clear();
+}
+
+void QmlSidebarModelProxy::removeAutoDjTracks(const QList<int>& rows) {
+    if (!m_pAutoDjQueueModel || rows.isEmpty()) {
+        return;
+    }
+    QModelIndexList indices;
+    indices.reserve(rows.size());
+    for (int row : rows) {
+        const QModelIndex index = m_pAutoDjQueueModel->index(row, 0);
+        if (index.isValid()) {
+            indices.append(index);
+        }
+    }
+    m_pAutoDjQueueModel->removeTracks(indices);
+}
+
+void QmlSidebarModelProxy::moveAutoDjTracks(const QList<int>& rows, int delta) {
+    if (!m_pAutoDjQueueModel || rows.isEmpty() || delta == 0) {
+        return;
+    }
+    QList<int> sortedRows = rows;
+    std::sort(sortedRows.begin(), sortedRows.end());
+    const int rowCount = m_pAutoDjQueueModel->rowCount();
+    if (delta < 0) {
+        for (int row : std::as_const(sortedRows)) {
+            if (row > 0) {
+                m_pAutoDjQueueModel->moveTrack(
+                        m_pAutoDjQueueModel->index(row, 0),
+                        m_pAutoDjQueueModel->index(row - 1, 0));
+            }
+        }
+        return;
+    }
+    // Bottom-up, so that moving a block of rows keeps them adjacent.
+    std::sort(sortedRows.begin(), sortedRows.end(), std::greater<int>());
+    for (int row : std::as_const(sortedRows)) {
+        if (row + 1 >= rowCount) {
+            continue;
+        }
+        // The table model expects the row after the destination. An
+        // out-of-range destination appends at the end of the queue.
+        m_pAutoDjQueueModel->moveTrack(
+                m_pAutoDjQueueModel->index(row, 0),
+                m_pAutoDjQueueModel->index(row + 2, 0));
+    }
 }
 
 void QmlSidebarModelProxy::slotTrackListSearch(const QString& searchText) {

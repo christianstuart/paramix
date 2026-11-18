@@ -16,6 +16,9 @@
 #include "qmllibrarytracklistmodel.h"
 #include "util/parented_ptr.h"
 
+class AutoDJFeature;
+class PlaylistTableModel;
+
 namespace mixxx {
 namespace qml {
 
@@ -35,6 +38,15 @@ class QmlSidebarModelProxy : public SidebarModel {
     Q_PROPERTY(QmlLibraryTrackListModel* tracklist READ tracklist NOTIFY tracklistChanged)
     Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY
                     searchTextChanged)
+    /// True while the Auto DJ queue is the track list shown to the right of the
+    /// source tree. Drives the visibility of the Auto DJ bar.
+    Q_PROPERTY(bool autoDjActive READ isAutoDjActive NOTIFY autoDjActiveChanged)
+    /// Same preference and control as DlgAutoDJ::spinBoxTransition.
+    Q_PROPERTY(int autoDjTransitionSeconds READ autoDjTransitionSeconds WRITE
+                    setAutoDjTransitionSeconds NOTIFY autoDjTransitionSecondsChanged)
+    /// Same preference as the "Repeat" button of DlgAutoDJ.
+    Q_PROPERTY(bool autoDjRepeat READ autoDjRepeat WRITE setAutoDjRepeat NOTIFY
+                    autoDjRepeatChanged)
     QML_ANONYMOUS
   public:
     enum Roles {
@@ -55,6 +67,12 @@ class QmlSidebarModelProxy : public SidebarModel {
         return m_searchText;
     }
     void setSearchText(const QString& searchText);
+
+    bool isAutoDjActive() const;
+    int autoDjTransitionSeconds() const;
+    void setAutoDjTransitionSeconds(int seconds);
+    bool autoDjRepeat() const;
+    void setAutoDjRepeat(bool repeat);
 
     /// Mirrors the features of the library's sidebar model. The features are
     /// created once during library construction, hence this is a one-shot
@@ -77,9 +95,19 @@ class QmlSidebarModelProxy : public SidebarModel {
     /// subsequent track lists.
     Q_INVOKABLE void search(const QString& searchText);
 
+    /// Auto DJ queue editing. `rows` are rows of the queue as displayed, i.e.
+    /// of the track list created for the Auto DJ playlist model.
+    Q_INVOKABLE void clearAutoDjQueue();
+    Q_INVOKABLE void removeAutoDjTracks(const QList<int>& rows);
+    /// Moves the given rows one step up (`delta` < 0) or down (`delta` > 0).
+    Q_INVOKABLE void moveAutoDjTracks(const QList<int>& rows, int delta);
+
   signals:
     void tracklistChanged();
     void searchTextChanged();
+    void autoDjActiveChanged();
+    void autoDjTransitionSecondsChanged();
+    void autoDjRepeatChanged();
 
   private slots:
     void slotShowTrackModel(QAbstractItemModel* pModel);
@@ -99,6 +127,8 @@ class QmlSidebarModelProxy : public SidebarModel {
     QmlLibraryTrackListModel* m_pTracklist;
     QString m_searchText;
     bool m_featuresUpdated;
+    AutoDJFeature* m_pAutoDjFeature;
+    PlaylistTableModel* m_pAutoDjQueueModel;
 };
 
 } // namespace qml
