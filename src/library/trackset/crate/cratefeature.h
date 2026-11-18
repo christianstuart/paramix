@@ -56,6 +56,8 @@ class CrateFeature : public BaseTrackSetFeature {
     /// Context-menu entry points for the QML sidebar (see
     /// QmlSidebarModelProxy).
     void toggleLockItem(const QModelIndex& index);
+    void duplicateItem(const QModelIndex& index);
+    void exportItem(const QModelIndex& index);
     void importItem();
 
 #ifdef __ENGINEPRIME__

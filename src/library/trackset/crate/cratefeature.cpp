@@ -447,6 +447,16 @@ void CrateFeature::toggleLockItem(const QModelIndex& index) {
     slotToggleCrateLock();
 }
 
+void CrateFeature::duplicateItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotDuplicateCrate();
+}
+
+void CrateFeature::exportItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotExportPlaylist();
+}
+
 void CrateFeature::importItem() {
     slotCreateImportCrate();
 }

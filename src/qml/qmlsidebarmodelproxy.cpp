@@ -459,10 +459,15 @@ QVariantList QmlSidebarModelProxy::contextMenu(const QModelIndex& index) const {
     if (auto* pCrate = dynamic_cast<CrateFeature*>(pFeature)) {
         const bool locked = pCrate->isItemLocked(index);
         appendMenuAction(&nodes, QStringLiteral("rename"), tr("Rename"), !locked);
+        appendMenuAction(&nodes, QStringLiteral("duplicate"), tr("Duplicate"));
         appendMenuAction(&nodes, QStringLiteral("remove"), tr("Remove"), !locked);
         appendMenuAction(&nodes,
                 QStringLiteral("lock"),
                 locked ? tr("Unlock") : tr("Lock"));
+        appendMenuSeparator(&nodes);
+        appendMenuAction(&nodes,
+                QStringLiteral("export"),
+                tr("Export Crate as Playlist"));
         return nodes;
     }
     return nodes;
@@ -572,10 +577,14 @@ void QmlSidebarModelProxy::invokeContextMenuActionNow(
     if (auto* pCrate = dynamic_cast<CrateFeature*>(pFeature)) {
         if (action == QLatin1String("rename")) {
             pCrate->renameItem(index);
+        } else if (action == QLatin1String("duplicate")) {
+            pCrate->duplicateItem(index);
         } else if (action == QLatin1String("remove")) {
             pCrate->deleteItem(index);
         } else if (action == QLatin1String("lock")) {
             pCrate->toggleLockItem(index);
+        } else if (action == QLatin1String("export")) {
+            pCrate->exportItem(index);
         }
     }
 }
