@@ -137,4 +137,30 @@ Item {
             }
         }
     }
+
+    Mixxx.ControlProxy {
+        id: numPreviewDecksControl
+
+        group: "[App]"
+        key: "num_preview_decks"
+    }
+
+    // Preview decks are created by CoreServices before QML loads, but keep the
+    // model non-zero so the sole deck still gets a handler if the count settles late.
+    Instantiator {
+        model: Math.max(1, numPreviewDecksControl.value)
+
+        delegate: LibraryComponent.ControlLoadSelectedTrackHandler {
+            required property int index
+
+            group: "[PreviewDeck" + (index + 1) + "]"
+            // [Library],focused_widget stays 0 in the QML-only UI, so the
+            // sampler-style focus gate would leave p dead. The keyboard filter
+            // already ignores shortcuts while a text input is being edited.
+            enabled: true
+            onLoadTrackRequested: (play) => {
+                root.loadSelectedTrack(this.group, play);
+            }
+        }
+    }
 }
