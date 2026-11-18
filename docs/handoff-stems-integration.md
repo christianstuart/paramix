@@ -320,4 +320,3 @@ then ~20 seconds. If it recurs after an interrupted build, remove it again:
 rm build-main/.ninja_deps
 cmake --build build-main --parallel   # once, full rebuild
 ```
-
