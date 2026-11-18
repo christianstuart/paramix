@@ -12,6 +12,12 @@ Skin.Button {
     }
 
     highlight: controlBehavior.isActive
+    onCanceled: {
+        // Qt sends canceled instead of released when the press is stolen by a
+        // drag or a focus change; without this a momentary control stays at 1
+        // (loop rolls kept looping, held rate nudges stuck).
+        controlBehavior.releasePrimary();
+    }
     onPressed: {
         controlBehavior.pressPrimary();
     }
