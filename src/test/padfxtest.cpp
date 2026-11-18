@@ -214,6 +214,55 @@ TEST_F(PadFxTest, BrakeSilencesTheStemBufferAndReleasingRestoresIt) {
     EXPECT_GT(SampleUtil::rms(buffer.data(), kSamples), baseline * 0.5);
 }
 
+TEST_F(PadFxTest, EchoOutReadsForwardThroughTheDelayLine) {
+    processEventsFor(100);
+    auto* pEngineEffects = m_pEffectsManager->getEngineEffectsManager();
+    ASSERT_NE(nullptr, pEngineEffects);
+    const ChannelHandle stemHandle =
+            m_pChannelHandleFactory->handleForGroup(stemGroup(0));
+    ASSERT_TRUE(stemHandle.valid());
+
+    // A short delay keeps the test fast without needing a beatgrid.
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad3_param1"), 0.0);
+    processEventsFor(50);
+
+    constexpr int kSamples = 128;
+    std::vector<CSAMPLE> buffer(kSamples);
+    double ramp = 0.0;
+    auto processBlock = [&]() {
+        for (int i = 0; i < kSamples; i += 2) {
+            buffer[i] = static_cast<CSAMPLE>(ramp);
+            buffer[i + 1] = static_cast<CSAMPLE>(ramp);
+            ramp += 1e-5;
+        }
+        pEngineEffects->onCallbackStart();
+        pEngineEffects->processPadFxInPlace(stemHandle,
+                m_pEffectsManager->getMainHandle(),
+                buffer.data(),
+                kSamples,
+                mixxx::audio::SampleRate::fromDouble(48000),
+                GroupFeatureState{});
+    };
+
+    // Fill the delay line with a monotonically rising ramp.
+    for (int i = 0; i < 200; ++i) {
+        processBlock();
+    }
+
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad3"), 1.0);
+    processEventsFor(20);
+
+    // Let the dry/wet crossfade settle, then check the delayed ramp itself.
+    for (int block = 0; block < 10; ++block) {
+        processBlock();
+    }
+    const CSAMPLE first = buffer[0];
+    const CSAMPLE last = buffer[kSamples - 2];
+    EXPECT_GT(std::abs(last - first), 1e-6f);
+    // A forward delay reads the rising ramp in the same direction. A reversed
+    // buffer would produce a falling slope.
+    EXPECT_GT(last, first);
+}
 TEST_F(PadFxTest, NonStemTrackDisablesPads) {
     m_pStemCount->forceSet(0.0);
     processEventsFor(50);

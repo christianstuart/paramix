@@ -10,7 +10,7 @@
 
 namespace {
 constexpr double kMaxDelaySeconds = 2.1;
-constexpr double kDryWetRampSeconds = 0.002;
+constexpr double kDryWetRampSeconds = 0.0005;
 
 inline int wrapFrame(qint64 frame, int ringFrames) {
     int wrapped = static_cast<int>(frame % ringFrames);
