@@ -1,6 +1,7 @@
 #include "qml/qmlsidebarmodelproxy.h"
 
 #include <QFileDialog>
+#include <QPersistentModelIndex>
 #include <QStandardPaths>
 #include <QString>
 #include <QTimer>
@@ -474,9 +475,15 @@ void QmlSidebarModelProxy::invokeContextMenuAction(
     }
     // Defer: rename/delete open modal dialogs or reset the sidebar model while
     // QML is still unwinding the menu's trigger handler (the same reason
-    // QmlLibraryTrackMenu::invoke() defers).
-    QTimer::singleShot(0, this, [this, index, action]() {
-        invokeContextMenuActionNow(index, action);
+    // QmlLibraryTrackMenu::invoke() defers). A reset deletes the TreeItems
+    // behind a plain QModelIndex, so track the row with a persistent index and
+    // drop the action if it did not survive.
+    const QPersistentModelIndex persistentIndex(index);
+    QTimer::singleShot(0, this, [this, persistentIndex, action]() {
+        if (!persistentIndex.isValid()) {
+            return;
+        }
+        invokeContextMenuActionNow(persistentIndex, action);
     });
 }
 
