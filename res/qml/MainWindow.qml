@@ -198,16 +198,10 @@ Item {
                     anchors.rightMargin: Theme.space2
                     spacing: Theme.space2
 
-                    // Brand plate: signal bar, wordmark, deck status dots.
+                    // Brand plate: wordmark, deck status dots.
                     RowLayout {
                         spacing: Theme.space2
 
-                        Rectangle {
-                            color: Theme.accent
-                            implicitHeight: 22
-                            implicitWidth: 3
-                            radius: 1
-                        }
                         ColumnLayout {
                             spacing: 0
 
