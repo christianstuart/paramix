@@ -255,7 +255,6 @@ Rectangle {
     }
     HorizontalHeaderView {
         id: horizontalHeader
-
         property int sortingColumn: -1
         property var sortingOrder: Qt.Descending
 
@@ -287,17 +286,13 @@ Rectangle {
             MouseArea {
                 id: columnMouseHandler
 
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                acceptedButtons: Qt.LeftButton
                 anchors.fill: parent
                 hoverEnabled: true
 
                 onClicked: mouse => {
                     if (column.suppressClick) {
                         column.suppressClick = false;
-                        return;
-                    }
-                    if (mouse.button === Qt.RightButton) {
-                        root.openColumnMenu();
                         return;
                     }
                     // The Auto DJ queue does not advertise sorting: the
@@ -416,6 +411,16 @@ Rectangle {
                 }
             }
         }
+    }
+    // A right-click anywhere on the header opens the column menu. Accepting
+    // only the right button leaves sort, drag and resize clicks to the header
+    // delegates underneath.
+    MouseArea {
+        anchors.fill: horizontalHeader
+        acceptedButtons: Qt.RightButton
+        z: 5
+
+        onClicked: root.openColumnMenu()
     }
     TableView {
         id: view
