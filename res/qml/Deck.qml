@@ -13,10 +13,6 @@ import "Deck" as DeckComponent
 Item {
     id: root
 
-    // Nothing may paint outside the deck card (the layout can overflow its
-    // bounds when the window is short).
-    clip: true
-
     enum Pane {
         Move = 0,
         Cue = 1,
@@ -24,9 +20,23 @@ Item {
         Stems = 3
     }
 
+    /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
+    property int activePane: Deck.Pane.Cue
     readonly property var currentTrack: deckPlayer.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
     required property string group
+    property bool minimized: false
+    /// Persisted per deck so the chosen pane survives a restart.
+    readonly property string paneControlKey: "deck" + group.replace(/[^0-9]/g, "") + "_pane"
+    /// Height shared by the MOVE / CUE / GRID / STEMS pane, the loop card and
+    /// the tab stack: the pane sits beside the loop-size selector inside the
+    /// transport block, so all three line up top and bottom. 112 px is the
+    /// smallest height that keeps a wrapped 2 x 2 stem lane usable; the
+    /// waveform row above absorbs whatever is left.
+    readonly property int paneHeight: Theme.deckPaneHeight
+    readonly property int paneTabsHeight: Theme.deckPaneHeight
+
+    signal toggleFocus
 
     /// Whether a deck row item with the given width gate is shown.
     function rowItemShown(type, minWidth) {
@@ -48,26 +58,11 @@ Item {
         }
         return minWidth < root.width;
     }
-    property bool minimized: false
-    /// Height shared by the MOVE / CUE / GRID / STEMS pane, the loop card and
-    /// the tab stack: the pane sits beside the loop-size selector inside the
-    /// transport block, so all three line up top and bottom. 112 px is the
-    /// smallest height that keeps a wrapped 2 x 2 stem lane usable; the
-    /// waveform row above absorbs whatever is left.
-    readonly property int paneHeight: Theme.deckPaneHeight
-    readonly property int paneTabsHeight: Theme.deckPaneHeight
-    /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
-    property int activePane: Deck.Pane.Cue
-    /// Persisted per deck so the chosen pane survives a restart.
-    readonly property string paneControlKey: "deck" + group.replace(/[^0-9]/g, "") + "_pane"
-
     function showPane(pane) {
         root.activePane = pane;
         if (paneControl.initialized)
             paneControl.value = pane;
     }
-
-    signal toggleFocus
 
     Drag.active: dragArea.drag.active
     Drag.dragType: Drag.Automatic
@@ -82,6 +77,10 @@ Item {
         return data;
     }
     Drag.supportedActions: Qt.CopyAction
+
+    // Nothing may paint outside the deck card (the layout can overflow its
+    // bounds when the window is short).
+    clip: true
 
     Component.onCompleted: {
         itemModel.append({
@@ -122,6 +121,9 @@ Item {
                                             "items": [
                                                 {
                                                     "type": "toolbar"
+                                                },
+                                                {
+                                                    "type": "vinyl"
                                                 },
                                                 {
                                                     // The active pane sits beside the
@@ -209,6 +211,12 @@ Item {
         group: root.group
         key: "track_loaded"
     }
+    Mixxx.ControlProxy {
+        id: showVinylControl
+
+        group: "[Skin]"
+        key: "show_vinylcontrol"
+    }
 
     // Persisted pane selection: a [Skin] ControlPushButton per deck (0 = move,
     // 1 = cue, 2 = grid) that the skin control creator makes on first use, so
@@ -253,7 +261,6 @@ Item {
     }
     ListModel {
         id: minimizedItemModel
-
     }
     DelegateChooser {
         id: deckItemDelegate
@@ -285,13 +292,13 @@ Item {
             roleValue: "loop"
 
             LayoutItem {
+                Layout.alignment: Qt.AlignVCenter
                 // Fixed width card: the spacer before it absorbs the slack, so
                 // the loop sits flush against the pane selector on the right.
                 Layout.maximumWidth: 185
                 Layout.minimumWidth: 120
                 Layout.preferredHeight: 62
                 Layout.preferredWidth: 185
-                Layout.alignment: Qt.AlignVCenter
 
                 DeckComponent.Loop {
                     anchors.fill: parent
@@ -303,13 +310,13 @@ Item {
             roleValue: "deckPane"
 
             LayoutItem {
+                Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
                 Layout.minimumHeight: root.paneHeight
                 // 196, not 200: the tempo strip then still fits a 564 px deck,
                 // which is what a 1280 px window (the layout floor) gives.
                 Layout.minimumWidth: 196
                 Layout.preferredHeight: root.paneHeight
-                Layout.alignment: Qt.AlignVCenter
                 height: root.paneHeight
                 objectName: "deckPane"
 
@@ -355,9 +362,7 @@ Item {
                         // Cue is the fallback pane: it stays visible unless the
                         // selector explicitly asks for another tab, so the
                         // strip is never empty for an out-of-range selection.
-                        visible: root.activePane !== Deck.Pane.Move
-                                 && root.activePane !== Deck.Pane.Grid
-                                 && root.activePane !== Deck.Pane.Stems
+                        visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid && root.activePane !== Deck.Pane.Stems
 
                         Skin.FadeBehavior on visible {
                             fadeTarget: cuePane
@@ -405,8 +410,8 @@ Item {
                 width: 34
 
                 DeckComponent.DeckPaneTabs {
-                    anchors.fill: parent
                     activePane: root.activePane
+                    anchors.fill: parent
                     gridLocked: bpmlockControl.value > 0
 
                     onSelected: pane => root.showPane(pane)
@@ -435,9 +440,9 @@ Item {
 
                 required property int index
 
-                objectName: "deckFxAssign"
                 Layout.alignment: Qt.AlignHCenter
                 Layout.fillHeight: true
+                objectName: "deckFxAssign"
                 width: 135
 
                 DeckComponent.FXAssign {
@@ -558,6 +563,23 @@ Item {
                 Layout.preferredHeight: 22
 
                 DeckComponent.Toolbar {
+                    anchors.fill: parent
+                    group: root.group
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "vinyl"
+
+            LayoutItem {
+                Layout.fillWidth: true
+                Layout.minimumHeight: 20
+                Layout.preferredHeight: 20
+                // Collapse the row entirely so the deck keeps its height when
+                // vinyl control is hidden or not built in.
+                visible: showVinylControl.value > 0 && Mixxx.Application.vinylControlAvailable
+
+                DeckComponent.VinylControlStrip {
                     anchors.fill: parent
                     group: root.group
                 }
