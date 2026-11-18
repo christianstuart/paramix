@@ -21,11 +21,10 @@
 3. Reduce on a **worker thread** (`StemDetailBuilder`), publish an immutable
    `std::shared_ptr<const StemDetailTrack>`, and cache at most two pictures in
    `StemDetailCache`, owned by `WaveformWidgetFactory`.
-4. Emit the picture as a **nearest-filtered RGBA texture per lane**: the lane base
-   (`#181818`) stays as geometry, and the coloured rows are written into one
-   device-resolution image and drawn with four textured quads. The image is built from the
-   same cached row colours, one texel per device pixel, so the pixels are unchanged; a
-   per-pixel geometry path was tried first and was upload-bound (see §7).
+4. Emit the picture as a **nearest-filtered RGBA texture per lane**: only the coloured
+   rows are written into the device-resolution image; the lane background is transparent so
+   the deck/widget background shows through. The consumer's `#181818` base is not painted
+   as a lane background, which keeps the loaded stem deck at parity with the unloaded deck.
 5. A stem track always shows **four lanes**, whatever `splitStemTracks` says. A track
    without stem audio keeps the regular waveform renderer and its existing picture.
 6. Keep the analysis format unchanged. `WaveformStemColumn` and the analyzer still feed the
@@ -116,15 +115,16 @@ black instead of `#181818`.
   track plus one viewport of margin per side fits in a single texture (at most 16384 px
   wide), the image covers the whole track and playback never rebuilds it. Longer tracks
   use the viewport plus a 50 % margin and rebuild only when the playhead leaves that
-  margin; between rebuilds only the quads' UVs move. Transparent texels leave the lane base
-  visible. The renderer is still a `GeometryNode`; the texture is a child node, so the same
-  source compiles for the GL rendergraph and the QML scene-graph backend.
+  margin; between rebuilds only the quads' UVs move. Transparent texels leave the deck
+  background visible; the lane has no opaque base, so loaded and unloaded decks match. The
+  renderer is still a `GeometryNode`; the texture is a child node, so the same source
+  compiles for the GL rendergraph and the QML scene-graph backend.
 - **Mute/solo:** both the base and the wave pixels are multiplied by
   `kGhostedStemOpacity` (0.32). The wave alpha is baked into the texture, the base alpha is
   in its geometry.
-- **Opacity:** the shipped `stem_opacity` default (0.75) maps to a fully opaque lane so
-  the picture keeps its exact `#181818` base and pixel colours. Lower values fade the
-  lanes. `setOutlineOpacity()` and `setStemVisualGain()` are documented no-ops: modulating
+- **Opacity:** the shipped `stem_opacity` default (0.75) maps to fully opaque wave pixels.
+  Lower values fade the wave pixels; the lane background stays transparent.
+  `setOutlineOpacity()` and `setStemVisualGain()` are documented no-ops: modulating
   either would change the verified colour values.
 
 ## 5. Rejected alternatives

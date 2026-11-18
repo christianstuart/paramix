@@ -285,7 +285,8 @@ column). On the Retina QML skin that is ~388,000 vertices / 9.3 MB per frame; pr
 showed ~55 % of the render thread in the Metal host-to-GPU vertex copy, and the process sat
 at ~100 % CPU with visible stutter. `StemDetailRendererStem` now rasterises the coloured
 rows into one RGBA8 image at device resolution and draws it with four textured quads
-(nearest filtering, pixel-aligned UVs); the lane bases remain geometry. The render thread
+(nearest filtering, pixel-aligned UVs); the lane background is transparent so the deck
+background shows through. The render thread
 is back to waiting for the drawable and the process runs around 30–40 % while playing.
 The texture image covers the viewport plus a margin, so it is rebuilt only a few times
 per second; for tracks whose whole picture fits in a texture (including the test fixture),

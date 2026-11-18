@@ -12,7 +12,6 @@
 #include "rendergraph/material/rgbamaterial.h"
 #include "rendergraph/material/texturematerial.h"
 #include "rendergraph/texture.h"
-#include "rendergraph/vertexupdaters/rgbavertexupdater.h"
 #include "rendergraph/vertexupdaters/texturedvertexupdater.h"
 #include "track/track.h"
 #include "util/assert.h"
@@ -31,19 +30,12 @@ constexpr float kGhostedStemOpacity = 0.32f;
 /// the detail picture keeps its exact #181818 base; lower values fade the
 /// lanes.
 constexpr float kOpaqueStemOpacity = 0.75f;
-constexpr float kLaneBaseRed = 24.0f / 255.0f;
-constexpr float kLaneBaseGreen = 24.0f / 255.0f;
-constexpr float kLaneBaseBlue = 24.0f / 255.0f;
 constexpr int kMinLaneDeviceHeight = 9;
 constexpr int kMaxLaneDeviceHeight = 63;
 constexpr int kVerticesPerRectangle = 6;
 
 inline float laneAlphaFromOpacity(float opacity) {
     return std::clamp(opacity / kOpaqueStemOpacity, 0.0f, 1.0f);
-}
-
-inline float colorChannel(QRgb color, int shift) {
-    return static_cast<float>((color >> shift) & 0xffu) / 255.0f;
 }
 
 struct TextureQuad {
@@ -386,14 +378,6 @@ bool WaveformRendererStem::preprocessInner() {
             std::max(1, pDetail->lanes.front().spc);
     const int detailColumns = pDetail->lanes.front().columns.size();
     const double detailColumnStart = -firstSample / samplesPerColumn;
-    const double detailColumnEnd =
-            (static_cast<double>(detailColumns) * detailSamplesPerColumn -
-                    firstSample) /
-            samplesPerColumn;
-    const int startX = std::clamp(
-            static_cast<int>(std::ceil(detailColumnStart)), 0, pixelLength);
-    const int endX = std::clamp(
-            static_cast<int>(std::ceil(detailColumnEnd)), 0, pixelLength);
 
     // One run is a vertical span of rows that share the same pixel colour.
     auto forEachRun = [](const StemDetailLane& lane,
@@ -605,15 +589,11 @@ bool WaveformRendererStem::preprocessInner() {
         return true;
     }
 
-    const bool drawBase = !m_isSlipRenderer && endX > startX;
-    const int baseVertexCount = drawBase
-            ? drawLaneCount * kVerticesPerRectangle
-            : 0;
+    // The lane background is transparent: only the wave pixels are drawn, so
+    // the widget/deck background shows through outside the coloured bands.
     geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
-    geometry().allocate(baseVertexCount);
+    geometry().allocate(0);
     markDirtyGeometry();
-    RGBAVertexUpdater baseUpdater{
-            geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
 
     const double offsetColumns =
             (firstSample - m_textureFirstSample) / samplesPerColumn;
@@ -630,29 +610,14 @@ bool WaveformRendererStem::preprocessInner() {
     int quadCount = 0;
 
     for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
-        const StemDetailLane& lane =
-                pDetail->lanes[static_cast<std::size_t>(
-                        laneStems.at(laneIndex))];
         const bool muted = (mutedMask >> laneIndex) & 1u;
         const float alpha = muted ? laneAlpha * kGhostedStemOpacity : laneAlpha;
         const int laneTopRow = laneIndex * (laneDeviceHeight + gapDevicePx);
         const int laneTopDevice = topDevicePx + laneTopRow;
-        const int laneBottomDevice = laneTopDevice + laneDeviceHeight;
         const int visibleHeight = m_isSlipRenderer ? laneDeviceHeight / 2
                                                    : laneDeviceHeight;
         const int alphaByte = std::clamp(
                 static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
-
-        if (drawBase) {
-            // Opaque lane base, clipped to the part of the track that the
-            // picture covers (pre/post-track stays window background).
-            baseUpdater.addRectangle(
-                    {static_cast<float>(startX) / devicePixelRatio,
-                            static_cast<float>(laneTopDevice) / devicePixelRatio},
-                    {static_cast<float>(endX) / devicePixelRatio,
-                            static_cast<float>(laneBottomDevice) / devicePixelRatio},
-                    {kLaneBaseRed, kLaneBaseGreen, kLaneBaseBlue, alpha});
-        }
 
         if (alphaByte > 0 && visibleHeight > 0) {
             const float y0 = static_cast<float>(laneTopDevice) /
@@ -667,7 +632,6 @@ bool WaveformRendererStem::preprocessInner() {
         }
     }
 
-    DEBUG_ASSERT(baseUpdater.index() == baseVertexCount);
     m_pTextureNode->updateGeometry(quads.data(), quadCount);
 
     m_pDetail = pDetail;
