@@ -21,7 +21,7 @@ ColumnLayout {
     readonly property bool loaded: trackLoadedControl.value > 0
 
     function beginBpmEdit() {
-        if (!root.loaded) {
+        if (!root.loaded || localBpmControl.value <= 0) {
             return;
         }
         bpmInput.text = bpmReadout.bpm.toFixed(2);
@@ -33,9 +33,12 @@ ColumnLayout {
         root.editingBpm = false;
     }
     function commitBpmEdit() {
+        if (!root.editingBpm) {
+            return;
+        }
         const value = Number(bpmInput.text.trim());
         // Out-of-range or non-numeric input reverts, so a typo can never
-        // rewrite the grid to a nonsense tempo.
+        // rewrite the tempo to a nonsense value.
         if (isFinite(value) && value >= 20 && value <= 300) {
             bpmControl.value = value;
         }
@@ -62,6 +65,12 @@ ColumnLayout {
         group: root.group
         key: "rate_set_default"
     }
+    Mixxx.ControlProxy {
+        id: localBpmControl
+
+        group: root.group
+        key: "local_bpm"
+    }
     // Two-line readout stacked over the fader, the deck-header tempo block of
     // the reference layout. The block owns the edit overlays so the inner
     // Column stays a pure text stack.
@@ -82,7 +91,6 @@ ColumnLayout {
             id: bpmReadout
 
             readonly property real bpm: bpmControl.value
-            readonly property int precision: 2
 
             Accessible.name: qsTr("%1 BPM").arg(bpmReadout.text)
             Accessible.role: Accessible.StaticText
@@ -94,7 +102,7 @@ ColumnLayout {
             font.pixelSize: Theme.fontSizeMd
             font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: Text.AlignHCenter
-            text: `${Math.round(bpm)}.${((bpm % 1) * Math.pow(10, precision)).toFixed().padEnd(precision, "0")}`
+            text: bpm.toFixed(2)
 
             Mixxx.ControlProxy {
                 id: bpmControl
@@ -132,22 +140,32 @@ ColumnLayout {
         MouseArea {
             id: bpmClickArea
 
-            Accessible.description: qsTr("Set the desired tempo in BPM")
-            Accessible.name: qsTr("Edit BPM")
+            Accessible.description: qsTr("Set the desired tempo (rate) in BPM")
+            Accessible.name: qsTr("Edit tempo")
             Accessible.role: Accessible.Button
             ToolTip.delay: 500
-            ToolTip.text: qsTr("Set Tempo")
+            ToolTip.text: qsTr("Set tempo (rate)")
             ToolTip.visible: bpmClickArea.containsMouse
             acceptedButtons: Qt.LeftButton
             activeFocusOnTab: true
             anchors.fill: bpmReadout
             cursorShape: Qt.IBeamCursor
-            enabled: root.loaded && !root.editingBpm
+            enabled: root.loaded && localBpmControl.value > 0 && !root.editingBpm
             hoverEnabled: true
 
             Keys.onReturnPressed: root.beginBpmEdit()
             Keys.onSpacePressed: root.beginBpmEdit()
             onClicked: root.beginBpmEdit()
+        }
+        // Focus is on the click area until the editor opens, so the ring is
+        // what tells a keyboard user the readout is selected.
+        Rectangle {
+            anchors.fill: bpmReadout
+            border.color: Theme.focusRing
+            border.width: 1
+            color: "transparent"
+            radius: Theme.radiusSm
+            visible: bpmClickArea.activeFocus
         }
         Rectangle {
             id: bpmEditor
@@ -162,7 +180,8 @@ ColumnLayout {
             TextInput {
                 id: bpmInput
 
-                Accessible.name: qsTr("BPM")
+                Accessible.description: qsTr("Set tempo (rate) in BPM. Return applies, Esc reverts.")
+                Accessible.name: qsTr("Tempo")
                 anchors.fill: parent
                 color: Theme.accent
                 font.family: Theme.fontFamilyMono
@@ -177,7 +196,7 @@ ColumnLayout {
                 onAccepted: root.commitBpmEdit()
                 onActiveFocusChanged: {
                     if (!activeFocus && root.editingBpm) {
-                        root.cancelBpmEdit();
+                        root.commitBpmEdit();
                     }
                 }
             }
@@ -203,47 +222,13 @@ ColumnLayout {
             Keys.onSpacePressed: rateDefaultControl.trigger()
             onClicked: rateDefaultControl.trigger()
         }
-    }
-    // Permanent speed keys. Right click steps in the fine (small) increments.
-    RowLayout {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 16
-        spacing: Theme.space1
-
-        RateKey {
-            description: qsTr("Lowers the track playback speed (tempo). Right click: lowers playback speed in small steps.")
-            fineKey: "rate_perm_down_small"
-            key: "rate_perm_down"
-            label: "−"
-            title: qsTr("Slow Down")
-        }
-        RateKey {
-            description: qsTr("Raises the track playback speed (tempo). Right click: raises playback speed in small steps.")
-            fineKey: "rate_perm_up_small"
-            key: "rate_perm_up"
-            label: "+"
-            title: qsTr("Speed Up")
-        }
-    }
-    // Momentary nudge keys, held like the hardware tempo buttons.
-    RowLayout {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 16
-        spacing: Theme.space1
-
-        RateKey {
-            description: qsTr("Holds playback speed lower while active (tempo). Right click: holds playback speed lower (small amount) while active.")
-            fineKey: "rate_temp_down_small"
-            key: "rate_temp_down"
-            label: "◀"
-            title: qsTr("Slow Down Temporarily (Nudge)")
-        }
-        RateKey {
-            description: qsTr("Holds playback speed higher while active (tempo). Right click: holds playback speed higher (small amount) while active.")
-            fineKey: "rate_temp_up_small"
-            key: "rate_temp_up"
-            label: "▶"
-            title: qsTr("Speed Up Temporarily (Nudge)")
+        Rectangle {
+            anchors.fill: pitchRatio
+            border.color: Theme.focusRing
+            border.width: 1
+            color: "transparent"
+            radius: Theme.radiusSm
+            visible: rateResetArea.activeFocus
         }
     }
     RowLayout {
@@ -296,7 +281,7 @@ ColumnLayout {
                 }
             }
 
-            // Fine pitch on right click (10 cents), the coarse key on the left.
+            // Fine pitch on right click, the coarse key on the left.
             MouseArea {
                 acceptedButtons: Qt.RightButton
                 anchors.fill: parent
@@ -349,7 +334,7 @@ ColumnLayout {
                 , "#b2d145" // 8m
                 , "#7499cd" // 3m
             ]
-            readonly property color keyColor: pitchKey.active ? colorsMap[keyCO.value] : "transparent"
+            readonly property color keyColor: pitchKey.active ? colorsMap[keyCO.value - 1] : "transparent"
             /// Keylock is engaged (note icon palette depends on this).
             readonly property bool lockOn: keyBehavior.isActive
             readonly property variant textMap: ["1d", "8d", "3d", "10d", "5d", "12d", "7d", "2d", "9d", "4d", "11d", "6d", "10m", "5m", "12m", "7m", "2m", "9m", "4m", "11m", "6m", "1m", "8m", "3m"]
@@ -381,7 +366,7 @@ ColumnLayout {
                 font.pixelSize: pitchKey.active ? Theme.fontSizeXs : Theme.fontSizeMd
                 font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
-                text: pitchKey.active ? pitchKey.textMap[keyCO.value] : "♪"
+                text: pitchKey.active ? pitchKey.textMap[keyCO.value - 1] : "♪"
                 verticalAlignment: Text.AlignVCenter
             }
 
@@ -443,7 +428,7 @@ ColumnLayout {
                 }
             }
 
-            // Fine pitch on right click (10 cents), the coarse key on the left.
+            // Fine pitch on right click, the coarse key on the left.
             MouseArea {
                 acceptedButtons: Qt.RightButton
                 anchors.fill: parent
@@ -460,64 +445,106 @@ ColumnLayout {
             }
         }
     }
-    Skin.ControlFader {
-        id: rateSlider
-
-        Accessible.name: qsTr("Tempo")
+    RowLayout {
         Layout.fillHeight: true
         Layout.fillWidth: true
-        bar.color: Theme.accent
-        bar.margin: 2
-        bar.start: 0.5
-        bar.width: 3
-        group: root.group
-        implicitHeight: 80
-        implicitWidth: 16
-        key: "rate"
-        showDefaultHandle: false
+        spacing: Theme.space1
 
-        background: Rectangle {
-            // Mixxx.Controls.Slider hosts custom backgrounds in a fill item;
-            // without anchors the Rectangle would collapse to 0 x 0 and the
-            // rail would never paint.
-            anchors.fill: parent
-            color: "transparent"
+        Skin.ControlFader {
+            id: rateSlider
 
-            // Recessed centre well so the fader reads as a hardware rail even
-            // when the handle is parked at 0 %.
-            Rectangle {
-                anchors.centerIn: parent
-                border.color: Theme.border
+            Accessible.name: qsTr("Tempo")
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            bar.color: Theme.accent
+            bar.margin: 2
+            bar.start: 0.5
+            bar.width: 3
+            group: root.group
+            implicitHeight: 60
+            implicitWidth: 16
+            key: "rate"
+            showDefaultHandle: false
+
+            background: Rectangle {
+                // Mixxx.Controls.Slider hosts custom backgrounds in a fill item;
+                // without anchors the Rectangle would collapse to 0 x 0 and the
+                // rail would never paint.
+                anchors.fill: parent
+                color: "transparent"
+
+                // Recessed centre well so the fader reads as a hardware rail even
+                // when the handle is parked at 0 %.
+                Rectangle {
+                    anchors.centerIn: parent
+                    border.color: Theme.border
+                    border.width: 1
+                    color: Theme.surface0
+                    height: parent.height
+                    radius: Theme.radiusSm
+                    width: 10
+                }
+                Rectangle {
+                    anchors.centerIn: parent
+                    color: Theme.borderStrong
+                    height: parent.height
+                    radius: 1
+                    width: 3
+                }
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.borderStrong
+                    height: 1
+                    width: 9
+                }
+            }
+            handle: Rectangle {
+                border.color: Theme.borderStrong
                 border.width: 1
-                color: Theme.surface0
-                height: parent.height
-                radius: Theme.radiusSm
-                width: 10
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                color: Theme.borderStrong
-                height: parent.height
-                radius: 1
-                width: 3
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
-                color: Theme.borderStrong
-                height: 1
-                width: 9
+                color: Theme.textPrimary
+                height: 8
+                radius: Theme.radiusXs
+                width: 30
+                x: Math.round((rateSlider.width - width) / 2)
+                y: Math.round(rateSlider.visualPosition * (rateSlider.height - height))
             }
         }
-        handle: Rectangle {
-            border.color: Theme.borderStrong
-            border.width: 1
-            color: Theme.textPrimary
-            height: 8
-            radius: Theme.radiusXs
-            width: 30
-            x: Math.round((rateSlider.width - width) / 2)
-            y: Math.round(rateSlider.visualPosition * (rateSlider.height - height))
+        // Speed keys sit beside the fader rather than in two rows above it, so
+        // the fader keeps its travel without hiding any of them.
+        ColumnLayout {
+            Layout.fillHeight: true
+            Layout.preferredWidth: 14
+            spacing: 2
+
+            RateKey {
+                description: qsTr("Lowers the track playback speed (tempo). Right click: lowers playback speed in small steps.")
+                fineKey: "rate_perm_down_small"
+                key: "rate_perm_down"
+                label: "−"
+                title: qsTr("Slow Down")
+            }
+            RateKey {
+                description: qsTr("Raises the track playback speed (tempo). Right click: raises playback speed in small steps.")
+                fineKey: "rate_perm_up_small"
+                key: "rate_perm_up"
+                label: "+"
+                title: qsTr("Speed Up")
+            }
+            RateKey {
+                description: qsTr("Holds playback speed lower while active (tempo). Right click: holds playback speed lower (small amount) while active.")
+                fineKey: "rate_temp_down_small"
+                key: "rate_temp_down"
+                label: "◀"
+                title: qsTr("Slow Down Temporarily (Nudge)")
+            }
+            RateKey {
+                description: qsTr("Holds playback speed higher while active (tempo). Right click: holds playback speed higher (small amount) while active.")
+                fineKey: "rate_temp_up_small"
+                key: "rate_temp_up"
+                label: "▶"
+                title: qsTr("Speed Up Temporarily (Nudge)")
+            }
         }
     }
     Skin.SyncButton {
@@ -560,6 +587,21 @@ ColumnLayout {
         enabled: root.loaded
         implicitHeight: 16
         text: rateKey.label
+
+        contentItem: Text {
+            anchors.fill: parent
+            anchors.leftMargin: 1
+            anchors.rightMargin: 1
+            color: rateKey.labelColor
+            elide: Text.ElideRight
+            font.capitalization: Font.AllUppercase
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
+            horizontalAlignment: Text.AlignHCenter
+            text: rateKey.label
+            verticalAlignment: Text.AlignVCenter
+        }
 
         onCanceled: controlBehavior.releasePrimary()
         onPressed: controlBehavior.pressPrimary()
