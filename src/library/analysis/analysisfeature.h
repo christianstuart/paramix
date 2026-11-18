@@ -14,6 +14,7 @@
 #include "track/trackid.h"
 #include "util/parented_ptr.h"
 
+class AnalysisLibraryTableModel;
 class DlgAnalysis;
 
 class AnalysisFeature : public LibraryFeature {
@@ -88,6 +89,11 @@ class AnalysisFeature : public LibraryFeature {
     void onTrackAnalysisProgress(TrackId trackId, AnalyzerProgress analyzerProgress);
 
   private:
+    /// Creates the analysis track list on first use. The classic view owns
+    /// its model, but bindLibraryWidget() is never called by the QML
+    /// interface, so the feature keeps the model for the QML track list.
+    AnalysisLibraryTableModel* analysisModel();
+
     /// Applies the combined suspension state to the scheduler, if one exists.
     void applySuspension();
 
@@ -118,6 +124,7 @@ class AnalysisFeature : public LibraryFeature {
 
     parented_ptr<TreeItemModel> m_pSidebarModel;
     DlgAnalysis* m_pAnalysisView;
+    AnalysisLibraryTableModel* m_pAnalysisModel;
 
     // The title is dynamic and reflects the current progress
     QString m_title;

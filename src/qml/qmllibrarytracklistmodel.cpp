@@ -10,6 +10,7 @@
 #include <QVector>
 
 #include "library/basetracktablemodel.h"
+#include "library/browse/browsetablemodel.h"
 #include "library/columncache.h"
 #include "moc_qmllibrarytracklistmodel.cpp"
 #include "qml/asyncimageprovider.h"
@@ -49,6 +50,44 @@ QColor colorFromRgbCode(double colorValue) {
 
 constexpr int kStemServiceRetryIntervalMs = 1000;
 constexpr int kStemServiceMaxRetryCount = 30;
+
+/// Maps a ColumnCache column of the QML column definition to the column index
+/// of the track list's source model. BaseTrackTableModel sources know their
+/// ColumnCache columns, while BrowseTableModel (Recordings, Files) has its own
+/// column enum and is normally wrapped in a ProxyTrackModel.
+int sourceColumnForTrackListColumn(QAbstractItemModel* pSourceModel, int columnIdx) {
+    const auto column = static_cast<ColumnCache::Column>(columnIdx);
+    if (auto* pTrackTableModel = qobject_cast<BaseTrackTableModel*>(pSourceModel)) {
+        return pTrackTableModel->fieldIndex(column);
+    }
+    QAbstractItemModel* pBrowseSourceModel = pSourceModel;
+    if (auto* pProxyModel = qobject_cast<QAbstractProxyModel*>(pSourceModel)) {
+        pBrowseSourceModel = pProxyModel->sourceModel();
+    }
+    if (qobject_cast<BrowseTableModel*>(pBrowseSourceModel)) {
+        switch (column) {
+        case ColumnCache::COLUMN_LIBRARYTABLE_ALBUM:
+            return COLUMN_ALBUM;
+        case ColumnCache::COLUMN_LIBRARYTABLE_ARTIST:
+            return COLUMN_ARTIST;
+        case ColumnCache::COLUMN_LIBRARYTABLE_TITLE:
+            return COLUMN_TITLE;
+        case ColumnCache::COLUMN_LIBRARYTABLE_YEAR:
+            return COLUMN_YEAR;
+        case ColumnCache::COLUMN_LIBRARYTABLE_BPM:
+            return COLUMN_BPM;
+        case ColumnCache::COLUMN_LIBRARYTABLE_KEY:
+            return COLUMN_KEY;
+        case ColumnCache::COLUMN_LIBRARYTABLE_FILETYPE:
+            return COLUMN_TYPE;
+        case ColumnCache::COLUMN_LIBRARYTABLE_BITRATE:
+            return COLUMN_BITRATE;
+        default:
+            break;
+        }
+    }
+    return columnIdx;
+}
 } // namespace
 
 QmlLibraryTrackListModel::QmlLibraryTrackListModel(
@@ -238,11 +277,8 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         return QIdentityProxyModel::data(proxyIndex, role);
     }
     return QIdentityProxyModel::data(
-            proxyIndex.siblingAtColumn(pTrackTableModel != nullptr
-                            ? pTrackTableModel->fieldIndex(
-                                      static_cast<ColumnCache::Column>(
-                                              pColumn->columnIdx()))
-                            : pColumn->columnIdx()),
+            proxyIndex.siblingAtColumn(sourceColumnForTrackListColumn(
+                    sourceModel(), pColumn->columnIdx())),
             role);
 }
 
@@ -319,12 +355,8 @@ void QmlLibraryTrackListModel::sort(int column, Qt::SortOrder order) {
         // Use proxyIndex.column()
         return sourceModel()->sort(column, order);
     }
-    auto* const pTrackTableModel = qobject_cast<BaseTrackTableModel*>(sourceModel());
-    sourceModel()->sort(pTrackTableModel != nullptr
-                    ? pTrackTableModel->fieldIndex(
-                              static_cast<ColumnCache::Column>(
-                                      pColumn->columnIdx()))
-                    : pColumn->columnIdx(),
+    sourceModel()->sort(sourceColumnForTrackListColumn(
+                                sourceModel(), pColumn->columnIdx()),
             order);
     emit layoutChanged(QList<QPersistentModelIndex>(), QAbstractItemModel::VerticalSortHint);
 }

@@ -13,10 +13,20 @@ import "../Theme"
 Rectangle {
     id: root
 
+    /// Row the context menu was last opened for. Used to restore a usable
+    /// selection after an action changed the underlying model.
+    property int contextRow: -1
     required property var model
     /// Rows are uniform, so keyboard paging and scrolling can be computed
     /// without a row height provider.
     readonly property int rowHeight: 28
+    /// Set while a pointer gesture started with a selection modifier. The
+    /// column delegates load Track.qml, whose own tap handler calls
+    /// selectionModel.selectRow() (a plain replacement) when the button is
+    /// released. Without this guard that call would wipe the multi-selection
+    /// the modified click builds. It is recomputed on every press, so a stale
+    /// value can never leak into the next gesture.
+    property bool suppressPlainSelect: false
     /// Column that renders the title text. The stem badge is drawn in its
     /// left gutter, so it appears exactly once per row instead of on every
     /// cell. Looked up by SQL column instead of by index so a reordered or
@@ -35,27 +45,6 @@ Rectangle {
         return -1;
     }
 
-    /// Row the context menu was last opened for. Used to restore a usable
-    /// selection after an action changed the underlying model.
-    property int contextRow: -1
-    /// Set while a pointer gesture started with a selection modifier. The
-    /// column delegates load Track.qml, whose own tap handler calls
-    /// selectionModel.selectRow() (a plain replacement) when the button is
-    /// released. Without this guard that call would wipe the multi-selection
-    /// the modified click builds. It is recomputed on every press, so a stale
-    /// value can never leak into the next gesture.
-    property bool suppressPlainSelect: false
-
-    color: Theme.surface0
-
-    function hasSelectionModifier(modifiers) {
-        return (modifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.MetaModifier)) !== 0;
-    }
-    function selectRow(row) {
-        if (root.suppressPlainSelect)
-            return;
-        view.selectionModel.selectSingleton(row);
-    }
     function handleRowClick(row, modifiers) {
         // Without this Up/Down stop working as soon as the mouse was used.
         view.forceActiveFocus();
@@ -66,6 +55,14 @@ Rectangle {
         } else {
             view.selectionModel.selectSingleton(row);
         }
+    }
+    function hasSelectionModifier(modifiers) {
+        return (modifiers & (Qt.ShiftModifier | Qt.ControlModifier | Qt.MetaModifier)) !== 0;
+    }
+    function selectRow(row) {
+        if (root.suppressPlainSelect)
+            return;
+        view.selectionModel.selectSingleton(row);
     }
     function showTrackMenu(row, position) {
         view.forceActiveFocus();
@@ -84,6 +81,8 @@ Rectangle {
         }
         trackMenu.popupFor(root.model, selection.selectedRows());
     }
+
+    color: Theme.surface0
 
     LibraryComponent.Control {
         id: libraryControl
@@ -160,6 +159,11 @@ Rectangle {
                 hoverEnabled: true
 
                 onClicked: {
+                    // The Auto DJ queue does not advertise sorting: the
+                    // processor always plays row 0, so sorting would change the
+                    // playback order. Sorting a regular playlist still works.
+                    if (!view.model || !view.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Sorting))
+                        return;
                     if (horizontalHeader.sortingColumn == index) {
                         horizontalHeader.sortingOrder = horizontalHeader.sortingOrder == Qt.DescendingOrder ? Qt.AscendingOrder : Qt.DescendingOrder;
                     } else {
@@ -246,9 +250,22 @@ Rectangle {
         id: view
 
         property int dynamicColumnCount: 0
-        property int usedWidth: 0
         readonly property int pageRowCount: Math.max(1, Math.floor(height / root.rowHeight))
+        property int usedWidth: 0
 
+        function ensureRowVisible(row) {
+            if (row < 0)
+                return;
+            const rowTop = row * root.rowHeight;
+            const maxY = Math.max(0, contentHeight - height);
+            let y = contentY;
+            if (rowTop < y) {
+                y = rowTop;
+            } else if (rowTop + root.rowHeight > y + height) {
+                y = rowTop + root.rowHeight - height;
+            }
+            contentY = Math.max(0, Math.min(y, maxY));
+        }
         function loadSelectedTrack(group, play) {
             const url = this.selectionModel.currentTrackUrl();
             if (!url)
@@ -262,19 +279,6 @@ Rectangle {
                 return;
 
             Mixxx.PlayerManager.loadLocationUrlIntoNextAvailableDeck(url, play);
-        }
-        function ensureRowVisible(row) {
-            if (row < 0)
-                return;
-            const rowTop = row * root.rowHeight;
-            const maxY = Math.max(0, contentHeight - height);
-            let y = contentY;
-            if (rowTop < y) {
-                y = rowTop;
-            } else if (rowTop + root.rowHeight > y + height) {
-                y = rowTop + root.rowHeight - height;
-            }
-            contentY = Math.max(0, Math.min(y, maxY));
         }
         function updateColumnSize() {
             const oldUsedWidth = usedWidth;
@@ -345,14 +349,14 @@ Rectangle {
             required property var display
             required property string file_url
             required property bool has_stems
-            required property int row
-            required property bool selected
-            required property var track
 
             /// Keyboard modifiers of the press that started the current
             /// gesture. Captured on press because the tapped signal only
             /// carries the event point and the button.
             property int pressModifiers: Qt.NoModifier
+            required property int row
+            required property bool selected
+            required property var track
 
             implicitHeight: root.rowHeight
 
@@ -445,18 +449,19 @@ Rectangle {
             /// Shift+click behave like the classic track table.
             property int anchorRow: -1
 
-            function modelRowCount() {
-                return this.model ? this.model.rowCount() : 0;
-            }
-            function normalizeRow(row) {
-                const rowCount = this.modelRowCount();
-                if (rowCount === 0)
-                    return -1;
-                return Mixxx.MathUtils.positiveModulo(row, rowCount);
+            function clearSelectionAndCurrent() {
+                this.clear();
+                this.anchorRow = -1;
             }
             function currentRow() {
                 const index = this.currentIndex;
                 return index ? index.row : -1;
+            }
+            function currentTrackUrl() {
+                const row = this.effectiveCurrentRow();
+                if (row < 0)
+                    return null;
+                return this.model.getUrl(row);
             }
             function effectiveCurrentRow() {
                 const row = this.currentRow();
@@ -465,28 +470,64 @@ Rectangle {
                 const rows = this.selectedRows();
                 return rows.length > 0 ? rows[0] : -1;
             }
-            /// Selected rows without the per-column duplicates that
-            /// selectedIndexes returns for ItemSelectionModel.Rows. Uses a
-            /// lookup object because a Select All can span every row.
-            function selectedRows() {
-                const seen = {};
-                const indexes = this.selectedIndexes;
-                for (let i = 0; i < indexes.length; ++i)
-                    seen[indexes[i].row] = true;
-                return Object.keys(seen).map(row => Number(row)).sort((a, b) => a - b);
+            function extendTo(row) {
+                const newRow = this.normalizeRow(row);
+                if (newRow < 0)
+                    return;
+                if (this.anchorRow < 0)
+                    this.anchorRow = Math.max(0, this.effectiveCurrentRow());
+                const first = Math.min(this.anchorRow, newRow);
+                const last = Math.max(this.anchorRow, newRow);
+                this.clear();
+                const flags = ItemSelectionModel.Rows | ItemSelectionModel.Select;
+                for (let r = first; r <= last; ++r)
+                    this.select(this.model.index(r, 0), flags);
+                this.setCurrentIndex(this.model.index(newRow, 0), ItemSelectionModel.NoUpdate);
             }
-            function selectedTrackUrls() {
-                const rows = this.selectedRows();
-                const urls = [];
-                for (let i = 0; i < rows.length; ++i)
-                    urls.push(this.model.getUrl(rows[i]));
-                return urls;
+            function modelRowCount() {
+                return this.model ? this.model.rowCount() : 0;
             }
-            function currentTrackUrl() {
-                const row = this.effectiveCurrentRow();
-                if (row < 0)
-                    return null;
-                return this.model.getUrl(row);
+            function moveSelectionTo(row, extend) {
+                this.moveToRow(row, extend);
+            }
+            /// Moves the current row by `offset` rows and selects it, unless
+            /// `extend` is set, in which case the selection is grown from the
+            /// anchor like Shift+click.
+            function moveSelectionVertical(offset, extend) {
+                if (offset === 0)
+                    return;
+                const base = Math.max(0, this.effectiveCurrentRow());
+                this.moveToRow(base + offset, extend);
+            }
+            function moveToRow(row, extend) {
+                const rowCount = this.modelRowCount();
+                if (rowCount === 0)
+                    return;
+                const target = Math.max(0, Math.min(rowCount - 1, row));
+                if (extend) {
+                    this.extendTo(target);
+                } else {
+                    this.selectSingleton(target);
+                }
+                view.ensureRowVisible(target);
+            }
+            function normalizeRow(row) {
+                const rowCount = this.modelRowCount();
+                if (rowCount === 0)
+                    return -1;
+                return Mixxx.MathUtils.positiveModulo(row, rowCount);
+            }
+            function selectAllRows() {
+                const rowCount = this.modelRowCount();
+                if (rowCount === 0)
+                    return;
+                const current = Math.max(0, this.effectiveCurrentRow());
+                this.clear();
+                const flags = ItemSelectionModel.Rows | ItemSelectionModel.Select;
+                for (let r = 0; r < rowCount; ++r)
+                    this.select(this.model.index(r, 0), flags);
+                this.setCurrentIndex(this.model.index(current, 0), ItemSelectionModel.NoUpdate);
+                this.anchorRow = current;
             }
             function selectRow(row) {
                 // Plain replacement selection. The column delegates call this
@@ -506,6 +547,29 @@ Rectangle {
                 this.anchorRow = newRow;
                 this.select(this.model.index(newRow, 0), ItemSelectionModel.Rows | ItemSelectionModel.Select | ItemSelectionModel.Clear | ItemSelectionModel.Current);
             }
+            /// Selected rows without the per-column duplicates that
+            /// selectedIndexes returns for ItemSelectionModel.Rows. Uses a
+            /// lookup object because a Select All can span every row.
+            function selectedRows() {
+                const seen = {};
+                const indexes = this.selectedIndexes;
+                for (let i = 0; i < indexes.length; ++i)
+                    seen[indexes[i].row] = true;
+                return Object.keys(seen).map(row => Number(row)).sort((a, b) => a - b);
+            }
+            function selectedTrackUrls() {
+                const rows = this.selectedRows();
+                const urls = [];
+                for (let i = 0; i < rows.length; ++i)
+                    urls.push(this.model.getUrl(rows[i]));
+                return urls;
+            }
+            function setCurrentRow(row) {
+                const newRow = this.normalizeRow(row);
+                if (newRow < 0)
+                    return;
+                this.setCurrentIndex(this.model.index(newRow, 0), ItemSelectionModel.NoUpdate);
+            }
             function toggleRow(row) {
                 const newRow = this.normalizeRow(row);
                 if (newRow < 0)
@@ -517,66 +581,6 @@ Rectangle {
                     this.select(index, ItemSelectionModel.Rows | ItemSelectionModel.Select | ItemSelectionModel.Current);
                 }
                 this.anchorRow = newRow;
-            }
-            function extendTo(row) {
-                const newRow = this.normalizeRow(row);
-                if (newRow < 0)
-                    return;
-                if (this.anchorRow < 0)
-                    this.anchorRow = Math.max(0, this.effectiveCurrentRow());
-                const first = Math.min(this.anchorRow, newRow);
-                const last = Math.max(this.anchorRow, newRow);
-                this.clear();
-                const flags = ItemSelectionModel.Rows | ItemSelectionModel.Select;
-                for (let r = first; r <= last; ++r)
-                    this.select(this.model.index(r, 0), flags);
-                this.setCurrentIndex(this.model.index(newRow, 0), ItemSelectionModel.NoUpdate);
-            }
-            function selectAllRows() {
-                const rowCount = this.modelRowCount();
-                if (rowCount === 0)
-                    return;
-                const current = Math.max(0, this.effectiveCurrentRow());
-                this.clear();
-                const flags = ItemSelectionModel.Rows | ItemSelectionModel.Select;
-                for (let r = 0; r < rowCount; ++r)
-                    this.select(this.model.index(r, 0), flags);
-                this.setCurrentIndex(this.model.index(current, 0), ItemSelectionModel.NoUpdate);
-                this.anchorRow = current;
-            }
-            function clearSelectionAndCurrent() {
-                this.clear();
-                this.anchorRow = -1;
-            }
-            function setCurrentRow(row) {
-                const newRow = this.normalizeRow(row);
-                if (newRow < 0)
-                    return;
-                this.setCurrentIndex(this.model.index(newRow, 0), ItemSelectionModel.NoUpdate);
-            }
-            function moveToRow(row, extend) {
-                const rowCount = this.modelRowCount();
-                if (rowCount === 0)
-                    return;
-                const target = Math.max(0, Math.min(rowCount - 1, row));
-                if (extend) {
-                    this.extendTo(target);
-                } else {
-                    this.selectSingleton(target);
-                }
-                view.ensureRowVisible(target);
-            }
-            /// Moves the current row by `offset` rows and selects it, unless
-            /// `extend` is set, in which case the selection is grown from the
-            /// anchor like Shift+click.
-            function moveSelectionVertical(offset, extend) {
-                if (offset === 0)
-                    return;
-                const base = Math.max(0, this.effectiveCurrentRow());
-                this.moveToRow(base + offset, extend);
-            }
-            function moveSelectionTo(row, extend) {
-                this.moveToRow(row, extend);
             }
 
             model: view.model
@@ -634,8 +638,6 @@ Rectangle {
         }
     }
     Connections {
-        target: Mixxx.LibraryTrackMenu
-
         function onRestoreSelectionRequested() {
             // An action such as "Hide from Library" reloaded the model, which
             // drops the selection. Restore it around the row it was invoked on.
@@ -648,6 +650,8 @@ Rectangle {
             selection.selectSingleton(row);
             view.ensureRowVisible(row);
         }
+
+        target: Mixxx.LibraryTrackMenu
     }
     LibraryComponent.TrackMenu {
         id: trackMenu

@@ -91,6 +91,10 @@ class LibraryFeature : public QObject {
     }
     virtual void bindSidebarWidget(WLibrarySidebar* /* sidebar widget */) {
     }
+    /// Reimplement this to stop background work that must finish before the
+    /// Library (and with it the database) is destroyed.
+    virtual void stopPendingTasks() {
+    }
     virtual TreeItemModel* sidebarModel() const = 0;
 
     virtual bool hasTrackTable() {
