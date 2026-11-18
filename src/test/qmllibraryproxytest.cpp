@@ -5,10 +5,9 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QSignalSpy>
-#include <QSqlError>
-#include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <initializer_list>
 #include <memory>
 #include <vector>
 
@@ -202,26 +201,24 @@ void activateSidebarRow(mixxx::qml::QmlSidebarModelProxy* pSidebar, int row) {
     pSidebar->activate(pSidebar->index(row, 0));
 }
 
-/// Inserts `count` tracks into the library and returns their IDs in insertion
-/// order. The IDs start at 1001 and the titles are A, B, C, ...
+/// Inserts `count` tracks into the library and returns their IDs in insertion order.
 QList<TrackId> insertLibraryTracks(int count) {
     QList<TrackId> trackIds;
-    QSqlDatabase db = mixxx::qml::QmlLibraryProxy::get()
-                              ->trackCollectionManager()
-                              ->internalCollection()
-                              ->database();
-    QSqlQuery query(db);
+    QTemporaryDir tempDir;
+    EXPECT_TRUE(tempDir.isValid());
+    TrackCollection* pCollection = mixxx::qml::QmlLibraryProxy::get()
+                                            ->trackCollectionManager()
+                                            ->internalCollection();
     for (int i = 0; i < count; ++i) {
-        const int id = 1001 + i;
-        query.prepare(QStringLiteral(
-                "INSERT INTO library (id, artist, title) "
-                "VALUES (:id, :artist, :title)"));
-        query.bindValue(QStringLiteral(":id"), id);
-        query.bindValue(QStringLiteral(":artist"), QStringLiteral("Artist %1").arg(i));
-        query.bindValue(QStringLiteral(":title"),
-                QString::fromLatin1(QByteArray(1, static_cast<char>('A' + i))));
-        EXPECT_TRUE(query.exec()) << query.lastError().text().toStdString();
-        trackIds.append(TrackId(QVariant(id)));
+        const auto fileInfo = mixxx::FileInfo(
+                QDir(tempDir.path()), QStringLiteral("parity-%1.mp3").arg(i));
+        TrackPointer pTrack = Track::newTemporary(mixxx::FileAccess(fileInfo));
+        pTrack->setArtist(QStringLiteral("Artist %1").arg(i));
+        pTrack->setTitle(QString::fromLatin1(QByteArray(
+                1, static_cast<char>('A' + i))));
+        const TrackId trackId = pCollection->addTrack(pTrack, false);
+        EXPECT_TRUE(trackId.isValid());
+        trackIds.append(trackId);
     }
     return trackIds;
 }
@@ -366,6 +363,14 @@ TEST_F(QmlLibraryProxyTest, AutoDjQueueRemoveAndMoveKeepTrackOrder) {
     const int playlistId = playlistDao.getPlaylistIdFromName(AUTODJ_TABLE);
     ASSERT_GE(playlistId, 0);
 
+    const auto expectedOrder = [&trackIds](std::initializer_list<int> positions) {
+        QStringList ids;
+        for (int position : positions) {
+            ids.append(trackIds.at(position).toString());
+        }
+        return ids.join(QLatin1Char(','));
+    };
+
     auto resetQueue = [&]() {
         playlistDao.clearAutoDJQueue();
         ASSERT_TRUE(playlistDao.appendTracksToPlaylist(trackIds, playlistId));
@@ -374,47 +379,39 @@ TEST_F(QmlLibraryProxyTest, AutoDjQueueRemoveAndMoveKeepTrackOrder) {
     };
 
     resetQueue();
-    EXPECT_EQ(QStringLiteral("1001,1002,1003,1004,1005"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 1, 2, 3, 4}), autoDjQueueOrder(pQueueModel));
 
     // Remove keeps the order of the remaining tracks and ignores rows that are
     // out of range.
     sidebar.removeAutoDjTracks({2, 5});
-    EXPECT_EQ(QStringLiteral("1001,1002,1004,1005"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 1, 3, 4}), autoDjQueueOrder(pQueueModel));
 
     // A selection that already touches the top edge does not move.
     resetQueue();
     sidebar.moveAutoDjTracks({0, 1}, -1);
-    EXPECT_EQ(QStringLiteral("1001,1002,1003,1004,1005"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 1, 2, 3, 4}), autoDjQueueOrder(pQueueModel));
 
     // A block moves up one step without being reversed.
     resetQueue();
     sidebar.moveAutoDjTracks({2, 3}, -1);
-    EXPECT_EQ(QStringLiteral("1001,1003,1004,1002,1005"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 2, 3, 1, 4}), autoDjQueueOrder(pQueueModel));
 
     // A block moves down one step without being reversed.
     resetQueue();
     sidebar.moveAutoDjTracks({2, 3}, 1);
-    EXPECT_EQ(QStringLiteral("1001,1002,1005,1003,1004"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 1, 4, 2, 3}), autoDjQueueOrder(pQueueModel));
 
     // A selection that already touches the bottom edge does not move.
     resetQueue();
     sidebar.moveAutoDjTracks({3, 4}, 1);
-    EXPECT_EQ(QStringLiteral("1001,1002,1003,1004,1005"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 1, 2, 3, 4}), autoDjQueueOrder(pQueueModel));
 
     // Out-of-range rows are ignored in both directions.
     resetQueue();
     sidebar.moveAutoDjTracks({-1, 5, 6}, -1);
-    EXPECT_EQ(QStringLiteral("1001,1002,1003,1004,1005"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 1, 2, 3, 4}), autoDjQueueOrder(pQueueModel));
     sidebar.removeAutoDjTracks({-1, 10});
-    EXPECT_EQ(QStringLiteral("1001,1002,1003,1004,1005"),
-            autoDjQueueOrder(pQueueModel));
+    EXPECT_EQ(expectedOrder({0, 1, 2, 3, 4}), autoDjQueueOrder(pQueueModel));
 }
 
 } // namespace
