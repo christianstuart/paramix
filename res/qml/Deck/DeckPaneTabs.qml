@@ -3,7 +3,7 @@ import QtQuick 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Vertical MOVE / CUE / GRID / STEMS selector for the deck pane stack.
+/// Vertical MOVE / CUE / GRID / STEM / PAD selector for the deck pane stack.
 ///
 /// Traktor puts this stacked selector at the right edge of the loop row, one
 /// block wide, with the active pane filled by the accent. The stack is exactly
@@ -14,7 +14,7 @@ ColumnLayout {
     id: root
 
     /// 0 = Move (beatjump), 1 = Cue (hotcues), 2 = Grid (beatgrid),
-    /// 3 = Stems (stem mixer lanes).
+    /// 3 = Stems (stem mixer lanes), 4 = Pad (per-stem Pad FX banks).
     property int activePane: 1
     /// Lights a small badge on the GRID tab while the BPM is locked.
     property bool gridLocked: false
@@ -47,6 +47,11 @@ ColumnLayout {
                 "label": qsTr("Stem"),
                 "pane": 3,
                 "hint": qsTr("Show the stem mixer")
+            },
+            {
+                "label": qsTr("Pad"),
+                "pane": 4,
+                "hint": qsTr("Show the per-stem Pad FX banks")
             }
         ]
 

@@ -1313,6 +1313,7 @@ add_library(
   src/effects/backends/builtin/builtinbackend.cpp
   src/effects/backends/builtin/distortioneffect.cpp
   src/effects/backends/builtin/echoeffect.cpp
+  src/effects/backends/builtin/echoouteffect.cpp
   src/effects/backends/builtin/filtereffect.cpp
   src/effects/backends/builtin/flangereffect.cpp
   src/effects/backends/builtin/gaineffect.cpp
@@ -1332,6 +1333,7 @@ add_library(
   src/effects/backends/builtin/reverbeffect.cpp
   src/effects/backends/builtin/threebandbiquadeqeffect.cpp
   src/effects/backends/builtin/tremoloeffect.cpp
+  src/effects/backends/builtin/vinylbrakeeffect.cpp
   src/effects/backends/builtin/whitenoiseeffect.cpp
   src/effects/backends/effectmanifest.cpp
   src/effects/backends/effectmanifestparameter.cpp
@@ -1339,8 +1341,11 @@ add_library(
   src/effects/backends/effectsbackendmanager.cpp
   src/effects/chains/equalizereffectchain.cpp
   src/effects/chains/outputeffectchain.cpp
+  src/effects/chains/padeffectchain.cpp
   src/effects/chains/pergroupeffectchain.cpp
   src/effects/chains/quickeffectchain.cpp
+  src/effects/padfx/padfxmanager.cpp
+  src/effects/padfx/padfxunit.cpp
   src/effects/chains/standardeffectchain.cpp
   src/effects/effectbuttonparameterslot.cpp
   src/effects/effectchain.cpp
@@ -3101,6 +3106,7 @@ if(BUILD_TESTING)
       src/test/stemtest.cpp
       src/test/steminfotest.cpp
       src/test/stemcontrolobjecttest.cpp
+      src/test/padfxtest.cpp
     )
   endif()
   if(BUILD_BENCH)

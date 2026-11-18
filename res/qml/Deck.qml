@@ -17,10 +17,11 @@ Item {
         Move = 0,
         Cue = 1,
         Grid = 2,
-        Stems = 3
+        Stems = 3,
+        PadFx = 4
     }
 
-    /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
+    /// 0 = move, 1 = cue, 2 = grid, 3 = stems, 4 = Pad FX. Seeded from `[Skin],deckN_pane`.
     property int activePane: Deck.Pane.Cue
     readonly property var currentTrack: deckPlayer.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
@@ -362,7 +363,7 @@ Item {
                         // Cue is the fallback pane: it stays visible unless the
                         // selector explicitly asks for another tab, so the
                         // strip is never empty for an out-of-range selection.
-                        visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid && root.activePane !== Deck.Pane.Stems
+                        visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid && root.activePane !== Deck.Pane.Stems && root.activePane !== Deck.Pane.PadFx
 
                         Skin.FadeBehavior on visible {
                             fadeTarget: cuePane
@@ -379,6 +380,17 @@ Item {
 
                         Skin.FadeBehavior on visible {
                             fadeTarget: stemsPane
+                        }
+                    }
+                    DeckComponent.PadFxPane {
+                        id: padFxPane
+
+                        anchors.fill: parent
+                        group: root.group
+                        visible: root.activePane === Deck.Pane.PadFx
+
+                        Skin.FadeBehavior on visible {
+                            fadeTarget: padFxPane
                         }
                     }
                     DeckComponent.GridPane {

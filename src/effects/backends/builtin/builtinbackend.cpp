@@ -21,6 +21,7 @@
 #include "effects/backends/builtin/compressoreffect.h"
 #include "effects/backends/builtin/distortioneffect.h"
 #include "effects/backends/builtin/echoeffect.h"
+#include "effects/backends/builtin/echoouteffect.h"
 #include "effects/backends/builtin/glitcheffect.h"
 #include "effects/backends/builtin/keycomparisoneffect.h"
 #include "effects/backends/builtin/loudnesscontoureffect.h"
@@ -31,6 +32,7 @@
 #endif
 #include "effects/backends/builtin/gaineffect.h"
 #include "effects/backends/builtin/tremoloeffect.h"
+#include "effects/backends/builtin/vinylbrakeeffect.h"
 #include "effects/backends/builtin/whitenoiseeffect.h"
 
 BuiltInBackend::BuiltInBackend() {
@@ -54,6 +56,8 @@ BuiltInBackend::BuiltInBackend() {
     // Fancy effects
     registerEffect<FlangerEffect>();
     registerEffect<EchoEffect>();
+    registerEffect<EchoOutEffect>();
+    registerEffect<VinylBrakeEffect>();
     registerEffect<AutoPanEffect>();
 #ifndef __MACAPPSTORE__
     registerEffect<ReverbEffect>();

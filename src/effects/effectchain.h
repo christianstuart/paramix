@@ -35,7 +35,8 @@ class EffectChain : public QObject {
     EffectChain(const QString& group,
             EffectsManager* pEffectsManager,
             EffectsMessengerPointer pEffectsMessenger,
-            SignalProcessingStage stage = SignalProcessingStage::Postfader);
+            SignalProcessingStage stage = SignalProcessingStage::Postfader,
+            bool mainOutputOnly = false);
     virtual ~EffectChain();
 
     QString group() const;
@@ -49,6 +50,11 @@ class EffectChain : public QObject {
     /// of the chain, not the effect.
     const QSet<ChannelHandleAndGroup>& getActiveChannels() const {
         return m_enabledInputChannels;
+    }
+    /// Output channels this chain is registered for. Pad FX chains only use
+    /// the main mix output, which keeps their effect states smaller.
+    const QSet<ChannelHandleAndGroup>& engineOutputChannels() const {
+        return m_engineOutputChannels;
     }
 
     double getSuperParameter() const;
@@ -161,6 +167,10 @@ class EffectChain : public QObject {
     SignalProcessingStage m_signalProcessingStage;
     QHash<ChannelHandleAndGroup, std::shared_ptr<ControlPushButton>> m_channelEnableButtons;
     QSet<ChannelHandleAndGroup> m_enabledInputChannels;
+    QSet<ChannelHandleAndGroup> m_engineOutputChannels;
+    // Pad FX are only ever processed for the main mix output; omitting the
+    // headphone output halves the per-instance effect-state memory.
+    const bool m_mainOutputOnly;
     EngineEffectChain* m_pEngineEffectChain;
 
     DISALLOW_COPY_AND_ASSIGN(EffectChain);

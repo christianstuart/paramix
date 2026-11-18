@@ -29,6 +29,7 @@ class EffectManifest {
               m_isMainEQ(false),
               m_effectRampsFromDry(false),
               m_bAddDryToWet(false),
+              m_padFxOnly(false),
               m_metaknobDefault(0.0) {
     }
 
@@ -147,6 +148,16 @@ class EffectManifest {
         m_bAddDryToWet = addDryToWet;
     }
 
+    /// True for effects that are only valid in the per-stem Pad FX banks.
+    /// They are registered with the built-in backend but kept out of the
+    /// regular effect selector and preset lists.
+    bool isPadFxOnly() const {
+        return m_padFxOnly;
+    }
+    void setPadFxOnly(bool padFxOnly) {
+        m_padFxOnly = padFxOnly;
+    }
+
     double metaknobDefault() const {
         return m_metaknobDefault;
     }
@@ -186,5 +197,6 @@ class EffectManifest {
     QList<EffectManifestParameterPointer> m_parameters;
     bool m_effectRampsFromDry;
     bool m_bAddDryToWet;
+    bool m_padFxOnly;
     double m_metaknobDefault;
 };

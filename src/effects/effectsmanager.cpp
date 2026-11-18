@@ -5,6 +5,7 @@
 
 #include "effects/chains/equalizereffectchain.h"
 #include "effects/chains/outputeffectchain.h"
+#include "effects/chains/padeffectchain.h"
 #include "effects/chains/quickeffectchain.h"
 #include "effects/chains/standardeffectchain.h"
 #include "effects/effectslot.h"
@@ -61,6 +62,7 @@ EffectsManager::~EffectsManager() {
     m_equalizerEffectChains.clear();
     m_quickStemEffectChains.clear();
     m_quickEffectChains.clear();
+    m_padEffectChains.clear();
     m_standardEffectChains.clear();
     m_outputEffectChain.clear();
     m_effectChainSlotsByGroup.clear();
@@ -147,14 +149,22 @@ void EffectsManager::addDeck(const ChannelHandleAndGroup& deckHandleGroup) {
 }
 
 void EffectsManager::addStem(const ChannelHandleAndGroup& stemHandleGroup) {
-    VERIFY_OR_DEBUG_ASSERT(!m_quickStemEffectChains.contains(
-            QuickEffectChain::formatEffectChainGroup(stemHandleGroup.name()))) {
+    VERIFY_OR_DEBUG_ASSERT(!m_quickStemEffectChains.contains(stemHandleGroup.name())) {
         return;
     }
     auto pChainSlot = QuickEffectChainPointer(
             new QuickEffectChain(stemHandleGroup, this, m_pMessenger));
     m_quickStemEffectChains.insert(stemHandleGroup.name(), pChainSlot);
     m_effectChainSlotsByGroup.insert(pChainSlot->group(), pChainSlot);
+
+    // Pad FX chains are a separate, per-stem layer. They are not serialized in
+    // effects.xml; the PadFxManager owns their configuration.
+    if (!m_padEffectChains.contains(stemHandleGroup.name())) {
+        auto pPadChain = EffectChainPointer(
+                new PadEffectChain(stemHandleGroup, this, m_pMessenger));
+        m_padEffectChains.insert(stemHandleGroup.name(), pPadChain);
+        m_effectChainSlotsByGroup.insert(pPadChain->group(), pPadChain);
+    }
 
     // If a stem is added after setup() was run we need to read effects.xml
     // again to initialize its QuickEffect chain, either with defaults or the

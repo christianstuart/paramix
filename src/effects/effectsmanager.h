@@ -30,6 +30,11 @@ class EffectsManager {
     void addStem(const ChannelHandleAndGroup& stemHandleGroup);
     void resetStemQuickFxKnob(const ChannelHandleAndGroup& stemHandleGroup);
 
+    /// Pad FX chain for a stem group such as "[Channel1_Stem1]".
+    EffectChainPointer getPadEffectChain(const QString& stemGroup) const {
+        return m_padEffectChains.value(stemGroup);
+    }
+
     void loadDefaultEqsAndQuickEffects();
 
     EffectChainPointer getEffectChain(const QString& group) const;
@@ -104,6 +109,8 @@ class EffectsManager {
     QHash<QString, EqualizerEffectChainPointer> m_equalizerEffectChains;
     QHash<QString, QuickEffectChainPointer> m_quickEffectChains;
     QHash<QString, QuickEffectChainPointer> m_quickStemEffectChains;
+    // Keyed by the stem group, e.g. "[Channel1_Stem1]".
+    QHash<QString, EffectChainPointer> m_padEffectChains;
 
     EffectsBackendManagerPointer m_pBackendManager;
     std::shared_ptr<ChannelHandleFactory> m_pChannelHandleFactory;

@@ -1050,6 +1050,45 @@ ControlPickerMenu::ControlPickerMenu(QWidget* pParent)
                     tr("Quick Effect"));
         }
 #endif
+        QMenu* pPadFxMenu = addSubmenu(tr("Deck %1 Pad FX").arg(i), pEffectsMenu);
+        const QString padFxGroup = deckGroup.chopped(1) + QStringLiteral("_PadFX]");
+        addControl(padFxGroup,
+                "bank",
+                tr("Deck %1 Pad FX Bank").arg(i),
+                tr("Select the active Pad FX bank (A-D)"),
+                pPadFxMenu,
+                false,
+                tr("Pad FX"));
+        for (int j = 1; j <= 4; ++j) {
+            addControl(padFxGroup,
+                    QStringLiteral("pad%1").arg(j),
+                    tr("Deck %1 Pad FX Pad %2").arg(QString::number(i), QString::number(j)),
+                    tr("Trigger the Pad FX effect"),
+                    pPadFxMenu,
+                    false,
+                    tr("Pad FX"));
+            addControl(padFxGroup,
+                    QStringLiteral("effect%1").arg(j),
+                    tr("Deck %1 Pad FX Effect %2").arg(QString::number(i), QString::number(j)),
+                    tr("Select the effect for this pad"),
+                    pPadFxMenu,
+                    false,
+                    tr("Pad FX"));
+            addControl(padFxGroup,
+                    QStringLiteral("target%1").arg(j),
+                    tr("Deck %1 Pad FX Target %2").arg(QString::number(i), QString::number(j)),
+                    tr("Stem mask for this pad: drums=1, bass=2, other=4, vocals=8"),
+                    pPadFxMenu,
+                    false,
+                    tr("Pad FX"));
+            addControl(padFxGroup,
+                    QStringLiteral("mode%1").arg(j),
+                    tr("Deck %1 Pad FX Mode %2").arg(QString::number(i), QString::number(j)),
+                    tr("Pad behavior: momentary=0, toggle=1, one-shot=2"),
+                    pPadFxMenu,
+                    false,
+                    tr("Pad FX"));
+        }
     }
 
     pEffectsMenu->addSeparator();

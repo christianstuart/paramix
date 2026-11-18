@@ -15,7 +15,8 @@
 EffectChain::EffectChain(const QString& group,
         EffectsManager* pEffectsManager,
         EffectsMessengerPointer pEffectsMessenger,
-        SignalProcessingStage stage)
+        SignalProcessingStage stage,
+        bool mainOutputOnly)
         : // The control group names are 1-indexed while internally everything
           // is 0-indexed.
           m_presetName(""),
@@ -24,6 +25,7 @@ EffectChain::EffectChain(const QString& group,
           m_pMessenger(pEffectsMessenger),
           m_group(group),
           m_signalProcessingStage(stage),
+          m_mainOutputOnly(mainOutputOnly),
           m_pEngineEffectChain(nullptr) {
     // qDebug() << "EffectChain::EffectChain " << group << ' ' << iChainNumber;
 
@@ -167,10 +169,17 @@ void EffectChain::addToEngine() {
         return;
     }
 
+    m_engineOutputChannels.clear();
+    for (const ChannelHandleAndGroup& outputChannel :
+            m_pEffectsManager->registeredOutputChannels()) {
+        if (!m_mainOutputOnly || outputChannel.name() == QStringLiteral("[Master]")) {
+            m_engineOutputChannels.insert(outputChannel);
+        }
+    }
     m_pEngineEffectChain = new EngineEffectChain(
             m_group,
             m_pEffectsManager->registeredInputChannels(),
-            m_pEffectsManager->registeredOutputChannels());
+            m_engineOutputChannels);
     EffectsRequest* pRequest = new EffectsRequest();
     pRequest->type = EffectsRequest::ADD_EFFECT_CHAIN;
     pRequest->AddEffectChain.signalProcessingStage = m_signalProcessingStage;
@@ -339,7 +348,7 @@ void EffectChain::registerInputChannel(const ChannelHandleAndGroup& handleGroup,
 }
 
 EffectSlotPointer EffectChain::getEffectSlot(unsigned int slotNumber) {
-    //qDebug() << debugString() << "getEffectSlot" << slotNumber;
+    // qDebug() << debugString() << "getEffectSlot" << slotNumber;
     VERIFY_OR_DEBUG_ASSERT(slotNumber <= static_cast<unsigned int>(m_effectSlots.size())) {
         return EffectSlotPointer();
     }
