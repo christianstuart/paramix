@@ -8,28 +8,24 @@ import QtQuick.Layouts
 import "../Theme"
 
 /// One standard effect chain in the top-bar strip: unit power, the three
-/// effect selectors with their On keys, dry/wet, the chain preset key and the
-/// slot settings flyout behind the FX badge. `compact` is the narrow variant
-/// used when all four units share the strip.
+/// effect selectors with their On keys, dry/wet, super, the chain preset key
+/// and the slot settings flyout behind the FX badge.
 RowLayout {
     id: root
 
-    readonly property int assignKeyWidth: compact ? Math.round(16 * Theme.uiScale) : Theme.fxAssignKeyWidth
-    readonly property int badgeWidth: compact ? Math.max(Math.round(30 * Theme.uiScale), Theme.fontSizeXs * 3 + 6) : Theme.fxUnitKeyMinWidth
-    property bool compact: false
+    readonly property int assignKeyWidth: Math.max(Theme.fxAssignKeyWidth, Theme.fontSizeXs * 2 + 4)
+    // Skin.Button keeps 6 px of padding on each side, so a key needs this much
+    // before its single glyph starts to elide.
+    readonly property int badgeWidth: Math.max(Theme.fxUnitKeyMinWidth, Theme.fontSizeXs * 3 + 12)
     readonly property string group: unit.group
-    readonly property int knobSize: compact ? Math.round(20 * Theme.uiScale) : Theme.fxKnobSize
-    readonly property int onKeyWidth: compact ? Math.max(Math.round(28 * Theme.uiScale), Theme.fontSizeXs * 2 + 10) : Theme.fxOnKeyWidth
-    readonly property int partialSpacing: compact ? 2 : Theme.space1
-    readonly property int presetKeyWidth: Math.round(18 * Theme.uiScale)
+    readonly property int presetKeyWidth: Math.max(Math.round(20 * Theme.uiScale), Theme.fontSizeXs * 2 + 4)
     property bool showSuper: true
-    readonly property int slotMinWidth: compact ? Math.round(56 * Theme.uiScale) : Theme.fxSlotMinWidth
     readonly property Mixxx.EffectUnitProxy unit: Mixxx.EffectsManager.getEffectUnit(unitNumber)
     readonly property bool unitEnabled: unitEnabledControl.value > 0
     required property int unitNumber
 
     implicitHeight: Theme.fxControlHeight
-    spacing: partialSpacing
+    spacing: Theme.space1
 
     // The FX badge is also the settings key for the unit's three slots: meta,
     // parameters and focus are one click away instead of taking strip width.
@@ -92,8 +88,8 @@ RowLayout {
 
         Layout.alignment: Qt.AlignVCenter
         Layout.preferredHeight: Theme.fxControlHeight
-        Layout.preferredWidth: 4 * root.assignKeyWidth + 3 * root.partialSpacing
-        spacing: root.partialSpacing
+        Layout.preferredWidth: 4 * root.assignKeyWidth + 3 * Theme.space1
+        spacing: Theme.space1
 
         Repeater {
             model: 4
@@ -123,20 +119,24 @@ RowLayout {
             readonly property Mixxx.EffectSlotProxy slot: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, slotRow.index + 1)
 
             Layout.fillWidth: true
-            Layout.minimumWidth: root.slotMinWidth + root.onKeyWidth + root.partialSpacing
-            spacing: root.partialSpacing
+            Layout.minimumWidth: Theme.fxSlotMinWidth + Theme.fxOnKeyWidth + Theme.space1
+            spacing: Theme.space1
 
             EffectSelector {
                 Accessible.name: qsTr("Effect unit %1 slot %2").arg(root.unitNumber).arg(slotRow.index + 1)
                 Layout.fillWidth: true
-                Layout.minimumWidth: root.slotMinWidth
+                Layout.minimumWidth: Theme.fxSlotMinWidth
+                // Pin the preferred width to the minimum so every selector in
+                // every unit grows by the same share; otherwise the layout
+                // shrinks units with longer effect names more than short ones.
+                Layout.preferredWidth: Theme.fxSlotMinWidth
                 font.pixelSize: Theme.fontSizeXs
                 implicitHeight: Theme.fxControlHeight
                 slot: slotRow.slot
             }
             Skin.ControlButton {
                 Accessible.name: qsTr("Effect unit %1 slot %2 enabled").arg(root.unitNumber).arg(slotRow.index + 1)
-                Layout.preferredWidth: root.onKeyWidth
+                Layout.preferredWidth: Theme.fxOnKeyWidth
                 activeColor: Theme.textOnAccent
                 group: slotRow.slot.group
                 implicitHeight: Theme.fxControlHeight
@@ -151,8 +151,8 @@ RowLayout {
 
         Accessible.name: qsTr("Effect unit %1 dry/wet").arg(root.unitNumber)
         Layout.alignment: Qt.AlignVCenter
-        Layout.preferredHeight: root.knobSize
-        Layout.preferredWidth: root.knobSize
+        Layout.preferredHeight: Theme.fxKnobSize
+        Layout.preferredWidth: Theme.fxKnobSize
         ToolTip.delay: 500
         ToolTip.text: qsTr("Dry/wet")
         ToolTip.visible: mixHover.hovered
@@ -170,8 +170,8 @@ RowLayout {
 
         Accessible.name: qsTr("Effect unit %1 super knob").arg(root.unitNumber)
         Layout.alignment: Qt.AlignVCenter
-        Layout.preferredHeight: root.knobSize
-        Layout.preferredWidth: root.knobSize
+        Layout.preferredHeight: Theme.fxKnobSize
+        Layout.preferredWidth: Theme.fxKnobSize
         ToolTip.delay: 500
         ToolTip.text: qsTr("Super knob")
         ToolTip.visible: superHover.hovered
@@ -195,7 +195,9 @@ RowLayout {
         ToolTip.text: qsTr("Chain presets")
         ToolTip.visible: presetHover.hovered
         icon.height: Math.round(12 * Theme.uiScale)
-        icon.source: "images/gear.svg"
+        // Qt.resolvedUrl keeps the lookup relative to this file; a plain
+        // string would be resolved by Skin.Button against res/qml instead.
+        icon.source: Qt.resolvedUrl("../images/gear.svg")
         icon.width: Math.round(12 * Theme.uiScale)
 
         onClicked: chainPresetMenu.opened ? chainPresetMenu.close() : chainPresetMenu.open()
@@ -212,7 +214,7 @@ RowLayout {
         focus: true
         modal: false
         padding: Theme.space2
-        x: Math.min(0, root.width - width)
+        x: Math.max(0, root.width - width)
         y: root.height + Theme.space1
 
         background: Rectangle {
@@ -221,21 +223,27 @@ RowLayout {
             color: Theme.surface1
             radius: Theme.radiusMd
         }
-        contentItem: RowLayout {
-            spacing: Theme.space3
+        // Only build the three parameter columns while the flyout is open, so
+        // four units do not instantiate 3 x parametersModel rows at startup.
+        contentItem: Loader {
+            active: controlsPopup.visible
 
-            Repeater {
-                model: 3
+            sourceComponent: RowLayout {
+                spacing: Theme.space3
 
-                EffectSlotControls {
-                    id: slotControls
+                Repeater {
+                    model: 3
 
-                    required property int index
+                    EffectSlotControls {
+                        id: slotControls
 
-                    Layout.alignment: Qt.AlignTop
-                    Layout.preferredWidth: slotControls.columnWidth
-                    slot: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, index + 1)
-                    unitGroup: root.group
+                        required property int index
+
+                        Layout.alignment: Qt.AlignTop
+                        Layout.preferredWidth: slotControls.columnWidth
+                        slot: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, index + 1)
+                        unitGroup: root.group
+                    }
                 }
             }
         }
@@ -247,7 +255,7 @@ RowLayout {
         slot2: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, 2)
         slot3: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, 3)
         unit: root.unit
-        x: Math.min(0, root.width - width)
+        x: Math.max(0, root.width - width)
         y: root.height + Theme.space1
     }
     Mixxx.ControlProxy {

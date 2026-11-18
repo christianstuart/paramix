@@ -19,7 +19,12 @@ ColumnLayout {
     /// the flyout binds Layout.preferredWidth to this instead.
     readonly property int columnWidth: Math.round(136 * Theme.uiScale)
     readonly property int controlWidth: Math.round(30 * Theme.uiScale)
-    readonly property bool focused: showFocus.value > 0 && Math.round(focusedEffect.value) === root.slotNumber
+    /// Focus is the engine value only: `focused_effect` persists, while
+    /// `show_focus` is a classic-skin display hint that starts at 0.
+    readonly property bool focused: Math.round(focusedEffect.value) === root.slotNumber
+    // Skin.Button keeps 6 px of padding on each side, so a single glyph needs
+    // at least this much before the label elides.
+    readonly property int keySize: Math.max(Math.round(22 * Theme.uiScale), Theme.fontSizeXs * 2 + 8)
     readonly property int rowHeight: Math.round(26 * Theme.uiScale)
     required property Mixxx.EffectSlotProxy slot
 
@@ -44,34 +49,52 @@ ColumnLayout {
             font.weight: Theme.fontWeightDemiBold
             text: root.slot.loaded ? qsTr("Slot %1: %2").arg(root.slotNumber).arg(root.slot.effectName) : qsTr("Slot %1").arg(root.slotNumber)
         }
-        // Focus selects the slot the unit's super knob drives. The classic skin
-        // only showed this key while "show focus" was on; clicking here also
-        // turns that mode on so the preference and controller LEDs agree.
+        // Focus selects the slot the unit's super knob drives.
         Skin.Button {
             Accessible.name: qsTr("Focus effect slot %1").arg(root.slotNumber)
+            ToolTip.delay: 500
+            ToolTip.text: qsTr("Focus this slot for the super knob")
+            ToolTip.visible: focusHover.hovered
             enabled: root.slot.loaded
             highlight: root.focused
-            implicitHeight: Math.round(16 * Theme.uiScale)
-            implicitWidth: Math.round(16 * Theme.uiScale)
+            implicitHeight: root.keySize
+            implicitWidth: root.keySize
             text: "F"
 
             onClicked: {
                 focusedEffect.value = root.focused ? 0 : root.slotNumber;
+                // Turn the classic focus mode on so the persisted preference
+                // and controller LEDs agree that a slot is focused.
                 showFocus.value = 1;
+            }
+
+            HoverHandler {
+                id: focusHover
+
+                cursorShape: Qt.PointingHandCursor
             }
         }
         Skin.Button {
             Accessible.name: qsTr("Effect slot %1 presets").arg(root.slotNumber)
+            ToolTip.delay: 500
+            ToolTip.text: qsTr("Parameter visibility and snapshot")
+            ToolTip.visible: slotPresetHover.hovered
             enabled: root.slot.loaded
-            implicitHeight: Math.round(16 * Theme.uiScale)
-            implicitWidth: Math.round(16 * Theme.uiScale)
+            implicitHeight: root.keySize
+            implicitWidth: root.keySize
             text: "P"
 
             onClicked: slotPresetMenu.opened ? slotPresetMenu.close() : slotPresetMenu.open()
+
+            HoverHandler {
+                id: slotPresetHover
+
+                cursorShape: Qt.PointingHandCursor
+            }
         }
     }
-    // Meta is the effect's single "character" parameter (a filter type, a
-    // reverb size), so it gets the same knob size as the chain dry/wet.
+    // Meta is the effect's character parameter (a filter type, a reverb size),
+    // so it gets a 30 px knob above the 26 px parameter rows.
     RowLayout {
         Layout.fillWidth: true
         spacing: Theme.space1
@@ -93,6 +116,7 @@ ColumnLayout {
             ToolTip.visible: metaHover.hovered
             arcStart: Skin.Knob.ArcStart.Minimum
             color: Theme.textPrimary
+            enabled: root.slot.loaded
             group: root.slot.group
             key: "meta"
 
@@ -156,7 +180,7 @@ ColumnLayout {
         id: slotPresetMenu
 
         slot: root.slot
-        x: Math.min(0, root.width - width)
+        x: Math.max(0, root.width - width)
         y: Math.round(20 * Theme.uiScale)
     }
     // These controls live on the unit group, not on the slot group.

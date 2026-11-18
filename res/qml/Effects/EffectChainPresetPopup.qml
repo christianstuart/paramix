@@ -18,6 +18,18 @@ Menu {
     property int fontPixelSize: Theme.fontSizeMd
     property color hoverColor: Qt.alpha(Theme.accent, 0.12)
     property color hoverTextColor: Theme.textPrimary
+
+    /// Index of the next real chain preset. The standard preset model keeps the
+    /// internal empty "---" preset at index 0, so stepping must never land on
+    /// it (that would clear the chain). -1 when there is nothing to step to.
+    readonly property int nextPresetIndex: {
+        const count = presetInstantiator.count;
+        if (count <= 1) {
+            return -1;
+        }
+        const next = root.unit.presetIndex + 1;
+        return (next <= 0 || next >= count) ? 1 : next;
+    }
     // Legacy aliases kept for the LateNightQML skin.
     property color separatorBottomColor: separatorColor
     property color separatorColor: Theme.border
@@ -85,7 +97,7 @@ Menu {
     Skin.EffectPresetMenuItem {
         checkedSource: root.checkedSource
         disabledTextColor: root.disabledTextColor
-        enabled: presetInstantiator.count > 1
+        enabled: root.nextPresetIndex > 0
         fontFamily: root.fontFamily
         fontPixelSize: root.fontPixelSize
         hoverColor: root.hoverColor
@@ -94,7 +106,7 @@ Menu {
         text: qsTr("Next Preset")
         textColor: root.textColor
 
-        onTriggered: root.unit.loadPreset((root.unit.presetIndex + 1) % presetInstantiator.count)
+        onTriggered: root.unit.loadPreset(root.nextPresetIndex)
     }
     Skin.EffectPresetMenuSeparator {
         lineColor: root.separatorColor
