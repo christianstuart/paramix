@@ -16,7 +16,9 @@
 class DlgHidden;
 class DlgMissing;
 class BaseTrackCache;
+class HiddenTableModel;
 class LibraryTableModel;
+class MissingTableModel;
 class TrackCollection;
 class QModelIndex;
 
@@ -24,7 +26,7 @@ class MixxxLibraryFeature final : public LibraryFeature {
     Q_OBJECT
   public:
     MixxxLibraryFeature(Library* pLibrary,
-                        UserSettingsPointer pConfig);
+            UserSettingsPointer pConfig);
     ~MixxxLibraryFeature() override = default;
 
     QVariant title() override;
@@ -32,7 +34,7 @@ class MixxxLibraryFeature final : public LibraryFeature {
     bool dragMoveAccept(const QList<QUrl>& urls) override;
     TreeItemModel* sidebarModel() const override;
     void bindLibraryWidget(WLibrary* pLibrary,
-                    KeyboardEventFilter* pKeyboard) override;
+            KeyboardEventFilter* pKeyboard) override;
 #ifdef __ENGINEPRIME__
     void bindSidebarWidget(WLibrarySidebar* pSidebarWidget) override;
 #endif
@@ -67,8 +69,18 @@ class MixxxLibraryFeature final : public LibraryFeature {
     const QString kHiddenTitle;
     TrackCollection* const m_pTrackCollection;
 
+    MissingTableModel* missingModel();
+    HiddenTableModel* hiddenModel();
+
     QSharedPointer<BaseTrackCache> m_pBaseTrackCache;
     LibraryTableModel* m_pLibraryTableModel;
+
+    /// Models of the Missing/Hidden Tracks child views. The classic QWidget
+    /// views own their models, but they are only created by
+    /// bindLibraryWidget(), which the QML interface never calls. Create them
+    /// lazily here so that the QML track list can show these sources too.
+    MissingTableModel* m_pMissingTableModel;
+    HiddenTableModel* m_pHiddenTableModel;
 
     parented_ptr<TreeItemModel> m_pSidebarModel;
 

@@ -320,6 +320,9 @@ void Library::stopPendingTasks() {
         m_pAnalysisFeature->stopAnalysis();
     }
     m_pBrowseFeature->releaseBrowseThread();
+    for (const auto& feature : std::as_const(m_features)) {
+        feature->stopPendingTasks();
+    }
 }
 
 void Library::bindSearchboxWidget(WSearchLineEdit* pSearchboxWidget) {

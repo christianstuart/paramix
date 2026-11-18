@@ -22,9 +22,18 @@ class SetlogFeature : public BasePlaylistFeature {
             KeyboardEventFilter* keyboard) override;
     void activatePlaylist(int playlistId) override;
 
+    /// True if `index` is a year group node rather than a history playlist.
+    bool isYearIndex(const QModelIndex& index) const;
+    /// True for the playlist that is currently being recorded (today's).
+    bool isCurrentPlaylistIndex(const QModelIndex& index) const;
+
   public slots:
     void onRightClick(const QPoint& globalPos) override;
     void onRightClickChild(const QPoint& globalPos, const QModelIndex& index) override;
+    /// Context-menu entry points for the QML sidebar (see
+    /// QmlSidebarModelProxy). They act on a year node.
+    void lockChildPlaylists(const QModelIndex& index, bool lock);
+    void purgeChildPlaylists(const QModelIndex& index);
     void slotJoinWithPrevious();
     void slotMarkAllTracksPlayed();
     void slotLockAllChildPlaylists();

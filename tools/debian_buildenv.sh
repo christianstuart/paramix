@@ -17,6 +17,11 @@ case "$1" in
         ;;
 
     setup)
+        # CI runners have no stdin; never let an apt or script prompt wait
+        # forever in the "Install build dependencies" step.
+        export DEBIAN_FRONTEND=noninteractive
+        export APT_LISTCHANGES_FRONTEND=none
+
         source /etc/os-release 2>/dev/null
         case "${VERSION_CODENAME}" in
             jammy|bullseye|victoria|vera|vanessa|virginia) # <= Ubuntu 22.04.5 LTS
@@ -74,11 +79,15 @@ case "$1" in
             echo ""
             echo "See also: https://wiki.debian.org/SourcesList"
             echo ""
-            read -p "Would you like to exit to manually enable 'non-free' now? (y = Exit / n = Continue without fonts): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                echo "Please edit your /etc/apt/sources.list, run 'sudo apt update', and restart this script."
-                exit 1
+            if [ -t 0 ] && [ -z "${CI:-}" ]; then
+                read -p "Would you like to exit to manually enable 'non-free' now? (y = Exit / n = Continue without fonts): " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    echo "Please edit your /etc/apt/sources.list, run 'sudo apt update', and restart this script."
+                    exit 1
+                fi
+            else
+                echo "Non-interactive shell: continuing without 'fonts-ubuntu'."
             fi
         fi
 

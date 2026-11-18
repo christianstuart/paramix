@@ -7,6 +7,7 @@
 #include <QPointer>
 #include <QQmlEngine>
 #include <QString>
+#include <QUrl>
 #include <QVariant>
 #include <vector>
 
@@ -15,6 +16,9 @@
 #include "qmllibrarytracklistcolumn.h"
 #include "qmllibrarytracklistmodel.h"
 #include "util/parented_ptr.h"
+
+class AutoDJFeature;
+class PlaylistTableModel;
 
 namespace mixxx {
 namespace qml {
@@ -35,6 +39,15 @@ class QmlSidebarModelProxy : public SidebarModel {
     Q_PROPERTY(QmlLibraryTrackListModel* tracklist READ tracklist NOTIFY tracklistChanged)
     Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY
                     searchTextChanged)
+    /// True while the Auto DJ queue is the track list shown to the right of the
+    /// source tree. Drives the visibility of the Auto DJ bar.
+    Q_PROPERTY(bool autoDjActive READ isAutoDjActive NOTIFY autoDjActiveChanged)
+    /// Same preference and control as DlgAutoDJ::spinBoxTransition.
+    Q_PROPERTY(int autoDjTransitionSeconds READ autoDjTransitionSeconds WRITE
+                    setAutoDjTransitionSeconds NOTIFY autoDjTransitionSecondsChanged)
+    /// Same preference as the "Repeat" button of DlgAutoDJ.
+    Q_PROPERTY(bool autoDjRepeat READ autoDjRepeat WRITE setAutoDjRepeat NOTIFY
+                    autoDjRepeatChanged)
     QML_ANONYMOUS
   public:
     enum Roles {
@@ -56,6 +69,12 @@ class QmlSidebarModelProxy : public SidebarModel {
     }
     void setSearchText(const QString& searchText);
 
+    bool isAutoDjActive() const;
+    int autoDjTransitionSeconds() const;
+    void setAutoDjTransitionSeconds(int seconds);
+    bool autoDjRepeat() const;
+    void setAutoDjRepeat(bool repeat);
+
     /// Mirrors the features of the library's sidebar model. The features are
     /// created once during library construction, hence this is a one-shot
     /// operation.
@@ -63,6 +82,14 @@ class QmlSidebarModelProxy : public SidebarModel {
 
     /// Columns used for all track models created by this proxy.
     void setColumns(const QList<QmlLibraryTrackListColumn*>& columns);
+
+    /// Column layout shared by every source. Changing it updates the cached
+    /// models and every model created later.
+    Q_INVOKABLE void moveColumn(int from, int to);
+    Q_INVOKABLE void setColumnHidden(int column, bool hidden);
+    /// Ordered list of maps with the keys `key` and `hidden`.
+    Q_INVOKABLE QVariantList columnLayout() const;
+    Q_INVOKABLE void applyColumnLayout(const QVariantList& layout);
 
     QHash<int, QByteArray> roleNames() const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -77,9 +104,31 @@ class QmlSidebarModelProxy : public SidebarModel {
     /// subsequent track lists.
     Q_INVOKABLE void search(const QString& searchText);
 
+    /// Auto DJ queue editing. `rows` are rows of the queue as displayed, i.e.
+    /// of the track list created for the Auto DJ playlist model.
+    Q_INVOKABLE void clearAutoDjQueue();
+    Q_INVOKABLE void removeAutoDjTracks(const QList<int>& rows);
+    /// Moves the given rows one step up (`delta` < 0) or down (`delta` > 0).
+    Q_INVOKABLE void moveAutoDjTracks(const QList<int>& rows, int delta);
+
+    /// Context menu of a source-tree row, rendered by Browser.qml. Each node is
+    /// a map with the keys `kind` ("action" or "separator"), `action` (the id
+    /// to pass to invokeContextMenuAction()), `text` and `enabled`.
+    Q_INVOKABLE QVariantList contextMenu(const QModelIndex& index) const;
+    Q_INVOKABLE void invokeContextMenuAction(
+            const QModelIndex& index, const QString& action);
+
+    /// Drops `urls` onto the playlist, crate or source at `index`. Returns
+    /// true if the feature accepted the drop.
+    Q_INVOKABLE bool dropUrls(const QModelIndex& index, const QList<QUrl>& urls);
+
   signals:
     void tracklistChanged();
     void searchTextChanged();
+    void autoDjActiveChanged();
+    void autoDjTransitionSecondsChanged();
+    void autoDjRepeatChanged();
+    void columnLayoutChanged();
 
   private slots:
     void slotShowTrackModel(QAbstractItemModel* pModel);
@@ -93,12 +142,18 @@ class QmlSidebarModelProxy : public SidebarModel {
 
     QmlLibraryTrackListModel* trackListForModel(QAbstractItemModel* pModel);
     void activateDefaultSelection();
+    void addFolderToLibrary();
+    void applyColumnsToTrackLists();
+    void invokeContextMenuActionNow(
+            const QModelIndex& index, const QString& action);
 
     std::vector<parented_ptr<QmlLibraryTrackListColumn>> m_columns;
     QList<TrackListEntry> m_trackLists;
     QmlLibraryTrackListModel* m_pTracklist;
     QString m_searchText;
     bool m_featuresUpdated;
+    AutoDJFeature* m_pAutoDjFeature;
+    PlaylistTableModel* m_pAutoDjQueueModel;
 };
 
 } // namespace qml

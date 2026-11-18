@@ -46,8 +46,8 @@ BasePlaylistFeature::BasePlaylistFeature(
         bool keepHiddenTracks)
         : BaseTrackSetFeature(pLibrary, pConfig, rootViewName, iconName),
           m_playlistDao(pLibrary->trackCollectionManager()
-                                ->internalCollection()
-                                ->getPlaylistDAO()),
+                          ->internalCollection()
+                          ->getPlaylistDAO()),
           m_pPlaylistTableModel(pModel),
           m_countsDurationTableName(countsDurationTableName),
           m_keepHiddenTracks(keepHiddenTracks) {
@@ -219,7 +219,7 @@ void BasePlaylistFeature::selectPlaylistInSidebar(int playlistId, bool select) {
 }
 
 void BasePlaylistFeature::activateChild(const QModelIndex& index) {
-    //qDebug() << "BasePlaylistFeature::activateChild()" << index;
+    // qDebug() << "BasePlaylistFeature::activateChild()" << index;
     int playlistId = playlistIdFromIndex(index);
     if (playlistId == kInvalidPlaylistId) {
         // may happen during initialization
@@ -252,9 +252,34 @@ void BasePlaylistFeature::activatePlaylist(int playlistId) {
     emit featureSelect(this, m_lastClickedIndex);
 }
 
+bool BasePlaylistFeature::isItemLocked(const QModelIndex& index) const {
+    const int playlistId = playlistIdFromIndex(index);
+    return playlistId != kInvalidPlaylistId &&
+            m_playlistDao.isPlaylistLocked(playlistId);
+}
+
 void BasePlaylistFeature::renameItem(const QModelIndex& index) {
     m_lastRightClickedIndex = index;
     slotRenamePlaylist();
+}
+
+void BasePlaylistFeature::duplicateItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotDuplicatePlaylist();
+}
+
+void BasePlaylistFeature::toggleLockItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotTogglePlaylistLock();
+}
+
+void BasePlaylistFeature::exportItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotExportPlaylist();
+}
+
+void BasePlaylistFeature::importItem() {
+    slotCreateImportPlaylist();
 }
 
 void BasePlaylistFeature::slotRenamePlaylist() {
@@ -428,7 +453,7 @@ void BasePlaylistFeature::deleteItem(const QModelIndex& index) {
 }
 
 void BasePlaylistFeature::slotDeletePlaylist() {
-    //qDebug() << "slotDeletePlaylist() row:" << m_lastRightClickedIndex.data();
+    // qDebug() << "slotDeletePlaylist() row:" << m_lastRightClickedIndex.data();
     if (!m_lastRightClickedIndex.isValid()) {
         return;
     }
@@ -458,7 +483,7 @@ void BasePlaylistFeature::slotDeletePlaylist() {
 }
 
 void BasePlaylistFeature::slotImportPlaylist() {
-    //qDebug() << "slotImportPlaylist() row:" << m_lastRightClickedIndex.data();
+    // qDebug() << "slotImportPlaylist() row:" << m_lastRightClickedIndex.data();
     const QString playlistFile = getPlaylistFile();
     if (playlistFile.isEmpty()) {
         return;
@@ -711,22 +736,22 @@ void BasePlaylistFeature::slotExportTrackFiles() {
 }
 
 void BasePlaylistFeature::slotAddToAutoDJ() {
-    //qDebug() << "slotAddToAutoDJ() row:" << m_lastRightClickedIndex.data();
+    // qDebug() << "slotAddToAutoDJ() row:" << m_lastRightClickedIndex.data();
     addToAutoDJ(PlaylistDAO::AutoDJSendLoc::BOTTOM);
 }
 
 void BasePlaylistFeature::slotAddToAutoDJTop() {
-    //qDebug() << "slotAddToAutoDJTop() row:" << m_lastRightClickedIndex.data();
+    // qDebug() << "slotAddToAutoDJTop() row:" << m_lastRightClickedIndex.data();
     addToAutoDJ(PlaylistDAO::AutoDJSendLoc::TOP);
 }
 
 void BasePlaylistFeature::slotAddToAutoDJReplace() {
-    //qDebug() << "slotAddToAutoDJReplace() row:" << m_lastRightClickedIndex.data();
+    // qDebug() << "slotAddToAutoDJReplace() row:" << m_lastRightClickedIndex.data();
     addToAutoDJ(PlaylistDAO::AutoDJSendLoc::REPLACE);
 }
 
 void BasePlaylistFeature::addToAutoDJ(PlaylistDAO::AutoDJSendLoc loc) {
-    //qDebug() << "slotAddToAutoDJ() row:" << m_lastRightClickedIndex.data();
+    // qDebug() << "slotAddToAutoDJ() row:" << m_lastRightClickedIndex.data();
     if (m_lastRightClickedIndex.isValid()) {
         int playlistId = playlistIdFromIndex(m_lastRightClickedIndex);
         if (playlistId >= 0) {

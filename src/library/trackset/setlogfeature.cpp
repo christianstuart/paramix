@@ -65,7 +65,7 @@ SetlogFeature::SetlogFeature(
     // just to be safe
     m_playlistDao.setPlaylistLocked(m_yearNodeId, true);
 
-    //construct child model
+    // construct child model
     m_pSidebarModel->setRootItem(TreeItem::newRoot(this));
     constructChildModel(kInvalidPlaylistId);
 
@@ -133,8 +133,8 @@ void SetlogFeature::bindLibraryWidget(
 
 void SetlogFeature::deleteAllUnlockedPlaylistsWithFewerTracks() {
     ScopedTransaction transaction(m_pLibrary->trackCollectionManager()
-                                          ->internalCollection()
-                                          ->database());
+                    ->internalCollection()
+                    ->database());
     int minTrackCount = m_pConfig->getValue(
             kHistoryMinTracksToKeepConfigKey,
             kHistoryMinTracksToKeepDefault);
@@ -160,6 +160,25 @@ void SetlogFeature::slotDeletePlaylist() {
     }
 }
 
+bool SetlogFeature::isYearIndex(const QModelIndex& index) const {
+    return m_yearNodeId != kInvalidPlaylistId &&
+            playlistIdFromIndex(index) == m_yearNodeId;
+}
+
+bool SetlogFeature::isCurrentPlaylistIndex(const QModelIndex& index) const {
+    return playlistIdFromIndex(index) == m_currentPlaylistId;
+}
+
+void SetlogFeature::lockChildPlaylists(const QModelIndex& index, bool lock) {
+    m_lastRightClickedIndex = index;
+    lockOrUnlockAllChildPlaylists(lock);
+}
+
+void SetlogFeature::purgeChildPlaylists(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotDeleteAllUnlockedChildPlaylists();
+}
+
 void SetlogFeature::onRightClick(const QPoint& globalPos) {
     Q_UNUSED(globalPos);
     m_lastRightClickedIndex = QModelIndex();
@@ -172,7 +191,7 @@ void SetlogFeature::onRightClick(const QPoint& globalPos) {
 }
 
 void SetlogFeature::onRightClickChild(const QPoint& globalPos, const QModelIndex& index) {
-    //Save the model index so we can get it in the action slots...
+    // Save the model index so we can get it in the action slots...
     m_lastRightClickedIndex = index;
 
     int playlistId = playlistIdFromIndex(index);
@@ -359,7 +378,7 @@ void SetlogFeature::decorateChild(TreeItem* item, int playlistId) {
 
 /// Invoked on startup to create new current playlist and by "Finish current and start new"
 void SetlogFeature::slotGetNewPlaylist() {
-    //qDebug() << "slotGetNewPlaylist() successfully triggered !";
+    // qDebug() << "slotGetNewPlaylist() successfully triggered !";
 
     // create a new playlist for today
     QString set_log_name_format;
@@ -374,7 +393,7 @@ void SetlogFeature::slotGetNewPlaylist() {
         set_log_name = set_log_name_format.arg(++i);
     }
 
-    //qDebug() << "Creating session history playlist name:" << set_log_name;
+    // qDebug() << "Creating session history playlist name:" << set_log_name;
     m_currentPlaylistId = m_playlistDao.createPlaylist(
             set_log_name, PlaylistDAO::PLHT_SET_LOG);
 

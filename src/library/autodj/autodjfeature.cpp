@@ -9,6 +9,7 @@
 #include "library/dao/trackschema.h"
 #include "library/library.h"
 #include "library/parser.h"
+#include "library/playlisttablemodel.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/trackset/crate/cratestorage.h"
@@ -24,6 +25,9 @@
 
 namespace {
 constexpr int kMaxRetrieveAttempts = 3;
+
+const char* kPreferenceGroupName = "[Auto DJ]";
+const char* kRepeatPlaylistPreference = "Requeue";
 
 int findOrCreateAutoDjPlaylistId(PlaylistDAO& playlistDAO) {
     int playlistId = playlistDAO.getPlaylistIdFromName(AUTODJ_TABLE);
@@ -67,6 +71,14 @@ AutoDJFeature::AutoDJFeature(Library* pLibrary,
             Qt::QueuedConnection);
 
     m_playlistDao.setAutoDJProcessor(m_pAutoDJProcessor);
+
+    // The random-track refill must not depend on bindLibraryWidget(), which
+    // the QML interface never calls: the queue has to keep itself filled
+    // while the Auto DJ view is not open.
+    connect(m_pAutoDJProcessor,
+            &AutoDJProcessor::randomTrackRequested,
+            this,
+            &AutoDJFeature::slotRandomQueue);
 
     // Create the "Crates" tree-item under the root item.
     std::unique_ptr<TreeItem> pRootItem = TreeItem::newRoot(this);
@@ -163,10 +175,6 @@ void AutoDJFeature::bindLibraryWidget(
             &AutoDJFeature::trackSelected);
 
     // Be informed when the user wants to add another random track.
-    connect(m_pAutoDJProcessor,
-            &AutoDJProcessor::randomTrackRequested,
-            this,
-            &AutoDJFeature::slotRandomQueue);
     connect(m_pAutoDJView,
             &DlgAutoDJ::addRandomTrackButton,
             this,
@@ -190,10 +198,33 @@ TreeItemModel* AutoDJFeature::sidebarModel() const {
 }
 
 void AutoDJFeature::activate() {
-    //qDebug() << "AutoDJFeature::activate()";
-    emit switchToView(m_viewName);
+    // qDebug() << "AutoDJFeature::activate()";
     emit disableSearch();
     emit enableCoverArtDisplay(true);
+    PlaylistTableModel* pModel = autoDjQueueModel();
+    pModel->select();
+    emit showTrackModel(pModel);
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the Auto DJ view has to win in the classic UI.
+    emit switchToView(m_viewName);
+}
+
+PlaylistTableModel* AutoDJFeature::autoDjQueueModel() const {
+    return m_pAutoDJProcessor->getTableModel();
+}
+
+AutoDJProcessor* AutoDJFeature::autoDjProcessor() const {
+    return m_pAutoDJProcessor;
+}
+
+bool AutoDJFeature::isRepeatPlaylist() const {
+    return m_pConfig->getValue<bool>(
+            ConfigKey(kPreferenceGroupName, kRepeatPlaylistPreference));
+}
+
+void AutoDJFeature::setRepeatPlaylist(bool repeat) {
+    m_pConfig->setValue(
+            ConfigKey(kPreferenceGroupName, kRepeatPlaylistPreference), repeat);
 }
 
 void AutoDJFeature::clear() {
@@ -204,7 +235,7 @@ void AutoDJFeature::clear() {
             QMessageBox::Yes | QMessageBox::No,
             QMessageBox::No);
     if (btn == QMessageBox::Yes) {
-            m_playlistDao.clearAutoDJQueue();
+        m_playlistDao.clearAutoDJQueue();
     }
 }
 
@@ -216,7 +247,7 @@ void AutoDJFeature::paste() {
 void AutoDJFeature::deleteItem(const QModelIndex& index) {
     TreeItem* pSelectedItem = static_cast<TreeItem*>(index.internalPointer());
     if (!pSelectedItem || pSelectedItem == m_pCratesTreeItem) {
-            return;
+        return;
     }
     CrateId crateId(pSelectedItem->getData());
     removeCrateFromAutoDj(crateId);
@@ -333,7 +364,7 @@ void AutoDJFeature::slotAddRandomTrack() {
                 pRandomTrack = m_pLibrary->trackCollectionManager()->getTrackById(randomTrackId);
                 VERIFY_OR_DEBUG_ASSERT(pRandomTrack) {
                     qWarning() << "Track does not exist:"
-                            << randomTrackId;
+                               << randomTrackId;
                     continue;
                 }
                 if (!pRandomTrack->getFileInfo().checkFileExists()) {
@@ -347,7 +378,9 @@ void AutoDJFeature::slotAddRandomTrack() {
         if (pRandomTrack) {
             m_pTrackCollection->getPlaylistDAO().appendTrackToPlaylist(
                     pRandomTrack->getId(), m_iAutoDJPlaylistId);
-            m_pAutoDJView->onShow();
+            if (m_pAutoDJView) {
+                m_pAutoDJView->onShow();
+            }
             return; // success
         }
     }

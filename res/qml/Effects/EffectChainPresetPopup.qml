@@ -18,9 +18,21 @@ Menu {
     property int fontPixelSize: Theme.fontSizeMd
     property color hoverColor: Qt.alpha(Theme.accent, 0.12)
     property color hoverTextColor: Theme.textPrimary
-    property color separatorColor: Theme.border
+
+    /// Index of the next real chain preset. The standard preset model keeps the
+    /// internal empty "---" preset at index 0, so stepping must never land on
+    /// it (that would clear the chain). -1 when there is nothing to step to.
+    readonly property int nextPresetIndex: {
+        const count = presetInstantiator.count;
+        if (count <= 1) {
+            return -1;
+        }
+        const next = root.unit.presetIndex + 1;
+        return (next <= 0 || next >= count) ? 1 : next;
+    }
     // Legacy aliases kept for the LateNightQML skin.
     property color separatorBottomColor: separatorColor
+    property color separatorColor: Theme.border
     property color separatorTopColor: separatorColor
     required property Mixxx.EffectSlotProxy slot1
     required property Mixxx.EffectSlotProxy slot2
@@ -53,6 +65,8 @@ Menu {
     }
 
     Instantiator {
+        id: presetInstantiator
+
         model: Mixxx.EffectsManager.standardChainPresetModel
 
         delegate: Skin.EffectPresetMenuItem {
@@ -79,6 +93,20 @@ Menu {
 
         onObjectAdded: (index, object) => root.insertItem(index, object)
         onObjectRemoved: (index, object) => root.removeItem(object)
+    }
+    Skin.EffectPresetMenuItem {
+        checkedSource: root.checkedSource
+        disabledTextColor: root.disabledTextColor
+        enabled: root.nextPresetIndex > 0
+        fontFamily: root.fontFamily
+        fontPixelSize: root.fontPixelSize
+        hoverColor: root.hoverColor
+        hoverTextColor: root.hoverTextColor
+        submenuArrowSource: root.submenuArrowSource
+        text: qsTr("Next Preset")
+        textColor: root.textColor
+
+        onTriggered: root.unit.loadPreset(root.nextPresetIndex)
     }
     Skin.EffectPresetMenuSeparator {
         lineColor: root.separatorColor

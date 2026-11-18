@@ -6,20 +6,24 @@ namespace mixxx {
 namespace qml {
 
 QmlLibraryTrackListColumn::QmlLibraryTrackListColumn(QObject* parent,
+        const QString& key,
         const QString& label,
         int fillSpan,
         int columnIdx,
         double preferredWidth,
         double autoHideWidth,
         QQmlComponent* pDelegate,
-        Role role)
+        Role role,
+        bool hidden)
         : QObject(parent),
+          m_key(key),
           m_label(label),
           m_role(role),
           m_fillSpan(fillSpan),
           m_columnIdx(columnIdx),
           m_preferredWidth(preferredWidth),
           m_autoHideWidth(autoHideWidth),
+          m_hidden(hidden),
           m_pDelegate(pDelegate) {
 }
 

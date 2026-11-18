@@ -7,6 +7,7 @@
 
 #include "analyzer/analyzerscheduledtrack.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
+#include "library/analysis/analysislibrarytablemodel.h"
 #include "library/analysis/dlganalysis.h"
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
@@ -57,6 +58,7 @@ AnalysisFeature::AnalysisFeature(
           m_pTrackAnalysisScheduler(TrackAnalysisScheduler::NullPointer()),
           m_pSidebarModel(make_parented<TreeItemModel>(this)),
           m_pAnalysisView(nullptr),
+          m_pAnalysisModel(nullptr),
           m_title(m_baseTitle) {
 }
 
@@ -132,15 +134,36 @@ TreeItemModel* AnalysisFeature::sidebarModel() const {
 void AnalysisFeature::refreshLibraryModels() {
     if (m_pAnalysisView) {
         m_pAnalysisView->onShow();
+    } else if (m_pAnalysisModel) {
+        m_pAnalysisModel->select();
     }
+}
+
+AnalysisLibraryTableModel* AnalysisFeature::analysisModel() {
+    if (!m_pAnalysisModel) {
+        m_pAnalysisModel = new AnalysisLibraryTableModel(
+                this, m_pLibrary->trackCollectionManager());
+        m_pAnalysisModel->setRecentDays(m_pConfig->getValue<unsigned int>(
+                ConfigKey("[Analysis]", "RecentDays"),
+                AnalysisLibraryTableModel::kDefaultRecentDays));
+        // The constructor applies the default day count; re-apply it with the
+        // configured one so the first view matches the preference.
+        m_pAnalysisModel->showRecentSongs();
+    }
+    return m_pAnalysisModel;
 }
 
 void AnalysisFeature::activate() {
     // qDebug() << "AnalysisFeature::activate()";
-    emit switchToView(kViewName);
+    AnalysisLibraryTableModel* pModel = analysisModel();
+    pModel->select();
+    emit showTrackModel(pModel);
     if (m_pAnalysisView) {
         emit restoreSearch(m_pAnalysisView->currentSearch());
     }
+    // Switch last: Library::slotShowTrackModel switches to the generic track
+    // table, so the analysis view has to win in the classic UI.
+    emit switchToView(kViewName);
     emit enableCoverArtDisplay(true);
 }
 

@@ -41,6 +41,10 @@ class CrateFeature : public BaseTrackSetFeature {
 
     TreeItemModel* sidebarModel() const override;
 
+    /// True if the crate behind `index` is locked. Used to build the QML
+    /// sidebar context menu.
+    bool isItemLocked(const QModelIndex& index) const;
+
   public slots:
     void activate() override;
     void activateChild(const QModelIndex& index) override;
@@ -49,6 +53,12 @@ class CrateFeature : public BaseTrackSetFeature {
     void slotCreateCrate();
     void deleteItem(const QModelIndex& index) override;
     void renameItem(const QModelIndex& index) override;
+    /// Context-menu entry points for the QML sidebar (see
+    /// QmlSidebarModelProxy).
+    void toggleLockItem(const QModelIndex& index);
+    void duplicateItem(const QModelIndex& index);
+    void exportItem(const QModelIndex& index);
+    void importItem();
 
 #ifdef __ENGINEPRIME__
   signals:

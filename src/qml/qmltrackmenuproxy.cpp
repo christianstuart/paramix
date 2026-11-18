@@ -4,10 +4,14 @@
 #include <QCheckBox>
 #include <QKeySequence>
 #include <QMenu>
+#include <QMessageBox>
 #include <QMetaObject>
 #include <QTimer>
 #include <QWidget>
 #include <QWidgetAction>
+#include <algorithm>
+#include <functional>
+#include <utility>
 
 #include "library/library.h"
 #include "library/trackmodel.h"
@@ -16,6 +20,7 @@
 #include "qml/qmllibraryproxy.h"
 #include "qml/qmllibrarytracklistmodel.h"
 #include "util/color/rgbcolor.h"
+#include "util/dnd.h"
 #include "widget/wcolorpickeraction.h"
 #include "widget/wstarratingaction.h"
 #include "widget/wtrackmenu.h"
@@ -97,18 +102,28 @@ void QmlLibraryTrackMenu::ensureMenu(TrackModel* pTrackModel) {
 
 QVariantList QmlLibraryTrackMenu::open(
         QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
+    if (!selectTracks(pModel, rows)) {
+        return {};
+    }
+    m_pMenu->updateMenus();
+    forwardAboutToShow(m_pMenu.get());
+    return serializeMenu(m_pMenu.get());
+}
+
+bool QmlLibraryTrackMenu::selectTracks(
+        QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
     m_actions.clear();
     m_checkBoxes.clear();
     if (!pModel) {
-        return {};
+        return false;
     }
     auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
     if (!pTrackModel) {
-        return {};
+        return false;
     }
     ensureMenu(pTrackModel);
     if (!m_pMenu) {
-        return {};
+        return false;
     }
 
     QModelIndexList trackIndices;
@@ -125,13 +140,11 @@ QVariantList QmlLibraryTrackMenu::open(
         trackIndices.append(sourceIndex.sibling(sourceIndex.row(), 0));
     }
     if (trackIndices.isEmpty()) {
-        return {};
+        return false;
     }
 
     m_pMenu->loadTrackModelIndices(trackIndices);
-    m_pMenu->updateMenus();
-    forwardAboutToShow(m_pMenu.get());
-    return serializeMenu(m_pMenu.get());
+    return true;
 }
 
 QVariantList QmlLibraryTrackMenu::serializeMenu(QMenu* pMenu) const {
@@ -260,6 +273,20 @@ void QmlLibraryTrackMenu::setRating(int rating) {
     }
 }
 
+void QmlLibraryTrackMenu::showProperties(
+        QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
+    if (!selectTracks(pModel, rows)) {
+        return;
+    }
+    // Match WTrackTableView: properties are only editable for metadata models.
+    if (!m_pTrackModel ||
+            !m_pTrackModel->hasCapabilities(
+                    TrackModel::Capability::EditMetadata)) {
+        return;
+    }
+    m_pMenu->slotShowDlgTrackInfo();
+}
+
 void QmlLibraryTrackMenu::setColor(const QString& hexColor) {
     if (!m_pMenu) {
         return;
@@ -269,6 +296,197 @@ void QmlLibraryTrackMenu::setColor(const QString& hexColor) {
     } else {
         m_pMenu->setSelectionColor(RgbColor::fromQString(hexColor));
     }
+}
+
+void QmlLibraryTrackMenu::removeSelectedRows(
+        QmlLibraryTrackListModel* pModel, const QList<int>& rows) {
+    if (!pModel || rows.isEmpty()) {
+        return;
+    }
+    auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
+    if (!pTrackModel || pTrackModel->isLocked()) {
+        return;
+    }
+
+    // Same capability order and confirmation as
+    // WTrackTableView::hideOrRemoveSelectedTracks(): Remove wins for the Auto
+    // DJ queue, then crates, playlists and finally hiding from the library.
+    TrackModel::Capability capability = TrackModel::Capability::None;
+    if (pTrackModel->hasCapabilities(TrackModel::Capability::Remove)) {
+        capability = TrackModel::Capability::Remove;
+    } else if (pTrackModel->hasCapabilities(
+                       TrackModel::Capability::RemoveCrate)) {
+        capability = TrackModel::Capability::RemoveCrate;
+    } else if (pTrackModel->hasCapabilities(
+                       TrackModel::Capability::RemovePlaylist)) {
+        capability = TrackModel::Capability::RemovePlaylist;
+    } else if (pTrackModel->hasCapabilities(TrackModel::Capability::Hide)) {
+        capability = TrackModel::Capability::Hide;
+    } else {
+        return;
+    }
+
+    if (pTrackModel->getRequireConfirmationToHideRemoveTracks()) {
+        QString title;
+        QString message;
+        if (capability == TrackModel::Capability::Hide) {
+            title = tr("Confirm track hide");
+            message = tr("Are you sure you want to hide the selected tracks?");
+        } else {
+            title = tr("Confirm track removal");
+            if (capability == TrackModel::Capability::Remove) {
+                message = tr(
+                        "Are you sure you want to remove the selected "
+                        "tracks from AutoDJ queue?");
+            } else if (capability == TrackModel::Capability::RemoveCrate) {
+                message = tr(
+                        "Are you sure you want to remove the selected "
+                        "tracks from this crate?");
+            } else {
+                message = tr(
+                        "Are you sure you want to remove the selected "
+                        "tracks from this playlist?");
+            }
+        }
+
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Question);
+        msg.setWindowTitle(title);
+        msg.setText(message);
+        QCheckBox notAgainCB(tr("Don't ask again during this session"));
+        notAgainCB.setCheckState(Qt::Unchecked);
+        msg.setCheckBox(&notAgainCB);
+        msg.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
+        msg.setDefaultButton(QMessageBox::Cancel);
+        if (msg.exec() != QMessageBox::Ok) {
+            return;
+        }
+        if (notAgainCB.isChecked()) {
+            pTrackModel->setRequireConfirmationToHideRemoveTracks(false);
+        }
+    }
+
+    QModelIndexList indices;
+    indices.reserve(rows.size());
+    for (int row : rows) {
+        const QModelIndex sourceIndex = pModel->mapToSource(pModel->index(row, 0));
+        if (sourceIndex.isValid()) {
+            indices.append(sourceIndex.sibling(sourceIndex.row(), 0));
+        }
+    }
+    if (indices.isEmpty()) {
+        return;
+    }
+    if (capability == TrackModel::Capability::Hide) {
+        pTrackModel->hideTracks(indices);
+    } else {
+        pTrackModel->removeTracks(indices);
+    }
+}
+
+void QmlLibraryTrackMenu::moveSelectedRows(
+        QmlLibraryTrackListModel* pModel,
+        const QList<int>& rows,
+        int destinationRow) {
+    if (!pModel) {
+        return;
+    }
+    auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
+    if (!pTrackModel || pTrackModel->isLocked() ||
+            !pTrackModel->hasCapabilities(TrackModel::Capability::Reorder)) {
+        return;
+    }
+
+    const int rowCount = pModel->rowCount();
+    QList<int> selectedRows;
+    selectedRows.reserve(rows.size());
+    for (int row : rows) {
+        if (row >= 0 && row < rowCount) {
+            selectedRows.append(row);
+        }
+    }
+    if (selectedRows.isEmpty()) {
+        return;
+    }
+    std::sort(selectedRows.begin(), selectedRows.end());
+
+    // Same block semantics as WTrackTableView::moveRows(): a drop inside the
+    // block is a no-op, and rows are moved one by one so the row numbers stay
+    // valid while the model shifts.
+    int destination = destinationRow < 0 ? rowCount : destinationRow;
+    destination = std::min(destination, rowCount);
+    int firstSelRow = selectedRows.first();
+    const int lastSelRow = selectedRows.last();
+    if (destination == firstSelRow && selectedRows.size() == 1) {
+        return;
+    }
+    if (destination >= firstSelRow && destination <= lastSelRow) {
+        if (selectedRows.size() == lastSelRow - firstSelRow + 1) {
+            return;
+        }
+        if (destination != firstSelRow) {
+            return;
+        }
+        // Non-contiguous selection dropped on its first row: use the first gap.
+        while (!selectedRows.isEmpty() && destination == firstSelRow) {
+            selectedRows.removeFirst();
+            if (selectedRows.isEmpty()) {
+                return;
+            }
+            firstSelRow = selectedRows.first();
+            ++destination;
+        }
+    } else if (destination < firstSelRow) {
+        // Move up: process the rows in reverse so the earliest keeps its slot.
+        std::sort(selectedRows.begin(), selectedRows.end(), std::greater<int>());
+    }
+
+    while (!selectedRows.isEmpty()) {
+        const int movedRow = selectedRows.takeFirst();
+        pTrackModel->moveTrack(
+                pModel->mapToSource(pModel->index(movedRow, 0)),
+                pModel->mapToSource(pModel->index(destination, 0)));
+        for (int i = 0; i < selectedRows.size(); ++i) {
+            if (selectedRows[i] > movedRow && destination > selectedRows[i]) {
+                --selectedRows[i];
+            } else if (selectedRows[i] < movedRow &&
+                    destination < selectedRows[i]) {
+                ++selectedRows[i];
+            }
+        }
+    }
+}
+
+int QmlLibraryTrackMenu::importDroppedUrls(
+        QmlLibraryTrackListModel* pModel,
+        const QList<QUrl>& urls,
+        int destinationRow) {
+    if (!pModel || urls.isEmpty()) {
+        return 0;
+    }
+    auto* pTrackModel = dynamic_cast<TrackModel*>(pModel->sourceModel());
+    if (!pTrackModel || pTrackModel->isLocked() ||
+            !pTrackModel->hasCapabilities(TrackModel::Capability::ReceiveDrops)) {
+        return 0;
+    }
+    // Expands folders and playlist files and filters out unsupported files,
+    // the same way a drop on the classic track table does.
+    const QList<mixxx::FileInfo> fileInfos =
+            DragAndDropHelper::supportedTracksFromUrls(urls, false, true);
+    if (fileInfos.isEmpty()) {
+        return 0;
+    }
+    QList<QString> locations;
+    locations.reserve(fileInfos.size());
+    for (const auto& fileInfo : std::as_const(fileInfos)) {
+        locations.append(fileInfo.location());
+    }
+    // An invalid destination index appends, which is also what dropping below
+    // the last row (destinationRow == rowCount) ends up as.
+    const QModelIndex destination = destinationRow < 0
+            ? QModelIndex()
+            : pModel->mapToSource(pModel->index(destinationRow, 0));
+    return pTrackModel->addTracks(destination, locations);
 }
 
 // static

@@ -6,13 +6,17 @@ import "../Theme"
 /// Recording output box for the main toolbar.
 ///
 /// Framed like the master out box: "REC OUT" on one line, the L/R trimmed
-/// level ladder centred beside it, the start/stop key in the top-right corner
+/// level ladder centered beside it, the start/stop key in the top-right corner
 /// and the trim dial on the far right under its GAIN caption.
 Item {
     id: root
 
     /// RECORD_ON and RECORD_SPLIT_CONTINUE are both "recording".
     readonly property bool recording: recStatus.value >= 2
+    /// The stats line yields to the L/R ladder: at the largest permitted font
+    /// scale its natural width would leave the meter only a few px. The line
+    /// elides here so the ladder keeps a usable minimum in the fixed 216 px box.
+    readonly property int statsMaxWidth: 64
 
     implicitHeight: 38
     implicitWidth: 216
@@ -29,7 +33,6 @@ Item {
         group: "[Recording]"
         key: "toggle_recording"
     }
-
     Rectangle {
         anchors.fill: parent
         border.color: root.recording ? Theme.danger : Theme.borderStrong
@@ -43,33 +46,53 @@ Item {
             }
         }
     }
-
-    Text {
-        id: legend
+    Column {
+        id: legendColumn
 
         anchors.left: parent.left
         anchors.leftMargin: Theme.space2
         anchors.verticalCenter: parent.verticalCenter
-        color: root.recording ? Theme.danger : Theme.textMuted
-        font.capitalization: Font.AllUppercase
-        font.family: Theme.fontFamily
-        font.letterSpacing: Theme.letterSpacingCaps
-        font.pixelSize: Theme.fontSizeXs
-        font.weight: Theme.fontWeightDemiBold
-        text: qsTr("Rec out")
+        spacing: 0
+        width: Math.max(root.statsMaxWidth, legend.implicitWidth)
 
-        Behavior on color {
-            ColorAnimation {
-                duration: Theme.motionFast
+        Text {
+            id: legend
+
+            color: root.recording ? Theme.danger : Theme.textMuted
+            font.capitalization: Font.AllUppercase
+            font.family: Theme.fontFamily
+            font.letterSpacing: Theme.letterSpacingCaps
+            font.pixelSize: Theme.fontSizeXs
+            font.weight: Theme.fontWeightDemiBold
+            text: qsTr("Rec out")
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.motionFast
+                }
             }
+        }
+        // Take time and bytes written. The proxy already formats both; the box
+        // only has to show them, so a live take is readable without opening the
+        // recordings view.
+        Text {
+            id: recordingStats
+
+            Accessible.name: qsTr("Recording time %1, file size %2").arg(Mixxx.Recording.durationText).arg(Mixxx.Recording.fileSizeText)
+            color: root.recording ? Theme.textSecondary : Theme.textMuted
+            elide: Text.ElideRight
+            font.family: Theme.fontFamilyMono
+            font.pixelSize: Theme.fontSizeXs - 1
+            text: qsTr("%1 \u00b7 %2").arg(Mixxx.Recording.durationText).arg(Mixxx.Recording.fileSizeText)
+            width: root.statsMaxWidth
         }
     }
 
-    // ── L/R trimmed level ladder, centred beside the legend ────────────────
+    // ── L/R trimmed level ladder, centered beside the legend ────────────────
     Column {
         id: ladder
 
-        anchors.left: legend.right
+        anchors.left: legendColumn.right
         anchors.leftMargin: Theme.space4
         anchors.right: recButton.left
         anchors.rightMargin: Theme.space1 + 2
@@ -132,6 +155,8 @@ Item {
     Rectangle {
         id: recButton
 
+        Accessible.name: root.recording ? qsTr("Stop recording") : qsTr("Start recording")
+        Accessible.role: Accessible.Button
         anchors.right: gainColumn.left
         anchors.rightMargin: Theme.space1 + 2
         anchors.verticalCenter: parent.verticalCenter
@@ -141,9 +166,6 @@ Item {
         height: 17
         radius: Theme.radiusSm
         width: 17
-
-        Accessible.name: root.recording ? qsTr("Stop recording") : qsTr("Start recording")
-        Accessible.role: Accessible.Button
 
         Behavior on border.color {
             ColorAnimation {
@@ -208,6 +230,7 @@ Item {
             text: qsTr("Gain")
         }
         Skin.ControlKnob {
+            Accessible.name: qsTr("Recording gain")
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             color: Theme.textPrimary
@@ -215,8 +238,6 @@ Item {
             height: 24
             key: "gain"
             width: 24
-
-            Accessible.name: qsTr("Recording gain")
         }
     }
 }

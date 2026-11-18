@@ -16,6 +16,7 @@ class QmlLibraryTrackListModelTest : public LibraryTest {
   protected:
     static mixxx::qml::QmlLibraryTrackListColumn makeTitleColumn() {
         return mixxx::qml::QmlLibraryTrackListColumn(nullptr,
+                QStringLiteral("title"),
                 QStringLiteral("Title"),
                 1,
                 ColumnCache::COLUMN_LIBRARYTABLE_TITLE,

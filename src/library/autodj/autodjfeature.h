@@ -15,6 +15,7 @@
 class DlgAutoDJ;
 class Library;
 class PlayerManagerInterface;
+class PlaylistTableModel;
 class TrackCollection;
 class AutoDJProcessor;
 class WLibrarySidebar;
@@ -26,8 +27,8 @@ class AutoDJFeature : public LibraryFeature {
     Q_OBJECT
   public:
     AutoDJFeature(Library* pLibrary,
-                  UserSettingsPointer pConfig,
-                  PlayerManagerInterface* pPlayerManager);
+            UserSettingsPointer pConfig,
+            PlayerManagerInterface* pPlayerManager);
     virtual ~AutoDJFeature();
 
     QVariant title() override;
@@ -40,7 +41,7 @@ class AutoDJFeature : public LibraryFeature {
     bool dragMoveAccept(const QList<QUrl>& urls) override;
 
     void bindLibraryWidget(WLibrary* libraryWidget,
-                    KeyboardEventFilter* keyboard) override;
+            KeyboardEventFilter* keyboard) override;
     void bindSidebarWidget(WLibrarySidebar* pSidebarWidget) override;
 
     TreeItemModel* sidebarModel() const override;
@@ -48,6 +49,14 @@ class AutoDJFeature : public LibraryFeature {
     bool hasTrackTable() override {
         return true;
     }
+
+    /// Queue and processor are exposed to the QML Auto DJ bar, which cannot
+    /// construct DlgAutoDJ.
+    PlaylistTableModel* autoDjQueueModel() const;
+    AutoDJProcessor* autoDjProcessor() const;
+    /// The "Repeat the playlist" preference, shared with DlgAutoDJ.
+    bool isRepeatPlaylist() const;
+    void setRepeatPlaylist(bool repeat);
 
   public slots:
     void activate() override;

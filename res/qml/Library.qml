@@ -17,9 +17,11 @@ Item {
     property var sidebar: librarySources.sidebar()
 
     function applySearch() {
-        if (root.sidebar && root.sidebar.tracklist) {
-            root.sidebar.tracklist.search(libraryBrowser.searchInput.text);
-        }
+        // Always remember the query, also while the Auto DJ source is shown.
+        // QmlSidebarModelProxy::setSearchText() skips the queue itself, because
+        // the processor plays row 0 and a filter would change the order.
+        if (root.sidebar)
+            root.sidebar.search(libraryBrowser.searchInput.text);
     }
     function clearSearch() {
         libraryBrowser.searchInput.text = "";
@@ -104,8 +106,8 @@ Item {
                 SplitView.minimumHeight: 120
                 model: root.sidebar
 
-                onSearchEdited: searchDebounce.restart()
                 onSearchCleared: root.clearSearch()
+                onSearchEdited: searchDebounce.restart()
             }
         }
         Item {
@@ -114,14 +116,27 @@ Item {
             SplitView.fillHeight: true
             SplitView.minimumWidth: 200
 
-            LibraryComponent.TrackList {
-                anchors.bottom: taskStatusStrip.top
+            LibraryComponent.AutoDjBar {
+                id: autoDjBar
+
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
+                sidebar: root.sidebar
+                trackList: trackList
+                visible: root.sidebar !== null && root.sidebar.autoDjActive === true
+            }
+            LibraryComponent.TrackList {
+                id: trackList
+
+                anchors.bottom: taskStatusStrip.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: autoDjBar.visible ? autoDjBar.bottom : parent.top
                 // FIXME: this is necessary to prevent the header label to render outside of the table when horizontally scrolling: https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-3311914346
                 clip: true
                 model: root.sidebar.tracklist
+                sidebar: root.sidebar
             }
             // Background jobs (stem separation, analysis) report at the bottom
             // of the track browser only, so the source tree keeps its full
@@ -136,7 +151,6 @@ Item {
             }
         }
     }
-
     Timer {
         id: searchDebounce
 
@@ -146,12 +160,12 @@ Item {
         onTriggered: root.applySearch()
     }
     Connections {
-        target: root.sidebar
-
         function onTracklistChanged() {
             // The search text is shared by all sources, so it has to be
             // re-applied whenever the sidebar loads another track list.
             root.applySearch();
         }
+
+        target: root.sidebar
     }
 }

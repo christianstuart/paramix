@@ -432,6 +432,35 @@ void CrateFeature::deleteItem(const QModelIndex& index) {
     slotDeleteCrate();
 }
 
+bool CrateFeature::isItemLocked(const QModelIndex& index) const {
+    const CrateId crateId = crateIdFromIndex(index);
+    if (!crateId.isValid()) {
+        return false;
+    }
+    Crate crate;
+    return m_pTrackCollection->crates().readCrateById(crateId, &crate) &&
+            crate.isLocked();
+}
+
+void CrateFeature::toggleLockItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotToggleCrateLock();
+}
+
+void CrateFeature::duplicateItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotDuplicateCrate();
+}
+
+void CrateFeature::exportItem(const QModelIndex& index) {
+    m_lastRightClickedIndex = index;
+    slotExportPlaylist();
+}
+
+void CrateFeature::importItem() {
+    slotCreateImportCrate();
+}
+
 void CrateFeature::slotDeleteCrate() {
     Crate crate;
     if (readLastRightClickedCrate(&crate)) {

@@ -10,6 +10,9 @@ SkinControls::SkinControls()
         : m_showEffectRack(ConfigKey(kSkinGroup, QStringLiteral("show_effectrack")),
                   true,
                   true),
+          m_showIntroOutroCues(ConfigKey(kSkinGroup, QStringLiteral("show_intro_outro_cues")),
+                  true,
+                  true),
           m_showLibraryCoverArt(ConfigKey(kSkinGroup, QStringLiteral("show_library_coverart")),
                   true,
                   true),
@@ -44,6 +47,7 @@ SkinControls::SkinControls()
                   true,
                   false) {
     m_showEffectRack.setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_showIntroOutroCues.setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_showLibraryCoverArt.setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_showMicrophones.setButtonMode(mixxx::control::ButtonMode::Toggle);
     m_showPreviewDecks.setButtonMode(mixxx::control::ButtonMode::Toggle);
