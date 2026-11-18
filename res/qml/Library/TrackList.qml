@@ -919,13 +919,21 @@ Rectangle {
     Menu {
         id: columnMenu
 
-        parent: root
         padding: Theme.space1
+
+        palette.buttonText: Theme.textPrimary
+        palette.highlight: Theme.accent
+        palette.highlightedText: Theme.textOnAccent
+        palette.mid: Theme.textMuted
+        palette.text: Theme.textPrimary
+        palette.window: Theme.surface2
+        palette.windowText: Theme.textPrimary
 
         background: Rectangle {
             border.color: Theme.borderStrong
             border.width: 1
             color: Theme.surface2
+            implicitWidth: 260
             radius: Theme.radiusMd
         }
 
