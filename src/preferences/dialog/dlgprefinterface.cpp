@@ -374,7 +374,6 @@ void DlgPrefInterface::slotUpdate() {
     checkBoxHideMenuBar->setChecked(m_pConfig->getValue(
             ConfigKey(kConfigGroup, kHideMenuBarKey), kHideMenuBarDefault));
 
-
     loadTooltipPreferenceFromConfig();
 
     comboBoxScreensaver->setCurrentIndex(comboBoxScreensaver->findData(
@@ -402,7 +401,6 @@ void DlgPrefInterface::slotResetToDefaults() {
     checkBoxHideMenuBar->setChecked(kHideMenuBarDefault);
     // Also show the menu bar hint again on next start?
     // Use bool member to set [Config],show_menubar_hint to 1 in slotApply()
-
 
     // Inhibit the screensaver
     comboBoxScreensaver->setCurrentIndex(comboBoxScreensaver->findData(
@@ -558,7 +556,6 @@ void DlgPrefInterface::slotApply() {
     m_pConfig->set(ConfigKey(kConfigGroup, kHideMenuBarKey),
             ConfigValue(checkBoxHideMenuBar->isChecked()));
     emit menuBarAutoHideChanged();
-
 
     m_pConfig->setValue(ConfigKey(kControlsGroup, kTooltipsKey),
             m_tooltipMode);

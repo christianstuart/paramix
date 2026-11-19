@@ -1149,7 +1149,7 @@ void LibraryControl::slotSortColumnToggle(double v) {
         // Get the ID of the column with the cursor
         sortColumnId =
                 static_cast<int>(m_pLibraryWidget->getActiveView()
-                                         ->getColumnIdFromCurrentIndex());
+                                ->getColumnIdFromCurrentIndex());
     }
 
     if (static_cast<int>(m_pSortColumn->get()) == sortColumnId) {
