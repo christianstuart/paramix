@@ -56,9 +56,6 @@ CmdlineArgs::CmdlineArgs()
           m_controllerAbortOnWarning(false),
           m_developer(false),
           m_stats(false),
-#ifdef MIXXX_USE_QML
-          m_qml(false),
-#endif
           m_safeMode(false),
           m_useLegacyVuMeter(false),
           m_useLegacySpinny(false),
@@ -290,31 +287,13 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
                             : QString());
     parser.addOption(stats);
 
-#ifdef MIXXX_USE_QML
-    const QCommandLineOption qml(QStringLiteral("new-ui"),
-            forUserFeedback
-                    ? QCoreApplication::translate("CmdlineArgs",
-                              "Loads the highly unstable 3.0 Mixxx interface, "
-                              "based on QML. You need to use a new setting "
-                              "profile, or run with "
-                              "'allow-dangerous-data-corruption-risk' to use "
-                              "with the current one. We highly recommend "
-                              "backing up your data if you do so.")
-                    : QString());
-    QCommandLineOption qmlDeprecated(
-            QStringLiteral("qml"));
-    qmlDeprecated.setFlags(QCommandLineOption::HiddenFromHelp);
-    parser.addOption(qmlDeprecated);
-    parser.addOption(qml);
-    const QCommandLineOption awareOfRisk(
-            QStringLiteral("allow-dangerous-data-corruption-risk"),
-            forUserFeedback
-                    ? QCoreApplication::translate("CmdlineArgs",
-                              "Force Mixxx to load an unstable version with an "
-                              "existing user profile from a stable version")
-                    : QString());
-    parser.addOption(awareOfRisk);
-#endif
+    // One-release compatibility shim. The QML interface is the only interface
+    // now, so --new-ui no longer selects anything. Accepting and ignoring it
+    // keeps an old shortcut or desktop file working instead of failing on an
+    // unknown option. Remove this in the release after the removal.
+    QCommandLineOption newUiDeprecated(QStringLiteral("new-ui"));
+    newUiDeprecated.setFlags(QCommandLineOption::HiddenFromHelp);
+    parser.addOption(newUiDeprecated);
     const QCommandLineOption safeMode(QStringLiteral("safe-mode"),
             forUserFeedback ? QCoreApplication::translate("CmdlineArgs",
                                       "Enables safe-mode. Disables OpenGL waveforms, and "
@@ -475,15 +454,10 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     m_controllerAbortOnWarning = parser.isSet(controllerAbortOnWarning);
     m_developer = parser.isSet(developer);
     m_stats = parser.isSet(stats);
-#ifdef MIXXX_USE_QML
-    m_qml = parser.isSet(qml);
-    if (parser.isSet(qmlDeprecated)) {
-        m_qml |= true;
-        qWarning() << "The argument '--qml' is deprecated and will be soon "
-                      "removed. Please use '--new-ui' instead!";
+    if (parser.isSet(newUiDeprecated)) {
+        qWarning() << "The argument '--new-ui' is no longer needed; Paramix "
+                      "always loads the QML interface. Ignoring it.";
     }
-    m_awareOfRisk = parser.isSet(awareOfRisk);
-#endif
     m_safeMode = parser.isSet(safeMode) || parser.isSet(safeModeDeprecated);
     m_debugAssertBreak = parser.isSet(debugAssertBreak) || parser.isSet(debugAssertBreakDeprecated);
 

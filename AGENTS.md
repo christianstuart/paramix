@@ -33,11 +33,9 @@ there is nothing to fall back to.
 build/paramix.exe
 ```
 
-`--new-ui` is still accepted but no longer changes which UI loads. It only
-re-enables the Mixxx 3.0 data-corruption gate that blocks an existing profile;
-pass `--allow-dangerous-data-corruption-risk` to get past it. The gate is about
-Mixxx 3.0's unstable upgrade paths, not about Paramix's own data, which uses the
-same schema as the classic UI.
+The `--new-ui` launch option was removed. Paramix always loads the QML
+interface; `--new-ui` is still accepted for one release as a hidden no-op, so an
+old shortcut or desktop file starts with a warning instead of failing.
 
 QML edits need only a restart: the resource path resolves to the source `res/`
 via `CMakeCache.txt` (`src/preferences/configobject.cpp`), so the app reads

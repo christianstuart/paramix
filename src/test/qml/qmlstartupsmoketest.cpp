@@ -41,7 +41,7 @@ namespace {
 
 struct QmlSkin {
     const char* name;
-    bool useNewUi;
+    bool useDefaultQml;
 };
 
 void PrintTo(const QmlSkin& skin, std::ostream* stream) {
@@ -90,7 +90,7 @@ class QmlStartupSmokeTest : public MixxxTest,
     static void writeProfile(const QString& settingsPath, const QmlSkin& skin) {
         auto settings = UserSettingsPointer(new UserSettings(settingsPath + "mixxx.cfg"));
         settings->setValue(ConfigKey("[Config]", "Version"), VersionStore::FUTURE_UNSTABLE);
-        if (!skin.useNewUi) {
+        if (!skin.useDefaultQml) {
             settings->setValue(
                     ConfigKey("[Config]", "ResizableSkin"),
                     QString::fromLatin1(skin.name));
@@ -116,7 +116,7 @@ TEST_P(QmlStartupSmokeTest, Starts) {
     auto coreServices = std::make_shared<mixxx::CoreServices>(args, application());
 
     QString mainQmlFilePath;
-    if (!skin.useNewUi) {
+    if (!skin.useDefaultQml) {
         ASSERT_QSTRING_EQ(
                 QString::fromLatin1(skin.name),
                 coreServices->getSettings()->getValueString(
@@ -149,7 +149,7 @@ INSTANTIATE_TEST_SUITE_P(
         QmlStartupSmokeTest,
         testing::Values(
                 QmlSkin{"LateNightQML", false},
-                QmlSkin{"NewUi", true}),
+                QmlSkin{"DefaultQml", true}),
         [](const testing::TestParamInfo<QmlSkin>& info) {
             return std::string(info.param.name);
         });
