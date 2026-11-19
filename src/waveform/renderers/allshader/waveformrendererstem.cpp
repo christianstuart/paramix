@@ -120,6 +120,7 @@ WaveformRendererStem::WaveformRendererStem(
           m_textureDetailSamplesPerColumn(0),
           m_textureLaneAlpha(0.0f),
           m_textureMutedMask(0),
+          m_textureMuteMixSignature(0),
           m_textureOrderSignature(0),
           m_textureSlip(false),
           m_textureWholeTrack(false),
@@ -219,47 +220,57 @@ bool WaveformRendererStem::preprocessInner() {
     // rate and stem count are immutable while the track is loaded, except that
     // stems can appear after separation finishes; the periodic refresh keeps
     // that case working without locking Track on every render frame.
-    if (pTrack.get() != m_cachedTrack || m_cacheFramesUntilRefresh-- <= 0) {
+    const bool trackChanged = pTrack.get() != m_cachedTrack;
+    if (trackChanged || m_cacheFramesUntilRefresh-- <= 0) {
         m_cachedTrack = pTrack.get();
         m_cachedStemCount = static_cast<int>(pTrack->getStemInfo().size());
         m_cachedTotalSamples =
                 pTrack->getDuration() * pTrack->getSampleRate().value();
         m_cacheFramesUntilRefresh = 30;
     }
+    if (trackChanged) {
+        // Let preprocess() clear the previous track's picture once, then build
+        // the new track from scratch.
+        return false;
+    }
     // If this track isn't a stem track, let the regular waveform renderer draw
     // instead of the four-lane stem picture.
     if (m_cachedStemCount <= 0) {
-        return false;
+        // A non-stem track is cleared via trackChanged; a transient zero while
+        // the same track is loaded must not blink the stem picture away.
+        return m_hasGeometry;
     }
     const auto positionType = m_isSlipRenderer ? ::WaveformRendererAbstract::Slip
                                                : ::WaveformRendererAbstract::Play;
 
     ConstWaveformPointer waveform = pTrack->getWaveform();
     if (waveform.isNull() || waveform->getDataSize() <= 1) {
-        return false;
+        return m_hasGeometry;
     }
-    // A track analysed without stem audio has no four-lane picture.
+    // A track analysed without stem audio has no four-lane picture. Retain the
+    // last complete picture during a transient waveform refresh instead of
+    // briefly revealing the underlying cue/grid markers.
     if (!waveform->hasStem()) {
-        return false;
+        return m_hasGeometry;
     }
 
     const int stemCount = static_cast<int>(std::min<qsizetype>(
             m_cachedStemCount, m_stackOrder.size()));
     if (stemCount <= 0) {
-        return false;
+        return m_hasGeometry;
     }
 
     const float devicePixelRatio = m_waveformRenderer->getDevicePixelRatio();
     const int length = static_cast<int>(m_waveformRenderer->getLength());
     if (devicePixelRatio <= 0.0f || length <= 0) {
-        return false;
+        return m_hasGeometry;
     }
     const int pixelLength = std::max(
             1, static_cast<int>(std::lround(length * devicePixelRatio)));
 
     const double totalSamples = m_cachedTotalSamples;
     if (totalSamples <= 0.0) {
-        return false;
+        return m_hasGeometry;
     }
     // VisualPlayPosition returns -1 while a paused deck has no fresh vsync
     // position. Treat that as "keep the last picture" rather than translating
@@ -364,6 +375,7 @@ bool WaveformRendererStem::preprocessInner() {
 
     const uint selectedStems = m_waveformRenderer->getSelectedStems();
     unsigned int mutedMask = 0;
+    constexpr float kMuteFadeStep = 1.0f / 12.0f;
     for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
         const int stemIdx = laneStems.at(laneIndex);
         const bool stemMuted = selectedStems
@@ -372,6 +384,18 @@ bool WaveformRendererStem::preprocessInner() {
         if (stemMuted) {
             mutedMask |= 1u << laneIndex;
         }
+        float& mix = m_muteMix[stemIdx];
+        const float target = stemMuted ? 1.0f : 0.0f;
+        if (mix < target) {
+            mix = std::min(target, mix + kMuteFadeStep);
+        } else if (mix > target) {
+            mix = std::max(target, mix - kMuteFadeStep);
+        }
+    }
+    unsigned int muteMixSignature = 0;
+    for (float mix : m_muteMix) {
+        muteMixSignature = muteMixSignature * 33u +
+                static_cast<unsigned int>(std::lround(mix * 255.0f));
     }
 
     uint64_t orderSignature = 0;
@@ -465,6 +489,7 @@ bool WaveformRendererStem::preprocessInner() {
             m_textureDetailSamplesPerColumn != detailSamplesPerColumn ||
             m_textureLaneAlpha != laneAlpha ||
             m_textureMutedMask != mutedMask ||
+            m_textureMuteMixSignature != muteMixSignature ||
             m_textureOrderSignature != orderSignature ||
             m_textureSlip != m_isSlipRenderer ||
             m_textureWholeTrack != useWholeTrackTexture;
@@ -509,9 +534,9 @@ bool WaveformRendererStem::preprocessInner() {
                 const StemDetailLane& lane =
                         pDetail->lanes[static_cast<std::size_t>(
                                 laneStems.at(laneIndex))];
-                const bool muted = (mutedMask >> laneIndex) & 1u;
-                const float alpha =
-                        muted ? laneAlpha * kGhostedStemOpacity : laneAlpha;
+                const float ghostMix = m_muteMix[laneStems.at(laneIndex)];
+                const float alpha = laneAlpha *
+                        (1.0f + (kGhostedStemOpacity - 1.0f) * ghostMix);
                 const int alphaByte = std::clamp(
                         static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
                 if (alphaByte == 0) {
@@ -566,6 +591,7 @@ bool WaveformRendererStem::preprocessInner() {
         m_textureDetailSamplesPerColumn = detailSamplesPerColumn;
         m_textureLaneAlpha = laneAlpha;
         m_textureMutedMask = mutedMask;
+        m_textureMuteMixSignature = muteMixSignature;
         m_textureOrderSignature = orderSignature;
         m_textureSlip = m_isSlipRenderer;
         m_textureWholeTrack = useWholeTrackTexture;

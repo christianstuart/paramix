@@ -146,7 +146,7 @@ EffectSlot::EffectSlot(const QString& group,
 }
 
 EffectSlot::~EffectSlot() {
-    //qDebug() << debugString() << "destroyed";
+    // qDebug() << debugString() << "destroyed";
     unloadEffect();
 }
 
@@ -164,7 +164,7 @@ void EffectSlot::addToEngine() {
             m_pBackendManager,
             m_pChain->getActiveChannels(),
             m_pEffectsManager->registeredInputChannels(),
-            m_pEffectsManager->registeredOutputChannels());
+            m_pChain->engineOutputChannels());
 
     EffectsRequest* request = new EffectsRequest();
     request->type = EffectsRequest::ADD_EFFECT_TO_CHAIN;
@@ -416,7 +416,7 @@ void EffectSlot::unloadEffect() {
 }
 
 void EffectSlot::loadParameters() {
-    //qDebug() << this << m_group << "loading parameters";
+    // qDebug() << this << m_group << "loading parameters";
     int numTypes = static_cast<int>(EffectParameterType::NumTypes);
     for (int parameterTypeId = 0; parameterTypeId < numTypes;
             ++parameterTypeId) {

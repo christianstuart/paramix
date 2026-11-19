@@ -20,7 +20,7 @@ Item {
         Stems = 3
     }
 
-    /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
+    /// 0 = move, 1 = cue, 2 = grid, 3 = stems. Seeded from `[Skin],deckN_pane`.
     property int activePane: Deck.Pane.Cue
     readonly property var currentTrack: deckPlayer.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)

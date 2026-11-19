@@ -190,6 +190,16 @@ void EngineDeck::processStem(CSAMPLE* pOut, const std::size_t bufferSize) {
                 numFrames,
                 chCount,
                 chOffset);
+        // Pad FX run before the stem fader and Quick FX, so the fader/mute and
+        // quick effects shape the pad result and the pad layer stays fully
+        // independent of the mixer and standard effect racks.
+        pEngineEffectsManager->processPadFxInPlace(
+                m_stems[stemIdx].handle(),
+                m_pEffectsManager->getMainHandle(),
+                pOut,
+                bufferSize,
+                sampleRate,
+                featureState);
         // Mix the stem frames with the right gain after proceeding its effect.
         pEngineEffectsManager->processPostFaderInPlace(m_stems[stemIdx].handle(),
                 m_pEffectsManager->getMainHandle(),

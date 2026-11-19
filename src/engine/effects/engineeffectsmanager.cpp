@@ -110,6 +110,26 @@ void EngineEffectsManager::processPreFaderInPlace(const ChannelHandle& inputHand
             featureState);
 }
 
+void EngineEffectsManager::processPadFxInPlace(
+        const ChannelHandle& inputHandle,
+        const ChannelHandle& outputHandle,
+        CSAMPLE* pInOut,
+        std::size_t numSamples,
+        mixxx::audio::SampleRate sampleRate,
+        const GroupFeatureState& groupFeatures) {
+    processInner(SignalProcessingStage::PadFx,
+            inputHandle,
+            outputHandle,
+            pInOut,
+            pInOut,
+            numSamples,
+            sampleRate,
+            groupFeatures,
+            CSAMPLE_GAIN_ONE,
+            CSAMPLE_GAIN_ONE,
+            false);
+}
+
 void EngineEffectsManager::processPostFaderInPlace(
         const ChannelHandle& inputHandle,
         const ChannelHandle& outputHandle,

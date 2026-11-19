@@ -561,8 +561,23 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         // The preview bar has to be reserved by the band, not laid out below
         // the window. This is the regression that four decks at 720 or a
         // disabled library used to expose.
-        QQuickItem* pPreviewBar = findItemByClass(pMainWindow, "PreviewDeckBar");
-        EXPECT_NE(nullptr, pPreviewBar);
+        // A configuration toggle can rebuild the band after this check starts,
+        // and the Loader recreates its item on the next event loop. Give it a
+        // moment so a transient rebuild is not reported as a missing bar.
+        QQuickItem* pPreviewBar = nullptr;
+        QElapsedTimer previewWait;
+        previewWait.start();
+        while (!pPreviewBar && previewWait.elapsed() < 3000) {
+            pPreviewBar = findItemByClass(pMainWindow, "PreviewDeckBar");
+            if (pPreviewBar) {
+                break;
+            }
+            QCoreApplication::processEvents();
+            QThread::msleep(10);
+        }
+        EXPECT_NE(nullptr, pPreviewBar)
+                << "Preview bar missing at " << size.width() << "x"
+                << size.height();
         if (pPreviewBar) {
             EXPECT_TRUE(pPreviewBar->isVisible());
             const QRectF barRect = pPreviewBar->mapRectToItem(pMainWindow,

@@ -586,7 +586,7 @@ void EffectChainPresetManager::generateDefaultQuickEffectPresets() {
     // names are used.
     QVector<EffectManifestPointer> manifestList;
     for (const auto& pManifest : m_pBackendManager->getManifests()) {
-        if (pManifest->hasMetaKnobLinking()) {
+        if (!pManifest->isPadFxOnly() && pManifest->hasMetaKnobLinking()) {
             manifestList.append(pManifest);
         }
     }

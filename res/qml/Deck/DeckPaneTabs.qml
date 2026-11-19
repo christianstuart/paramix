@@ -3,7 +3,7 @@ import QtQuick 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Vertical MOVE / CUE / GRID / STEMS selector for the deck pane stack.
+/// Vertical MOVE / CUE / GRID / STEM selector for the deck pane stack.
 ///
 /// Traktor puts this stacked selector at the right edge of the loop row, one
 /// block wide, with the active pane filled by the accent. The stack is exactly
