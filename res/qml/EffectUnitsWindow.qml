@@ -116,14 +116,12 @@ Window {
         Effects.TopBarEffectUnit {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.fxControlHeight
-            popupAsWindow: true
             showSuper: true
             unitNumber: 3
         }
         Effects.TopBarEffectUnit {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.fxControlHeight
-            popupAsWindow: true
             showSuper: true
             unitNumber: 4
         }

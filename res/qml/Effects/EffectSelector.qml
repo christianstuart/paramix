@@ -10,9 +10,6 @@ Skin.ComboBox {
     id: root
 
     readonly property string observedEffectId: root.slot?.effectId ?? ""
-    /// Open the effect list in a native popup window. The effects window is
-    /// small, and an Item popup taller than that window would be clipped.
-    property bool popupAsWindow: false
     required property Mixxx.EffectSlotProxy slot
 
     function syncCurrentEffect() {
@@ -45,12 +42,7 @@ Skin.ComboBox {
     textLeftPadding: indicator.width + Theme.space1
     textRole: "display"
 
-    Component.onCompleted: {
-        syncCurrentEffect();
-        if (root.popupAsWindow) {
-            root.popup.popupType = Popup.Window;
-        }
-    }
+    Component.onCompleted: syncCurrentEffect()
     onActivated: index => {
         const effectId = model.get(index).effectId || "";
         if (slot.effectId !== effectId) {

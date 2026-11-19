@@ -19,14 +19,42 @@ RowLayout {
     readonly property int badgeWidth: Math.max(Theme.fxUnitKeyMinWidth, Theme.fontSizeXs * 3 + 12)
     readonly property string group: unit.group
     readonly property int presetKeyWidth: Math.max(Math.round(20 * Theme.uiScale), Theme.fontSizeXs * 2 + 4)
-    // Flyouts open as native popup windows when the unit is used outside the
-    // main window, so a small EffectUnitsWindow cannot clip the parameter
-    // columns or the effect list.
-    property bool popupAsWindow: false
     property bool showSuper: true
     readonly property Mixxx.EffectUnitProxy unit: Mixxx.EffectsManager.getEffectUnit(unitNumber)
     readonly property bool unitEnabled: unitEnabledControl.value > 0
     required property int unitNumber
+
+    /// Keep the parameter flyout inside the window. Qt 6.4 has no
+    /// Popup.popupType, so a native popup window is not an option there: flip
+    /// the flyout above the unit when the columns would fall past the bottom
+    /// edge, and clamp both edges to the window.
+    function flyoutX() {
+        const popupWidth = controlsPopup.implicitWidth;
+        const preferred = Math.max(0, root.width - popupWidth);
+        const win = root.Window.window;
+        if (!win) {
+            return preferred;
+        }
+        const unitLeft = root.mapToItem(null, 0, 0).x;
+        const windowLeft = -unitLeft;
+        const windowRight = win.width - unitLeft - popupWidth;
+        return Math.max(windowLeft, Math.min(preferred, windowRight));
+    }
+    function flyoutY() {
+        const below = root.height + Theme.space1;
+        const win = root.Window.window;
+        if (!win) {
+            return below;
+        }
+        const unitTop = root.mapToItem(null, 0, 0).y;
+        const popupHeight = controlsPopup.implicitHeight;
+        const spaceBelow = win.height - unitTop - root.height;
+        const spaceAbove = unitTop;
+        if (popupHeight + Theme.space1 > spaceBelow && spaceAbove > spaceBelow) {
+            return Math.max(-unitTop, -popupHeight - Theme.space1);
+        }
+        return below;
+    }
 
     implicitHeight: Theme.fxControlHeight
     spacing: Theme.space1
@@ -143,7 +171,6 @@ RowLayout {
                 Layout.preferredWidth: Theme.fxSlotMinWidth
                 font.pixelSize: Theme.fontSizeXs
                 implicitHeight: Theme.fxControlHeight
-                popupAsWindow: root.popupAsWindow
                 slot: slotRow.slot
             }
             Skin.ControlButton {
@@ -229,11 +256,11 @@ RowLayout {
         focus: true
         modal: false
         padding: Theme.space2
-        // In the effects window the unit sits in a small window; a native popup
-        // can extend past it instead of being clipped.
-        popupType: root.popupAsWindow ? Popup.Window : Popup.Item
-        x: Math.max(0, root.width - width)
-        y: root.height + Theme.space1
+        // Position within the window: the popup item is parented to the window
+        // overlay, so it can cover the unit but must not rely on popupType
+        // (Qt 6.4 does not have it).
+        x: root.flyoutX()
+        y: root.flyoutY()
 
         background: Rectangle {
             border.color: Theme.border
