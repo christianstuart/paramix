@@ -21,8 +21,14 @@ Rectangle {
     /// readout drops a size so the readout row + three key rows still fit the
     /// 112 px deck pane.
     readonly property bool dense: root.height < 104
+    /// FINE latch: while active the six grid nudge keys send their fine
+    /// control (half-beat translate, 1 ms cue shift) instead of the coarse one.
+    property bool fineAdjust: false
     required property string group
     readonly property bool loaded: trackLoadedControl.value > 0
+    /// CLR latch: while active the four intro/outro marker keys clear instead
+    /// of set.
+    property bool markerClear: false
     readonly property real visualBpm: visualBpmControl.value
 
     border.color: Theme.border
@@ -132,6 +138,50 @@ Rectangle {
                 key: "bpm_tap"
                 text: qsTr("Tap")
             }
+            Skin.Button {
+                id: fineLatch
+
+                Accessible.checkable: true
+                Accessible.checked: root.fineAdjust
+                Accessible.description: qsTr("While active, the grid nudge keys shift by half a beat and the cue keys by 1 millisecond")
+                Accessible.name: qsTr("Fine grid adjust")
+                Accessible.role: Accessible.CheckBox
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredHeight: 18
+                Layout.preferredWidth: 14
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Fine adjust: half-beat grid, 1 ms cue shifts")
+                ToolTip.visible: fineLatch.hovered
+                enabled: root.loaded
+                highlight: root.fineAdjust
+                implicitHeight: 18
+                implicitWidth: 14
+                text: qsTr("F", "fine adjust key")
+
+                onClicked: root.fineAdjust = !root.fineAdjust
+            }
+            Skin.Button {
+                id: markerClearLatch
+
+                Accessible.checkable: true
+                Accessible.checked: root.markerClear
+                Accessible.description: qsTr("While active, the four intro/outro marker keys clear the marker instead of setting it")
+                Accessible.name: qsTr("Clear markers")
+                Accessible.role: Accessible.CheckBox
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredHeight: 18
+                Layout.preferredWidth: 14
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Clear markers: marker keys clear instead of set")
+                ToolTip.visible: markerClearLatch.hovered
+                enabled: root.loaded
+                highlight: root.markerClear
+                implicitHeight: 18
+                implicitWidth: 14
+                text: qsTr("C", "clear marker key")
+
+                onClicked: root.markerClear = !root.markerClear
+            }
         }
         RowLayout {
             Layout.fillWidth: true
@@ -225,17 +275,17 @@ Rectangle {
             spacing: Theme.space1
 
             GridKey {
-                Accessible.description: qsTr("Moves the beatgrid left by a small amount. Right click: shift later by exactly one half beat.")
+                Accessible.description: qsTr("Moves the beatgrid left by a small amount. With FINE lit, shifts by exactly one half beat.")
                 Accessible.name: qsTr("Adjust beats earlier")
-                ToolTip.text: qsTr("Adjust Beats Earlier")
+                ToolTip.text: qsTr("Adjust Beats Earlier (FINE: half beat)")
                 fineKey: "beats_translate_half"
                 key: "beats_translate_earlier"
                 text: qsTr("◀")
             }
             GridKey {
-                Accessible.description: qsTr("Moves the beatgrid right by a small amount. Right click: shift later by exactly one half beat.")
+                Accessible.description: qsTr("Moves the beatgrid right by a small amount. With FINE lit, shifts by exactly one half beat.")
                 Accessible.name: qsTr("Adjust beats later")
-                ToolTip.text: qsTr("Adjust Beats Later")
+                ToolTip.text: qsTr("Adjust Beats Later (FINE: half beat)")
                 fineKey: "beats_translate_half"
                 key: "beats_translate_later"
                 text: qsTr("▶")
@@ -255,17 +305,17 @@ Rectangle {
                 text: qsTr("B+")
             }
             GridKey {
-                Accessible.description: qsTr("Shift cues imported from Serato or Rekordbox if they are slightly off time. Left click: 10 milliseconds earlier. Right click: 1 millisecond earlier.")
+                Accessible.description: qsTr("Shift cues imported from Serato or Rekordbox if they are slightly off time. Click: 10 milliseconds earlier. With FINE lit: 1 millisecond earlier.")
                 Accessible.name: qsTr("Shift cues earlier")
-                ToolTip.text: qsTr("Shift cues earlier")
+                ToolTip.text: qsTr("Shift cues earlier (FINE: 1 ms)")
                 fineKey: "shift_cues_earlier_small"
                 key: "shift_cues_earlier"
                 text: qsTr("C◀")
             }
             GridKey {
-                Accessible.description: qsTr("Shift cues imported from Serato or Rekordbox if they are slightly off time. Left click: 10 milliseconds later. Right click: 1 millisecond later.")
+                Accessible.description: qsTr("Shift cues imported from Serato or Rekordbox if they are slightly off time. Click: 10 milliseconds later. With FINE lit: 1 millisecond later.")
                 Accessible.name: qsTr("Shift cues later")
-                ToolTip.text: qsTr("Shift cues later")
+                ToolTip.text: qsTr("Shift cues later (FINE: 1 ms)")
                 fineKey: "shift_cues_later_small"
                 key: "shift_cues_later"
                 text: qsTr("C▶")
@@ -273,8 +323,8 @@ Rectangle {
         }
     }
 
-    /// One beatgrid nudge key. `fineKey` is the optional right-click control
-    /// (half-beat translate, 1 ms cue shift).
+    /// One beatgrid nudge key. `fineKey` is its fine control (half-beat
+    /// translate, 1 ms cue shift) while the FINE latch is active.
     component GridKey: Skin.Button {
         id: gridKey
 
@@ -291,8 +341,16 @@ Rectangle {
         implicitHeight: 16
 
         onCanceled: controlBehavior.releasePrimary()
-        onPressed: controlBehavior.pressPrimary()
-        onReleased: controlBehavior.releasePrimary()
+        onPressed: {
+            if (root.fineAdjust && gridKey.fineKey.length > 0)
+                fineControl.trigger();
+            else
+                controlBehavior.pressPrimary();
+        }
+        onReleased: {
+            if (!(root.fineAdjust && gridKey.fineKey.length > 0))
+                controlBehavior.releasePrimary();
+        }
 
         Skin.ControlProxyButtonBehavior {
             id: controlBehavior
@@ -301,25 +359,17 @@ Rectangle {
             handlePointerInput: false
             key: gridKey.key
         }
-        MouseArea {
-            acceptedButtons: Qt.RightButton
-            anchors.fill: parent
-            enabled: root.loaded && gridKey.fineKey.length > 0
+        Mixxx.ControlProxy {
+            id: fineControl
 
-            onPressed: fineControl.trigger()
-
-            Mixxx.ControlProxy {
-                id: fineControl
-
-                group: root.group
-                key: gridKey.fineKey.length > 0 ? gridKey.fineKey : gridKey.key
-            }
+            group: root.group
+            key: gridKey.fineKey.length > 0 ? gridKey.fineKey : gridKey.key
         }
     }
 
     /// One intro/outro marker key: click sets the marker at the current play
-    /// position, right click clears it. The face lights while the marker is
-    /// set, so the pane reads the same state the waveform draws.
+    /// position; with the CLR latch lit, click clears it. The face lights while
+    /// the marker is set, so the pane reads the same state the waveform draws.
     component MarkerKey: Skin.Button {
         id: marker
 
@@ -338,13 +388,13 @@ Rectangle {
             }
         }
 
-        Accessible.description: qsTr("Click to set the marker at the current play position, right click to clear it")
+        Accessible.description: qsTr("Click to set the marker at the current play position. With CLR lit, click clears it.")
         Accessible.name: marker.title
         Layout.fillHeight: true
         Layout.fillWidth: true
         Layout.minimumWidth: 0
         ToolTip.delay: 500
-        ToolTip.text: marker.title
+        ToolTip.text: root.markerClear ? qsTr("Clear %1").arg(marker.title) : marker.title
         ToolTip.visible: marker.hovered
         activeFocusOnTab: true
         enabled: root.loaded
@@ -355,7 +405,12 @@ Rectangle {
         normalColor: root.buttonColor
 
         // Keyboard activation (Space/Enter) arrives as clicked, not pressed.
-        onClicked: markerSet.trigger()
+        onClicked: {
+            if (root.markerClear)
+                markerClearControl.trigger();
+            else
+                markerSet.trigger();
+        }
 
         Mixxx.ControlProxy {
             id: markerEnabled
@@ -369,19 +424,11 @@ Rectangle {
             group: root.group
             key: `${marker.cue}_set`
         }
-        MouseArea {
-            acceptedButtons: Qt.RightButton
-            anchors.fill: parent
-            enabled: root.loaded
+        Mixxx.ControlProxy {
+            id: markerClearControl
 
-            onPressed: markerClear.trigger()
-
-            Mixxx.ControlProxy {
-                id: markerClear
-
-                group: root.group
-                key: `${marker.cue}_clear`
-            }
+            group: root.group
+            key: `${marker.cue}_clear`
         }
     }
 }

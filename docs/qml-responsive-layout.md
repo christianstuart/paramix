@@ -62,9 +62,7 @@ breakpoints rather than duplicated:
 | `MainWindow.qml:565,577,589` | `width < 1400` | focused-deck placement |
 | `Deck.qml:163/175` | model `minWidth` 800 / 270 | hides spinny, then tempo strip |
 | `Deck/InfoBar.qml:152,165,206` | `width > 500 / 450 / 400` | hides year / time / rating |
-| `Deck/Loop.qml:296` | `(width - 56) / 40` | 1-4 loop-size buttons |
 | `Mixer/OutputBar.qml:19` | `width < 1200` | tile width 56 vs 64 |
-| `Deck/HotcueAndStem.qml` | `height < 112` | drops QuickFX preset |
 
 ## Landed so far
 
@@ -101,9 +99,10 @@ breakpoints rather than duplicated:
   real 1792x1008 window), asserts the design size as well, fails when the band
   geometry never settles instead of silently measuring at the 3 s cap, and
   flags (a) visible items collapsed to zero height inside a live parent,
-  (b) the deck FX-assign column below 30 px, and (c) the deck pane below
-  110 px. The settle check compares the top two layout levels only, because
-  waveform playheads and VU segments animate by design.
+  (b) the deck FX-assign column below 30 px, (c) the deck pane below 90 px, and
+  (d) the horizontal pane tab row below 16 px. The settle check compares the
+  top two layout levels only, because waveform playheads and VU segments animate
+  by design.
 
 ## Overlap pass (2026-11-16)
 
@@ -263,13 +262,41 @@ the old 168 px back and the effects stay visible with the library maximized. The
 
 | Part | Compact rule |
 |---|---|
-| Standard unit | Status key + power dot + A-D deck assignment + three selector/On pairs + D/W; super knob appears from `Theme.fxSuperMinWidth` (1100) |
 | Deck assignment | Four independent toggle keys per chain; any combination of decks A-D can be active at once |
 | Selectors | `Layout.fillWidth`, elide, full name in a tooltip; never a fixed 300 px |
 
 The per-deck quick chains stay in the mixer; they are not duplicated in the strip. The strip is
 measured by `QmlResponsiveBoundsTest` at the same five sizes as the rest of the skin. At 1280 the
 bounds test still passes; the deck band is 30 px shorter than before.
+
+## Deck band and pane tabs (F07, 2026-11-19)
+
+The deck transport band stays at `Theme.deckPaneHeight` (112), but the loop card now uses its full
+height and the 34 px vertical tab column is gone. The band is the full-height loop card (224 px
+wide) beside a pane column with a horizontal CUE / MOVE / GRID row above the pane:
+
+| Part | Height | Token |
+|---|---|---|
+| Loop card | 112 | `Theme.deckPaneHeight` |
+| Pane tab row | 16 | `Theme.deckPaneTabHeight` |
+| Tab gap | 4 | `Theme.space1` |
+| Pane | 92 | `Theme.deckPaneContentHeight` |
+| Loop header | 16 | `Theme.deckLoopHeaderHeight` |
+| Loop beat row | 39 | `Theme.deckLoopBeatRowHeight` |
+| Loop action row | 24 | `Theme.deckLoopActionRowHeight` |
+| Loop roll row | 24 | `Theme.deckLoopRollRowHeight` |
+
+The loop card has a header (beat size, anchor, loop lamp), a scrolling beat-size row (1/8 to 32
+with halve and double pinned at the ends and a visible scrollbar), an In / In-goto / Out / Out-goto
+/ Loop / Rel / Stop row, and the roll row. The beat row is the one flexible row: it absorbs what
+the fixed rows leave, so the card always fills the band exactly at any `uiScale`.
+
+The pane keeps its 196 px floor: at the 564 px deck a 1280 px window gives,
+`224 (loop) + 4 (gap) + 196 (pane) = 424` transport px. At 1440x852 the pane is 276 and at
+1792x1008 it is 452. Deck height, waveform strip and library split are unchanged.
+
+The bounds test now asserts the pane is at least 90 px, the tab row at least 16 px, and keeps the
+FX-assign column at 30 px. The old `Deck/Loop.qml` width gate is gone.
 
 ## Still open
 

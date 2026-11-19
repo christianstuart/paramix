@@ -608,6 +608,7 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         // failure.
         qreal tallestFx = 0;
         qreal tallestPane = 0;
+        qreal tallestTabs = 0;
         for (int sample = 0; sample < 10; ++sample) {
             QCoreApplication::processEvents();
             QThread::msleep(100);
@@ -623,6 +624,12 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
                     tallestPane = std::max(tallestPane, pPane->height());
                 }
             }
+            for (QQuickItem* pTabs :
+                    findItemsByObjectName(pMainWindow, QStringLiteral("deckPaneTabs"))) {
+                if (pTabs->isVisible()) {
+                    tallestTabs = std::max(tallestTabs, pTabs->height());
+                }
+            }
         }
 
         // The deck's FX-assign column sits under the jog wheel in the same row
@@ -633,8 +640,15 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
                     << "FX-assign keys squeezed at " << size.width() << "x"
                     << size.height() << ": " << tallestFx << "px";
         }
+        // The horizontal CUE / MOVE / GRID row above the pane is 16 px; a
+        // squeezed deck used to drop it or let the pane take its space.
+        if (tallestTabs > 0) {
+            EXPECT_GE(tallestTabs, 16)
+                    << "Pane tab row squeezed at " << size.width() << "x"
+                    << size.height() << ": " << tallestTabs << "px";
+        }
         if (tallestPane > 0) {
-            EXPECT_GE(tallestPane, 110)
+            EXPECT_GE(tallestPane, 90)
                     << "Deck pane squeezed at " << size.width() << "x" << size.height()
                     << ": " << tallestPane << "px";
         }
