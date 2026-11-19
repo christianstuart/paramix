@@ -101,6 +101,13 @@ class LibraryFeature : public QObject {
         return false;
     }
 
+    /// Whether the source can actually show content on this machine, e.g. an
+    /// external library whose database was not found. The source tree lists
+    /// unavailable sources but does not activate them.
+    virtual bool isAvailable() const {
+        return true;
+    }
+
   protected:
     QStringList getPlaylistFiles() const {
         return getPlaylistFiles(QFileDialog::ExistingFiles);

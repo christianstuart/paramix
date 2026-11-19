@@ -13,6 +13,7 @@
 #include "library/library_prefs.h"
 #include "library/parser.h"
 #include "library/parsercsv.h"
+#include "library/sidebarmodel.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/trackset/crate/cratefeaturehelper.h"
@@ -356,7 +357,16 @@ bool CrateFeature::readLastRightClickedCrate(Crate* pCrate) const {
 }
 
 bool CrateFeature::isChildIndexSelectedInSidebar(const QModelIndex& index) {
-    return m_pSidebarWidget && m_pSidebarWidget->isChildIndexSelected(index);
+    if (m_pSidebarWidget) {
+        return m_pSidebarWidget->isChildIndexSelected(index);
+    }
+    // QML builds have no WLibrarySidebar. The index knows the sidebar model
+    // that tracks the current selection.
+    if (!index.isValid()) {
+        return false;
+    }
+    const auto* pSidebar = dynamic_cast<const SidebarModel*>(index.model());
+    return pSidebar && pSidebar->selectedIndex() == index;
 }
 
 void CrateFeature::onRightClick(const QPoint& globalPos) {
@@ -419,12 +429,21 @@ void CrateFeature::slotCreateCrate() {
     CrateId crateId =
             CrateFeatureHelper(m_pTrackCollection, m_pConfig)
                     .createEmptyCrate();
-    // The sidebar widget only exists in the legacy QWidget library.
-    // In QML builds bindSidebarWidget() is never called.
-    if (crateId.isValid() && m_pSidebarWidget) {
-        // expand Crates and scroll to new crate
-        m_pSidebarWidget->selectChildIndex(indexFromCrateId(crateId), false);
+    if (!crateId.isValid()) {
+        return;
     }
+    const QModelIndex index = indexFromCrateId(crateId);
+    if (!index.isValid()) {
+        return;
+    }
+    if (m_pSidebarWidget) {
+        // expand Crates and scroll to new crate
+        m_pSidebarWidget->selectChildIndex(index, false);
+        return;
+    }
+    // QML builds have no WLibrarySidebar. Let the source tree reveal the row;
+    // the sidebar model translates the child index for us.
+    emit featureSelect(this, index);
 }
 
 void CrateFeature::deleteItem(const QModelIndex& index) {

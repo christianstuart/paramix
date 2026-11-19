@@ -183,26 +183,25 @@ Library::Library(
     // iTunes and Rhythmbox should be last until we no longer have an obnoxious
     // messagebox popup when you select them. (This forces you to reach for your
     // mouse or keyboard if you're using MIDI control and you scroll through them...)
-    if (RhythmboxFeature::isSupported() &&
-            m_pConfig->getValue(
-                    ConfigKey(kConfigGroup, "ShowRhythmboxLibrary"), true)) {
+    // The Show* preference decides whether a source exists: the source tree
+    // lists an external library that was not found on this machine as a dimmed
+    // row instead of hiding it silently. Only the enabled source can be
+    // activated. (No list of sources the user cannot see or reason about.)
+    if (m_pConfig->getValue(
+                ConfigKey(kConfigGroup, "ShowRhythmboxLibrary"), true)) {
         addFeature(new RhythmboxFeature(this, m_pConfig));
     }
     if (m_pConfig->getValue(
                 ConfigKey(kConfigGroup, "ShowBansheeLibrary"), true)) {
         BansheeFeature::prepareDbPath(m_pConfig);
-        if (BansheeFeature::isSupported()) {
-            addFeature(new BansheeFeature(this, m_pConfig));
-        }
+        addFeature(new BansheeFeature(this, m_pConfig));
     }
-    if (ITunesFeature::isSupported() &&
-            m_pConfig->getValue(
-                    ConfigKey(kConfigGroup, "ShowITunesLibrary"), true)) {
+    if (m_pConfig->getValue(
+                ConfigKey(kConfigGroup, "ShowITunesLibrary"), true)) {
         addFeature(new ITunesFeature(this, m_pConfig));
     }
-    if (TraktorFeature::isSupported() &&
-            m_pConfig->getValue(
-                    ConfigKey(kConfigGroup, "ShowTraktorLibrary"), true)) {
+    if (m_pConfig->getValue(
+                ConfigKey(kConfigGroup, "ShowTraktorLibrary"), true)) {
         addFeature(new TraktorFeature(this, m_pConfig));
     }
 

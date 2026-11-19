@@ -17,6 +17,7 @@
 #include "library/analysis/analysisfeature.h"
 #include "library/analysis/analysislibrarytablemodel.h"
 #include "library/autodj/autodjfeature.h"
+#include "library/browse/browsefeature.h"
 #include "library/browse/browsetablemodel.h"
 #include "library/dao/playlistdao.h"
 #include "library/dao/trackschema.h"
@@ -27,6 +28,7 @@
 #include "library/playlisttablemodel.h"
 #include "library/proxytrackmodel.h"
 #include "library/recording/recordingfeature.h"
+#include "library/serato/seratofeature.h"
 #include "library/sidebarmodel.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
@@ -35,6 +37,7 @@
 #include "library/trackset/crate/cratefeature.h"
 #include "library/trackset/playlistfeature.h"
 #include "library/trackset/setlogfeature.h"
+#include "library/traktor/traktorfeature.h"
 #include "qml/qmllibraryproxy.h"
 #include "qml/qmlsidebarmodelproxy.h"
 #include "qml/qmltrackmenuproxy.h"
@@ -682,6 +685,194 @@ TEST_F(QmlLibraryProxyTest, SidebarCrateContextMenuLocks) {
     EXPECT_FALSE(sidebar.dropUrls(QModelIndex(), {}));
     EXPECT_FALSE(sidebar.dropUrls(QModelIndex(),
             {QUrl::fromLocalFile(QStringLiteral("parity.mp3"))}));
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarAddActionOnlyOnSourcesThatCreateItems) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    // The hover "+" runs the first entry of the same row's context menu.
+    const int playlistsRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistsRow, 0);
+    const QModelIndex playlistsRoot = sidebar.index(playlistsRow, 0);
+    ASSERT_TRUE(playlistsRoot.isValid());
+    EXPECT_EQ(QStringLiteral("createPlaylist"), sidebar.addAction(playlistsRoot));
+
+    const int cratesRow = findFeatureRow<CrateFeature>(sidebar);
+    ASSERT_GE(cratesRow, 0);
+    EXPECT_EQ(QStringLiteral("createCrate"),
+            sidebar.addAction(sidebar.index(cratesRow, 0)));
+
+    const int browseRow = findFeatureRow<BrowseFeature>(sidebar);
+    ASSERT_GE(browseRow, 0);
+    EXPECT_EQ(QStringLiteral("addToLibrary"),
+            sidebar.addAction(sidebar.index(browseRow, 0)));
+
+    // Sources without an add action, and every child row, show no "+".
+    const int tracksRow = findFeatureRow<MixxxLibraryFeature>(sidebar);
+    ASSERT_GE(tracksRow, 0);
+    EXPECT_TRUE(sidebar.addAction(sidebar.index(tracksRow, 0)).isEmpty());
+    EXPECT_TRUE(sidebar.addAction(QModelIndex()).isEmpty());
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const int playlistId = playlistDao.createPlaylist(QStringLiteral("Parity Add"));
+    ASSERT_GE(playlistId, 0);
+    const QModelIndex playlistIndex =
+            findPlaylistIndex(sidebar, playlistsRoot, playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+    EXPECT_TRUE(sidebar.addAction(playlistIndex).isEmpty());
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarTracksTheSelectedSource) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    // update() activates the default source, which is the first row.
+    const QModelIndex defaultIndex = sidebar.index(0, 0);
+    ASSERT_TRUE(defaultIndex.isValid());
+    EXPECT_EQ(defaultIndex, sidebar.selectedIndex());
+
+    PlaylistDAO& playlistDao = mixxx::qml::QmlLibraryProxy::get()
+                                       ->trackCollectionManager()
+                                       ->internalCollection()
+                                       ->getPlaylistDAO();
+    const int playlistId =
+            playlistDao.createPlaylist(QStringLiteral("Parity Selected"));
+    ASSERT_GE(playlistId, 0);
+
+    const int playlistsRow = findFeatureRow<PlaylistFeature>(sidebar);
+    ASSERT_GE(playlistsRow, 0);
+    const QModelIndex playlistsRoot = sidebar.index(playlistsRow, 0);
+    ASSERT_TRUE(playlistsRoot.isValid());
+
+    sidebar.activate(playlistsRoot);
+    EXPECT_EQ(playlistsRoot, sidebar.selectedIndex());
+
+    const QModelIndex playlistIndex =
+            findPlaylistIndex(sidebar, playlistsRoot, playlistId);
+    ASSERT_TRUE(playlistIndex.isValid());
+    sidebar.activate(playlistIndex);
+    EXPECT_EQ(playlistIndex, sidebar.selectedIndex());
+
+    // Deleting the selected playlist rebuilds the child model. The tracked row
+    // must not outlive its TreeItem.
+    playlistDao.deletePlaylist(playlistId);
+    QTest::qWait(0);
+    EXPECT_FALSE(sidebar.selectedIndex().isValid());
+}
+
+/// Ids of the sources returned by QmlSidebarModelProxy::sources(), in order.
+QStringList sourceIds(const QVariantList& sources) {
+    QStringList ids;
+    ids.reserve(sources.size());
+    for (const QVariant& source : sources) {
+        ids.append(source.toMap().value(QStringLiteral("id")).toString());
+    }
+    return ids;
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarListsEverySourceIncludingHiddenOnes) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    // The Show* preference decides which features exist, so this list no
+    // longer depends on which external libraries are installed.
+    EXPECT_EQ(QStringList({QStringLiteral("tracks"),
+                      QStringLiteral("autodj"),
+                      QStringLiteral("playlist"),
+                      QStringLiteral("crates"),
+                      QStringLiteral("computer"),
+                      QStringLiteral("recordings"),
+                      QStringLiteral("history"),
+                      QStringLiteral("prepare"),
+                      QStringLiteral("rhythmbox"),
+                      QStringLiteral("banshee"),
+                      QStringLiteral("itunes"),
+                      QStringLiteral("traktor"),
+                      QStringLiteral("rekordbox"),
+                      QStringLiteral("serato")}),
+            sourceIds(sidebar.sources()).mid(0, 14));
+
+    // The availability role mirrors LibraryFeature::isAvailable().
+    const int tracksRow = findFeatureRow<MixxxLibraryFeature>(sidebar);
+    ASSERT_GE(tracksRow, 0);
+    EXPECT_TRUE(sidebar.index(tracksRow, 0)
+                        .data(mixxx::qml::QmlSidebarModelProxy::AvailableRole)
+                        .toBool());
+
+    const int traktorRow = findFeatureRow<TraktorFeature>(sidebar);
+    ASSERT_GE(traktorRow, 0);
+    const QModelIndex traktorIndex = sidebar.index(traktorRow, 0);
+    auto* pTraktor = dynamic_cast<TraktorFeature*>(sidebar.features().at(traktorRow));
+    ASSERT_NE(nullptr, pTraktor);
+    const bool traktorAvailable = traktorIndex
+                                          .data(mixxx::qml::QmlSidebarModelProxy::AvailableRole)
+                                          .toBool();
+    EXPECT_EQ(pTraktor->isAvailable(), traktorAvailable);
+
+    // An unavailable source stays in the tree but cannot be activated.
+    if (!traktorAvailable) {
+        mixxx::qml::QmlLibraryTrackListModel* pShownTracklist = sidebar.tracklist();
+        sidebar.activate(traktorIndex);
+        EXPECT_EQ(pShownTracklist, sidebar.tracklist());
+    }
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarHidesAndShowsSources) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    const int rowCount = sidebar.rowCount();
+    const int seratoRow = findFeatureRow<SeratoFeature>(sidebar);
+    ASSERT_GE(seratoRow, 0);
+
+    sidebar.setSourceHidden(QStringLiteral("serato"), true);
+    EXPECT_EQ(rowCount - 1, sidebar.rowCount());
+    EXPECT_EQ(-1, findFeatureRow<SeratoFeature>(sidebar));
+    EXPECT_TRUE(sourceIds(sidebar.sources()).contains(QStringLiteral("serato")));
+    EXPECT_FALSE(findMenuNode(sidebar.contextMenu(sidebar.index(0, 0)),
+                       QStringLiteral("hideSource"))
+                         .isEmpty());
+
+    // Unknown ids are ignored instead of being written to Config.
+    sidebar.setSourceHidden(QStringLiteral("not-a-source"), true);
+    EXPECT_EQ(rowCount - 1, sidebar.rowCount());
+
+    sidebar.setSourceHidden(QStringLiteral("serato"), false);
+    EXPECT_EQ(rowCount, sidebar.rowCount());
+    EXPECT_GE(findFeatureRow<SeratoFeature>(sidebar), 0);
+
+    // showAllSources() restores several hidden sources at once.
+    sidebar.setSourceHidden(QStringLiteral("serato"), true);
+    sidebar.setSourceHidden(QStringLiteral("traktor"), true);
+    EXPECT_EQ(rowCount - 2, sidebar.rowCount());
+    sidebar.showAllSources();
+    EXPECT_EQ(rowCount, sidebar.rowCount());
+}
+
+TEST_F(QmlLibraryProxyTest, SidebarHidingTheShownSourceShowsTheFirstSource) {
+    mixxx::qml::QmlSidebarModelProxy sidebar;
+    sidebar.setColumns({});
+    sidebar.update();
+
+    const int seratoRow = findFeatureRow<SeratoFeature>(sidebar);
+    ASSERT_GE(seratoRow, 0);
+    sidebar.activate(sidebar.index(seratoRow, 0));
+    ASSERT_NE(nullptr, sidebar.tracklist());
+
+    sidebar.setSourceHidden(QStringLiteral("serato"), true);
+
+    // The hidden source cannot stay selected; the first visible source wins.
+    ASSERT_NE(nullptr, sidebar.tracklist());
+    EXPECT_TRUE(sidebar.selectedIndex().isValid());
+    EXPECT_EQ(sidebar.index(0, 0), sidebar.selectedIndex());
 }
 
 TEST_F(QmlLibraryProxyTest, TrackListRemoveHonorsLockAndBounds) {

@@ -3,6 +3,7 @@
 #include <QAbstractItemModel>
 #include <QList>
 #include <QModelIndex>
+#include <QPersistentModelIndex>
 #include <QVariant>
 
 class LibraryFeature;
@@ -55,6 +56,13 @@ class SidebarModel : public QAbstractItemModel {
         return m_sFeatures;
     }
 
+    /// The row that was last activated or that a feature asked to select.
+    /// Lets features tell whether a child is the one currently shown without
+    /// the legacy WLibrarySidebar, which only exists in the classic UI.
+    QModelIndex selectedIndex() const {
+        return m_selectedIndex;
+    }
+
   public slots:
     void pressed(const QModelIndex& index);
     void clicked(const QModelIndex& index);
@@ -103,6 +111,7 @@ class SidebarModel : public QAbstractItemModel {
 
     QTimer* const m_pressedUntilClickedTimer;
     QModelIndex m_pressedIndex;
+    QPersistentModelIndex m_selectedIndex;
 
     void startPressedUntilClickedTimer(const QModelIndex& pressedIndex);
     void stopPressedUntilClickedTimer();

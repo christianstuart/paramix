@@ -136,6 +136,7 @@ Item {
                 // FIXME: this is necessary to prevent the header label to render outside of the table when horizontally scrolling: https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-3311914346
                 clip: true
                 model: root.sidebar.tracklist
+                sidebar: root.sidebar
             }
             // Background jobs (stem separation, analysis) report at the bottom
             // of the track browser only, so the source tree keeps its full
@@ -149,6 +150,13 @@ Item {
                 height: implicitHeight
             }
         }
+    }
+    // One owner for every library control binding; see Library/Control.qml.
+    LibraryComponent.Control {
+        id: libraryControl
+
+        browser: libraryBrowser
+        trackList: trackList
     }
     Timer {
         id: searchDebounce

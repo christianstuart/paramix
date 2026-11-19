@@ -21,6 +21,7 @@
 #include <QQuickWindow>
 #include <QString>
 #include <QTemporaryDir>
+#include <QTest>
 #include <QThread>
 #include <QTimer>
 #include <algorithm>
@@ -625,6 +626,101 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
 
     pMixxxConfig->setProperty("paramixShowLibrary", true);
     pMainWindow->setProperty("fourDecksRequested", false);
+
+    application()->removeEventFilter(&rejectFileDialogs);
+}
+
+/// The source settings dialog is the only way back to a hidden source: open it
+/// through the library pane and check that its checkbox list is built.
+TEST_F(QmlResponsiveBoundsTest, SourceSettingsDialogListsSources) {
+    QTemporaryDir profile;
+    ASSERT_TRUE(profile.isValid());
+    const QString settingsPath = profile.path() + QLatin1Char('/');
+    {
+        auto settings = UserSettingsPointer(new UserSettings(settingsPath + "mixxx.cfg"));
+        settings->setValue(ConfigKey("[Config]", "Version"), VersionStore::FUTURE_UNSTABLE);
+        settings->save();
+
+        QFile soundConfig(settingsPath + "soundconfig.xml");
+        ASSERT_TRUE(soundConfig.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        ASSERT_GT(soundConfig.write("<SoundManagerConfig api=\"None\"/>\n"), 0);
+    }
+
+    SettingsPathGuard settingsPathGuard(CmdlineArgs::Instance());
+    CmdlineArgs::Instance().setSettingsPath(settingsPath);
+
+    CmdlineArgs args;
+    args.setSettingsPath(settingsPath);
+    auto coreServices = std::make_shared<mixxx::CoreServices>(args, application());
+
+    RejectFileDialogs rejectFileDialogs;
+    application()->installEventFilter(&rejectFileDialogs);
+
+    mixxx::qml::QmlApplication qmlApplication(application(), coreServices, QString());
+    ASSERT_TRUE(qmlApplication.isReady());
+
+    QQuickWindow* pWindow = nullptr;
+    for (QWindow* pTopLevel : QGuiApplication::topLevelWindows()) {
+        auto* pQuickWindow = qobject_cast<QQuickWindow*>(pTopLevel);
+        if (pQuickWindow && pQuickWindow->isVisible()) {
+            pWindow = pQuickWindow;
+            break;
+        }
+    }
+    ASSERT_NE(nullptr, pWindow);
+
+    // The library pane is created asynchronously with the rest of the skin.
+    QQuickItem* pBrowser = nullptr;
+    {
+        QElapsedTimer wait;
+        wait.start();
+        while (!pBrowser && wait.elapsed() < 15000) {
+            QCoreApplication::processEvents();
+            QThread::msleep(20);
+            pBrowser = findItemByClass(pWindow->contentItem(), "Browser_QMLTYPE");
+        }
+    }
+    ASSERT_NE(nullptr, pBrowser) << "Did not find the library source tree";
+
+    ASSERT_TRUE(QMetaObject::invokeMethod(pBrowser, "openSourceSettings"));
+
+    QObject* pDialog = nullptr;
+    for (QObject* pChild : pBrowser->findChildren<QObject*>()) {
+        if (QString::fromLatin1(pChild->metaObject()->className())
+                        .startsWith(QLatin1String("SourceSettings"))) {
+            pDialog = pChild;
+            break;
+        }
+    }
+    ASSERT_NE(nullptr, pDialog) << "Source settings dialog not found";
+
+    QTRY_VERIFY_WITH_TIMEOUT(pDialog->property("visible").toBool(), 4000);
+    const QVariantList sources = pDialog->property("items").toList();
+    ASSERT_FALSE(sources.isEmpty());
+    for (const QVariant& source : sources) {
+        const QVariantMap entry = source.toMap();
+        EXPECT_FALSE(entry.value(QStringLiteral("id")).toString().isEmpty());
+        EXPECT_FALSE(entry.value(QStringLiteral("title")).toString().isEmpty());
+        EXPECT_TRUE(entry.contains(QStringLiteral("hidden")));
+        EXPECT_TRUE(entry.contains(QStringLiteral("available")));
+    }
+
+    // The list view is only populated once the delegates are created, which is
+    // where a typo in the checkbox delegate would surface.
+    QObject* pContent = pDialog->property("contentItem").value<QObject*>();
+    ASSERT_NE(nullptr, pContent);
+    QObject* pList = nullptr;
+    for (QObject* pChild : pContent->findChildren<QObject*>()) {
+        if (QString::fromLatin1(pChild->metaObject()->className())
+                        .startsWith(QLatin1String("QQuickListView"))) {
+            pList = pChild;
+            break;
+        }
+    }
+    ASSERT_NE(nullptr, pList) << "Source list view not created";
+    QTRY_COMPARE_WITH_TIMEOUT(pList->property("count").toInt(),
+            static_cast<int>(sources.size()),
+            4000);
 
     application()->removeEventFilter(&rejectFileDialogs);
 }

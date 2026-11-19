@@ -16,6 +16,11 @@ class RhythmboxFeature : public BaseExternalLibraryFeature {
  public:
     RhythmboxFeature(Library* pLibrary, UserSettingsPointer pConfig);
     ~RhythmboxFeature() override;
+    // The source stays in the tree when the library is missing, dimmed and
+    // inert, so the Show* preference is authoritative.
+    bool isAvailable() const override {
+        return isSupported();
+    }
     static bool isSupported();
 
     QVariant title() override;

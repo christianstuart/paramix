@@ -11,6 +11,8 @@
 #   d. clang-format on changed C++ files (vs origin/main)
 #   e. CMake -D flag sanity: every CI flag must be a declared CMake option
 #   f. tracked-junk check (.DS_Store, build/, models/, stems/)
+#   g. controller UI parity (mapping-used [Library]/[Playlist]/[Skin] controls
+#      must be bound in QML or allowlisted with a reason)
 #
 # The script is read-only and safe to run daily. It exits 0 when every check
 # passes or is skipped, and 1 when at least one check fails. Skips and warnings
@@ -424,6 +426,25 @@ check_tracked_junk() {
 }
 
 # ---------------------------------------------------------------------------
+# g. Controller UI parity. Every [Library]/[Playlist]/[Skin] control a bundled
+#    mapping uses must be bound in the QML UI or allowlisted with a reason.
+# ---------------------------------------------------------------------------
+check_controller_ui_parity() {
+  section "g. controller UI parity"
+  local out status
+  set +e
+  out="$(cd "$REPO_ROOT" && python3 tools/controller_ui_parity.py --check-stale 2>&1)"
+  status=$?
+  set -e
+  printf '%s\n' "$out"
+  if [[ "$status" -eq 0 ]]; then
+    record "controller-ui-parity" PASS "all mapping-used UI controls are bound"
+  else
+    record "controller-ui-parity" FAIL "mapping-used UI controls missing from QML, or stale allowlist"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Summary table and verdict.
 # ---------------------------------------------------------------------------
 print_summary() {
@@ -468,6 +489,7 @@ main() {
   check_clang_format
   check_cmake_options
   check_tracked_junk
+  check_controller_ui_parity
   print_summary
   if verdict; then
     exit 0

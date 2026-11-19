@@ -13,6 +13,7 @@
 #include "library/parser.h"
 #include "library/parsercsv.h"
 #include "library/playlisttablemodel.h"
+#include "library/sidebarmodel.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/treeitem.h"
@@ -206,16 +207,20 @@ int BasePlaylistFeature::playlistIdFromIndex(const QModelIndex& index) const {
 }
 
 void BasePlaylistFeature::selectPlaylistInSidebar(int playlistId, bool select) {
-    if (!m_pSidebarWidget) {
-        return;
-    }
     if (playlistId == kInvalidPlaylistId) {
         return;
     }
     QModelIndex index = indexFromPlaylistId(playlistId);
-    if (index.isValid()) {
-        m_pSidebarWidget->selectChildIndex(index, select);
+    if (!index.isValid()) {
+        return;
     }
+    if (m_pSidebarWidget) {
+        m_pSidebarWidget->selectChildIndex(index, select);
+        return;
+    }
+    // QML builds have no WLibrarySidebar. Let the source tree reveal the row;
+    // the sidebar model translates the child index for us.
+    emit featureSelect(this, index);
 }
 
 void BasePlaylistFeature::activateChild(const QModelIndex& index) {
@@ -907,7 +912,16 @@ QModelIndex BasePlaylistFeature::indexFromPlaylistId(int playlistId) {
 }
 
 bool BasePlaylistFeature::isChildIndexSelectedInSidebar(const QModelIndex& index) {
-    return m_pSidebarWidget && m_pSidebarWidget->isChildIndexSelected(index);
+    if (m_pSidebarWidget) {
+        return m_pSidebarWidget->isChildIndexSelected(index);
+    }
+    // QML builds have no WLibrarySidebar. The index knows the sidebar model
+    // that tracks the current selection.
+    if (!index.isValid()) {
+        return false;
+    }
+    const auto* pSidebar = dynamic_cast<const SidebarModel*>(index.model());
+    return pSidebar && pSidebar->selectedIndex() == index;
 };
 
 void BasePlaylistFeature::slotTrackSelected(TrackId trackId) {

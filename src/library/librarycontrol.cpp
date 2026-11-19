@@ -1049,6 +1049,12 @@ void LibraryControl::slotFocusedWidgetChanged(QWidget* oldW, QWidget* newW) {
 }
 
 void LibraryControl::updateFocusedWidgetControls() {
+    // The QML UI owns [Library],focused_widget: it has no library QWidgets,
+    // and this slot would reset the control to None whenever a dialog takes
+    // the focus, breaking controller navigation until the user clicks again.
+    if (!m_pLibraryWidget && !m_pSidebarWidget && !m_pSearchbox) {
+        return;
+    }
     m_focusedWidget = getFocusedWidget();
     // Update "[Library], focused_widget" control
     double newVal = static_cast<double>(m_focusedWidget);

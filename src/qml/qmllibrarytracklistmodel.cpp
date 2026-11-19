@@ -74,6 +74,8 @@ int sourceColumnForTrackListColumn(QAbstractItemModel* pSourceModel, int columnI
             return COLUMN_TITLE;
         case ColumnCache::COLUMN_LIBRARYTABLE_YEAR:
             return COLUMN_YEAR;
+        case ColumnCache::COLUMN_LIBRARYTABLE_GENRE:
+            return COLUMN_GENRE;
         case ColumnCache::COLUMN_LIBRARYTABLE_BPM:
             return COLUMN_BPM;
         case ColumnCache::COLUMN_LIBRARYTABLE_KEY:
@@ -82,8 +84,25 @@ int sourceColumnForTrackListColumn(QAbstractItemModel* pSourceModel, int columnI
             return COLUMN_TYPE;
         case ColumnCache::COLUMN_LIBRARYTABLE_BITRATE:
             return COLUMN_BITRATE;
+        case ColumnCache::COLUMN_LIBRARYTABLE_ALBUMARTIST:
+            return COLUMN_ALBUMARTIST;
+        case ColumnCache::COLUMN_LIBRARYTABLE_COMPOSER:
+            return COLUMN_COMPOSER;
+        case ColumnCache::COLUMN_LIBRARYTABLE_GROUPING:
+            return COLUMN_GROUPING;
+        case ColumnCache::COLUMN_LIBRARYTABLE_TRACKNUMBER:
+            return COLUMN_TRACK_NUMBER;
+        case ColumnCache::COLUMN_LIBRARYTABLE_COMMENT:
+            return COLUMN_COMMENT;
+        case ColumnCache::COLUMN_LIBRARYTABLE_DURATION:
+            return COLUMN_DURATION;
+        case ColumnCache::COLUMN_LIBRARYTABLE_REPLAYGAIN:
+            return COLUMN_REPLAYGAIN;
         default:
-            break;
+            // The browse model has no field for this library column. Return an
+            // invalid index so the cell stays empty instead of showing the
+            // value of an unrelated browse column.
+            return -1;
         }
     }
     return columnIdx;
@@ -99,13 +118,15 @@ QmlLibraryTrackListModel::QmlLibraryTrackListModel(
     m_columns.reserve(librarySource.size());
     for (const auto* pColumn : std::as_const(librarySource)) {
         m_columns.emplace_back(make_parented<QmlLibraryTrackListColumn>(this,
+                pColumn->key(),
                 pColumn->label(),
                 pColumn->fillSpan(),
                 pColumn->columnIdx(),
                 pColumn->preferredWidth(),
                 pColumn->autoHideWidth(),
                 pColumn->delegate(),
-                pColumn->role()));
+                pColumn->role(),
+                pColumn->hidden()));
     }
 
     auto* pTrackModel = dynamic_cast<TrackModel*>(pModel);
@@ -201,7 +222,8 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         return {};
     }
     auto columnIdx = proxyIndex.column();
-    VERIFY_OR_DEBUG_ASSERT(columnIdx >= 0 || columnIdx < m_columns.size()) {
+    VERIFY_OR_DEBUG_ASSERT(columnIdx >= 0 &&
+            columnIdx < static_cast<int>(m_columns.size())) {
         return {};
     }
 
@@ -276,9 +298,15 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         // Use proxyIndex.column()
         return QIdentityProxyModel::data(proxyIndex, role);
     }
+    const int sourceColumn = sourceColumnForTrackListColumn(
+            sourceModel(), pColumn->columnIdx());
+    if (sourceColumn < 0) {
+        // The active source has no data for this column (e.g. Date Added in
+        // the Files view).
+        return {};
+    }
     return QIdentityProxyModel::data(
-            proxyIndex.siblingAtColumn(sourceColumnForTrackListColumn(
-                    sourceModel(), pColumn->columnIdx())),
+            proxyIndex.siblingAtColumn(sourceColumn),
             role);
 }
 
@@ -292,7 +320,8 @@ int QmlLibraryTrackListModel::columnCount(const QModelIndex& parent) const {
 
 QVariant QmlLibraryTrackListModel::headerData(
         int section, Qt::Orientation orientation, int role) const {
-    VERIFY_OR_DEBUG_ASSERT(section >= 0 || section < m_columns.size()) {
+    VERIFY_OR_DEBUG_ASSERT(section >= 0 &&
+            section < static_cast<int>(m_columns.size())) {
         return {};
     }
     // TODO role
@@ -345,7 +374,8 @@ void QmlLibraryTrackListModel::search(const QString& searchText) {
 }
 
 void QmlLibraryTrackListModel::sort(int column, Qt::SortOrder order) {
-    VERIFY_OR_DEBUG_ASSERT(column >= 0 || column < m_columns.size()) {
+    VERIFY_OR_DEBUG_ASSERT(column >= 0 &&
+            column < static_cast<int>(m_columns.size())) {
         return;
     }
     const auto& pColumn = m_columns[column];
@@ -353,12 +383,59 @@ void QmlLibraryTrackListModel::sort(int column, Qt::SortOrder order) {
             QAbstractItemModel::VerticalSortHint);
     if (pColumn->columnIdx() < 0) {
         // Use proxyIndex.column()
-        return sourceModel()->sort(column, order);
+        sourceModel()->sort(column, order);
+        emit layoutChanged(QList<QPersistentModelIndex>(),
+                QAbstractItemModel::VerticalSortHint);
+        return;
     }
-    sourceModel()->sort(sourceColumnForTrackListColumn(
-                                sourceModel(), pColumn->columnIdx()),
-            order);
+    const int sourceColumn = sourceColumnForTrackListColumn(
+            sourceModel(), pColumn->columnIdx());
+    if (sourceColumn < 0) {
+        // The active source cannot sort by this field; leave the rows alone.
+        emit layoutChanged(QList<QPersistentModelIndex>(),
+                QAbstractItemModel::VerticalSortHint);
+        return;
+    }
+    sourceModel()->sort(sourceColumn, order);
     emit layoutChanged(QList<QPersistentModelIndex>(), QAbstractItemModel::VerticalSortHint);
+}
+
+void QmlLibraryTrackListModel::applyColumnLayout(
+        const QStringList& orderKeys, const QStringList& hiddenKeys) {
+    if (m_columns.empty()) {
+        return;
+    }
+    emit layoutAboutToBeChanged();
+    std::vector<parented_ptr<QmlLibraryTrackListColumn>> ordered;
+    ordered.reserve(m_columns.size());
+    QSet<QString> placed;
+    if (!orderKeys.isEmpty()) {
+        for (const QString& key : orderKeys) {
+            if (placed.contains(key)) {
+                continue;
+            }
+            for (auto& column : m_columns) {
+                if (column && column->key() == key) {
+                    ordered.push_back(std::move(column));
+                    placed.insert(key);
+                    break;
+                }
+            }
+        }
+    }
+    // Keep columns the caller does not know about, e.g. after an update added
+    // new metadata columns to a saved layout.
+    for (auto& column : m_columns) {
+        if (column) {
+            ordered.push_back(std::move(column));
+        }
+    }
+    const QSet<QString> hidden(hiddenKeys.begin(), hiddenKeys.end());
+    m_columns = std::move(ordered);
+    for (auto& column : m_columns) {
+        column->setHidden(hidden.contains(column->key()));
+    }
+    emit layoutChanged();
 }
 
 } // namespace qml

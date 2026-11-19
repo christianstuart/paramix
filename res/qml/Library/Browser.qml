@@ -21,6 +21,16 @@ Rectangle {
     // toolbar is gone. The owning pane drives the actual search; this only
     // reports edits so the debounce stays in one place.
     readonly property alias searchInput: searchField
+    /// True while the tree owns keyboard focus; Library/Control.qml mirrors
+    /// this into [Library],focused_widget.
+    readonly property bool treeHasFocus: featureView.activeFocus
+    readonly property bool searchHasFocus: searchField.activeFocus
+    /// View row that is current. TreeView.rowAtIndex() is Qt 6.5+ and the
+    /// project minimum is 6.4, so the delegates report their own row instead.
+    property int currentRow: -1
+    /// Whether the current source has children, i.e. GoToItem should expand
+    /// it instead of jumping to its track list.
+    property bool currentHasChildren: false
 
     signal searchCleared
     signal searchEdited
@@ -58,6 +68,33 @@ Rectangle {
         dropMessage.messageText = message;
         dropMessageTimer.restart();
     }
+    function openSourceSettings() {
+        sourceSettings.refresh();
+        sourceSettings.open();
+    }
+    /// Reveals a source a feature asked to select (SidebarModel::selectIndex),
+    /// e.g. the playlist that was just renamed. Those edits reset the sidebar
+    /// model, which clears both the selection and the expanded state.
+    function revealSource(index, scrollTo) {
+        if (!index || !index.valid) {
+            return;
+        }
+        // Populate lazy children (folders, crates, ...) first: the view cannot
+        // expand a row the model has not created yet.
+        for (let ancestor = root.model.parentIndex(index); ancestor && ancestor.valid; ancestor = root.model.parentIndex(ancestor)) {
+            root.model.expand(ancestor);
+        }
+        featureView.expandToIndex(index);
+        root.selectRow(index);
+        if (!scrollTo) {
+            return;
+        }
+        featureView.forceLayout();
+        const row = featureView.rowAtIndex(index);
+        if (row >= 0) {
+            featureView.positionViewAtRow(row, Qt.AlignVCenter);
+        }
+    }
     function toggleNode(row) {
         if (featureView.isExpanded(row)) {
             featureView.collapse(row);
@@ -69,6 +106,72 @@ Rectangle {
         featureView.model.expand(featureView.index(row, 0));
         featureView.expand(row);
     }
+    function focusSearch() {
+        searchField.forceActiveFocus(Qt.ShortcutFocusReason);
+    }
+    function focusTree() {
+        featureView.forceActiveFocus();
+    }
+    function indexAt(row) {
+        if (row < 0) {
+            return null;
+        }
+        const index = featureView.index(row, 0);
+        return index && index.valid ? index : null;
+    }
+    /// Selects and activates a source by visible row, the way the classic
+    /// sidebar activates on every Up/Down.
+    function selectRowAt(row) {
+        const index = root.indexAt(row);
+        if (!index) {
+            return;
+        }
+        root.selectRow(index);
+        root.model.activate(index);
+        featureView.positionViewAtRow(row, TableView.AlignVCenter);
+    }
+    function moveSelection(delta) {
+        if (!root.model || delta === 0) {
+            return;
+        }
+        const count = featureView.rows;
+        if (count <= 0) {
+            return;
+        }
+        const base = root.currentRow >= 0 ? root.currentRow : (delta > 0 ? -1 : count);
+        root.selectRowAt(Math.max(0, Math.min(count - 1, base + delta)));
+    }
+    /// Pages the source selection by one viewport.
+    function page(delta) {
+        root.moveSelection(delta * Math.max(1, Math.floor(featureView.height / 30)));
+    }
+    /// Left collapses the current source, right expands it.
+    function moveHorizontal(delta) {
+        const row = root.currentRow;
+        const index = root.indexAt(row);
+        if (!index) {
+            return;
+        }
+        if (delta > 0) {
+            if (!featureView.isExpanded(row)) {
+                root.model.expand(index);
+                featureView.expand(row);
+            }
+        } else if (featureView.isExpanded(row)) {
+            featureView.collapse(row);
+        }
+    }
+    function toggleSelected() {
+        const row = root.currentRow;
+        const index = root.indexAt(row);
+        if (!index) {
+            return;
+        }
+        // Activate first: the classic sidebar shows the source's tracks and
+        // then toggles its expanded state.
+        root.model.activate(index);
+        root.toggleNode(row);
+    }
 
     color: Theme.surface1
 
@@ -77,6 +180,14 @@ Rectangle {
     Connections {
         function onModelReset() {
             root.activateDefaultSource();
+        }
+        // A feature changed a source and wants it shown, e.g. after a rename.
+        function onSelectIndex(index, scrollTo) {
+            root.revealSource(index, scrollTo);
+        }
+        // "Sources..." in the source context menu.
+        function onSourceSettingsRequested() {
+            root.openSourceSettings();
         }
 
         target: root.model
@@ -110,7 +221,11 @@ Rectangle {
 
                     Accessible.name: qsTr("Search the library")
                     Accessible.role: Accessible.EditableText
-                    anchors.fill: parent
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: sourceSettingsButton.left
+                    anchors.rightMargin: Theme.space1
+                    anchors.top: parent.top
                     font.pixelSize: Theme.fontSizeSm
                     placeholderText: qsTranslate("WSearchLineEdit", "Search...")
                     rightPadding: Theme.space2 + (clearButton.visible ? clearButton.width + Theme.space1 : 0)
@@ -123,7 +238,7 @@ Rectangle {
 
                     Accessible.name: qsTr("Clear search")
                     Accessible.role: Accessible.Button
-                    anchors.right: parent.right
+                    anchors.right: searchField.right
                     anchors.rightMargin: Theme.space2
                     anchors.verticalCenter: parent.verticalCenter
                     height: 14
@@ -158,6 +273,36 @@ Rectangle {
                         hoverEnabled: true
 
                         onClicked: root.searchCleared()
+                    }
+                }
+                Rectangle {
+                    id: sourceSettingsButton
+
+                    Accessible.name: qsTr("Library sources")
+                    Accessible.role: Accessible.Button
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: sourceSettingsMouseArea.containsMouse ? Theme.surfaceHover : "transparent"
+                    height: 22
+                    radius: Theme.radiusXs
+                    width: 22
+
+                    Accessible.onPressAction: root.openSourceSettings()
+
+                    Text {
+                        anchors.centerIn: parent
+                        color: sourceSettingsMouseArea.containsMouse ? Theme.textPrimary : Theme.textMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm
+                        text: "☰"
+                    }
+                    MouseArea {
+                        id: sourceSettingsMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+
+                        onClicked: root.openSourceSettings()
                     }
                 }
             }
@@ -209,6 +354,12 @@ Rectangle {
                         // non-deprecated equivalent.
                         readonly property var sourceIndex: treeView.index(row, column)
                         readonly property bool topLevel: depth === 0
+                        /// The add action this source offers, rendered as the
+                        /// hover "+" button. Empty when it cannot create items.
+                        readonly property string addActionText: topLevel && root.model ? root.model.addAction(sourceIndex) : ""
+                        /// False for an external library that is not installed
+                        /// on this computer: the row stays visible but inert.
+                        readonly property bool sourceAvailable: available !== false
 
                         // Assigned to by TreeView:
                         required property TreeView treeView
@@ -221,6 +372,12 @@ Rectangle {
                         TableView.onPooled: indicatorAnimation.complete()
                         TableView.onReused: if (current)
                             indicatorAnimation.start()
+                        onCurrentChanged: {
+                            if (current) {
+                                root.currentRow = row;
+                                root.currentHasChildren = hasChildren > 0;
+                            }
+                        }
                         onExpandedChanged: indicator.rotation = expanded ? 90 : 0
 
                         Rectangle {
@@ -265,15 +422,16 @@ Rectangle {
                             hoverEnabled: true
 
                             onClicked: {
-                                // Keep the tree keyboard-navigable: the Menu key
-                                // acts on the selected source row.
+                                // Keep the tree keyboard-navigable: the arrow
+                                // keys, Enter, F2 and Delete act on the selected
+                                // source row.
                                 featureView.forceActiveFocus();
                                 root.selectRow(sourceIndex);
                                 // Selecting a source activates it, i.e. shows its
                                 // tracks. Expanding is a separate action.
                                 if (mouse.button === Qt.RightButton) {
                                     root.openSourceMenu(sourceIndex);
-                                } else {
+                                } else if (sourceAvailable) {
                                     root.model.activate(sourceIndex);
                                 }
                             }
@@ -319,6 +477,7 @@ Rectangle {
                                 asynchronous: true
                                 fillMode: Image.PreserveAspectFit
                                 layer.enabled: !!icon
+                                opacity: sourceAvailable ? 1.0 : 0.4
                                 source: icon ?? ""
                                 visible: !!icon
 
@@ -339,7 +498,14 @@ Rectangle {
                                 MouseArea {
                                     anchors.fill: parent
 
-                                    onClicked: root.toggleNode(row)
+                                    onClicked: {
+                                        // Like clicking the row in the classic
+                                        // sidebar: select it, show its tracks and
+                                        // toggle the expanded state.
+                                        root.selectRow(sourceIndex);
+                                        root.model.activate(sourceIndex);
+                                        root.toggleNode(row);
+                                    }
                                 }
                             }
                             Label {
@@ -347,7 +513,9 @@ Rectangle {
 
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
-                                color: topLevel ? Theme.textPrimary : Theme.textSecondary
+                                color: topLevel
+                                       ? sourceAvailable ? Theme.textPrimary : Theme.textMuted
+                                       : Theme.textSecondary
                                 elide: Text.ElideRight
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeMd
@@ -357,39 +525,101 @@ Rectangle {
                             Item {
                                 Layout.preferredHeight: 20
                                 Layout.preferredWidth: 20
-                                visible: rowMouseArea.containsMouse && isTreeNode && hasChildren
+                                visible: rowMouseArea.containsMouse && addActionText !== ""
                             }
                         }
                         Rectangle {
                             id: newItem
 
+                            Accessible.name: qsTr("Create")
+                            Accessible.role: Accessible.Button
                             anchors.right: parent.right
                             anchors.rightMargin: Theme.space2
                             anchors.verticalCenter: parent.verticalCenter
-                            border.color: Theme.borderStrong
+                            border.color: newMouseArea.containsMouse ? Theme.accent : Theme.borderStrong
                             border.width: 1
                             color: Theme.surface3
                             height: 20
                             radius: Theme.radiusSm
-                            visible: rowMouseArea.containsMouse && isTreeNode && hasChildren
+                            visible: rowMouseArea.containsMouse && addActionText !== ""
                             width: 20
+
+                            Accessible.onPressAction: root.model.invokeContextMenuAction(sourceIndex, addActionText)
 
                             Text {
                                 anchors.centerIn: parent
-                                color: Theme.textSecondary
+                                color: newMouseArea.containsMouse ? Theme.accent : Theme.textSecondary
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeMd
                                 text: "+"
+                            }
+                            MouseArea {
+                                id: newMouseArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+
+                                onClicked: root.model.invokeContextMenuAction(sourceIndex, addActionText)
                             }
                         }
                     }
 
                     Keys.onPressed: event => {
+                        const currentIndex = root.featureSelection.currentIndex;
                         // Keyboard context menu for the current source row.
                         if (event.key === Qt.Key_Menu || (event.key === Qt.Key_F10 && (event.modifiers & Qt.ShiftModifier))) {
-                            root.openSourceMenu(root.featureSelection.currentIndex);
+                            root.openSourceMenu(currentIndex);
                             event.accepted = true;
+                            return;
                         }
+                        // Same shortcuts as the classic sidebar: F2 renames,
+                        // Delete removes the selected playlist or crate.
+                        if (event.key === Qt.Key_F2 || event.key === Qt.Key_Delete) {
+                            if (currentIndex.valid) {
+                                root.model.invokeContextMenuAction(currentIndex, event.key === Qt.Key_F2 ? "rename" : "remove");
+                                event.accepted = true;
+                            }
+                            return;
+                        }
+                        if (!root.model || !currentIndex.valid) {
+                            return;
+                        }
+                        const currentRow = featureView.rowAtIndex(currentIndex);
+                        let targetRow = currentRow;
+                        switch (event.key) {
+                        case Qt.Key_Up:
+                            targetRow = currentRow - 1;
+                            break;
+                        case Qt.Key_Down:
+                            targetRow = currentRow + 1;
+                            break;
+                        case Qt.Key_Home:
+                            targetRow = 0;
+                            break;
+                        case Qt.Key_End:
+                            targetRow = featureView.rows - 1;
+                            break;
+                        case Qt.Key_PageUp:
+                            targetRow = currentRow - 10;
+                            break;
+                        case Qt.Key_PageDown:
+                            targetRow = currentRow + 10;
+                            break;
+                        case Qt.Key_Return:
+                        case Qt.Key_Enter:
+                            root.toggleNode(currentRow);
+                            event.accepted = true;
+                            return;
+                        default:
+                            return;
+                        }
+                        targetRow = Math.min(Math.max(targetRow, 0), featureView.rows - 1);
+                        // Moving the selection shows the source, like the
+                        // classic sidebar's pressed -> clicked timer.
+                        const targetIndex = featureView.index(targetRow, 0);
+                        root.selectRow(targetIndex);
+                        root.model.activate(targetIndex);
+                        event.accepted = true;
                     }
                 }
             }
@@ -488,5 +718,10 @@ Rectangle {
                 onTriggered: root.model.invokeContextMenuAction(sourceMenu.sourceIndex, actionItem.nodeAction)
             }
         }
+    }
+    SourceSettings {
+        id: sourceSettings
+
+        sidebar: root.model
     }
 }

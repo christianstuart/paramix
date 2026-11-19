@@ -381,6 +381,9 @@ class QmlConfigProxy : public QmlConfigProxyBase {
                     set_paramixShowGpu NOTIFY paramixShowGpuChanged);
     Q_PROPERTY(bool paramixFourBandEq READ paramixFourBandEq WRITE
                     set_paramixFourBandEq NOTIFY paramixFourBandEqChanged);
+    // JSON array of { key, hidden } describing the library track table layout.
+    Q_PROPERTY(QString paramixLibraryColumns READ paramixLibraryColumns WRITE
+                    set_paramixLibraryColumns NOTIFY paramixLibraryColumnsChanged);
 
     // Colors
     Q_PROPERTY(QVariantList hotcueColorPalette READ hotcueColorPalette NOTIFY
@@ -570,6 +573,7 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     PROPERTY_DECL_ACCESSOR(bool, paramixShowCpu);
     PROPERTY_DECL_ACCESSOR(bool, paramixShowGpu);
     PROPERTY_DECL_ACCESSOR(bool, paramixFourBandEq);
+    PROPERTY_DECL_ACCESSOR(QString, paramixLibraryColumns);
 
     // Kbps, 32..512
     PROPERTY_DECL_ACCESSOR(int, stemAacBitrate);
@@ -695,6 +699,7 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     void paramixShowCpuChanged();
     void paramixShowGpuChanged();
     void paramixFourBandEqChanged();
+    void paramixLibraryColumnsChanged();
 
     void stemAacBitrateChanged();
     void stemModelPathChanged();

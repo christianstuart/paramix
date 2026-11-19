@@ -53,6 +53,9 @@ class QmlSidebarModelProxy : public SidebarModel {
     enum Roles {
         /// URL of the source icon, suitable for a QML Image.
         IconUrlRole = Qt::UserRole + 100,
+        /// False for an external library that is not installed on this
+        /// machine. Browser.qml dims those rows and does not activate them.
+        AvailableRole,
     };
     Q_ENUM(Roles);
 
@@ -75,13 +78,29 @@ class QmlSidebarModelProxy : public SidebarModel {
     bool autoDjRepeat() const;
     void setAutoDjRepeat(bool repeat);
 
-    /// Mirrors the features of the library's sidebar model. The features are
-    /// created once during library construction, hence this is a one-shot
-    /// operation.
+    /// Mirrors the visible features of the library's sidebar model. Call it
+    /// once at startup; setSourceHidden() and showAllSources() rebuild the
+    /// mirror later.
     void update();
+
+    /// Every source of the library, hidden ones included. Each entry is a map
+    /// with the keys `id`, `title`, `icon`, `available` and `hidden`.
+    Q_INVOKABLE QVariantList sources() const;
+    /// Hides or shows a source and remembers it in Config.
+    Q_INVOKABLE void setSourceHidden(const QString& sourceId, bool hidden);
+    /// Makes every source visible again.
+    Q_INVOKABLE void showAllSources();
 
     /// Columns used for all track models created by this proxy.
     void setColumns(const QList<QmlLibraryTrackListColumn*>& columns);
+
+    /// Column layout shared by every source. Changing it updates the cached
+    /// models and every model created later.
+    Q_INVOKABLE void moveColumn(int from, int to);
+    Q_INVOKABLE void setColumnHidden(int column, bool hidden);
+    /// Ordered list of maps with the keys `key` and `hidden`.
+    Q_INVOKABLE QVariantList columnLayout() const;
+    Q_INVOKABLE void applyColumnLayout(const QVariantList& layout);
 
     QHash<int, QByteArray> roleNames() const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -92,6 +111,11 @@ class QmlSidebarModelProxy : public SidebarModel {
     /// Populates the lazy children of `index`, e.g. playlists, crates or
     /// folders. Expanding/collapsing the visual tree is done by the view.
     Q_INVOKABLE void expand(const QModelIndex& index);
+    /// Action that creates a new item for a source row, rendered as the hover
+    /// "+" button by Browser.qml. Empty for rows without such an action.
+    Q_INVOKABLE QString addAction(const QModelIndex& index) const;
+    /// Parent of `index`. QML cannot call QModelIndex::parent() itself.
+    Q_INVOKABLE QModelIndex parentIndex(const QModelIndex& index) const;
     /// Applies and remembers the search query for the current and all
     /// subsequent track lists.
     Q_INVOKABLE void search(const QString& searchText);
@@ -120,6 +144,12 @@ class QmlSidebarModelProxy : public SidebarModel {
     void autoDjActiveChanged();
     void autoDjTransitionSecondsChanged();
     void autoDjRepeatChanged();
+    void columnLayoutChanged();
+    /// The QML settings dialog should open, e.g. from "Sources..." in the
+    /// source context menu.
+    void sourceSettingsRequested();
+    /// A source was hidden or shown, so `sources()` changed.
+    void sourcesChanged();
 
   private slots:
     void slotShowTrackModel(QAbstractItemModel* pModel);
@@ -134,8 +164,11 @@ class QmlSidebarModelProxy : public SidebarModel {
     QmlLibraryTrackListModel* trackListForModel(QAbstractItemModel* pModel);
     void activateDefaultSelection();
     void addFolderToLibrary();
+    void applyColumnsToTrackLists();
     void invokeContextMenuActionNow(
             const QModelIndex& index, const QString& action);
+    /// Rebuilds the mirrored feature list from the hidden sources in Config.
+    void rebuild();
 
     std::vector<parented_ptr<QmlLibraryTrackListColumn>> m_columns;
     QList<TrackListEntry> m_trackLists;

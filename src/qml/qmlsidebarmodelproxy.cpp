@@ -2,10 +2,13 @@
 
 #include <QFileDialog>
 #include <QPersistentModelIndex>
+#include <QSet>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <QVariant>
+#include <QVariantMap>
 #include <algorithm>
 #include <utility>
 
@@ -20,6 +23,9 @@
 #include "library/trackset/setlogfeature.h"
 #include "library/treeitem.h"
 #include "moc_qmlsidebarmodelproxy.cpp"
+#include "preferences/configobject.h"
+#include "preferences/usersettings.h"
+#include "qml/qmlconfigproxy.h"
 #include "qml/qmllibraryproxy.h"
 #include "util/assert.h"
 #include "util/parented_ptr.h"
@@ -31,8 +37,37 @@ namespace {
 const QHash<int, QByteArray> kRoleNames = {
         {Qt::DisplayRole, "label"},
         {QmlSidebarModelProxy::IconUrlRole, "icon"},
+        {QmlSidebarModelProxy::AvailableRole, "available"},
         {SidebarModel::DataRole, "data"},
 };
+
+const ConfigKey kHiddenSourcesConfigKey(
+        QStringLiteral("[Library]"), QStringLiteral("HiddenSidebarSources"));
+
+/// Stable, translation independent id of a source. The icon name is unique per
+/// feature; external collections without one fall back to the class name.
+QString featureId(const LibraryFeature* pFeature) {
+    if (!pFeature) {
+        return QString();
+    }
+    const QString iconName = pFeature->iconName();
+    return iconName.isEmpty()
+            ? QString::fromLatin1(pFeature->metaObject()->className())
+            : iconName;
+}
+
+QStringList hiddenSourceIds() {
+    const UserSettingsPointer pConfig = QmlConfigProxy::get();
+    if (!pConfig) {
+        return {};
+    }
+    return pConfig->getValueString(kHiddenSourcesConfigKey)
+            .split(QLatin1Char(','), Qt::SkipEmptyParts);
+}
+
+LibraryFeature* featureForIndex(const SidebarModel* pSidebar,
+        const QList<LibraryFeature*>& features,
+        const QModelIndex& index);
 } // namespace
 
 QHash<int, QByteArray> QmlSidebarModelProxy::roleNames() const {
@@ -50,6 +85,19 @@ QVariant QmlSidebarModelProxy::data(const QModelIndex& index, int role) const {
         // Tree items use QIcon which cannot be rendered by QML directly.
         return QVariant();
     }
+    if (role == AvailableRole) {
+        if (!index.isValid()) {
+            return true;
+        }
+        if (index.internalPointer() == this) {
+            const LibraryFeature* pFeature = m_sFeatures.value(index.row());
+            return pFeature ? pFeature->isAvailable() : true;
+        }
+        // Children belong to their feature, so they inherit its availability.
+        const auto* pItem = static_cast<const TreeItem*>(index.internalPointer());
+        const LibraryFeature* pFeature = pItem ? pItem->feature() : nullptr;
+        return pFeature ? pFeature->isAvailable() : true;
+    }
     return SidebarModel::data(index, role);
 }
 
@@ -66,6 +114,11 @@ void QmlSidebarModelProxy::activate(const QModelIndex& index) {
     if (!index.isValid() || index.model() != this) {
         return;
     }
+    const LibraryFeature* pFeature = featureForIndex(this, m_sFeatures, index);
+    if (pFeature && !pFeature->isAvailable()) {
+        // The external library was not found; the row is inert.
+        return;
+    }
     SidebarModel::clicked(index);
 }
 
@@ -75,6 +128,29 @@ void QmlSidebarModelProxy::expand(const QModelIndex& index) {
     }
     // Populates lazy child models (playlists, crates, folders, ...).
     SidebarModel::doubleClicked(index);
+}
+
+QString QmlSidebarModelProxy::addAction(const QModelIndex& index) const {
+    if (!index.isValid() || index.model() != this ||
+            index.internalPointer() != this) {
+        return QString();
+    }
+    // Mirrors the first entry contextMenu() offers for the same row.
+    LibraryFeature* pFeature = m_sFeatures.value(index.row());
+    if (dynamic_cast<PlaylistFeature*>(pFeature)) {
+        return QStringLiteral("createPlaylist");
+    }
+    if (dynamic_cast<CrateFeature*>(pFeature)) {
+        return QStringLiteral("createCrate");
+    }
+    if (dynamic_cast<BrowseFeature*>(pFeature)) {
+        return QStringLiteral("addToLibrary");
+    }
+    return QString();
+}
+
+QModelIndex QmlSidebarModelProxy::parentIndex(const QModelIndex& index) const {
+    return index.isValid() ? index.parent() : QModelIndex();
 }
 
 QmlSidebarModelProxy::QmlSidebarModelProxy(QObject* parent)
@@ -96,30 +172,148 @@ void QmlSidebarModelProxy::update() {
         return;
     }
     // Library features are added once during Library construction and never
-    // removed, so mirroring them more than once would duplicate connections.
-    if (m_featuresUpdated) {
+    // removed, so wiring them more than once would duplicate connections. Only
+    // the visible subset is mirrored below, and setSourceHidden() rebuilds it.
+    if (!m_featuresUpdated) {
+        m_featuresUpdated = true;
+        for (LibraryFeature* pFeature : pLibrarySidebar->features()) {
+            VERIFY_OR_DEBUG_ASSERT(pFeature) {
+                continue;
+            }
+            addLibraryFeature(pFeature);
+            connect(pFeature,
+                    &LibraryFeature::showTrackModel,
+                    this,
+                    &QmlSidebarModelProxy::slotShowTrackModel);
+            if (auto* pAutoDjFeature = dynamic_cast<AutoDJFeature*>(pFeature)) {
+                m_pAutoDjFeature = pAutoDjFeature;
+                m_pAutoDjQueueModel = pAutoDjFeature->autoDjQueueModel();
+            }
+        }
+    }
+
+    rebuild();
+    activateDefaultSelection();
+}
+
+void QmlSidebarModelProxy::rebuild() {
+    Library* pLibrary = QmlLibraryProxy::get();
+    VERIFY_OR_DEBUG_ASSERT(pLibrary) {
         return;
     }
-    m_featuresUpdated = true;
+    SidebarModel* pLibrarySidebar = pLibrary->sidebarModel();
+    VERIFY_OR_DEBUG_ASSERT(pLibrarySidebar) {
+        return;
+    }
+
+    // Keep showing the same source unless it was just hidden.
+    LibraryFeature* pSelectedFeature = featureForIndex(this, m_sFeatures, selectedIndex());
+    const QStringList hiddenIds = hiddenSourceIds();
 
     beginResetModel();
+    m_sFeatures.clear();
     for (LibraryFeature* pFeature : pLibrarySidebar->features()) {
-        VERIFY_OR_DEBUG_ASSERT(pFeature) {
-            continue;
-        }
-        addLibraryFeature(pFeature);
-        connect(pFeature,
-                &LibraryFeature::showTrackModel,
-                this,
-                &QmlSidebarModelProxy::slotShowTrackModel);
-        if (auto* pAutoDjFeature = dynamic_cast<AutoDJFeature*>(pFeature)) {
-            m_pAutoDjFeature = pAutoDjFeature;
-            m_pAutoDjQueueModel = pAutoDjFeature->autoDjQueueModel();
+        if (pFeature && !hiddenIds.contains(featureId(pFeature))) {
+            m_sFeatures.append(pFeature);
         }
     }
     endResetModel();
 
-    activateDefaultSelection();
+    const int row = qMax(0, m_sFeatures.indexOf(pSelectedFeature));
+    const QModelIndex target = index(row, 0);
+    if (!target.isValid()) {
+        return;
+    }
+    // Show its tracks (or the first source when the previous one was hidden)
+    // and restore the selection the reset just dropped.
+    SidebarModel::clicked(target);
+    emit selectIndex(target, false);
+}
+
+QVariantList QmlSidebarModelProxy::sources() const {
+    QVariantList result;
+    Library* pLibrary = QmlLibraryProxy::get();
+    VERIFY_OR_DEBUG_ASSERT(pLibrary) {
+        return result;
+    }
+    SidebarModel* pLibrarySidebar = pLibrary->sidebarModel();
+    VERIFY_OR_DEBUG_ASSERT(pLibrarySidebar) {
+        return result;
+    }
+    const QStringList hiddenIds = hiddenSourceIds();
+    const QList<LibraryFeature*>& features = pLibrarySidebar->features();
+    result.reserve(static_cast<qsizetype>(features.size()));
+    for (LibraryFeature* pFeature : features) {
+        if (!pFeature) {
+            continue;
+        }
+        const QString id = featureId(pFeature);
+        QVariantMap entry;
+        entry.insert(QStringLiteral("id"), id);
+        entry.insert(QStringLiteral("title"), pFeature->title().toString());
+        entry.insert(QStringLiteral("icon"), pFeature->iconUrl().toString());
+        entry.insert(QStringLiteral("available"), pFeature->isAvailable());
+        entry.insert(QStringLiteral("hidden"), hiddenIds.contains(id));
+        result.append(entry);
+    }
+    return result;
+}
+
+void QmlSidebarModelProxy::setSourceHidden(const QString& sourceId, bool hidden) {
+    if (sourceId.isEmpty()) {
+        return;
+    }
+    Library* pLibrary = QmlLibraryProxy::get();
+    VERIFY_OR_DEBUG_ASSERT(pLibrary) {
+        return;
+    }
+    SidebarModel* pLibrarySidebar = pLibrary->sidebarModel();
+    VERIFY_OR_DEBUG_ASSERT(pLibrarySidebar) {
+        return;
+    }
+    // Ignore ids that no longer exist so a stale entry cannot hide anything.
+    bool known = false;
+    for (const LibraryFeature* pFeature : pLibrarySidebar->features()) {
+        if (featureId(pFeature) == sourceId) {
+            known = true;
+            break;
+        }
+    }
+    if (!known) {
+        return;
+    }
+
+    QStringList hiddenIds = hiddenSourceIds();
+    if (hiddenIds.contains(sourceId) == hidden) {
+        return;
+    }
+    if (hidden) {
+        hiddenIds.append(sourceId);
+    } else {
+        hiddenIds.removeAll(sourceId);
+    }
+    const UserSettingsPointer pConfig = QmlConfigProxy::get();
+    VERIFY_OR_DEBUG_ASSERT(pConfig) {
+        return;
+    }
+    pConfig->setValue(kHiddenSourcesConfigKey, hiddenIds.join(QLatin1Char(',')));
+
+    rebuild();
+    emit sourcesChanged();
+}
+
+void QmlSidebarModelProxy::showAllSources() {
+    if (hiddenSourceIds().isEmpty()) {
+        return;
+    }
+    const UserSettingsPointer pConfig = QmlConfigProxy::get();
+    VERIFY_OR_DEBUG_ASSERT(pConfig) {
+        return;
+    }
+    pConfig->setValue(kHiddenSourcesConfigKey, QString());
+
+    rebuild();
+    emit sourcesChanged();
 }
 
 void QmlSidebarModelProxy::activateDefaultSelection() {
@@ -146,14 +340,111 @@ void QmlSidebarModelProxy::setColumns(
         // Take a snapshot: the QML-owned template objects may be garbage
         // collected whereas the models created later must stay intact.
         m_columns.emplace_back(make_parented<QmlLibraryTrackListColumn>(this,
+                pColumn->key(),
                 pColumn->label(),
                 pColumn->fillSpan(),
                 pColumn->columnIdx(),
                 pColumn->preferredWidth(),
                 pColumn->autoHideWidth(),
                 pColumn->delegate(),
-                pColumn->role()));
+                pColumn->role(),
+                pColumn->hidden()));
     }
+}
+
+QVariantList QmlSidebarModelProxy::columnLayout() const {
+    QVariantList layout;
+    layout.reserve(static_cast<qsizetype>(m_columns.size()));
+    for (const auto& pColumn : m_columns) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("key"), pColumn->key());
+        entry.insert(QStringLiteral("hidden"), pColumn->hidden());
+        layout.append(entry);
+    }
+    return layout;
+}
+
+void QmlSidebarModelProxy::applyColumnsToTrackLists() {
+    QStringList orderKeys;
+    QStringList hiddenKeys;
+    orderKeys.reserve(static_cast<qsizetype>(m_columns.size()));
+    for (const auto& pColumn : m_columns) {
+        orderKeys.append(pColumn->key());
+        if (pColumn->hidden()) {
+            hiddenKeys.append(pColumn->key());
+        }
+    }
+    for (const auto& entry : std::as_const(m_trackLists)) {
+        entry.pTrackList->applyColumnLayout(orderKeys, hiddenKeys);
+    }
+}
+
+void QmlSidebarModelProxy::moveColumn(int from, int to) {
+    const int count = static_cast<int>(m_columns.size());
+    if (from < 0 || from >= count || to < 0 || to >= count || from == to) {
+        return;
+    }
+    auto column = std::move(m_columns[from]);
+    m_columns.erase(m_columns.begin() + from);
+    m_columns.insert(m_columns.begin() + to, std::move(column));
+    applyColumnLayout(columnLayout());
+}
+
+void QmlSidebarModelProxy::setColumnHidden(int column, bool hidden) {
+    if (column < 0 || column >= static_cast<int>(m_columns.size())) {
+        return;
+    }
+    if (m_columns[column]->hidden() == hidden) {
+        return;
+    }
+    m_columns[column]->setHidden(hidden);
+    applyColumnLayout(columnLayout());
+}
+
+void QmlSidebarModelProxy::applyColumnLayout(const QVariantList& layout) {
+    QStringList orderKeys;
+    QStringList hiddenKeys;
+    for (const QVariant& item : layout) {
+        const QVariantMap entry = item.toMap();
+        const QString key = entry.value(QStringLiteral("key")).toString();
+        if (key.isEmpty()) {
+            continue;
+        }
+        orderKeys.append(key);
+        if (entry.value(QStringLiteral("hidden")).toBool()) {
+            hiddenKeys.append(key);
+        }
+    }
+
+    std::vector<parented_ptr<QmlLibraryTrackListColumn>> ordered;
+    ordered.reserve(m_columns.size());
+    QSet<QString> placed;
+    for (const QString& key : std::as_const(orderKeys)) {
+        if (placed.contains(key)) {
+            continue;
+        }
+        for (auto& pColumn : m_columns) {
+            if (pColumn && pColumn->key() == key) {
+                ordered.push_back(std::move(pColumn));
+                placed.insert(key);
+                break;
+            }
+        }
+    }
+    // Columns missing from the saved layout keep their relative order.
+    for (auto& pColumn : m_columns) {
+        if (pColumn) {
+            ordered.push_back(std::move(pColumn));
+        }
+    }
+
+    const QSet<QString> hidden(hiddenKeys.begin(), hiddenKeys.end());
+    m_columns = std::move(ordered);
+    for (auto& pColumn : m_columns) {
+        pColumn->setHidden(hidden.contains(pColumn->key()));
+    }
+    applyColumnsToTrackLists();
+    emit columnLayoutChanged();
 }
 
 QmlLibraryTrackListModel* QmlSidebarModelProxy::trackListForModel(
@@ -411,6 +702,13 @@ QVariantList QmlSidebarModelProxy::contextMenu(const QModelIndex& index) const {
                     QStringLiteral("rescanLibrary"),
                     tr("Rescan Library"));
         }
+        appendMenuSeparator(&nodes);
+        appendMenuAction(&nodes,
+                QStringLiteral("hideSource"),
+                tr("Hide This Source"));
+        appendMenuAction(&nodes,
+                QStringLiteral("showSources"),
+                tr("Sources..."));
         return nodes;
     }
 
@@ -523,6 +821,14 @@ void QmlSidebarModelProxy::invokeContextMenuActionNow(
     }
 
     if (index.internalPointer() == this) {
+        if (action == QLatin1String("hideSource")) {
+            setSourceHidden(featureId(m_sFeatures.value(index.row())), true);
+            return;
+        }
+        if (action == QLatin1String("showSources")) {
+            emit sourceSettingsRequested();
+            return;
+        }
         Library* pLibrary = QmlLibraryProxy::get();
         if (!pLibrary) {
             return;
@@ -610,6 +916,11 @@ void QmlSidebarModelProxy::addFolderToLibrary() {
 bool QmlSidebarModelProxy::dropUrls(
         const QModelIndex& index, const QList<QUrl>& urls) {
     if (!index.isValid() || index.model() != this || urls.isEmpty()) {
+        return false;
+    }
+    const LibraryFeature* pFeature = featureForIndex(this, m_sFeatures, index);
+    if (pFeature && !pFeature->isAvailable()) {
+        // A source whose external library was not found cannot take tracks.
         return false;
     }
     // dragMoveAccept() lets the feature reject locked or invalid targets;

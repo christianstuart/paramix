@@ -367,6 +367,7 @@ void SidebarModel::clicked(const QModelIndex& index) {
     // this event.
     stopPressedUntilClickedTimer();
     if (index.isValid()) {
+        m_selectedIndex = index;
         if (index.internalPointer() == this) {
             m_sFeatures[index.row()]->activate();
         } else {
@@ -635,5 +636,6 @@ void SidebarModel::slotFeatureSelect(LibraryFeature* pFeature,
             }
         }
     }
+    m_selectedIndex = ind;
     emit selectIndex(ind, scrollTo);
 }

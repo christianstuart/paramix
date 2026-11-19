@@ -50,7 +50,9 @@ ComboBox {
         }
     }
     contentItem: Text {
-        rightPadding: root.indicator.width + Theme.space1
+        // Only reserve space for the chevron when there is one; a zero-width
+        // indicator would otherwise cost the label 4 of its few strip pixels.
+        rightPadding: root.indicator.width > 0 ? root.indicator.width + Theme.space1 : 0
         clip: root.clip
         color: Theme.textPrimary
         elide: root.clip ? Text.ElideNone : Text.ElideRight

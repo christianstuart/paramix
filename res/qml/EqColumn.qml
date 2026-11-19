@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import "." as Skin
 import QtQuick 2.12
 import QtQuick.Shapes 1.12
+import QtQuick.Controls
 import QtQuick.Layouts
 import Mixxx 1.0 as Mixxx
 import "Theme"
@@ -113,6 +114,12 @@ Column {
         // Leave 2 px on the right so the preset box does not read as touching
         // the fader in the next strip.
         width: root.width - 2
+
+        // A two-word preset still cannot fit the 36 px strip; the list shows it
+        // in full and hovering shows the whole name.
+        ToolTip.delay: 500
+        ToolTip.text: displayText
+        ToolTip.visible: hovered
 
         onActivated: index => {
             fxSelect.value = index;

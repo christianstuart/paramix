@@ -1,4 +1,3 @@
-import ".." as Skin
 import "." as LibraryComponent
 import Mixxx 1.0 as Mixxx
 import Qt.labs.qmlmodels
@@ -17,9 +16,20 @@ Rectangle {
     /// selection after an action changed the underlying model.
     property int contextRow: -1
     required property var model
+    /// Sidebar proxy. Column order and visibility are shared by every source,
+    /// so the header edits the sidebar, not just this view's model.
+    property var sidebar
+    /// Width a filled column keeps before the table scrolls horizontally.
+    readonly property int minimumColumnWidth: 64
+    /// Gap under the pointer while a header is dragged; -1 when idle.
+    property int columnDropSlot: -1
+    property real columnDropX: 0
     /// Rows are uniform, so keyboard paging and scrolling can be computed
     /// without a row height provider.
     readonly property int rowHeight: 28
+    /// True while the track table owns keyboard focus. Library/Control.qml
+    /// mirrors this into [Library],focused_widget.
+    readonly property bool listHasFocus: view.activeFocus
     /// Set while a pointer gesture started with a selection modifier. The
     /// column delegates load Track.qml, whose own tap handler calls
     /// selectionModel.selectRow() (a plain replacement) when the button is
@@ -101,6 +111,25 @@ Rectangle {
         dropMessage.text = message;
         dropMessageTimer.restart();
     }
+    function forceFocus() {
+        view.forceActiveFocus();
+    }
+    function selectedTrackUrl() {
+        return view.selectionModel.currentTrackUrl();
+    }
+    function moveSelectionVertical(offset) {
+        view.selectionModel.moveSelectionVertical(offset);
+    }
+    /// Pages the selection by one viewport, like PageUp/PageDown.
+    function page(delta) {
+        view.selectionModel.moveSelectionVertical(delta * view.pageRowCount);
+    }
+    /// Scrolls the table sideways. The QML table has no column cursor, so
+    /// half a viewport is the closest equivalent to the classic Left/Right.
+    function scrollColumns(delta) {
+        const maxX = Math.max(0, view.contentWidth - view.width);
+        view.contentX = Math.max(0, Math.min(maxX, view.contentX + delta * view.width / 2));
+    }
     function showTrackMenu(row, position) {
         view.forceActiveFocus();
         root.contextRow = row;
@@ -118,6 +147,102 @@ Rectangle {
         }
         trackMenu.popupFor(root.model, selection.selectedRows());
     }
+    /// Returns the gap under `pointerX` (root coordinates) and the x position
+    /// where the drop marker belongs. Hidden columns have no width, so only the
+    /// visible cells decide the slot.
+    function columnGapBefore(pointerX) {
+        const columns = root.model ? root.model.columns : null;
+        if (!columns)
+            return {"slot": 0, "x": 0};
+        // Measure in view content coordinates so a horizontally scrolled table
+        // still drops at the header cell under the pointer.
+        const viewLeft = view.mapToItem(root, 0, 0).x;
+        const contentX = pointerX - viewLeft + view.contentX;
+        let x = 0;
+        for (let i = 0; i < columns.length; ++i) {
+            const width = view.columnWidthProvider(i);
+            if (width <= 0)
+                continue;
+            if (contentX < x + width / 2)
+                return {"slot": i, "x": viewLeft + x - view.contentX};
+            x += width;
+        }
+        return {"slot": columns.length, "x": viewLeft + x - view.contentX};
+    }
+    function updateColumnDrop(pointerX) {
+        const gap = root.columnGapBefore(pointerX);
+        root.columnDropSlot = gap.slot;
+        root.columnDropX = gap.x;
+    }
+    function moveColumnToSlot(from, slot) {
+        root.columnDropSlot = -1;
+        if (!root.sidebar || !root.model)
+            return;
+        // The slot is the gap before a column; after removing the dragged
+        // column every later gap moves one to the left.
+        let to = slot > from ? slot - 1 : slot;
+        to = Math.max(0, Math.min(root.model.columns.length - 1, to));
+        if (to === from)
+            return;
+        // Keep the sort arrow on the sorted column while it moves.
+        const sorted = horizontalHeader.sortingColumn;
+        root.sidebar.moveColumn(from, to);
+        if (sorted === from) {
+            horizontalHeader.sortingColumn = to;
+        } else if (from < sorted && to >= sorted) {
+            horizontalHeader.sortingColumn = sorted - 1;
+        } else if (from > sorted && to <= sorted) {
+            horizontalHeader.sortingColumn = sorted + 1;
+        }
+        root.afterColumnLayoutChange();
+    }
+    function afterColumnLayoutChange() {
+        view.updateColumnSize();
+        view.forceLayout();
+    }
+    function setColumnHidden(column, hidden) {
+        if (!root.sidebar)
+            return;
+        root.sidebar.setColumnHidden(column, hidden);
+        root.afterColumnLayoutChange();
+    }
+    function sortByColumn(column) {
+        // The Auto DJ queue does not advertise sorting: the processor always
+        // plays row 0, so sorting would change the playback order. Sorting a
+        // regular playlist still works.
+        if (!view.model || !view.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Sorting))
+            return;
+        if (horizontalHeader.sortingColumn === column) {
+            horizontalHeader.sortingOrder = horizontalHeader.sortingOrder === Qt.DescendingOrder ? Qt.AscendingOrder : Qt.DescendingOrder;
+        } else {
+            horizontalHeader.sortingColumn = column;
+            horizontalHeader.sortingOrder = Qt.AscendingOrder;
+        }
+        view.model.sort(horizontalHeader.sortingColumn, horizontalHeader.sortingOrder);
+    }
+    function openColumnMenu(x, y) {
+        columnMenu.model = root.columnMenuEntries();
+        columnMenu.x = Math.max(0, Math.min(x, root.width - columnMenu.width));
+        columnMenu.y = Math.max(0, Math.min(y, root.height - columnMenu.height));
+        columnMenu.open();
+    }
+    function columnMenuEntries() {
+        const entries = [];
+        if (!root.model)
+            return entries;
+        const columns = root.model.columns;
+        for (let i = 0; i < columns.length; ++i) {
+            // The cover thumbnail has no label and is not selectable.
+            if (columns[i].label.length === 0)
+                continue;
+            entries.push({
+                "column": i,
+                "hidden": columns[i].hidden,
+                "label": columns[i].label
+            });
+        }
+        return entries;
+    }
 
     color: Theme.surface0
 
@@ -126,26 +251,6 @@ Rectangle {
     // there for as long as the user navigates sources.
     Component.onCompleted: view.forceActiveFocus()
 
-    LibraryComponent.Control {
-        id: libraryControl
-
-        onFocusWidgetChanged: {
-            switch (focusWidget) {
-            case Skin.FocusedWidgetControl.WidgetKind.LibraryView:
-                view.forceActiveFocus();
-                break;
-            }
-        }
-        onLoadSelectedTrack: (group, play) => {
-            view.loadSelectedTrack(group, play);
-        }
-        onLoadSelectedTrackIntoNextAvailableDeck: play => {
-            view.loadSelectedTrackIntoNextAvailableDeck(play);
-        }
-        onMoveVertical: offset => {
-            view.selectionModel.moveSelectionVertical(offset);
-        }
-    }
     Rectangle {
         id: headerBackground
 
@@ -172,7 +277,6 @@ Rectangle {
     }
     HorizontalHeaderView {
         id: horizontalHeader
-
         property int sortingColumn: -1
         property var sortingOrder: Qt.Descending
 
@@ -188,31 +292,59 @@ Rectangle {
             required property string display
             required property int index
 
+            /// True while this column is being dragged to another slot.
+            property bool reordering: false
+
             Accessible.name: qsTr("Sort by %1").arg(display)
             Accessible.role: Accessible.Button
             implicitHeight: 32
             implicitWidth: columnName.contentWidth + Theme.space2
+            opacity: column.reordering ? 0.45 : 1
 
-            MouseArea {
-                id: columnMouseHandler
+            HoverHandler {
+                id: columnHover
+            }
+            TapHandler {
+                id: columnTap
 
-                acceptedButtons: Qt.LeftButton
-                anchors.fill: parent
-                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-                onClicked: {
-                    // The Auto DJ queue does not advertise sorting: the
-                    // processor always plays row 0, so sorting would change the
-                    // playback order. Sorting a regular playlist still works.
-                    if (!view.model || !view.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Sorting))
-                        return;
-                    if (horizontalHeader.sortingColumn == index) {
-                        horizontalHeader.sortingOrder = horizontalHeader.sortingOrder == Qt.DescendingOrder ? Qt.AscendingOrder : Qt.DescendingOrder;
+                onTapped: (eventPoint, button) => {
+                    if (button === Qt.RightButton) {
+                        const point = column.mapToItem(root, eventPoint.position.x, eventPoint.position.y);
+                        root.openColumnMenu(point.x, point.y);
                     } else {
-                        horizontalHeader.sortingColumn = index;
-                        horizontalHeader.sortingOrder = Qt.AscendingOrder;
+                        root.sortByColumn(index);
                     }
-                    view.model.sort(horizontalHeader.sortingColumn, horizontalHeader.sortingOrder);
+                }
+            }
+            DragHandler {
+                id: columnDrag
+
+                enabled: !columnResizeHandler.pressed && !columnResizeHandler.containsMouse
+                target: null
+                xAxis.enabled: true
+                yAxis.enabled: false
+
+                onActiveChanged: {
+                    if (active) {
+                        column.reordering = true;
+                        const point = column.mapToItem(root, centroid.position.x, 0);
+                        root.updateColumnDrop(point.x);
+                    } else if (column.reordering) {
+                        column.reordering = false;
+                        const from = index;
+                        const slot = root.columnDropSlot;
+                        // The reorder rebuilds the header delegates, so move out
+                        // of the finished gesture before the view is laid out.
+                        Qt.callLater(() => root.moveColumnToSlot(from, slot));
+                    }
+                }
+                onTranslationChanged: {
+                    if (active) {
+                        const point = column.mapToItem(root, centroid.position.x, 0);
+                        root.updateColumnDrop(point.x);
+                    }
                 }
             }
             Text {
@@ -221,7 +353,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.space3
                 anchors.rightMargin: Theme.space4
-                color: columnMouseHandler.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                color: columnHover.hovered ? Theme.textPrimary : Theme.textSecondary
                 elide: Text.ElideRight
                 font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
@@ -244,45 +376,53 @@ Rectangle {
                 text: horizontalHeader.sortingOrder == Qt.AscendingOrder ? "▲" : "▼"
                 visible: horizontalHeader.sortingColumn == index
             }
-            Rectangle {
+            Item {
                 id: columnResizer
 
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.top: parent.top
-                color: columnResizeHandler.containsMouse || columnResizeHandler.drag.active ? Theme.accent : Theme.border
-                width: 1
+                visible: column.width > 0
+                width: 7
 
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    color: columnResizeHandler.containsMouse ? Theme.accent : Theme.border
+                    width: 1
+                }
                 MouseArea {
                     id: columnResizeHandler
 
-                    property int sizeOffset: 0
+                    property real startPointerX: 0
+                    property real startWidth: 0
 
                     anchors.fill: parent
                     cursorShape: Qt.SizeHorCursor
                     hoverEnabled: true
                     preventStealing: true
 
-                    onMouseXChanged: {
-                        if (drag.active) {
-                            column.width += mouseX;
-                            sizeOffset += mouseX;
-                        }
+                    onPositionChanged: {
+                        if (!pressed)
+                            return;
+                        const pointerX = columnResizer.mapToItem(root, mouse.x, 0).x;
+                        const dx = pointerX - startPointerX;
+                        if (Math.abs(dx) < 1)
+                            return;
+                        const columnDef = view.model ? view.model.columns[index] : null;
+                        if (!columnDef)
+                            return;
+                        const width = Math.max(root.minimumColumnWidth, Math.round(startWidth + dx));
+                        if (columnDef.preferredWidth === width)
+                            return;
+                        columnDef.preferredWidth = width;
+                        view.updateColumnSize();
+                        view.forceLayout();
                     }
-
-                    drag {
-                        axis: Drag.XAxis
-                        target: parent
-                        threshold: 2
-
-                        onActiveChanged: {
-                            if (!drag.active && columnResizeHandler.sizeOffset !== 0) {
-                                view.model.columns[index].preferredWidth = column.width;
-                                columnResizeHandler.sizeOffset = 0;
-                                view.updateColumnSize();
-                                view.forceLayout();
-                            }
-                        }
+                    onPressed: {
+                        startWidth = view.columnWidthProvider(index);
+                        startPointerX = columnResizer.mapToItem(root, mouse.x, 0).x;
                     }
                 }
             }
@@ -360,13 +500,29 @@ Rectangle {
                 return columnDef.preferredWidth;
             }
             const span = columnDef.fillSpan || 1;
-            return span * (view.width - view.usedWidth) / view.dynamicColumnCount;
+            return Math.max(root.minimumColumnWidth,
+                    span * (view.width - view.usedWidth) / view.dynamicColumnCount);
         }
         keyNavigationEnabled: false
         model: root.model
         pointerNavigationEnabled: false
         reuseItems: true
 
+        ScrollBar.horizontal: ScrollBar {
+            id: horizontalScrollBar
+
+            policy: ScrollBar.AsNeeded
+            height: 10
+
+            background: Rectangle {
+                color: "transparent"
+            }
+            contentItem: Rectangle {
+                color: horizontalScrollBar.pressed ? Theme.accent : Theme.borderStrong
+                implicitHeight: 4
+                radius: Theme.radiusXs
+            }
+        }
         ScrollBar.vertical: ScrollBar {
             id: verticalScrollBar
 
@@ -765,6 +921,96 @@ Rectangle {
     }
     LibraryComponent.TrackMenu {
         id: trackMenu
+    }
+    // Drop marker while a column header is dragged.
+    Rectangle {
+        id: columnDropIndicator
+
+        color: Theme.accent
+        height: horizontalHeader.height
+        visible: root.columnDropSlot >= 0
+        width: 2
+        x: root.columnDropX - width / 2
+        y: horizontalHeader.y
+        z: 20
+    }
+    // Right-click on the column header: add or remove metadata columns. A plain
+    // Popup with text rows is used instead of a Menu, because the Menu items
+    // relied on palette styling that did not render in this skin.
+    Popup {
+        id: columnMenu
+
+        property var model: []
+
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        height: Math.min(420, columnMenu.model.length * 29 + 2 * padding)
+        padding: Theme.space1
+        parent: root
+        width: 260
+
+        background: Rectangle {
+            border.color: Theme.borderStrong
+            border.width: 1
+            color: Theme.surface2
+            radius: Theme.radiusMd
+        }
+
+        ListView {
+            id: list
+
+            anchors.fill: parent
+            clip: true
+            model: columnMenu.model
+            spacing: 1
+
+            delegate: Item {
+                id: menuRow
+
+                required property var modelData
+
+                height: 28
+                width: ListView.view.width
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: rowMouse.containsMouse ? Theme.surface3 : "transparent"
+                    radius: Theme.radiusXs
+                }
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.leftMargin: Theme.space2
+                    anchors.verticalCenter: parent.verticalCenter
+                    border.color: menuRow.modelData.hidden ? Theme.borderStrong : Theme.accent
+                    border.width: 1
+                    color: menuRow.modelData.hidden ? "transparent" : Theme.accent
+                    height: 12
+                    radius: Theme.radiusXs
+                    width: 12
+                }
+                Text {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.space2 + 16
+                    anchors.rightMargin: Theme.space2
+                    color: Theme.textPrimary
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm
+                    text: menuRow.modelData.label
+                    verticalAlignment: Text.AlignVCenter
+                }
+                MouseArea {
+                    id: rowMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+
+                    onClicked: {
+                        root.setColumnHidden(menuRow.modelData.column, !menuRow.modelData.hidden);
+                        columnMenu.close();
+                    }
+                }
+            }
+        }
     }
     Rectangle {
         id: dropMessage

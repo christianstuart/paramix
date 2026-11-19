@@ -27,6 +27,11 @@ class SeratoFeature : public BaseExternalLibraryFeature {
     ~SeratoFeature() override;
 
     QVariant title() override;
+    // The source stays in the tree when the library is missing, dimmed and
+    // inert, so the Show* preference is authoritative.
+    bool isAvailable() const override {
+        return isSupported();
+    }
     static bool isSupported();
     void bindLibraryWidget(WLibrary* libraryWidget,
             KeyboardEventFilter* keyboard) override;
