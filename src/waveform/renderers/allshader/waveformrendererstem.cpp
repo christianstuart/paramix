@@ -122,10 +122,7 @@ WaveformRendererStem::WaveformRendererStem(
           m_textureMutedMask(0),
           m_textureMuteMixSignature(0),
           m_textureOrderSignature(0),
-          m_textureSlip(false),
-          m_textureWholeTrack(false),
-          m_textureFirstSample(0.0),
-          m_textureColumns(0) {
+          m_textureSlip(false) {
     initForRectangles<RGBAMaterial>(0);
     m_pTextureNode = appendChildNode(std::make_unique<StemDetailTextureNode>());
     setUsePreprocess(true);
@@ -137,6 +134,7 @@ void WaveformRendererStem::onSetup(const QDomNode&) {
 bool WaveformRendererStem::init() {
     m_pStemMute.clear();
     m_pPregain.reset();
+    m_pPlayControl.reset();
 
     // Keep a valid drawing order even for displays that provide a static track
     // without a channel group. The stem data itself is independent of the
@@ -159,6 +157,11 @@ bool WaveformRendererStem::init() {
         // way the shipping generator's setMagnification does.
         m_pPregain = std::make_unique<ControlProxy>(group,
                 QStringLiteral("pregain"));
+        // A stopped play button means the visual play rate is zero: the
+        // picture is stationary and its position is snapped onto whole detail
+        // columns.
+        m_pPlayControl = std::make_unique<ControlProxy>(group,
+                QStringLiteral("play"));
     }
 
 #ifndef __SCENEGRAPH__
@@ -223,6 +226,8 @@ bool WaveformRendererStem::preprocessInner() {
     const bool trackChanged = pTrack.get() != m_cachedTrack;
     if (trackChanged || m_cacheFramesUntilRefresh-- <= 0) {
         m_cachedTrack = pTrack.get();
+        m_cachedTrackId = pTrack->getId();
+        m_cachedSampleRate = pTrack->getSampleRate().value();
         m_cachedStemCount = static_cast<int>(pTrack->getStemInfo().size());
         m_cachedTotalSamples =
                 pTrack->getDuration() * pTrack->getSampleRate().value();
@@ -278,14 +283,20 @@ bool WaveformRendererStem::preprocessInner() {
     if (m_waveformRenderer->getTruePosSample(positionType) < 0.0) {
         return m_hasGeometry;
     }
-    const double firstSample =
+    // One detail column is one device pixel wide. Deriving it from the zoom
+    // setting keeps the cache key independent of the rounded viewport width.
+    const int samplesPerColumn = stemdetail::samplesPerColumn(
+            m_waveformRenderer->getAudioSamplePerPixel(), devicePixelRatio);
+    // A stopped play button means the visual play rate is zero. Snapping the
+    // first displayed sample onto the column grid makes every screen pixel
+    // sample exactly one texel, so a stationary picture cannot shimmer while
+    // the engine keeps republishing the same position.
+    const bool playRateZero = !m_pPlayControl || !m_pPlayControl->toBool();
+    const double displayedFirstSample =
             m_waveformRenderer->getFirstDisplayedPosition(positionType) * totalSamples;
-    const double lastSample =
-            m_waveformRenderer->getLastDisplayedPosition(positionType) * totalSamples;
-    // Frames per device pixel. This must follow the viewport exactly, or the
-    // picture drifts against the beat grid.
-    const int samplesPerColumn = std::max(1,
-            static_cast<int>(std::lround((lastSample - firstSample) / pixelLength)));
+    const double firstSample = playRateZero
+            ? stemdetail::snapToColumn(displayedFirstSample, samplesPerColumn)
+            : displayedFirstSample;
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());
     if (breadth <= 0.0f) {
@@ -320,22 +331,46 @@ bool WaveformRendererStem::preprocessInner() {
     auto* pCache = pFactory ? pFactory->stemDetailCache() : nullptr;
     std::shared_ptr<const StemDetailTrack> pDetail;
     if (pCache) {
-        pDetail = pCache->request(
-                pTrack, samplesPerColumn, laneDeviceHeight, magnification);
+        // preprocess() runs on every frame, but the viewport only changes when
+        // the track, the zoom, the lane height or the deck gain changes.
+        // Consulting the cache (and its mutex) on every pass is pointless and
+        // makes it easy to schedule a build again from the render thread. A
+        // completed rebuild sets m_detailRefreshPending from detailReady().
+        StemDetailKey requestKey;
+        requestKey.trackId = m_cachedTrackId;
+        requestKey.sampleRate = m_cachedSampleRate;
+        requestKey.samplesPerColumn = samplesPerColumn;
+        requestKey.height = laneDeviceHeight;
+        requestKey.magnification = magnification;
+        if (m_detailRequest.needsRequest(requestKey, m_detailRefreshPending)) {
+            pDetail = pCache->request(
+                    pTrack, samplesPerColumn, laneDeviceHeight, magnification);
+            m_detailRefreshPending = false;
+            // A null answer means the first build is still running; ask again
+            // on the next pass instead of pinning the miss.
+            if (pDetail) {
+                m_detailRequest.remember(requestKey);
+            } else {
+                m_detailRequest.forget();
+            }
+        } else {
+            pDetail = m_pDetail;
+        }
     }
     if (!pDetail) {
         // Keep the previous geometry and texture while the detail cache is
         // rebuilding. Clearing here made the stem picture blink out whenever
         // the zoom, device scale or another renderer rebuilt the detail.
-        if (m_pDetail && m_pDetail->trackId != pTrack->getId()) {
+        if (m_pDetail && m_pDetail->trackId != m_cachedTrackId) {
             m_pDetail.reset();
             m_hasGeometry = false;
             m_textureValid = false;
+            m_detailRequest.forget();
             return false;
         }
         return m_hasGeometry;
     }
-    if (m_pDetail && m_pDetail->trackId != pTrack->getId()) {
+    if (m_pDetail && m_pDetail->trackId != m_cachedTrackId) {
         m_pDetail.reset();
         m_hasGeometry = false;
         m_textureValid = false;
@@ -470,16 +505,13 @@ bool WaveformRendererStem::preprocessInner() {
     // visible range leaves it. This keeps texture allocation and uploads off
     // the per-frame path. Tracks whose whole picture fits in one texture use a
     // fixed whole-track range, so playback never rebuilds the texture at all.
-    const int64_t totalTrackColumns =
-            (pDetail->totalSamples + samplesPerColumn - 1) / samplesPerColumn;
     constexpr int64_t kMaxTextureWidth = 16384;
-    const int64_t wholeTextureColumns = totalTrackColumns + 2 * pixelLength;
-    const bool useWholeTrackTexture = wholeTextureColumns <= kMaxTextureWidth;
-    const int marginColumns = useWholeTrackTexture ? pixelLength
-                                                   : std::max(64, pixelLength / 2);
-    const int textureColumns = useWholeTrackTexture
-            ? static_cast<int>(wholeTextureColumns)
-            : pixelLength + 2 * marginColumns;
+    const stemdetail::TextureRange wantedRange = stemdetail::textureRangeFor(
+            firstSample,
+            samplesPerColumn,
+            pixelLength,
+            pDetail->totalSamples,
+            kMaxTextureWidth);
     const bool textureParamsChanged = !m_textureValid ||
             m_textureDetail != pDetail.get() ||
             m_texturePixelLength != pixelLength ||
@@ -492,25 +524,26 @@ bool WaveformRendererStem::preprocessInner() {
             m_textureMuteMixSignature != muteMixSignature ||
             m_textureOrderSignature != orderSignature ||
             m_textureSlip != m_isSlipRenderer ||
-            m_textureWholeTrack != useWholeTrackTexture;
+            m_textureRange.wholeTrack != wantedRange.wholeTrack;
+    // A paused deck also needs a column-aligned texture origin. Only then does
+    // the nearest-filtered texture sample exactly one texel per screen pixel;
+    // a fractional origin lets the same picture alternate between adjacent
+    // texels from frame to frame.
+    const bool textureAlignmentLost = !m_textureValid ||
+            (playRateZero &&
+                    !stemdetail::isColumnAligned(
+                            m_textureRange.firstSample, samplesPerColumn));
     const bool textureRangeExceeded = !m_textureValid ||
-            (!useWholeTrackTexture &&
-                    (firstSample < m_textureFirstSample ||
-                            firstSample +
-                                            static_cast<double>(pixelLength) *
-                                                    samplesPerColumn >
-                                    m_textureFirstSample +
-                                            static_cast<double>(m_textureColumns) *
-                                                    samplesPerColumn));
+            (!m_textureRange.wholeTrack &&
+                    !stemdetail::textureRangeCovers(m_textureRange,
+                            firstSample,
+                            samplesPerColumn,
+                            pixelLength));
     bool textureRebuilt = false;
-    if (textureParamsChanged || textureRangeExceeded) {
-        m_textureFirstSample = useWholeTrackTexture
-                ? -static_cast<double>(pixelLength) * samplesPerColumn
-                : firstSample - static_cast<double>(marginColumns) * samplesPerColumn;
-        m_textureColumns = textureColumns;
-        m_textureWholeTrack = useWholeTrackTexture;
+    if (textureParamsChanged || textureAlignmentLost || textureRangeExceeded) {
+        m_textureRange = wantedRange;
 
-        const int imageWidth = textureColumns;
+        const int imageWidth = m_textureRange.columns;
         const int imageHeight = totalLaneDeviceHeight;
         if (m_textureImage.size() != QSize(imageWidth, imageHeight) ||
                 m_textureImage.format() != QImage::Format_RGBA8888_Premultiplied) {
@@ -522,8 +555,8 @@ bool WaveformRendererStem::preprocessInner() {
         const qsizetype bytesPerLine = m_textureImage.bytesPerLine();
         uchar* pBits = m_textureImage.bits();
 
-        for (int x = 0; x < textureColumns; ++x) {
-            const double sample = m_textureFirstSample +
+        for (int x = 0; x < m_textureRange.columns; ++x) {
+            const double sample = m_textureRange.firstSample +
                     static_cast<double>(x) * samplesPerColumn;
             const int columnIndex = static_cast<int>(
                     std::llround(sample / detailSamplesPerColumn));
@@ -594,7 +627,6 @@ bool WaveformRendererStem::preprocessInner() {
         m_textureMuteMixSignature = muteMixSignature;
         m_textureOrderSignature = orderSignature;
         m_textureSlip = m_isSlipRenderer;
-        m_textureWholeTrack = useWholeTrackTexture;
         m_textureValid = true;
         textureRebuilt = true;
     }
@@ -612,8 +644,8 @@ bool WaveformRendererStem::preprocessInner() {
     key.firstSample = firstSample;
     key.samplesPerColumn = samplesPerColumn;
     key.detailSamplesPerColumn = detailSamplesPerColumn;
-    key.textureFirstSample = m_textureFirstSample;
-    key.textureColumns = m_textureColumns;
+    key.textureFirstSample = m_textureRange.firstSample;
+    key.textureColumns = m_textureRange.columns;
     key.laneAlpha = laneAlpha;
     key.mutedMask = mutedMask;
     key.orderSignature = orderSignature;
@@ -630,15 +662,15 @@ bool WaveformRendererStem::preprocessInner() {
     markDirtyGeometry();
 
     const double offsetColumns =
-            (firstSample - m_textureFirstSample) / samplesPerColumn;
+            (firstSample - m_textureRange.firstSample) / samplesPerColumn;
     const float quadX0 = 0.0f;
     const float quadX1 = static_cast<float>(pixelLength) / devicePixelRatio;
     const float quadU0 = static_cast<float>(
-                                 std::clamp(offsetColumns, 0.0, std::max(0.0, static_cast<double>(m_textureColumns - pixelLength)))) /
-            static_cast<float>(m_textureColumns);
+                                 std::clamp(offsetColumns, 0.0, std::max(0.0, static_cast<double>(m_textureRange.columns - pixelLength)))) /
+            static_cast<float>(m_textureRange.columns);
     const float quadU1 = static_cast<float>(
-                                 std::clamp(offsetColumns + pixelLength, 0.0, static_cast<double>(m_textureColumns))) /
-            static_cast<float>(m_textureColumns);
+                                 std::clamp(offsetColumns + pixelLength, 0.0, static_cast<double>(m_textureRange.columns))) /
+            static_cast<float>(m_textureRange.columns);
 
     std::array<TextureQuad, mixxx::kMaxSupportedStems> quads{};
     int quadCount = 0;

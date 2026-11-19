@@ -8,6 +8,7 @@
 #include <bit>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 
 #include "sources/audiosource.h"
@@ -16,6 +17,7 @@
 #include "test/mixxxtest.h"
 #include "track/track.h"
 #include "util/samplebuffer.h"
+#include "waveform/renderers/allshader/waveformrendererstem.h"
 #include "waveform/stemdetail/stemdetailbuilder.h"
 #include "waveform/stemdetail/stemdetailcolors.h"
 #include "waveform/stemdetail/stemdetailentry.h"
@@ -61,6 +63,64 @@ StemDetailConfig makeConfig(int samplesPerColumn = 316) {
     config.magnification = 2.0f;
     config.verticalInset = 1;
     return config;
+}
+
+/// Everything the stem picture geometry depends on for one preprocess pass,
+/// excluding the render-graph nodes themselves.
+struct StemDetailFrameSnapshot {
+    int samplesPerColumn = 1;
+    double firstSample = 0.0;
+    qint64 firstColumn = 0;
+    double textureFirstSample = 0.0;
+    int textureColumns = 0;
+    double textureOffsetColumns = 0.0;
+
+    bool operator==(const StemDetailFrameSnapshot&) const = default;
+};
+
+/// One preprocess pass over a fixed viewport, mirroring the layout part of
+/// WaveformRendererStem::preprocessInner(). It uses the same shared helpers, so
+/// it pins their behavior rather than re-implementing the arithmetic.
+StemDetailFrameSnapshot stemDetailFrameSnapshot(double displayedFirstSample,
+        int samplesPerColumn,
+        int pixelLength,
+        int64_t totalSamples,
+        bool paused,
+        allshader::stemdetail::TextureRange* pTexture,
+        bool* pTextureRebuilt) {
+    using namespace allshader::stemdetail;
+    const double firstSample = paused
+            ? snapToColumn(displayedFirstSample, samplesPerColumn)
+            : displayedFirstSample;
+    const TextureRange wanted = textureRangeFor(firstSample,
+            samplesPerColumn,
+            pixelLength,
+            totalSamples,
+            16384);
+    const bool rebuild = pTexture->columns == 0 ||
+            pTexture->wholeTrack != wanted.wholeTrack ||
+            (paused &&
+                    !isColumnAligned(pTexture->firstSample, samplesPerColumn)) ||
+            (!pTexture->wholeTrack &&
+                    !textureRangeCovers(*pTexture,
+                            firstSample,
+                            samplesPerColumn,
+                            pixelLength));
+    if (rebuild) {
+        *pTexture = wanted;
+    }
+    if (pTextureRebuilt) {
+        *pTextureRebuilt = rebuild;
+    }
+    StemDetailFrameSnapshot snapshot;
+    snapshot.samplesPerColumn = samplesPerColumn;
+    snapshot.firstSample = firstSample;
+    snapshot.firstColumn = columnIndex(-firstSample, samplesPerColumn);
+    snapshot.textureFirstSample = pTexture->firstSample;
+    snapshot.textureColumns = pTexture->columns;
+    snapshot.textureOffsetColumns =
+            (firstSample - pTexture->firstSample) / samplesPerColumn;
+    return snapshot;
 }
 
 } // namespace
@@ -383,4 +443,182 @@ TEST_F(StemDetailBuilderTest, DecodesParamixEightChannelCacheInStemOrder) {
         }
     }
     EXPECT_EQ(kGoldenFingerprint, fingerprint);
+}
+
+// F01: a paused stem deck must render a stable picture. The engine keeps
+// republishing the same visual position and the display keeps repainting, so
+// every preprocess pass must produce the same column start, texture range, UV
+// offset and cache key, and must not rebuild the texture.
+
+TEST(StemDetailColumns, FollowsZoomAndNotTheRoundedViewport) {
+    // One detail column is one device pixel. The renderer used to derive it
+    // from the rounded viewport width, so a resize or a fractional device
+    // pixel ratio could change the cache key (and rebuild the picture) even
+    // though the zoom had not changed.
+    constexpr double kAudioSamplesPerPixel = 96.0;
+    constexpr float kDevicePixelRatio = 1.25f;
+    const int expected =
+            allshader::stemdetail::samplesPerColumn(kAudioSamplesPerPixel,
+                    kDevicePixelRatio);
+    ASSERT_EQ(154, expected); // lround(2 * 96 / 1.25)
+
+    const int lengths[] = {320, 640, 1000, 1440, 1920, 2560};
+    for (int length : lengths) {
+        const int pixelLength =
+                static_cast<int>(std::lround(length * kDevicePixelRatio));
+        // The old, viewport-rounded derivation: the viewport spans
+        // length * 2 * audioSamplesPerPixel audio samples.
+        const int viewportSamplesPerColumn = std::max(1,
+                static_cast<int>(std::lround(length * 2.0 * kAudioSamplesPerPixel /
+                        pixelLength)));
+        // The zoom-derived value has no viewport input at all, so a resize
+        // cannot change the cache key.
+        EXPECT_EQ(expected,
+                allshader::stemdetail::samplesPerColumn(
+                        kAudioSamplesPerPixel, kDevicePixelRatio))
+                << "length " << length;
+        // And it stays within the pixel rounding of the viewport derivation.
+        EXPECT_LE(std::abs(viewportSamplesPerColumn - expected), 1)
+                << "length " << length;
+    }
+}
+
+TEST(StemDetailPausedFrame, ConsecutivePreprocessPassesAreIdentical) {
+    constexpr int kPixelLength = 640;
+    constexpr int64_t kTotalSamples = 44100LL * 240;
+    constexpr double kAudioSamplesPerPixel = 96.0;
+    constexpr float kDevicePixelRatio = 2.0f;
+    const int samplesPerColumn = allshader::stemdetail::samplesPerColumn(
+            kAudioSamplesPerPixel, kDevicePixelRatio);
+    ASSERT_EQ(96, samplesPerColumn);
+
+    // A visual position on a column boundary, plus the sub-column wobble the
+    // raw play position has between frames. Without snapping the wobble moves
+    // the first detail column (and every texel offset) from frame to frame.
+    const double baseSample = static_cast<double>(kTotalSamples) / 2.0;
+    const double wobble = 0.4 * samplesPerColumn;
+    EXPECT_EQ(baseSample,
+            allshader::stemdetail::snapToColumn(
+                    baseSample, samplesPerColumn)); // the base is on the grid
+    EXPECT_NE(allshader::stemdetail::columnIndex(
+                      -(baseSample - wobble), samplesPerColumn),
+            allshader::stemdetail::columnIndex(
+                    -(baseSample + wobble), samplesPerColumn))
+            << "the raw wobble must cross a column boundary for this test to "
+               "mean anything";
+    EXPECT_EQ(allshader::stemdetail::snapToColumn(
+                      baseSample - wobble, samplesPerColumn),
+            allshader::stemdetail::snapToColumn(
+                    baseSample + wobble, samplesPerColumn));
+
+    allshader::stemdetail::TextureRange texture;
+    StemDetailFrameSnapshot first;
+    bool firstRebuilt = false;
+    for (int pass = 0; pass < 8; ++pass) {
+        const double displayedFirstSample =
+                baseSample + ((pass % 2) ? wobble : -wobble);
+        bool rebuilt = false;
+        const StemDetailFrameSnapshot snapshot = stemDetailFrameSnapshot(
+                displayedFirstSample,
+                samplesPerColumn,
+                kPixelLength,
+                kTotalSamples,
+                true,
+                &texture,
+                &rebuilt);
+        if (pass == 0) {
+            first = snapshot;
+            firstRebuilt = rebuilt;
+            EXPECT_TRUE(rebuilt) << "the first pass has no texture yet";
+            EXPECT_TRUE(allshader::stemdetail::isColumnAligned(
+                    snapshot.firstSample, samplesPerColumn));
+            EXPECT_TRUE(allshader::stemdetail::isColumnAligned(
+                    snapshot.textureFirstSample, samplesPerColumn));
+            continue;
+        }
+        EXPECT_FALSE(rebuilt) << "pass " << pass << " rebuilt the texture";
+        EXPECT_EQ(first, snapshot) << "pass " << pass;
+        // The snapped geometry is a whole number of texels from the texture
+        // origin, so nearest filtering samples exactly one texel per pixel.
+        EXPECT_EQ(std::floor(snapshot.textureOffsetColumns),
+                snapshot.textureOffsetColumns)
+                << "pass " << pass;
+    }
+    EXPECT_TRUE(firstRebuilt);
+    EXPECT_GT(first.textureColumns, kPixelLength);
+}
+
+TEST(StemDetailPausedFrame, WholeTrackTextureIsStableWhileScrolling) {
+    // A track whose whole picture fits in one texture uses a fixed range, so a
+    // paused deck near either end of the track keeps the same texture.
+    constexpr int kPixelLength = 512;
+    constexpr int64_t kTotalSamples = 44100LL * 25;
+    constexpr int kSamplesPerColumn = 96;
+
+    allshader::stemdetail::TextureRange texture;
+    const int64_t totalColumns = (kTotalSamples + kSamplesPerColumn - 1) /
+            kSamplesPerColumn;
+    ASSERT_LT(totalColumns + 2 * kPixelLength, 16384);
+
+    StemDetailFrameSnapshot first;
+    for (int pass = 0; pass < 4; ++pass) {
+        // Positions inside the track, deliberately not column aligned.
+        const double position =
+                static_cast<double>(kTotalSamples) * (0.05 + 0.3 * pass) +
+                0.3 * kSamplesPerColumn;
+        bool rebuilt = false;
+        const StemDetailFrameSnapshot snapshot = stemDetailFrameSnapshot(
+                position,
+                kSamplesPerColumn,
+                kPixelLength,
+                kTotalSamples,
+                true,
+                &texture,
+                &rebuilt);
+        EXPECT_TRUE(texture.wholeTrack);
+        if (pass == 0) {
+            first = snapshot;
+            EXPECT_TRUE(rebuilt);
+        } else {
+            EXPECT_FALSE(rebuilt) << "pass " << pass;
+            EXPECT_EQ(first.textureFirstSample, snapshot.textureFirstSample);
+            EXPECT_EQ(first.textureColumns, snapshot.textureColumns);
+        }
+        EXPECT_EQ(std::floor(snapshot.textureOffsetColumns),
+                snapshot.textureOffsetColumns)
+                << "pass " << pass;
+    }
+}
+
+TEST(StemDetailRequestMemo, UnchangedKeyDoesNotAskTheCacheAgain) {
+    StemDetailKey key;
+    key.trackId = TrackId(QVariant(59));
+    key.sampleRate = 44100;
+    key.samplesPerColumn = 96;
+    key.height = 21;
+    key.magnification = 2.0f;
+
+    allshader::stemdetail::DetailRequestMemo memo;
+    EXPECT_TRUE(memo.needsRequest(key, false));
+    memo.remember(key);
+    for (int pass = 0; pass < 8; ++pass) {
+        EXPECT_FALSE(memo.needsRequest(key, false)) << "pass " << pass;
+    }
+
+    // A completed rebuild invalidates the memo once.
+    EXPECT_TRUE(memo.needsRequest(key, true));
+    memo.remember(key);
+    EXPECT_FALSE(memo.needsRequest(key, false));
+
+    // A zoom or lane-height change asks again.
+    StemDetailKey zoomed = key;
+    zoomed.samplesPerColumn *= 2;
+    EXPECT_TRUE(memo.needsRequest(zoomed, false));
+    StemDetailKey taller = key;
+    taller.height += 1;
+    EXPECT_TRUE(memo.needsRequest(taller, false));
+
+    // A first miss is retried until it is answered.
+    memo.forget();
+    EXPECT_TRUE(memo.needsRequest(key, false));
 }
