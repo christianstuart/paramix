@@ -1,37 +1,32 @@
 pragma ComponentBehavior: Bound
 
 import ".." as Skin
-import Mixxx 1.0 as Mixxx
 import QtQuick
 import "../Theme"
 
+/// Deck-side keys that assign a deck to one of the four effect units. The four
+/// units are always present now that units 3 and 4 live in their own window, so
+/// this no longer follows the classic [Skin],show_4effectunits display hint.
 Row {
     id: root
 
     property color activeColor: Theme.textOnAccent
     required property string channelGroup
     property color inactiveColor: Theme.knobBackgroundColor
-    property bool showFourUnits: showFourUnitsControl.value > 0
 
     Repeater {
-        model: root.showFourUnits ? 4 : 2
+        model: 4
 
         Skin.ControlButton {
             required property int index
 
             activeColor: root.activeColor
             group: "[EffectRack1_EffectUnit" + (index + 1) + "]"
-            height: 20
+            height: Theme.fxControlHeight
             key: "group_" + root.channelGroup + "_enable"
-            text: root.showFourUnits ? (index === 0 ? qsTr("FX1") : index + 1) : qsTr("FX%1").arg(index + 1)
+            text: qsTr("FX%1").arg(index + 1)
             toggleable: true
-            width: root.showFourUnits ? (index === 0 ? 26 : 20) : 26
+            width: Theme.fxUnitKeyMinWidth
         }
-    }
-    Mixxx.ControlProxy {
-        id: showFourUnitsControl
-
-        group: "[Skin]"
-        key: "show_4effectunits"
     }
 }

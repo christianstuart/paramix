@@ -19,6 +19,10 @@ RowLayout {
     readonly property int badgeWidth: Math.max(Theme.fxUnitKeyMinWidth, Theme.fontSizeXs * 3 + 12)
     readonly property string group: unit.group
     readonly property int presetKeyWidth: Math.max(Math.round(20 * Theme.uiScale), Theme.fontSizeXs * 2 + 4)
+    // Flyouts open as native popup windows when the unit is used outside the
+    // main window, so a small EffectUnitsWindow cannot clip the parameter
+    // columns or the effect list.
+    property bool popupAsWindow: false
     property bool showSuper: true
     readonly property Mixxx.EffectUnitProxy unit: Mixxx.EffectsManager.getEffectUnit(unitNumber)
     readonly property bool unitEnabled: unitEnabledControl.value > 0
@@ -106,6 +110,13 @@ RowLayout {
                 text: String.fromCharCode(65 + index)
                 toggleable: true
                 width: root.assignKeyWidth
+                ToolTip.delay: 500
+                ToolTip.text: Accessible.name
+                ToolTip.visible: hovered
+
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
             }
         }
     }
@@ -132,11 +143,15 @@ RowLayout {
                 Layout.preferredWidth: Theme.fxSlotMinWidth
                 font.pixelSize: Theme.fontSizeXs
                 implicitHeight: Theme.fxControlHeight
+                popupAsWindow: root.popupAsWindow
                 slot: slotRow.slot
             }
             Skin.ControlButton {
                 Accessible.name: qsTr("Effect unit %1 slot %2 enabled").arg(root.unitNumber).arg(slotRow.index + 1)
                 Layout.preferredWidth: Theme.fxOnKeyWidth
+                ToolTip.delay: 500
+                ToolTip.text: Accessible.name
+                ToolTip.visible: hovered
                 activeColor: Theme.textOnAccent
                 group: slotRow.slot.group
                 implicitHeight: Theme.fxControlHeight
@@ -214,6 +229,9 @@ RowLayout {
         focus: true
         modal: false
         padding: Theme.space2
+        // In the effects window the unit sits in a small window; a native popup
+        // can extend past it instead of being clipped.
+        popupType: root.popupAsWindow ? Popup.Window : Popup.Item
         x: Math.max(0, root.width - width)
         y: root.height + Theme.space1
 

@@ -295,8 +295,9 @@ QtObject {
     readonly property int fxPowerDotSize: Math.round(12 * uiScale)
     readonly property int fxUnitKeyMinWidth: Math.max(Math.round(38 * uiScale), fontSizeXs * 4)
     readonly property int fxSlotMinWidth: Math.round(64 * uiScale)
-    // Optional parts hide in this order as the strip narrows.
-    readonly property int fxSuperMinWidth: 1100
+    // The strip gives the two fixed units its full width, so the super knob no
+    // longer needs a strip-wide width gate. TopBarEffects.qml compares each
+    // unit against its natural minimum width instead.
 
     readonly property int deckHeaderHeight: Math.round(52 * uiScale)
     readonly property int stemLaneMinWidth: Math.round(58 * uiScale)

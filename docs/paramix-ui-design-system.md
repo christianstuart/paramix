@@ -36,7 +36,7 @@ the legacy names; migrate call sites opportunistically.
 | Radius | `radiusXs`..`radiusXl`, `radiusPill` | Traktor-sharp: panels `radiusSm` (2 px), keys `radiusSm`; only pills stay round. |
 | Motion | `motionFast`, `motionNormal`, `motionSlow`, `motionSpringDuration` | Hover/press is `motionFast`; layout springs use `motionSpringDuration`. |
 | Layout | `toolbarHeight`, `deckHeaderHeight`, `deckMinHeight`, `deckPaneHeight`, `stemLaneMinWidth`, `stemLaneHeight`, `minWindowWidth`, `minWindowHeight` | Minimum window is 1280x720, enforced by `main.qml` and declared in `res/qml/skin.ini`. `deckMinHeight` is the deck's fixed-parts total; the waveform overview absorbs the rest of the band. |
-| Top bar effects | `topBarHeight`, `topBarEffectsHeight`, `fxControlHeight`, `fxKnobSize`, `fxSlotMinWidth`, `fxAssignKeyWidth` | The effects strip is one `fxControlHeight` row (30 px at scale 1) under the 44 px toolbar; `topBarHeight` is the sum and is what the deck band reserves. Each of the two chains carries A-D deck assignment keys; the super knob hides below `fxSuperMinWidth`. |
+| Top bar effects | `topBarHeight`, `topBarEffectsHeight`, `fxControlHeight`, `fxKnobSize`, `fxSlotMinWidth`, `fxAssignKeyWidth` | The effects strip is one `fxControlHeight` row (30 px at scale 1) under the 44 px toolbar; `topBarHeight` is the sum and is what the deck band reserves. The strip always shows standard units 1 and 2; each carries A-D deck assignment keys, and its super knob is measured per unit against the unit's natural minimum width. Units 3 and 4 live in `EffectUnitsWindow.qml`, driven by `[Skin],show_4effectunits` from the FX 3-4 toolbar key and the View menu. |
 
 ## 3. Named color schemes
 
