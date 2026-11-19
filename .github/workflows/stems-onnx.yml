@@ -51,7 +51,12 @@ jobs:
             'build/native/include/*' 'runtimes/linux-x64/native/*' -d "${pkg}"
           cp -R "${pkg}/build/native/include/." "${root}/include/"
           cp -R "${pkg}/runtimes/linux-x64/native/." "${root}/lib/"
+          # The NuGet library has SONAME libonnxruntime.so.1 but ships without
+          # the matching symlink, so provide it and put the directory on the
+          # loader path for the test binaries.
+          ln -sf libonnxruntime.so "${root}/lib/libonnxruntime.so.1"
           echo "STEM_SEPARATION_ORT_ROOT=${root}" >> "${GITHUB_ENV}"
+          echo "LD_LIBRARY_PATH=${root}/lib:${LD_LIBRARY_PATH:-}" >> "${GITHUB_ENV}"
 
       - name: Generate tiny test model
         run: |
