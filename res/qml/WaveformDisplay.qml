@@ -379,8 +379,8 @@ Item {
         }
     }
 
-    // Per-lane labels and gain knobs, Traktor-style. Only shown while the stem
-    // lanes are split; in the single-lane overlay there is nothing to label.
+    // Per-lane controls, Traktor-style. Only shown while the stem lanes are
+    // split; in the single-lane overlay there is nothing to label.
     readonly property var deckPlayer: Mixxx.PlayerManager.getPlayer(root.group)
     readonly property bool stemSplitActive: root.splitStemTracks
             || Mixxx.Config.waveformStemSplitTracks
@@ -397,6 +397,12 @@ Item {
         group: root.group
         stemsModel: root.deckPlayer ? root.deckPlayer.currentTrack.stemsModel : null
         visible: root.stemSplitActive && stemCountControl.value > 0
-        width: 168
+        // 168 px at the default scale, but never more than 42 % of the
+        // waveform: a narrow deck leaves the strip enough room for the label
+        // and the M/S keys while the volume slider waits for hover.
+        width: Math.min(parent.width,
+                        Math.max(Theme.stemLaneMinWidth + Theme.space7,
+                                 Math.min(Math.round(168 * Theme.uiScale),
+                                          Math.round(parent.width * 0.42))))
     }
 }
