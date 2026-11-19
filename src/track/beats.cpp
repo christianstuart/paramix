@@ -1,5 +1,6 @@
 #include "track/beats.h"
 
+#include <QStringList>
 #include <cmath>
 #include <iterator>
 #include <unordered_map>
@@ -24,6 +25,45 @@ constexpr double kEpsilon = 0.01;
 } // namespace
 
 namespace mixxx {
+
+DownbeatInfo Beats::parseDownbeatInfo(const QString& subVersion) {
+    DownbeatInfo info;
+    bool hasDownbeatFlag = false;
+    int beatsPerBar = 4;
+    int phase = 0;
+    float confidence = 0.0f;
+    QString source;
+
+    const QStringList fragments = subVersion.split(QLatin1Char('|'));
+    for (const QString& fragment : fragments) {
+        const int separator = fragment.indexOf(QLatin1Char('='));
+        if (separator <= 0) {
+            continue;
+        }
+        const QString key = fragment.left(separator);
+        const QString value = fragment.mid(separator + 1);
+        if (key == QLatin1String("db")) {
+            hasDownbeatFlag = value == QLatin1String("1");
+        } else if (key == QLatin1String("dbbar")) {
+            beatsPerBar = value.toInt();
+        } else if (key == QLatin1String("dbphase")) {
+            phase = value.toInt();
+        } else if (key == QLatin1String("dbconf")) {
+            confidence = value.toFloat();
+        } else if (key == QLatin1String("dbsrc")) {
+            source = value;
+        }
+    }
+
+    if (hasDownbeatFlag && beatsPerBar > 0 && phase >= 0 && phase < beatsPerBar) {
+        info.valid = true;
+        info.beatsPerBar = beatsPerBar;
+        info.phase = phase;
+        info.confidence = confidence;
+        info.source = source;
+    }
+    return info;
+}
 
 mixxx::audio::FrameDiff_t Beats::ConstIterator::beatLengthFrames() const {
     if (m_it == m_beats->m_markers.cend()) {

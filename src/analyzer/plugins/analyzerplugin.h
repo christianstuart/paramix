@@ -69,12 +69,42 @@ class AnalyzerBeatsPlugin : public AnalyzerPlugin {
   public:
     ~AnalyzerBeatsPlugin() override = default;
 
+    // Keep the sample-rate-only overload visible; the track-aware overload
+    // below would otherwise hide it inside this class.
+    using AnalyzerPlugin::initialize;
+
+    /// Track-aware initialization. Plugins that need the total frame count or
+    /// the channel count override this; the default keeps the existing
+    /// sample-rate-only contract for all other plugins.
+    virtual bool initialize(mixxx::audio::SampleRate sampleRate,
+            mixxx::audio::ChannelCount channelCount,
+            SINT frameLength) {
+        (void)channelCount;
+        (void)frameLength;
+        return initialize(sampleRate);
+    }
+
     virtual bool supportsBeatTracking() const = 0;
     virtual mixxx::Bpm getBpm() const {
         return {};
     }
     virtual QVector<mixxx::audio::FramePos> getBeats() const {
         return {};
+    }
+
+    /// Native-grid plugins provide the grid origin and downbeat metadata
+    /// directly and must bypass BeatFactory's re-derivation and BPM snapping.
+    virtual bool hasNativeGrid() const {
+        return false;
+    }
+    virtual mixxx::audio::FramePos getFirstBeat() const {
+        return mixxx::audio::kStartFramePos;
+    }
+    virtual DownbeatInfo getDownbeatInfo() const {
+        return {};
+    }
+    virtual float getConfidence() const {
+        return 0.0f;
     }
 };
 

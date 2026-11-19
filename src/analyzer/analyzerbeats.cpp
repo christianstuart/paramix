@@ -2,16 +2,44 @@
 
 #include <QHash>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <QtDebug>
 
 #include "analyzer/analyzertrack.h"
 #include "analyzer/constants.h"
+#include "analyzer/plugins/analyzerparamixbeats.h"
 #include "analyzer/plugins/analyzerqueenmarybeats.h"
 #include "analyzer/plugins/analyzersoundtouchbeats.h"
 #include "library/rekordbox/rekordboxconstants.h"
 #include "track/beatfactory.h"
 #include "track/track.h"
+
+namespace {
+
+/// Removes the additive downbeat fragments before comparing a stored
+/// sub-version with the version derived from the current settings.
+QString stripDownbeatFragments(const QString& subVersion) {
+    if (subVersion.isEmpty()) {
+        return subVersion;
+    }
+    QStringList kept;
+    const QStringList fragments = subVersion.split(QLatin1Char('|'));
+    for (const QString& fragment : fragments) {
+        const int separator = fragment.indexOf(QLatin1Char('='));
+        const QString key = separator > 0 ? fragment.left(separator) : fragment;
+        if (key == QLatin1String("db") || key == QLatin1String("dbbar") ||
+                key == QLatin1String("dbphase") ||
+                key == QLatin1String("dbconf") ||
+                key == QLatin1String("dbsrc")) {
+            continue;
+        }
+        kept.append(fragment);
+    }
+    return kept.join(QLatin1Char('|'));
+}
+
+} // namespace
 
 // static
 QList<mixxx::AnalyzerPluginInfo> AnalyzerBeats::availablePlugins() {
@@ -19,6 +47,8 @@ QList<mixxx::AnalyzerPluginInfo> AnalyzerBeats::availablePlugins() {
     // First one below is the default
     plugins.append(mixxx::AnalyzerQueenMaryBeats::pluginInfo());
     plugins.append(mixxx::AnalyzerSoundTouchBeats::pluginInfo());
+    // Opt-in: appended last so the default detector is unchanged.
+    plugins.append(mixxx::AnalyzerParamixBeats::pluginInfo());
     return plugins;
 }
 
@@ -88,13 +118,21 @@ bool AnalyzerBeats::initialize(const AnalyzerTrack& track,
 
     m_sampleRate = sampleRate;
     m_channelCount = channelCount;
+    const bool nativeGridPlugin =
+            m_pluginId == mixxx::AnalyzerParamixBeats::pluginInfo().id();
     // In fast analysis mode, skip processing after
-    // kFastAnalysisSecondsToAnalyze seconds are analyzed.
-    if (m_bPreferencesFastAnalysis) {
+    // kFastAnalysisSecondsToAnalyze seconds are analyzed. The Paramix engine
+    // needs the whole track for its global salience and finalize pass, so fast
+    // analysis is ignored for that plugin.
+    if (m_bPreferencesFastAnalysis && !nativeGridPlugin) {
         m_maxFramesToProcess =
                 mixxx::kFastAnalysisSecondsToAnalyze * m_sampleRate;
     } else {
         m_maxFramesToProcess = frameLength;
+        if (m_bPreferencesFastAnalysis && nativeGridPlugin) {
+            qDebug() << "Paramix Analysis Engine ignores fast analysis;"
+                     << "the whole track is required for the downbeat stage.";
+        }
     }
     m_currentFrame = 0;
 
@@ -107,6 +145,8 @@ bool AnalyzerBeats::initialize(const AnalyzerTrack& track,
             m_pPlugin = std::make_unique<mixxx::AnalyzerQueenMaryBeats>();
         } else if (m_pluginId == mixxx::AnalyzerSoundTouchBeats::pluginInfo().id()) {
             m_pPlugin = std::make_unique<mixxx::AnalyzerSoundTouchBeats>();
+        } else if (nativeGridPlugin) {
+            m_pPlugin = std::make_unique<mixxx::AnalyzerParamixBeats>();
         } else {
             // This must not happen, because we have already verified above
             // that the PlugInId is valid
@@ -114,7 +154,13 @@ bool AnalyzerBeats::initialize(const AnalyzerTrack& track,
         }
 
         if (m_pPlugin) {
-            if (m_pPlugin->initialize(m_sampleRate)) {
+            // Stems are downmixed to stereo before the plugin sees them.
+            const mixxx::audio::ChannelCount analysisChannelCount =
+                    m_channelCount > mixxx::audio::ChannelCount::stereo()
+                    ? mixxx::audio::ChannelCount::stereo()
+                    : m_channelCount;
+            if (m_pPlugin->initialize(
+                        m_sampleRate, analysisChannelCount, frameLength)) {
                 qDebug() << "Beat calculation started with plugin" << m_pluginId;
             } else {
                 qDebug() << "Beat calculation will not start.";
@@ -172,17 +218,21 @@ bool AnalyzerBeats::shouldAnalyze(TrackPointer pTrack) const {
     }
 
     QString version = pBeats->getVersion();
+    const bool nativeGridPlugin =
+            pluginID == mixxx::AnalyzerParamixBeats::pluginInfo().id();
     QHash<QString, QString> extraVersionInfo = getExtraVersionInfo(
             pluginID,
-            m_bPreferencesFastAnalysis);
+            nativeGridPlugin ? false : m_bPreferencesFastAnalysis);
     QString newVersion = BeatFactory::getPreferredVersion(
             m_bPreferencesFixedTempo);
     QString newSubVersion = BeatFactory::getPreferredSubVersion(
             extraVersionInfo);
 
-    if (version == newVersion && subVersion == newSubVersion) {
+    if (version == newVersion &&
+            stripDownbeatFragments(subVersion) == newSubVersion) {
         // If the version and settings have not changed then if the world is
-        // sane, re-analyzing will do nothing.
+        // sane, re-analyzing will do nothing. Additive downbeat fragments do
+        // not count as a settings change.
         return false;
     }
     // Beat grid exists but version and settings differ
@@ -258,7 +308,34 @@ void AnalyzerBeats::storeResults(TrackPointer pTrack) {
     }
 
     mixxx::BeatsPointer pBeats;
-    if (m_pPlugin->supportsBeatTracking()) {
+    if (m_pPlugin->hasNativeGrid()) {
+        const mixxx::Bpm bpm = m_pPlugin->getBpm();
+        if (!bpm.isValid()) {
+            qWarning() << "Paramix Analysis Engine did not produce a valid BPM";
+            return;
+        }
+        const mixxx::DownbeatInfo downbeatInfo = m_pPlugin->getDownbeatInfo();
+        QString subVersion = BeatFactory::getPreferredSubVersion(
+                getExtraVersionInfo(m_pluginId, false));
+        subVersion += QStringLiteral(
+                "|db=1|dbbar=%1|dbphase=%2|dbconf=%3|dbsrc=%4")
+                              .arg(downbeatInfo.beatsPerBar)
+                              .arg(downbeatInfo.phase)
+                              .arg(QString::number(
+                                      static_cast<double>(downbeatInfo.confidence),
+                                      'f',
+                                      3))
+                              .arg(downbeatInfo.source);
+        pBeats = mixxx::Beats::fromConstTempo(m_sampleRate,
+                m_pPlugin->getFirstBeat(),
+                bpm,
+                subVersion);
+        qDebug() << "Paramix Analysis Engine stored native grid: BPM"
+                 << bpm.value() << "anchor"
+                 << m_pPlugin->getFirstBeat().value() << "beatsPerBar"
+                 << downbeatInfo.beatsPerBar << "phase" << downbeatInfo.phase
+                 << "confidence" << downbeatInfo.confidence;
+    } else if (m_pPlugin->supportsBeatTracking()) {
         QVector<mixxx::audio::FramePos> beats = m_pPlugin->getBeats();
         QHash<QString, QString> extraVersionInfo = getExtraVersionInfo(
                 m_pluginId, m_bPreferencesFastAnalysis);

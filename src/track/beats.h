@@ -25,7 +25,8 @@ typedef std::shared_ptr<const Beats> BeatsPointer;
 class BeatMarker {
   public:
     BeatMarker(mixxx::audio::FramePos position, int beatsTillNextMarker)
-            : m_position(position), m_beatsTillNextMarker(beatsTillNextMarker) {
+            : m_position(position),
+              m_beatsTillNextMarker(beatsTillNextMarker) {
         DEBUG_ASSERT(m_position.isValid());
         DEBUG_ASSERT(!m_position.isFractional());
         DEBUG_ASSERT(m_beatsTillNextMarker > 0);
@@ -50,6 +51,32 @@ inline bool operator==(const BeatMarker& lhs, const BeatMarker& rhs) {
 }
 
 inline bool operator!=(const BeatMarker& lhs, const BeatMarker& rhs) {
+    return !(lhs == rhs);
+}
+
+/// Additive downbeat metadata. Absence means unknown, never 4/4 at beat 0.
+/// Serialized as fragments in the beat grid sub-version; the beat grid
+/// version strings stay unchanged so older builds can still read the grid.
+struct DownbeatInfo {
+    bool valid = false;
+    int beatsPerBar = 4;
+    /// Zero-based index of the first downbeat relative to the grid origin.
+    int phase = 0;
+    /// Heuristic confidence in [0, 1], not a probability.
+    float confidence = 0.0f;
+    /// Detector identifier, for example "paramix-analysis-engine:1".
+    QString source;
+};
+
+inline bool operator==(const DownbeatInfo& lhs, const DownbeatInfo& rhs) {
+    return lhs.valid == rhs.valid &&
+            lhs.beatsPerBar == rhs.beatsPerBar &&
+            lhs.phase == rhs.phase &&
+            lhs.confidence == rhs.confidence &&
+            lhs.source == rhs.source;
+}
+
+inline bool operator!=(const DownbeatInfo& lhs, const DownbeatInfo& rhs) {
     return !(lhs == rhs);
 }
 
@@ -162,7 +189,8 @@ class Beats : private std::enable_shared_from_this<Beats> {
               m_lastMarkerPosition(lastMarkerPosition),
               m_lastMarkerBpm(lastMarkerBpm),
               m_sampleRate(sampleRate),
-              m_subVersion(subVersion) {
+              m_subVersion(subVersion),
+              m_downbeatInfo(parseDownbeatInfo(subVersion)) {
         DEBUG_ASSERT(m_lastMarkerPosition.isValid());
         DEBUG_ASSERT(!m_lastMarkerPosition.isFractional());
         DEBUG_ASSERT(m_lastMarkerBpm.isValid());
@@ -216,7 +244,8 @@ class Beats : private std::enable_shared_from_this<Beats> {
     friend bool operator==(const Beats& lhs, const Beats& rhs) {
         return lhs.m_markers == rhs.m_markers &&
                 lhs.m_lastMarkerPosition == rhs.m_lastMarkerPosition &&
-                lhs.m_lastMarkerBpm == rhs.m_lastMarkerBpm && lhs.m_sampleRate &&
+                lhs.m_lastMarkerBpm == rhs.m_lastMarkerBpm &&
+                lhs.m_downbeatInfo == rhs.m_downbeatInfo && lhs.m_sampleRate &&
                 rhs.m_sampleRate;
     }
 
@@ -294,6 +323,13 @@ class Beats : private std::enable_shared_from_this<Beats> {
     /// the beats object.
     QString getSubVersion() const {
         return m_subVersion;
+    }
+
+    /// Additive downbeat metadata carried in the sub-version. Returns an
+    /// invalid record when the grid was not produced by a downbeat-aware
+    /// detector.
+    const DownbeatInfo& getDownbeatInfo() const {
+        return m_downbeatInfo;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -435,6 +471,9 @@ class Beats : private std::enable_shared_from_this<Beats> {
     QByteArray toBeatGridByteArray() const;
     QByteArray toBeatMapByteArray() const;
 
+    /// Parses the additive downbeat fragments from a beat grid sub-version.
+    static DownbeatInfo parseDownbeatInfo(const QString& subVersion);
+
     mixxx::audio::FrameDiff_t firstBeatLengthFrames() const;
     mixxx::audio::FrameDiff_t lastBeatLengthFrames() const;
 
@@ -445,6 +484,8 @@ class Beats : private std::enable_shared_from_this<Beats> {
 
     // The sub-version of this beatgrid.
     const QString m_subVersion;
+    // Additive downbeat metadata parsed from m_subVersion.
+    DownbeatInfo m_downbeatInfo;
 };
 
 } // namespace mixxx

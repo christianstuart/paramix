@@ -1224,6 +1224,7 @@ add_library(
   src/analyzer/analyzerthread.cpp
   src/analyzer/analyzertrack.cpp
   src/analyzer/analyzerwaveform.cpp
+  src/analyzer/plugins/analyzerparamixbeats.cpp
   src/analyzer/plugins/analyzerqueenmarybeats.cpp
   src/analyzer/plugins/analyzerqueenmarykey.cpp
   src/analyzer/plugins/analyzersoundtouchbeats.cpp
@@ -2834,6 +2835,10 @@ if(BUILD_TESTING)
   endif()
   add_compile_definitions(BUILD_TESTING)
 endif()
+
+# Paramix Analysis Engine: Qt-free beat detection backend, opt-in plugin.
+add_subdirectory(lib/paramix-analysis)
+target_link_libraries(mixxx-lib PRIVATE paramix-analysis)
 
 find_package(benchmark)
 default_option(BUILD_BENCH "Build mixxx-benchmark" "benchmark_FOUND")
