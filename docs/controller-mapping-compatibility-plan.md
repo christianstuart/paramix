@@ -90,7 +90,7 @@ The settings directory changed:
 
 #### B. QML library-navigation controls (P0 if QML is default)
 
-`src/library/librarycontrol.cpp` creates all `[Library]` and `[Playlist]` navigation controls, but deliberately does **not** connect them when `CmdlineArgs::Instance().isQml()` is true. The comment pattern is repeated around `m_pMoveVertical`, `m_pScrollVertical`, `m_pMoveHorizontal`, `m_pMoveFocus`, `m_pEditItem`, `m_pGoToItem`, and the sidebar controls. The QML UI is expected to implement the behavior.
+`src/library/librarycontrol.cpp` creates all `[Library]` and `[Playlist]` navigation controls and connects them unconditionally. They used to be left unconnected when `CmdlineArgs::Instance().isQml()` was true; that flag and its branches are gone. The QML UI implements its own handling as well.
 
 The current QML implementation (`res/qml/Library/Control.qml`, `TrackList.qml`, `SourceTree.qml`, `Browser.qml`) covers only:
 
@@ -158,7 +158,7 @@ The existing `MappingTestFixture` is too small to distinguish "missing because t
 
 ### 2.3 Important baseline detail: default UI
 
-The current code does not make QML the default. `src/main.cpp` loads QML only when `--new-ui` / `--qml` is passed, or when the configured skin is a QML skin and `--developer` is active. `SkinLoader::getDefaultSkinName()` still returns `LateNight` (legacy QWidget UI).
+The QML interface is now the default and the only UI; the `--new-ui` / `--qml` flags are ignored. `SkinLoader::getDefaultSkinName()` still returns `LateNight`, so the QML entry point is chosen by `src/main.cpp`.
 
 This means controller compatibility is currently best in the default configuration. The QML gaps in 2.2.B-D become release blockers only when the fork flips the default UI. Section 4 makes that a hard gate.
 

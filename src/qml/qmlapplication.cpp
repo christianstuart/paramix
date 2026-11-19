@@ -181,56 +181,6 @@ QmlApplication::QmlApplication(
     }
     WaveformWidgetFactory::instance()->setConfig(m_pCoreServices->getSettings());
 
-    QString configVersion = m_pCoreServices->getSettings()->getValue(
-            ConfigKey("[Config]", "Version"), "");
-
-    // The risk check guards against Mixxx 3.0 potentially running different
-    // database upgrade paths that could corrupt 2.x profiles.
-    //
-    // When a QML skin is auto-detected from preferences (--developer, no
-    // --new-ui), the underlying binary and DB schema are identical to a
-    // normal 2.x launch — there is no data corruption risk. Skip the gate.
-    //
-    // When explicitly launched with --new-ui, the full 3.0 application path
-    // is taken and the gate remains in effect as designed.
-    const bool viaNewUiFlag = CmdlineArgs::Instance().isQml();
-
-    if (configVersion == VersionStore::FUTURE_UNSTABLE) {
-        qDebug() << "Generating a new user profile for safe testing with unstable code";
-    } else if (!viaNewUiFlag) {
-        qDebug() << "QmlApplication: QML skin loaded via preferences, "
-                    "skipping data-corruption risk check (2.x profile is safe)";
-    } else if (CmdlineArgs::Instance().isAwareOfRisk()) {
-        qCritical() << "Existing user profile detected from" << configVersion
-                    << "but you said you wanted to play with fire!";
-        m_pCoreServices->getSettings()->setValue(
-                ConfigKey("[Config]", "did_run_with_unstable"), true);
-    } else {
-        QMessageBox msgBox;
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setWindowTitle(tr("Existing user profile detected"));
-        msgBox.setText(
-                tr("Trying to run Paramix 3.0 with an existing %0 user profile! "
-                   "<br><br>There are <b>serious risks</b> of data loss and "
-                   "corruption.<br>We recommend using a test profile folder "
-                   "with the '--settings-path' argument. <br><br>If you want "
-                   "to continue at your own risk, run Paramix with the argument "
-                   "'--allow-dangerous-data-corruption-risk'.")
-                        .arg(configVersion));
-
-        QPushButton* continueButton =
-                msgBox.addButton(tr("Ok"), QMessageBox::ActionRole);
-        Q_UNUSED(continueButton);
-        msgBox.exec();
-        // Never call exit() from inside the constructor. That runs the static
-        // destructors while QCoreApplication and CoreServices are still alive
-        // and crashes in Qt's thread-local database connection cleanup.
-        // Instead report the failure to runMixxx() and let it return normally,
-        // so that everything is destroyed in the correct order.
-        m_loadSucceeded = false;
-        return;
-    }
-
     SoundDeviceStatus result = m_pCoreServices->getSoundManager()->setupDevices();
     if (result != SoundDeviceStatus::Ok) {
         const int reInt = static_cast<int>(result);

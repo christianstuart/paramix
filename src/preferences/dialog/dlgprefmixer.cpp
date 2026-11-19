@@ -16,8 +16,6 @@
 #include "engine/enginexfader.h"
 #include "mixer/playermanager.h"
 #include "moc_dlgprefmixer.cpp"
-#include "qml/qmlconfigproxybase.h"
-#include "util/cmdlineargs.h"
 #include "util/make_const_iterator.h"
 #include "util/math.h"
 #include "util/rescaler.h"
@@ -179,13 +177,7 @@ DlgPrefMixer::DlgPrefMixer(
 #else
     CheckBoxStemAutoReset->hide();
 #endif
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml()) {
-        checkBoxParamixFourBandEq->hide();
-    }
-#else
     checkBoxParamixFourBandEq->hide();
-#endif
     connect(CheckBoxBypass,
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
             &QCheckBox::checkStateChanged,
@@ -752,11 +744,6 @@ void DlgPrefMixer::slotApply() {
 #endif
     m_pConfig->set(kParamixFourBandEqKey,
             ConfigValue(checkBoxParamixFourBandEq->isChecked()));
-#ifdef MIXXX_USE_QML
-    if (CmdlineArgs::Instance().isQml()) {
-        mixxx::qml::QmlConfigProxyBase::notifyParamixSettings();
-    }
-#endif
     applyDeckEQs();
     applyQuickEffects();
 

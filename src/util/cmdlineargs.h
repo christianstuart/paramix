@@ -49,14 +49,6 @@ class CmdlineArgs final {
     bool getStats() const {
         return m_developer || m_stats;
     }
-#ifdef MIXXX_USE_QML
-    bool isQml() const {
-        return m_qml;
-    }
-    bool isAwareOfRisk() const {
-        return m_awareOfRisk;
-    }
-#endif
     bool getSafeMode() const { return m_safeMode; }
     bool useColors() const {
         return m_useColors;
@@ -118,10 +110,6 @@ class CmdlineArgs final {
     bool m_controllerAbortOnWarning; // Controller Engine will be stricter
     bool m_developer; // Developer Mode
     bool m_stats;     // Enable stats collection
-#ifdef MIXXX_USE_QML
-    bool m_qml;
-    bool m_awareOfRisk;
-#endif
     bool m_safeMode;
     bool m_useLegacyVuMeter;
     bool m_useLegacySpinny;

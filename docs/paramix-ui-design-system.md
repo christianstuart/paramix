@@ -119,9 +119,9 @@ The Paramix options live in the native Preferences dialog: appearance and
 layout on **Interface**, the fourth EQ band on **Mixer**, and the waveform
 settings on **Waveform**. The old QML settings popup is retired.
 
-The Interface page no longer offers **Switch to classic Mixxx interface**; the
-native Help menu has the reverse action, **Use Paramix QML Interface**, which
-restarts with `--new-ui`.
+The Interface page no longer offers **Switch to classic Mixxx interface**, and
+the native Help menu no longer has the reverse action; the QML interface is
+always used. `--new-ui` is ignored.
 
 ## 7. Scope and status
 

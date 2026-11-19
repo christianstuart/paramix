@@ -144,7 +144,7 @@ QT_QPA_PLATFORM=offscreen ./build-main/mixxx-test \
 
 # UI startup and layout
 QT_QPA_PLATFORM=offscreen ./build-main/mixxx-test \
-  --gtest_filter='*QmlStartupSmokeTest*NewUi*'
+  --gtest_filter='*QmlStartupSmokeTest*'
 QT_QPA_PLATFORM=offscreen ./build-main/mixxx-test \
   --gtest_filter='*QmlResponsiveBoundsTest*'
 

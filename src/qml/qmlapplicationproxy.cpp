@@ -191,8 +191,8 @@ void QmlApplicationProxy::reloadSkin() {
     }
 }
 
-void QmlApplicationProxy::restartApplication(bool useQml) {
-    if (!mixxx::restartApplication(useQml)) {
+void QmlApplicationProxy::restartApplication() {
+    if (!mixxx::restartApplication()) {
         qWarning() << "Failed to restart Paramix";
         return;
     }
