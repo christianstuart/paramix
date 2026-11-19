@@ -125,6 +125,12 @@ Item {
         key: "show_microphones"
     }
     Mixxx.ControlProxy {
+        id: show4EffectUnitsControl
+
+        group: "[Skin]"
+        key: "show_4effectunits"
+    }
+    Mixxx.ControlProxy {
         id: showVinylControl
 
         group: "[Skin]"
@@ -313,6 +319,7 @@ Item {
                                         (previewDeckBar.item && previewDeckBar.item.revealed) ||
                                         previewDeckPlaying.value > 0;
                                 padFxItem.checked = padFxWindow.visible;
+                                fxUnitsItem.checked = show4EffectUnitsControl.value > 0;
                             }
 
                             Skin.CheckMenuItem {
@@ -349,6 +356,14 @@ Item {
                                 onTriggered: checked ? padFxWindow.show() : padFxWindow.close()
                             }
                             Skin.CheckMenuItem {
+                                id: fxUnitsItem
+
+                                checkable: true
+                                text: qsTr("FX 3-4")
+
+                                onTriggered: show4EffectUnitsControl.value = checked ? 1 : 0
+                            }
+                            Skin.CheckMenuItem {
                                 id: samplersItem
 
                                 checkable: true
@@ -378,6 +393,37 @@ Item {
                                     showPreviewDecks.value = checked ? 1 : 0;
                                 }
                             }
+                        }
+                    }
+                    Skin.Button {
+                        id: showEffectUnitsButton
+
+                        Accessible.checkable: true
+                        Accessible.checked: show4EffectUnitsControl.value > 0
+                        Accessible.name: qsTr("Show effect units 3 and 4")
+                        activeColor: Theme.textOnAccent
+                        checkable: true
+                        text: qsTr("FX 3-4")
+                        ToolTip.delay: 500
+                        ToolTip.text: Accessible.name
+                        ToolTip.visible: hovered
+
+                        onClicked: show4EffectUnitsControl.value = checked ? 1 : 0
+
+                        // checked has no declarative binding: AbstractButton
+                        // overwrites it on every click, so mirror the control
+                        // here instead and keep controller changes in sync.
+                        Connections {
+                            target: show4EffectUnitsControl
+
+                            function onValueChanged() {
+                                showEffectUnitsButton.checked = show4EffectUnitsControl.value > 0;
+                            }
+                        }
+                        Component.onCompleted: showEffectUnitsButton.checked = show4EffectUnitsControl.value > 0
+
+                        Skin.EffectUnitsWindow {
+                            id: effectUnitsWindow
                         }
                     }
                     Skin.Button {
