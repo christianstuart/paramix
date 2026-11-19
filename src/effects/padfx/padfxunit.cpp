@@ -45,6 +45,8 @@ double clamp01(double value) {
 }
 } // namespace
 
+PadFxUnit::~PadFxUnit() = default;
+
 PadFxUnit::PadFxUnit(const QString& deckGroup,
         UserSettingsPointer pConfig,
         EffectsManager* pEffectsManager,

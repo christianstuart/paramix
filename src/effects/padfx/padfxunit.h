@@ -28,7 +28,7 @@ class PadFxUnit : public QObject {
             UserSettingsPointer pConfig,
             EffectsManager* pEffectsManager,
             QObject* parent = nullptr);
-    ~PadFxUnit() override = default;
+    ~PadFxUnit() override;
 
     const QString& deckGroup() const {
         return m_deckGroup;
