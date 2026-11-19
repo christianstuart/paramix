@@ -115,7 +115,6 @@ class allshader::WaveformRendererStem final
     bool m_reorderOnChange;
     float m_opacity;
 
-    std::vector<std::unique_ptr<ControlProxy>> m_pStemGain;
     std::vector<std::unique_ptr<ControlProxy>> m_pStemMute;
     std::unique_ptr<ControlProxy> m_pPregain;
 
