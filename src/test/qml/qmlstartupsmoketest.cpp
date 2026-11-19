@@ -493,6 +493,22 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         }
     }
 
+    // The item count can level off during a lull while the band Loaders are
+    // still constructing, which makes the first measurement see a half-built
+    // tree and then report the preview bar as missing. The preview bar is a
+    // known leaf of the finished mixer band, so wait for it explicitly before
+    // the first check. It stays instantiated while hidden, so this does not
+    // depend on the bar being visible.
+    {
+        QElapsedTimer previewCreation;
+        previewCreation.start();
+        while (!findItemByClass(pMainWindow, "PreviewDeckBar") &&
+                previewCreation.elapsed() < 10000) {
+            QCoreApplication::processEvents();
+            QThread::msleep(10);
+        }
+    }
+
     // 1024x768 is deliberately not asserted: below roughly 1200 px wide the
     // layout does not converge (the geometry never stops changing, see
     // docs/qml-responsive-layout.md), so an assertion there reports the
