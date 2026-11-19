@@ -261,6 +261,12 @@ bool WaveformRendererStem::preprocessInner() {
     if (totalSamples <= 0.0) {
         return false;
     }
+    // VisualPlayPosition returns -1 while a paused deck has no fresh vsync
+    // position. Treat that as "keep the last picture" rather than translating
+    // the waveform to a bogus position near the start of the track.
+    if (m_waveformRenderer->getTruePosSample(positionType) < 0.0) {
+        return m_hasGeometry;
+    }
     const double firstSample =
             m_waveformRenderer->getFirstDisplayedPosition(positionType) * totalSamples;
     const double lastSample =

@@ -354,6 +354,31 @@ Item {
         }
     }
 
+    // High-contrast playhead for the four-lane stem picture. The regular mark
+    // renderer is drawn underneath the stem texture on some render paths, so
+    // keep an explicit line above the waveform whenever stems are displayed.
+    Rectangle {
+        id: stemPlayhead
+
+        anchors.verticalCenter: parent.verticalCenter
+        color: Theme.textPrimary
+        height: waveformDisplay.height
+        opacity: 0.92
+        visible: stemCountControl.value > 0 && Mixxx.Config.waveformEnabled
+        width: Math.max(1, Math.round(1 * Theme.uiScale))
+        x: Math.round(waveformDisplay.width * Mixxx.Config.waveformPlayMarkerPosition) - width / 2
+        z: 2
+
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            color: Theme.accent
+            height: Math.max(6, Math.round(7 * Theme.uiScale))
+            radius: width / 2
+            width: Math.max(4, Math.round(5 * Theme.uiScale))
+            y: -height
+        }
+    }
+
     // Per-lane labels and gain knobs, Traktor-style. Only shown while the stem
     // lanes are split; in the single-lane overlay there is nothing to label.
     readonly property var deckPlayer: Mixxx.PlayerManager.getPlayer(root.group)
