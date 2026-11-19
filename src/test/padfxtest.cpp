@@ -106,6 +106,8 @@ TEST_F(PadFxTest, CreatesControlGroupAndDefaultBank) {
     ASSERT_NE(nullptr, pChain->getEffectSlot(0).data());
     EXPECT_EQ(QStringLiteral("org.paramix.effects.vinylbrake"),
             pChain->getEffectSlot(0)->getManifest()->id());
+    EXPECT_EQ(QStringLiteral("org.paramix.effects.echoout"),
+            pChain->getEffectSlot(2)->getManifest()->id());
 }
 
 TEST_F(PadFxTest, BrakeToggleActivatesOnlyTargetStemsAndMutesAfterRamp) {
@@ -141,8 +143,8 @@ TEST_F(PadFxTest, EchoOutLeavesTargetStemMutedAfterTail) {
 
     EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad3_active")));
 
-    // Default tail is two beats at 120 BPM.
-    processEventsFor(1300);
+    // Default echo tail is four beats at 120 BPM.
+    processEventsFor(2500);
     EXPECT_EQ(1.0, m_pMutes[0]->get());
     EXPECT_EQ(1.0, m_pMutes[1]->get());
     EXPECT_EQ(1.0, m_pMutes[2]->get());

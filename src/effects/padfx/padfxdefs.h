@@ -29,7 +29,7 @@ struct PadConfig {
     // Normalized 0..1 values. The meaning depends on the effect:
     //   Vinyl Brake: [0] time, [1] curve
     //   Echo Out:    [0] beats, [1] feedback, [2] tail beats
-    std::array<double, 4> params{0.5, 0.5, 0.2, 0.0};
+    std::array<double, 4> params{0.5, 0.5, 0.47, 0.0};
 };
 
 struct BankConfig {

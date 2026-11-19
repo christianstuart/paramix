@@ -453,14 +453,15 @@ void PadFxUnit::finishPad(int pad) {
     if (!m_runtime[pad].gestureActive) {
         return;
     }
-    setEffectActive(pad, false);
-    // The audible gesture is over. Hold the stems with the native mute so the
-    // pad FX processor can return to dry pass-through.
+    // The audible gesture is over. Hold the stems with the native mute before
+    // dropping the effect gate, otherwise the dry signal can burst through for
+    // one callback while the two control changes cross the engine boundary.
     for (int stem = 0; stem < mixxx::padfx::kNumStems; ++stem) {
         if ((m_config.banks.at(m_config.bank - 1).pads[pad].targetMask & (1 << stem)) != 0) {
             m_pStemMute[stem]->set(1.0);
         }
     }
+    setEffectActive(pad, false);
     m_runtime[pad].gestureActive = false;
     m_runtime[pad].muteOwned = true;
     m_pPadMuted[pad]->forceSet(1.0);

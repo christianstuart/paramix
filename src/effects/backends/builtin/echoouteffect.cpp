@@ -10,7 +10,7 @@
 
 namespace {
 constexpr double kMaxDelaySeconds = 2.1;
-constexpr double kDryWetRampSeconds = 0.008;
+constexpr double kDryWetRampSeconds = 0.002;
 
 inline int wrapFrame(qint64 frame, int ringFrames) {
     int wrapped = static_cast<int>(frame % ringFrames);
@@ -142,8 +142,11 @@ void EchoOutEffect::processChannel(
         // Smooth delay changes so changing the beat value while active does not
         // produce a click.
         pState->delayFrames += (targetDelayFrames - pState->delayFrames) * 0.001;
+        const double delayFrames = std::max(1.0, pState->delayFrames);
+        const bool hasHistory = pState->writeFrame >=
+                static_cast<qint64>(delayFrames) + 2;
         const double readPosition = static_cast<double>(pState->writeFrame) -
-                std::max(1.0, pState->delayFrames);
+                delayFrames;
         const double readFloor = std::floor(readPosition);
         const double fraction = readPosition - readFloor;
         const int frameA = wrapFrame(static_cast<qint64>(readFloor), pState->ringFrames);
@@ -160,9 +163,11 @@ void EchoOutEffect::processChannel(
         }
 
         for (int ch = 0; ch < channels; ++ch) {
-            const CSAMPLE delayed = static_cast<CSAMPLE>(
-                    pState->ring[indexA + ch] * (1.0 - fraction) +
-                    pState->ring[indexB + ch] * fraction);
+            const CSAMPLE delayed = hasHistory
+                    ? static_cast<CSAMPLE>(
+                              pState->ring[indexA + ch] * (1.0 - fraction) +
+                              pState->ring[indexB + ch] * fraction)
+                    : 0.0f;
             const CSAMPLE dry = pInput[inputOffset + ch];
             // Pre-roll with a dry signal while inactive so the first repeat is
             // immediately available when the pad engages.
