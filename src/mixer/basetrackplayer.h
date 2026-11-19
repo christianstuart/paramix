@@ -134,7 +134,6 @@ class BaseTrackPlayerImpl : public BaseTrackPlayer {
     void slotSetAndConfirmTrackMenuControl(bool visible) final;
     /// Slot for change signals from WStarRating (absolute values)
     void slotTrackRatingChangeRequest(int rating) final;
-    void slotPlayToggled(double);
 
   private slots:
     void slotCloneChannel(EngineChannel* pChannel);
@@ -170,7 +169,6 @@ class BaseTrackPlayerImpl : public BaseTrackPlayer {
     TrackId m_pPrevFailedTrackId;
     // non-owning reference. Owned by pMixingEngine.
     EngineDeck* m_pChannel;
-    bool m_replaygainPending;
     EngineChannel* m_pChannelToCloneFrom;
 
     PerformanceTimer m_ejectTimer;

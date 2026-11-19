@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/engineobject.h"
+#include "preferences/usersettings.h"
 #include "util/performancetimer.h"
 
 class ControlAudioTaperPot;
@@ -13,7 +14,7 @@ class ControlObject;
 class EnginePregain : public EngineObject {
     Q_OBJECT
   public:
-    EnginePregain(const QString& group);
+    EnginePregain(const QString& group, const UserSettingsPointer& pConfig);
     ~EnginePregain() override;
 
     // If the user is scratching and the record reverses direction, the volume

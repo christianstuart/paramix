@@ -3025,6 +3025,7 @@ if(BUILD_TESTING)
     src/test/enginefilterbiquadtest.cpp
     src/test/enginemixertest.cpp
     src/test/enginemicrophonetest.cpp
+    src/test/enginepregaintest.cpp
     src/test/enginesynctest.cpp
     src/test/fileinfo_test.cpp
     src/test/frametest.cpp

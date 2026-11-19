@@ -52,7 +52,6 @@ BaseTrackPlayerImpl::BaseTrackPlayerImpl(
           m_pEngineMixer(pMixingEngine),
           m_pLoadedTrack(),
           m_pPrevFailedTrackId(),
-          m_replaygainPending(false),
           m_pChannelToCloneFrom(nullptr) {
     auto channel = std::make_unique<EngineDeck>(handleGroup,
             pConfig,
@@ -325,7 +324,6 @@ BaseTrackPlayerImpl::BaseTrackPlayerImpl(
 
     m_pReplayGain = make_parented<ControlProxy>(getGroup(), "replaygain", this);
     m_pPlay = make_parented<ControlProxy>(getGroup(), "play", this);
-    m_pPlay->connectValueChanged(this, &BaseTrackPlayerImpl::slotPlayToggled);
 
     m_pRateRatio = make_parented<ControlProxy>(getGroup(), "rate_ratio", this);
     m_pPitch = make_parented<ControlProxy>(getGroup(), "pitch", this);
@@ -881,13 +879,10 @@ void BaseTrackPlayerImpl::slotSetAndConfirmTrackMenuControl(bool visible) {
 }
 
 void BaseTrackPlayerImpl::slotSetReplayGain(mixxx::ReplayGain replayGain) {
-    // Do not change replay gain when track is playing because
-    // this may lead to an unexpected volume change.
-    if (m_pPlay->get() == 0.0) {
-        setReplayGain(replayGain.getRatio());
-    } else {
-        m_replaygainPending = true;
-    }
+    // EnginePregain ramps a changed replaygain over a fixed time while the
+    // deck plays, so a late analysis result can be applied immediately
+    // instead of waiting for the next stop.
+    setReplayGain(replayGain.getRatio());
 }
 
 void BaseTrackPlayerImpl::slotAdjustReplayGain(
@@ -972,12 +967,6 @@ void BaseTrackPlayerImpl::slotTrackRatingChangeRequestRelative(int change) {
     slotTrackRatingChangeRequest(m_pLoadedTrack->getRating() + change);
 }
 
-void BaseTrackPlayerImpl::slotPlayToggled(double value) {
-    if (value == 0 && m_replaygainPending) {
-        setReplayGain(m_pLoadedTrack->getReplayGain().getRatio());
-    }
-}
-
 EngineDeck* BaseTrackPlayerImpl::getEngineDeck() const {
     return m_pChannel;
 }
@@ -1059,5 +1048,4 @@ void BaseTrackPlayerImpl::slotUpdateReplayGainFromPregain(double pressed) {
 
 void BaseTrackPlayerImpl::setReplayGain(double value) {
     m_pReplayGain->set(value);
-    m_replaygainPending = false;
 }

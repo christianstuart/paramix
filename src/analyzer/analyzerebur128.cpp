@@ -6,6 +6,7 @@
 #include "analyzer/constants.h"
 #include "track/track.h"
 #include "util/math.h"
+#include "util/sample.h"
 #include "util/timer.h"
 
 namespace {
@@ -30,9 +31,21 @@ bool AnalyzerEbur128::initialize(
         qDebug() << "Skipping AnalyzerEbur128";
         return false;
     }
+    if (channelCount > mixxx::audio::ChannelCount::stereo() &&
+            channelCount != mixxx::audio::ChannelCount::stem()) {
+        DEBUG_ASSERT(!"Unsupported channel count");
+        return false;
+    }
     DEBUG_ASSERT(m_pState == nullptr);
+    m_sourceChannelCount = channelCount;
+    // An 8-channel stem track is mixed down to stereo, matching what the deck
+    // outputs, so the measured loudness matches the audible signal.
+    const mixxx::audio::ChannelCount measuredChannels =
+            channelCount == mixxx::audio::ChannelCount::stem()
+            ? mixxx::audio::ChannelCount::stereo()
+            : channelCount;
     m_pState = ebur128_init(
-            channelCount,
+            measuredChannels,
             sampleRate,
             EBUR128_MODE_I);
     return m_pState != nullptr;
@@ -51,8 +64,24 @@ bool AnalyzerEbur128::processSamples(const CSAMPLE* pIn, SINT count) {
         return false;
     }
     ScopedTimer t(QStringLiteral("AnalyzerEbur128::processSamples()"));
-    size_t frames = count / m_pState->channels;
-    int e = ebur128_add_frames_float(m_pState, pIn, frames);
+
+    SINT frames = count / m_sourceChannelCount;
+    const CSAMPLE* pMeasured = pIn;
+    CSAMPLE* pMixedChannel = nullptr;
+    if (m_sourceChannelCount == mixxx::audio::ChannelCount::stem()) {
+        pMixedChannel = SampleUtil::alloc(frames * mixxx::audio::ChannelCount::stereo());
+        VERIFY_OR_DEBUG_ASSERT(pMixedChannel) {
+            return false;
+        }
+        SampleUtil::mixMultichannelToStereo(
+                pMixedChannel, pIn, frames, m_sourceChannelCount);
+        pMeasured = pMixedChannel;
+    }
+
+    int e = ebur128_add_frames_float(m_pState, pMeasured, frames);
+    if (pMixedChannel) {
+        SampleUtil::free(pMixedChannel);
+    }
     VERIFY_OR_DEBUG_ASSERT(e == EBUR128_SUCCESS) {
         qWarning() << "AnalyzerEbur128::processSamples() failed with" << e;
         return false;
