@@ -16,11 +16,10 @@ Item {
     enum Pane {
         Move = 0,
         Cue = 1,
-        Grid = 2,
-        Stems = 3
+        Grid = 2
     }
 
-    /// 0 = move, 1 = cue, 2 = grid, 3 = stems. Seeded from `[Skin],deckN_pane`.
+    /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
     property int activePane: Deck.Pane.Cue
     readonly property var currentTrack: deckPlayer.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
@@ -28,11 +27,9 @@ Item {
     property bool minimized: false
     /// Persisted per deck so the chosen pane survives a restart.
     readonly property string paneControlKey: "deck" + group.replace(/[^0-9]/g, "") + "_pane"
-    /// Height shared by the MOVE / CUE / GRID / STEMS pane, the loop card and
-    /// the tab stack: the pane sits beside the loop-size selector inside the
-    /// transport block, so all three line up top and bottom. 112 px is the
-    /// smallest height that keeps a wrapped 2 x 2 stem lane usable; the
-    /// waveform row above absorbs whatever is left.
+    /// Height shared by the MOVE / CUE / GRID pane, the loop card and the tab
+    /// stack: the pane sits beside the loop-size selector inside the transport
+    /// block, so all three line up top and bottom.
     readonly property int paneHeight: Theme.deckPaneHeight
     readonly property int paneTabsHeight: Theme.deckPaneHeight
 
@@ -238,8 +235,16 @@ Item {
 
         onValueChanged: pane => {
             const index = Math.round(pane);
-            if (index >= Deck.Pane.Move && index <= Deck.Pane.Stems)
+            if (index >= Deck.Pane.Move && index <= Deck.Pane.Grid) {
                 root.activePane = index;
+                return;
+            }
+            // A profile saved while the stem pane existed still stores 3. That
+            // pane is gone, so open Cue and write the value back rather than
+            // leaving the deck on a tab that no longer exists.
+            root.activePane = Deck.Pane.Cue;
+            if (paneControl.initialized && Math.round(paneControl.value) !== Deck.Pane.Cue)
+                paneControl.value = Deck.Pane.Cue;
         }
     }
     Mixxx.ControlProxy {
@@ -358,27 +363,13 @@ Item {
                         anchors.fill: parent
                         currentTrack: root.currentTrack
                         group: root.group
-                        paneMode: 1
                         // Cue is the fallback pane: it stays visible unless the
                         // selector explicitly asks for another tab, so the
                         // strip is never empty for an out-of-range selection.
-                        visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid && root.activePane !== Deck.Pane.Stems
+                        visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid
 
                         Skin.FadeBehavior on visible {
                             fadeTarget: cuePane
-                        }
-                    }
-                    DeckComponent.HotcueAndStem {
-                        id: stemsPane
-
-                        anchors.fill: parent
-                        currentTrack: root.currentTrack
-                        group: root.group
-                        paneMode: 2
-                        visible: root.activePane === Deck.Pane.Stems
-
-                        Skin.FadeBehavior on visible {
-                            fadeTarget: stemsPane
                         }
                     }
                     DeckComponent.GridPane {
