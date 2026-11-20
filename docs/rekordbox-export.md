@@ -165,88 +165,55 @@ work, so the writer stays a pure function of its input.
 
 ## Provenance
 
-The ANLZ writer is a clean-room implementation. The licence question was
-settled by excluding the reference implementation, not by relying on its terms:
-[chrisle/rbxport](https://github.com/chrisle/rbxport) reports no detected
-licence (GitHub `NOASSERTION`), and Paramix is GPL-2.0-only. A repository that
-grants no rights cannot be an input, whatever its README or an older note says.
+The owner has waived the license gate. The writers are C++ translations of two
+crates from [chrisle/rbxport](https://github.com/chrisle/rbxport) at commit
+`d0ff75b378ec85be891d9f3067ada1e82bad4cae` (`chore(release): cut 1.10.0`,
+2026-11-07).
 
-### Permitted inputs
+The license was checked in the repository itself at that commit. `LICENSE`
+reads, verbatim:
 
-Only these sources informed this code:
+> rbxport is licensed under the GNU General Public License, version 2 or (at
+> your option) any later version (GPL-2.0-or-later).
+>
+> Copyright (c) 2026 Chris Le
 
-1. `lib/rekordbox-metadata/rekordbox_anlz.ksy` and the reader generated from it
-   (EPL-1.0). It supplies the `PMAI` framing, the tag-to-body switch, the field
-   order of every section, the enums, the per-tag entry widths and the notes on
-   which file each waveform tag appears in.
-2. `src/library/rekordbox/rekordboxfeature.cpp`, the in-tree importer, for the
-   1 ms floor applied to beat and cue times.
-3. Public rekordbox documentation published by AlphaTheta/Pioneer DJ.
-4. Files produced by the project owner's own rekordbox installation, and values
-   measured from them.
+`LICENSING.md` repeats: "rbxport is licensed as a whole under
+GPL-2.0-or-later." The complete GPL text that `LICENSE` points to is
+`crates/rbl-deck/vendor/rubberband/COPYING`.
 
-### Excluded implementation
+**GPL-2.0-or-later is compatible with this repository's GPL-2.0-only terms:** a
+recipient may choose version 2 of the GPL. No GPL-3.0-only or Apache-2.0 code is
+involved.
 
-No part of chrisle/rbxport is an input: not its Rust sources, tests, constants,
-naming, section ordering or measured tables. No revision of that repository was
-read during the clean-room audit that produced this statement.
+### ANLZ writer (`rekordboxanlzwriter.*`)
 
-### Spec and reader used
+- Derived from rbxport's `rbl-anlz`: the section framing, the cue and loop
+  encodings, the waveform packings and scales, the 65-entry device palette and
+  the section order in each file.
+- `lib/rekordbox-metadata/rekordbox_anlz.ksy` (EPL-1.0) is the in-tree
+  cross-check; the test writes files and reads them back with the
+  Kaitai-generated reader built from it.
+- An earlier revision asserted a `PCP2` byte string and a table of `PWV5` and
+  `PWV3` values taken from `rbl-anlz`'s tests. Those fixtures were removed in a
+  later pass, so the test is now a structural round trip. The implementation
+  remains a translation of `rbl-anlz`, not clean-room work.
+- The same pass changed `PVBR` to one unused word plus 400 entries, the body the
+  `.ksy` describes.
 
-`lib/rekordbox-metadata/rekordbox_anlz.ksy` is the normative reference.
-`src/test/rekordboxexportanlztest.cpp` parses the writer's output with the
-Kaitai-generated reader built from that file, so the test's oracle is in-tree
-and EPL-1.0. The test contains no fixture of external origin.
+### PDB writer (`rekordboxpdbwriter.*`)
 
-### Attestation
+- Derived from rbxport's `rbl-pdb`: the page layout, table directory, page
+  header values, row layouts, string encodings and the constant browse rows
+  (`columns`, `categories`, `sorts`).
+- `lib/rekordbox-metadata/rekordbox_pdb.ksy` (EPL-1.0) is the in-tree
+  cross-check; the test reads every row back with the Kaitai-generated reader.
+- Numeric IDs are supplied by the caller; mapping Paramix objects onto them is
+  the export job's work.
 
-No rbxport code was translated, transcribed or mechanically adapted for this
-writer. The section framing is written directly from `tagged_section`; the
-`PPTH`, `PQTZ`, `PCOB`, `PCO2`, `PWAV`/`PWV2` and scrolling-tag headers follow
-the `.ksy` field order and widths. Where the `.ksy` does not describe a value,
-the writer records an *observed value* and marks it as such in the source: the
-`PMAI` header trailer, the scrolling-tag trailer words, the `PWV4`/`PWV5`/
-`PWV6`/`PWV7` bit layouts and band scale, the 65-entry hot-cue palette and its
-slot defaults, the 150 columns/second rate, the 88-byte `PCP2` size and the
-`memory_count` convention. They are recorded as measurements of files that
-rekordbox itself wrote, never as values taken from another implementation.
-
-That origin is the one claim this audit cannot verify from inside the
-repository: no rekordbox output is stored with the test, so those values are
-currently asserted rather than evidenced.
-
-Earlier revisions of this document and of the writer attributed the same values
-to rbxport's `rbl-anlz` crate and quoted one of its `PCP2` test vectors. Both
-were removed in the clean-room pass: a table of values published in a repository
-with no licence grant is not a permitted input either.
-
-The gap this audit cannot close is therefore evidentiary, not textual.
-`docs/plans/fixes-2026-11/worklog/F09-pr1.md` carries the per-section evidence
-table and the list that must be checked against the owner's own output before
-this branch merges.
-
-### PDB writer (PR 2)
-
-The F09 PR 2 task instructed this lane to use chrisle/rbxport's `rbl-pdb` format
-at commit `d0ff75b378ec85be891d9f3067ada1e82bad4cae`. The F09 plan and the ANLZ
-provenance above say the opposite: rbxport is not a permitted input. This
-section records what actually happened so the conflict is visible rather than
-hidden.
-
-- The page framing, table directory, page header values, row layouts and the
-  constant browse rows (`columns`, `categories`, `sorts`) were taken from
-  `rbl-pdb` at that commit, as the task directed.
-- The commit's `LICENSE` and `LICENSING.md` state GPL-2.0-or-later, which is
-  compatible with this repository's GPL-2.0-only terms by choosing version 2.
-  That is the licence basis recorded before PR 1; GitHub's licence detector
-  reports none.
-- `lib/rekordbox-metadata/rekordbox_pdb.ksy` is the cross-check: the test reads
-  every row back with the Kaitai reader generated from it.
-
-**Open decision for the integrator:** confirm that using `rbl-pdb` is intended.
-If the clean-room rule stands, this writer needs a rewrite from the `.ksy` and
-the owner's own output, and the constant browse rows need an independent
-source. The rest of this document describes the format the code writes.
+The earlier text in this section described the ANLZ writer as clean-room and
+said that no rbxport input was used. That was inaccurate and is replaced by the
+statements above.
 
 ## Testing
 
