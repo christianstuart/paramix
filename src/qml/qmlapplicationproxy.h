@@ -65,7 +65,6 @@ class QmlApplicationProxy : public QObject {
     Q_INVOKABLE QString menuShortcut(
             const QString& command, const QString& defaultShortcut) const;
     Q_INVOKABLE void reloadSkin();
-    Q_INVOKABLE void restartApplication();
 
     static QmlApplicationProxy* create(QQmlEngine* pQmlEngine, QJSEngine* pJsEngine);
     static void registerUserSettings(UserSettingsPointer pConfig) {

@@ -12,18 +12,7 @@ bool restartApplication() {
         args.removeFirst();
     }
 
-    QStringList filteredArgs;
-    filteredArgs.reserve(args.size());
-    for (const QString& arg : args) {
-        if (arg == QStringLiteral("--new-ui") ||
-                arg == QStringLiteral("--qml") ||
-                arg == QStringLiteral("--allow-dangerous-data-corruption-risk")) {
-            continue;
-        }
-        filteredArgs.append(arg);
-    }
-
-    return QProcess::startDetached(QCoreApplication::applicationFilePath(), filteredArgs);
+    return QProcess::startDetached(QCoreApplication::applicationFilePath(), args);
 }
 
 } // namespace mixxx

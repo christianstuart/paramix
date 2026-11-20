@@ -34,9 +34,10 @@ build/paramix.exe
 ```
 
 `--new-ui` is obsolete and ignored; the QML interface always loads. Older
-shortcuts that still pass it start normally with a warning. The Mixxx 3.0
-data-corruption gate it used to enable has been removed: Paramix uses the same
-schema as the classic UI.
+shortcuts that still pass it start normally with a warning. The same applies to
+the old `--qml` and `--allow-dangerous-data-corruption-risk` flags. The Mixxx
+3.0 data-corruption gate the latter used to bypass has been removed: Paramix
+uses the same schema as the classic UI.
 
 QML edits need only a restart: the resource path resolves to the source `res/`
 via `CMakeCache.txt` (`src/preferences/configobject.cpp`), so the app reads

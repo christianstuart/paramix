@@ -288,18 +288,19 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     parser.addOption(stats);
 
 #ifdef MIXXX_USE_QML
-    // The QML interface is the only one. Keep accepting the old flags for one
-    // release so existing shortcuts and the Android manifest still start.
+    // The QML interface is the only one. Keep accepting the old UI-selection
+    // flags for one release so existing shortcuts and the Android manifest
+    // still start instead of failing on an unknown option.
     QCommandLineOption ignoredNewUi(QStringLiteral("new-ui"));
     ignoredNewUi.setFlags(QCommandLineOption::HiddenFromHelp);
     parser.addOption(ignoredNewUi);
-    QCommandLineOption ignoredQml(QStringLiteral("qml"),
-            forUserFeedback
-                    ? QCoreApplication::translate("CmdlineArgs",
-                              "Ignored, the QML interface is always used.")
-                    : QString());
+    QCommandLineOption ignoredQml(QStringLiteral("qml"));
     ignoredQml.setFlags(QCommandLineOption::HiddenFromHelp);
     parser.addOption(ignoredQml);
+    QCommandLineOption ignoredAllowDangerous(
+            QStringLiteral("allow-dangerous-data-corruption-risk"));
+    ignoredAllowDangerous.setFlags(QCommandLineOption::HiddenFromHelp);
+    parser.addOption(ignoredAllowDangerous);
 #endif
     const QCommandLineOption safeMode(QStringLiteral("safe-mode"),
             forUserFeedback ? QCoreApplication::translate("CmdlineArgs",
@@ -465,6 +466,15 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     if (parser.isSet(ignoredNewUi)) {
         qWarning() << "The argument '--new-ui' is obsolete and is ignored; "
                       "the QML interface is always used.";
+    }
+    if (parser.isSet(ignoredQml)) {
+        qWarning() << "The argument '--qml' is obsolete and is ignored; "
+                      "the QML interface is always used.";
+    }
+    if (parser.isSet(ignoredAllowDangerous)) {
+        qWarning() << "The argument '--allow-dangerous-data-corruption-risk' "
+                      "is obsolete and is ignored; the Mixxx 3.0 "
+                      "data-corruption gate no longer exists.";
     }
 #endif
     m_safeMode = parser.isSet(safeMode) || parser.isSet(safeModeDeprecated);
