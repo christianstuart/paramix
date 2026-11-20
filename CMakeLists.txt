@@ -3065,6 +3065,7 @@ if(BUILD_TESTING)
     src/test/rangelist_test.cpp
     src/test/readaheadmanager_test.cpp
     src/test/rekordboxexportanlztest.cpp
+    src/test/rekordboxexportpdbtest.cpp
     src/test/replaygaintest.cpp
     src/test/rescalertest.cpp
     src/test/rgbcolor_test.cpp
@@ -3591,11 +3592,12 @@ if(ENGINEPRIME)
   target_compile_definitions(mixxx-lib PUBLIC __ENGINEPRIME__)
 endif()
 
-# Rekordbox ANLZ writer.
+# Rekordbox ANLZ and PDB writers.
 target_sources(
   mixxx-lib
   PRIVATE
     src/library/export/rekordbox/rekordboxanlzwriter.cpp
+    src/library/export/rekordbox/rekordboxpdbwriter.cpp
 )
 
 # Ebur128
