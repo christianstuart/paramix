@@ -7,6 +7,7 @@ import QtQuick.Window
 import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
 import "Mixer" as MixerComponents
+import "ControllerMapping" as ControllerMappingComponents
 import "Theme"
 
 Item {
@@ -452,6 +453,30 @@ Item {
                             id: padFxWindow
 
                             deckCount: root.show4decks ? 4 : 2
+                        }
+                    }
+                    Skin.Button {
+                        id: showControllerMappingButton
+
+                        Accessible.name: qsTr("Open the MIDI controller mapping window")
+                        Layout.preferredWidth: 56
+                        activeColor: Theme.textOnAccent
+                        text: qsTr("Map")
+
+                        ToolTip.delay: 500
+                        ToolTip.text: qsTr("Map controls on your MIDI controller")
+                        ToolTip.visible: showControllerMappingButton.hovered
+
+                        onClicked: {
+                            controllerMappingWindow.show();
+                            controllerMappingWindow.raise();
+                            controllerMappingWindow.requestActivate();
+                        }
+
+                        ControllerMappingComponents.ControllerMappingWindow {
+                            id: controllerMappingWindow
+
+                            applicationWindow: root.applicationWindow
                         }
                     }
                     Skin.Button {
