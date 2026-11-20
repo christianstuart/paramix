@@ -5,26 +5,23 @@ import QtQuick.Controls 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Loop section: set in/out, toggle/reloop, fixed beatloops, a loop-roll row
-/// and an editable beatloop size.
+/// Loop card: the full height of the deck transport band.
 ///
-/// Laid out as a header row with the editable size and the Loop key, then
-/// three 15 px rows on a flat panel. A small status dot reports whether the
-/// loop is active without turning the panel into a coloured card. Fixed size
-/// keys use `beatloop_<size>_toggle`; the roll row is momentary and uses
-/// `beatlooproll_<size>_activate`.
+/// Four rows: a header with the editable beat size and the anchor, a scrolling
+/// row of fixed beat sizes with halve and double pinned at the ends, the
+/// In / Out / Loop / Rel / Stop transport row, and the loop-roll row. The
+/// beat-size row scrolls with a visible scrollbar; every former right-click
+/// action has its own visible key.
 Rectangle {
     id: root
 
     property color buttonColor: root.loaded ? Theme.textSecondary : Theme.textMuted
-    /// Sizes offered as fixed keys. The size field and the wheel reach the
-    /// full engine range (1/32 to 512 beats).
-    readonly property var fixedSizes: [0.5, 1, 2, 4, 8]
+    /// Sizes offered as fixed keys, 1/8 to 32. The size field and the wheel
+    /// reach the full engine range (1/32 to 512 beats).
+    readonly property var fixedSizes: [1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32]
     required property string group
     readonly property bool loaded: trackLoadedControl.value > 0
     readonly property var rollSizes: [0.5, 1, 2, 4]
-    /// 1 + 12 + 3 * 15 + 3 * 1 + 2 = 62, the height the deck gives the card.
-    readonly property int rowHeight: 15
 
     border.color: Theme.border
     border.width: 1
@@ -50,64 +47,37 @@ Rectangle {
         group: root.group
         key: "beatloop_size"
     }
+    // 1 px border plus the 2 px inset on each side.
     ColumnLayout {
+        anchors.bottomMargin: 1 + Theme.deckLoopInset
         anchors.fill: parent
-        anchors.margins: 1
-        spacing: 1
+        anchors.leftMargin: 1 + Theme.deckLoopInset
+        anchors.rightMargin: 1 + Theme.deckLoopInset
+        anchors.topMargin: 1 + Theme.deckLoopInset
+        spacing: Theme.deckLoopRowGap
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 12
-            spacing: 2
+            Layout.preferredHeight: Theme.deckLoopHeaderHeight
+            spacing: Theme.space1
 
-            // Starts a loop of the size in the field, so a typed 3 (or 1/3)
-            // is actually reachable without a matching fixed key. A plain
-            // Button with clicked() works for both pointer and keyboard.
-            Skin.Button {
-                id: loopActivateButton
-
-                Accessible.description: qsTr("Start a loop over the set number of beats")
-                Accessible.name: qsTr("Beatloop")
-                Layout.preferredHeight: 12
+            Text {
                 Layout.preferredWidth: 30
-                ToolTip.delay: 500
-                ToolTip.text: qsTr("Beatloop")
-                ToolTip.visible: loopActivateButton.hovered
-                enabled: root.loaded
-                implicitHeight: 12
-                implicitWidth: 30
+                color: Theme.textMuted
+                elide: Text.ElideRight
+                font.capitalization: Font.AllUppercase
+                font.family: Theme.fontFamily
+                font.letterSpacing: Theme.letterSpacingCaps
+                font.pixelSize: Math.min(Theme.fontSizeXs, Theme.deckLoopHeaderHeight - 4)
                 text: qsTr("Loop")
-
-                contentItem: Text {
-                    anchors.fill: parent
-                    anchors.leftMargin: 2
-                    anchors.rightMargin: 2
-                    color: loopActivateButton.labelColor
-                    elide: Text.ElideRight
-                    font.capitalization: Font.AllUppercase
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Math.min(Theme.fontSizeXs, 10)
-                    font.weight: Theme.fontWeightDemiBold
-                    horizontalAlignment: Text.AlignHCenter
-                    text: loopActivateButton.text
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                onClicked: beatloopActivateControl.trigger()
-
-                Mixxx.ControlProxy {
-                    id: beatloopActivateControl
-
-                    group: root.group
-                    key: "beatloop_activate"
-                }
+                verticalAlignment: Text.AlignVCenter
             }
             // The size is editable: 3 or 1/3 stick, which the power-of-two
-            // fixed keys below cannot express. Enter or focus loss commits.
+            // fixed keys cannot express. Enter or focus loss commits.
             Rectangle {
                 id: sizeField
 
-                Layout.preferredHeight: 12
+                Layout.preferredHeight: Theme.deckLoopHeaderHeight
                 Layout.preferredWidth: 46
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Beatloop Size")
@@ -129,14 +99,14 @@ Rectangle {
                         });
                     }
 
-                    Accessible.description: qsTr("Select the size of the loop in beats to set with the Beatloop button")
+                    Accessible.description: qsTr("Select the size of the loop in beats to set with the Loop key")
                     Accessible.name: qsTr("Beatloop size")
                     anchors.fill: parent
                     color: root.loaded ? Theme.textSecondary : Theme.textMuted
                     enabled: root.loaded
                     font.capitalization: Font.MixedCase
                     font.family: Theme.fontFamilyMono
-                    font.pixelSize: Theme.fontSizeXs
+                    font.pixelSize: Math.min(Theme.fontSizeXs, Theme.deckLoopHeaderHeight - 4)
                     horizontalAlignment: TextInput.AlignHCenter
                     leftPadding: 2
                     rightPadding: 2
@@ -144,8 +114,6 @@ Rectangle {
                     text: beatloopSize.valueText
                     verticalAlignment: TextInput.AlignVCenter
 
-                    // Esc restores the control value before focus leaves, so
-                    // the focus-loss commit below is a no-op.
                     Keys.onEscapePressed: {
                         this.update();
                         this.focus = false;
@@ -168,14 +136,14 @@ Rectangle {
 
                 Accessible.description: qsTr("Define whether the loop is created and adjusted from its starting point or ending point")
                 Accessible.name: qsTr("Beatloop anchor")
-                Layout.preferredHeight: 12
+                Layout.preferredHeight: Theme.deckLoopHeaderHeight
                 Layout.preferredWidth: 18
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Beatloop Anchor")
                 ToolTip.visible: loopAnchorButton.hovered
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: 12
+                implicitHeight: Theme.deckLoopHeaderHeight
                 implicitWidth: 18
                 key: "loop_anchor"
                 text: qsTr("A")
@@ -205,234 +173,304 @@ Rectangle {
                 }
             }
         }
-        RowLayout {
-            Layout.fillHeight: true
+        // Scrolling fixed beat sizes with halve and double pinned at the ends.
+        // The scrollbar under the viewport is the visible affordance; wheel and
+        // drag only make it faster.
+        Item {
             Layout.fillWidth: true
-            Layout.minimumHeight: 13
-            Layout.preferredHeight: root.rowHeight
+            Layout.preferredHeight: Theme.deckLoopBeatRowHeight
+
+            RowLayout {
+                id: beatKeysRow
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                // The app is laid out before the first pass gives this row its
+                // height, so a plain subtraction is negative there (and on a
+                // zero-height card). Never hand a negative height to the keys
+                // or to the font size below them.
+                height: Math.max(0, parent.height - 6)
+                spacing: 2
+
+                Skin.ControlButton {
+                    id: loopSizeHalveButton
+
+                    Accessible.description: qsTr("Halves the current loop's length by moving the end marker")
+                    Accessible.name: qsTr("Loop halve")
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 16
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Loop Halve")
+                    ToolTip.visible: loopSizeHalveButton.hovered
+                    enabled: root.loaded
+                    group: root.group
+                    implicitHeight: beatKeysRow.height
+                    implicitWidth: 16
+                    key: "loop_halve"
+                    text: qsTr("◀")
+                }
+                Flickable {
+                    id: beatFlick
+
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    clip: true
+                    contentHeight: height
+                    contentWidth: beatContent.width
+                    flickableDirection: Flickable.HorizontalFlick
+
+                    Row {
+                        id: beatContent
+
+                        height: beatFlick.height
+                        spacing: 2
+
+                        Repeater {
+                            model: root.fixedSizes
+
+                            Skin.ControlButton {
+                                id: fixedLoopButton
+
+                                required property double modelData
+
+                                Accessible.description: qsTr("Starts or exits a loop over %1 beats").arg(beatloopSize.formatBeatSize(fixedLoopButton.modelData))
+                                Accessible.name: qsTr("Beatloop %1 beats").arg(beatloopSize.formatBeatSize(fixedLoopButton.modelData))
+                                ToolTip.delay: 500
+                                ToolTip.text: qsTr("Beatloop")
+                                ToolTip.visible: fixedLoopButton.hovered
+                                enabled: root.loaded
+                                group: root.group
+                                height: beatContent.height
+                                highlight: fixedLoopEnabled.value > 0
+                                key: `beatloop_${fixedLoopButton.modelData}_toggle`
+                                text: beatloopSize.formatBeatSize(fixedLoopButton.modelData)
+                                width: 36
+
+                                contentItem: Text {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 1
+                                    anchors.rightMargin: 1
+                                    color: fixedLoopButton.labelColor
+                                    elide: Text.ElideRight
+                                    font.capitalization: Font.AllUppercase
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Math.max(1,
+                                            Math.min(Theme.fontSizeXs, fixedLoopButton.height - 8))
+                                    font.weight: Theme.fontWeightDemiBold
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: fixedLoopButton.text
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                Mixxx.ControlProxy {
+                                    id: fixedLoopEnabled
+
+                                    group: root.group
+                                    key: `beatloop_${fixedLoopButton.modelData}_enabled`
+                                }
+                            }
+                        }
+                    }
+                }
+                Skin.ControlButton {
+                    id: loopSizeDoubleButton
+
+                    Accessible.description: qsTr("Doubles the current loop's length by moving the end marker")
+                    Accessible.name: qsTr("Loop double")
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 16
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Loop Double")
+                    ToolTip.visible: loopSizeDoubleButton.hovered
+                    enabled: root.loaded
+                    group: root.group
+                    implicitHeight: beatKeysRow.height
+                    implicitWidth: 16
+                    key: "loop_double"
+                    text: qsTr("▶")
+                }
+            }
+            // Visible scrollbar for the beat-size viewport, not a hidden wheel
+            // gesture. Wheel and drag remain accelerators.
+            Rectangle {
+                id: scrollTrack
+
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.leftMargin: 18
+                anchors.right: parent.right
+                anchors.rightMargin: 18
+                color: Theme.surface3
+                height: 3
+                radius: Theme.radiusXs
+                visible: beatFlick.contentWidth > beatFlick.width
+
+                Rectangle {
+                    color: Theme.borderStrong
+                    height: parent.height
+                    radius: Theme.radiusXs
+                    // At a very narrow card the 12 px minimum thumb would be
+                    // wider than the track; clamp it back to the track so it
+                    // cannot paint over the halve/double keys.
+                    width: Math.min(scrollTrack.width, Math.max(12,
+                            scrollTrack.width * beatFlick.width
+                            / Math.max(1, beatFlick.contentWidth)))
+                    x: Math.max(0, Math.min(scrollTrack.width - width,
+                            beatFlick.contentX / Math.max(1, beatFlick.contentWidth) * scrollTrack.width))
+                }
+            }
+            WheelHandler {
+                onWheel: event => {
+                    const max = Math.max(0, beatFlick.contentWidth - beatFlick.width);
+                    beatFlick.contentX = Math.max(0, Math.min(max, beatFlick.contentX - event.angleDelta.y));
+                    event.accepted = true;
+                }
+            }
+        }
+        RowLayout {
+            Layout.fillHeight: false
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.deckLoopActionRowHeight
             spacing: 2
 
-            Skin.ControlButton {
-                id: loopInButton
-
-                Accessible.description: qsTr("Right click jumps to the loop in point")
-                Accessible.name: qsTr("Loop in")
+            // In and Out are split keys: the main face sets the point, the
+            // visible chevron segment jumps to it.
+            RowLayout {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 28
-                activeColor: Theme.textOnAccent
-                enabled: root.loaded
-                group: root.group
-                implicitHeight: root.rowHeight
-                key: "loop_in"
-                normalColor: root.buttonColor
-                text: qsTr("In")
+                spacing: 1
 
-                Skin.ControlProxyButtonBehavior {
-                    id: loopInGotoBehavior
+                Skin.ControlButton {
+                    id: loopInButton
 
-                    group: root.group
-                    handlePointerInput: false
-                    key: "loop_in"
-                    rightClickKey: "loop_in_goto"
-                }
-                MouseArea {
-                    acceptedButtons: Qt.RightButton
-                    anchors.fill: parent
+                    Accessible.description: qsTr("Sets the loop in point. The arrow key beside it jumps there.")
+                    Accessible.name: qsTr("Loop in")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 28
+                    activeColor: Theme.textOnAccent
                     enabled: root.loaded
+                    group: root.group
+                    implicitHeight: Theme.deckLoopActionRowHeight
+                    key: "loop_in"
+                    normalColor: root.buttonColor
+                    text: qsTr("In")
+                }
+                Skin.ControlButton {
+                    id: loopInGotoButton
 
-                    onCanceled: {
-                        loopInGotoBehavior.releaseSecondary();
-                    }
-                    onPressed: function (mouse) {
-                        loopInGotoBehavior.pressSecondary(mouse.x, mouse.y);
-                    }
-                    onReleased: {
-                        loopInGotoBehavior.releaseSecondary();
-                    }
+                    Accessible.name: qsTr("Jump to loop in")
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 14
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Jump to loop in")
+                    ToolTip.visible: loopInGotoButton.hovered
+                    enabled: root.loaded
+                    group: root.group
+                    implicitHeight: Theme.deckLoopActionRowHeight
+                    implicitWidth: 14
+                    key: "loop_in_goto"
+                    text: "^"
+                }
+            }
+            RowLayout {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                spacing: 1
+
+                Skin.ControlButton {
+                    id: loopOutButton
+
+                    Accessible.description: qsTr("Sets the loop out point. The arrow key beside it jumps there.")
+                    Accessible.name: qsTr("Loop out")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 28
+                    activeColor: Theme.textOnAccent
+                    enabled: root.loaded
+                    group: root.group
+                    implicitHeight: Theme.deckLoopActionRowHeight
+                    key: "loop_out"
+                    normalColor: root.buttonColor
+                    text: qsTr("Out")
+                }
+                Skin.ControlButton {
+                    id: loopOutGotoButton
+
+                    Accessible.name: qsTr("Jump to loop out")
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 14
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Jump to loop out")
+                    ToolTip.visible: loopOutGotoButton.hovered
+                    enabled: root.loaded
+                    group: root.group
+                    implicitHeight: Theme.deckLoopActionRowHeight
+                    implicitWidth: 14
+                    key: "loop_out_goto"
+                    text: "v"
                 }
             }
             Skin.ControlButton {
-                id: loopOutButton
+                id: loopActivateButton
 
-                Accessible.description: qsTr("Right click jumps to the loop out point")
-                Accessible.name: qsTr("Loop out")
+                Accessible.description: qsTr("Start a loop over the set number of beats")
+                Accessible.name: qsTr("Beatloop")
                 Layout.fillHeight: true
-                Layout.fillWidth: true
-                Layout.minimumWidth: 28
-                activeColor: Theme.textOnAccent
+                Layout.preferredWidth: 42
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Beatloop")
+                ToolTip.visible: loopActivateButton.hovered
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: root.rowHeight
-                key: "loop_out"
-                normalColor: root.buttonColor
-                text: qsTr("Out")
-
-                Skin.ControlProxyButtonBehavior {
-                    id: loopOutGotoBehavior
-
-                    group: root.group
-                    handlePointerInput: false
-                    key: "loop_out"
-                    rightClickKey: "loop_out_goto"
-                }
-                MouseArea {
-                    acceptedButtons: Qt.RightButton
-                    anchors.fill: parent
-                    enabled: root.loaded
-
-                    onCanceled: {
-                        loopOutGotoBehavior.releaseSecondary();
-                    }
-                    onPressed: function (mouse) {
-                        loopOutGotoBehavior.pressSecondary(mouse.x, mouse.y);
-                    }
-                    onReleased: {
-                        loopOutGotoBehavior.releaseSecondary();
-                    }
-                }
+                implicitHeight: Theme.deckLoopActionRowHeight
+                implicitWidth: 42
+                key: "beatloop_activate"
+                text: qsTr("Loop")
             }
             Skin.ControlButton {
                 id: loopRecallButton
 
-                Accessible.description: qsTr("Right click enables the loop, jumps to the loop in point and stops playback")
+                Accessible.description: qsTr("Exit the active loop, or reloop the last one")
                 Accessible.name: loopEnabled.value ? qsTr("Exit loop") : qsTr("Reloop")
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 40
+                Layout.minimumWidth: 36
                 ToolTip.delay: 500
                 ToolTip.text: loopEnabled.value ? qsTr("Exit loop") : qsTr("Reloop")
                 ToolTip.visible: loopRecallButton.hovered
                 activeColor: Theme.textOnAccent
                 enabled: root.loaded
                 group: root.group
-                implicitHeight: root.rowHeight
+                implicitHeight: Theme.deckLoopActionRowHeight
                 key: loopEnabled.value ? "loop_enabled" : "reloop_toggle"
                 normalColor: root.buttonColor
-                // "Rel" is the hardware shorthand; the full word elides to
-                // "REL…" at this panel width.
                 text: loopEnabled.value ? qsTr("Exit") : qsTr("Rel")
                 toggleable: loopEnabled.value
+            }
+            Skin.ControlButton {
+                id: reloopAndStopButton
 
-                // Right click reloops and stops, the classic gesture.
-                MouseArea {
-                    acceptedButtons: Qt.RightButton
-                    anchors.fill: parent
-                    enabled: root.loaded
-
-                    onPressed: reloopAndStopControl.trigger()
-
-                    Mixxx.ControlProxy {
-                        id: reloopAndStopControl
-
-                        group: root.group
-                        key: "reloop_andstop"
-                    }
-                }
+                Accessible.description: qsTr("Enable the loop, jump to its in point and stop playback")
+                Accessible.name: qsTr("Reloop and stop")
+                Layout.fillHeight: true
+                Layout.preferredWidth: 38
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Reloop and stop")
+                ToolTip.visible: reloopAndStopButton.hovered
+                enabled: root.loaded
+                group: root.group
+                implicitHeight: Theme.deckLoopActionRowHeight
+                implicitWidth: 38
+                key: "reloop_andstop"
+                text: qsTr("Stop")
             }
         }
         RowLayout {
-            Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 13
-            Layout.preferredHeight: root.rowHeight
-            spacing: 1
-
-            Skin.ControlButton {
-                id: loopSizeHalveButton
-
-                Accessible.description: qsTr("Halves the current loop's length by moving the end marker")
-                Accessible.name: qsTr("Loop halve")
-                Layout.fillHeight: true
-                Layout.preferredWidth: 14
-                ToolTip.delay: 500
-                ToolTip.text: qsTr("Loop Halve")
-                ToolTip.visible: loopSizeHalveButton.hovered
-                enabled: root.loaded
-                group: root.group
-                implicitHeight: root.rowHeight
-                implicitWidth: 14
-                key: "loop_halve"
-                text: qsTr("◀")
-            }
-            Repeater {
-                model: root.fixedSizes
-
-                Skin.ControlButton {
-                    id: fixedLoopButton
-
-                    required property double modelData
-
-                    Accessible.description: qsTr("Starts or exits a loop over %1 beats").arg(beatloopSize.formatBeatSize(fixedLoopButton.modelData))
-                    Accessible.name: qsTr("Beatloop %1 beats").arg(beatloopSize.formatBeatSize(fixedLoopButton.modelData))
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    ToolTip.delay: 500
-                    ToolTip.text: qsTr("Beatloop")
-                    ToolTip.visible: fixedLoopButton.hovered
-                    enabled: root.loaded
-                    group: root.group
-                    highlight: fixedLoopEnabled.value > 0
-                    implicitHeight: root.rowHeight
-                    key: `beatloop_${fixedLoopButton.modelData}_toggle`
-                    text: beatloopSize.formatBeatSize(fixedLoopButton.modelData)
-
-                    // Tight face: at fontScale 1.35 the default 6 px label
-                    // margins elide "1/2" in a 29 px key.
-                    contentItem: Text {
-                        anchors.fill: parent
-                        anchors.leftMargin: 1
-                        anchors.rightMargin: 1
-                        color: fixedLoopButton.labelColor
-                        elide: Text.ElideRight
-                        font.capitalization: Font.AllUppercase
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeXs
-                        font.weight: Theme.fontWeightDemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        text: fixedLoopButton.text
-                        verticalAlignment: Text.AlignVCenter
-                    }
-
-                    Mixxx.ControlProxy {
-                        id: fixedLoopEnabled
-
-                        group: root.group
-                        key: `beatloop_${fixedLoopButton.modelData}_enabled`
-                    }
-                }
-            }
-            Skin.ControlButton {
-                id: loopSizeDoubleButton
-
-                Accessible.description: qsTr("Doubles the current loop's length by moving the end marker")
-                Accessible.name: qsTr("Loop double")
-                Layout.fillHeight: true
-                Layout.preferredWidth: 14
-                ToolTip.delay: 500
-                ToolTip.text: qsTr("Loop Double")
-                ToolTip.visible: loopSizeDoubleButton.hovered
-                enabled: root.loaded
-                group: root.group
-                implicitHeight: root.rowHeight
-                implicitWidth: 14
-                key: "loop_double"
-                text: qsTr("▶")
-            }
-            WheelHandler {
-                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-
-                onWheel: event => {
-                    beatloopSize.step(event.angleDelta.y < 0 ? -1 : 1);
-                }
-            }
-        }
-        RowLayout {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.minimumHeight: 13
-            Layout.preferredHeight: root.rowHeight
+            Layout.preferredHeight: Theme.deckLoopRollRowHeight
             spacing: 2
 
             Text {
@@ -442,7 +480,7 @@ Rectangle {
                 font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
                 font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Math.min(Theme.fontSizeXs, 10)
+                font.pixelSize: Math.min(Theme.fontSizeXs, Theme.deckLoopRollRowHeight - 4)
                 text: qsTr("Roll")
                 verticalAlignment: Text.AlignVCenter
             }
@@ -464,7 +502,7 @@ Rectangle {
                     ToolTip.visible: rollButton.hovered
                     enabled: root.loaded
                     group: root.group
-                    implicitHeight: root.rowHeight
+                    implicitHeight: Theme.deckLoopRollRowHeight
                     key: `beatlooproll_${rollButton.modelData}_activate`
                     text: beatloopSize.formatBeatSize(rollButton.modelData)
                 }

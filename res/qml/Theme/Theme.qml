@@ -325,9 +325,33 @@ QtObject {
     /// shorter mixer, which is what made the panes read wrong.
     /// 4 + 52 (header) + 134 (toolbar 22 + pane 112) + 4 + 46 (overview) = 240.
     readonly property int deckMinHeight: Math.round(240 * uiScale)
-    /// Height of the MOVE / CUE / GRID / STEMS pane. 112 is the smallest height
-    /// that keeps a wrapped 2 x 2 stem lane usable.
+    /// Height of the MOVE / CUE / GRID deck band: the horizontal tab row plus
+    /// the pane content. Kept constant so the waveform, library and deck height
+    /// do not move when panes change.
     readonly property int deckPaneHeight: Math.round(112 * uiScale)
+    /// Horizontal pane tab row above the pane (CUE / MOVE / GRID).
+    readonly property int deckPaneTabHeight: Math.round(16 * uiScale)
+    /// Visible pane below the tab row and its gap. Floored at zero: a pane
+    /// height below the tab row would otherwise feed negative sizes into the
+    /// pane contents while the deck is being laid out.
+    readonly property int deckPaneContentHeight: Math.max(0,
+            deckPaneHeight - deckPaneTabHeight - space1)
+    /// Hard floor the pane may not shrink below beside the loop card.
+    readonly property int deckPaneMinWidth: 196
+    /// Width of the loop card. Fixed rather than scaled so the 196 px pane
+    /// minimum still fits at a 564 px deck at every uiScale.
+    readonly property int deckLoopCardWidth: 224
+    /// Loop-card row metrics. The beat row takes what the fixed rows leave, so
+    /// the card always fills deckPaneHeight exactly.
+    readonly property int deckLoopInset: Math.max(1, Math.round(space1 / 2))
+    readonly property int deckLoopRowGap: 1
+    readonly property int deckLoopHeaderHeight: space4
+    readonly property int deckLoopActionRowHeight: space5
+    readonly property int deckLoopRollRowHeight: space5
+    readonly property int deckLoopBeatRowHeight: Math.max(0,
+            deckPaneHeight - 2 - 2 * deckLoopInset
+            - deckLoopHeaderHeight - deckLoopActionRowHeight - deckLoopRollRowHeight
+            - 3 * deckLoopRowGap)
 
     // Deck-local width gates: the spinny/FX column hides first, then the tempo
     // strip, each at its own deck width rather than the window's. The row is

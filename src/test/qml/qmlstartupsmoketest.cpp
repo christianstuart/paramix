@@ -469,6 +469,19 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
     QObject* pTheme = resolveTheme(pMainWindow);
     ASSERT_NE(nullptr, pTheme) << "Theme singleton not found in the skin context";
 
+    // F07 Candidate A pins the deck band at 112: a 16 px tab row, a 4 px gap
+    // and a 92 px pane. The measured pane is the visible content below the
+    // tabs, not the whole band, so the assertions use the tokens instead of a
+    // hard-coded floor that a Theme edit could silently lower.
+    const int paneMinHeight = pTheme->property("deckPaneContentHeight").toInt();
+    const int tabsMinHeight = pTheme->property("deckPaneTabHeight").toInt();
+    EXPECT_EQ(92, paneMinHeight)
+            << "Theme.deckPaneContentHeight changed; re-check the F07 band "
+               "arithmetic (112 - 16 - 4) and the loop card row sum";
+    EXPECT_EQ(16, tabsMinHeight)
+            << "Theme.deckPaneTabHeight changed; the CUE / MOVE / GRID row is "
+               "one 16 px key high";
+
     // Wait until the Loaders have created their content: a shrink while items
     // are still being created measures half-built bands.
     {
@@ -608,6 +621,7 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
         // failure.
         qreal tallestFx = 0;
         qreal tallestPane = 0;
+        qreal tallestTabs = 0;
         for (int sample = 0; sample < 10; ++sample) {
             QCoreApplication::processEvents();
             QThread::msleep(100);
@@ -623,6 +637,12 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
                     tallestPane = std::max(tallestPane, pPane->height());
                 }
             }
+            for (QQuickItem* pTabs :
+                    findItemsByObjectName(pMainWindow, QStringLiteral("deckPaneTabs"))) {
+                if (pTabs->isVisible()) {
+                    tallestTabs = std::max(tallestTabs, pTabs->height());
+                }
+            }
         }
 
         // The deck's FX-assign column sits under the jog wheel in the same row
@@ -633,8 +653,15 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
                     << "FX-assign keys squeezed at " << size.width() << "x"
                     << size.height() << ": " << tallestFx << "px";
         }
+        // The horizontal CUE / MOVE / GRID row above the pane is 16 px; a
+        // squeezed deck used to drop it or let the pane take its space.
+        if (tallestTabs > 0) {
+            EXPECT_GE(tallestTabs, tabsMinHeight)
+                    << "Pane tab row squeezed at " << size.width() << "x"
+                    << size.height() << ": " << tallestTabs << "px";
+        }
         if (tallestPane > 0) {
-            EXPECT_GE(tallestPane, 110)
+            EXPECT_GE(tallestPane, paneMinHeight)
                     << "Deck pane squeezed at " << size.width() << "x" << size.height()
                     << ": " << tallestPane << "px";
         }

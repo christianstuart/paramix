@@ -27,11 +27,9 @@ Item {
     property bool minimized: false
     /// Persisted per deck so the chosen pane survives a restart.
     readonly property string paneControlKey: "deck" + group.replace(/[^0-9]/g, "") + "_pane"
-    /// Height shared by the MOVE / CUE / GRID pane, the loop card and the tab
-    /// stack: the pane sits beside the loop-size selector inside the transport
-    /// block, so all three line up top and bottom.
+    /// Height shared by the MOVE / CUE / GRID pane band and the full-height
+    /// loop card inside the transport block, so both line up top and bottom.
     readonly property int paneHeight: Theme.deckPaneHeight
-    readonly property int paneTabsHeight: Theme.deckPaneHeight
 
     signal toggleFocus
 
@@ -97,9 +95,8 @@ Item {
                                 },
                                 {
                                     // Transport row: play/cue on the left, then
-                                    // the toolbar over the loop card, with the
-                                    // MOVE/CUE/GRID selector pinned to the right
-                                    // edge of that same row.
+                                    // the full-height loop card and the pane
+                                    // column with its horizontal tabs above it.
                                     "type": "transport",
                                     "items": [
                                         {
@@ -123,20 +120,18 @@ Item {
                                                     "type": "vinyl"
                                                 },
                                                 {
-                                                    // The active pane sits beside the
-                                                    // loop-size selector, inside the
-                                                    // transport block: pane, loop card,
-                                                    // then the MOVE/CUE/GRID tabs.
+                                                    // Loop card on the left, the pane
+                                                    // column on the right: the
+                                                    // CUE/MOVE/GRID row sits above
+                                                    // the pane, so there is no
+                                                    // vertical tab column.
                                                     "type": "row",
                                                     "items": [
-                                                        {
-                                                            "type": "deckPane"
-                                                        },
                                                         {
                                                             "type": "loop"
                                                         },
                                                         {
-                                                            "type": "paneTabs"
+                                                            "type": "deckPane"
                                                         }
                                                     ]
                                                 }
@@ -298,12 +293,17 @@ Item {
 
             LayoutItem {
                 Layout.alignment: Qt.AlignVCenter
-                // Fixed width card: the spacer before it absorbs the slack, so
-                // the loop sits flush against the pane selector on the right.
-                Layout.maximumWidth: 185
-                Layout.minimumWidth: 120
-                Layout.preferredHeight: 62
-                Layout.preferredWidth: 185
+                // The card fills the 112 px band and keeps the pane's 196 px
+                // minimum beside it at the 564 px deck the 1280 window gives.
+                // Min, max and preferred are all the band height so a layout
+                // cannot stretch the card away from the pane beside it.
+                Layout.maximumHeight: root.paneHeight
+                Layout.maximumWidth: Theme.deckLoopCardWidth
+                Layout.minimumHeight: root.paneHeight
+                Layout.minimumWidth: Theme.deckLoopCardWidth
+                Layout.preferredHeight: root.paneHeight
+                Layout.preferredWidth: Theme.deckLoopCardWidth
+                Layout.rightMargin: Theme.space1
 
                 DeckComponent.Loop {
                     anchors.fill: parent
@@ -317,95 +317,96 @@ Item {
             LayoutItem {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
+                Layout.maximumHeight: root.paneHeight
                 Layout.minimumHeight: root.paneHeight
-                // 196, not 200: the tempo strip then still fits a 564 px deck,
-                // which is what a 1280 px window (the layout floor) gives.
-                Layout.minimumWidth: 196
+                // 196, not 200: the loop card and the tempo strip still fit a
+                // 564 px deck, which is what a 1280 px window gives.
+                Layout.minimumWidth: Theme.deckPaneMinWidth
                 Layout.preferredHeight: root.paneHeight
-                height: root.paneHeight
-                objectName: "deckPane"
 
-                // One stacked host keeps the pane band at a constant height, so
-                // switching tabs never reflows the transport above it.
-                //
-                // The three panes live inside one wrapper item: the layout item
-                // can only own a single content child, and stacking them here
-                // keeps the host geometry independent of the active tab.
-                Item {
-                    id: paneStack
-
+                ColumnLayout {
                     anchors.fill: parent
+                    spacing: Theme.space1
 
-                    // The band itself. Each pane paints its own plate on top of
-                    // this, but the host keeps a frame visible if a pane is ever
-                    // hidden, so the strip cannot read as a hole in the deck.
-                    Rectangle {
-                        anchors.fill: parent
-                        border.color: Theme.border
-                        border.width: 1
-                        color: Theme.surface1
-                        radius: Theme.radiusMd
+                    // Horizontal CUE / MOVE / GRID tabs above the pane. The
+                    // 16 px row replaces the old 34 px vertical column without
+                    // changing the band height.
+                    DeckComponent.DeckPaneTabs {
+                        Layout.fillWidth: true
+                        Layout.maximumHeight: Theme.deckPaneTabHeight
+                        Layout.minimumHeight: Theme.deckPaneTabHeight
+                        Layout.preferredHeight: Theme.deckPaneTabHeight
+                        activePane: root.activePane
+                        gridLocked: bpmlockControl.value > 0
+
+                        onSelected: pane => root.showPane(pane)
                     }
-                    DeckComponent.BeatJump {
-                        id: movePane
+                    // One stacked host keeps the pane band at a constant height,
+                    // so switching tabs never reflows the transport above it.
+                    //
+                    // The three panes live inside one wrapper item: the layout
+                    // item can only own a single content child, and stacking
+                    // them here keeps the host geometry independent of the
+                    // active tab.
+                    Item {
+                        id: paneStack
 
-                        anchors.fill: parent
-                        group: root.group
-                        visible: root.activePane === Deck.Pane.Move
+                        Layout.fillHeight: true
+                        Layout.fillWidth: true
+                        Layout.maximumHeight: Theme.deckPaneContentHeight
+                        Layout.minimumHeight: Theme.deckPaneContentHeight
+                        objectName: "deckPane"
 
-                        Skin.FadeBehavior on visible {
-                            fadeTarget: movePane
+                        // The pane plate. Each pane paints its own plate on top
+                        // of this, but the host keeps a frame visible if a pane
+                        // is ever hidden, so the strip cannot read as a hole in
+                        // the deck.
+                        Rectangle {
+                            anchors.fill: parent
+                            border.color: Theme.border
+                            border.width: 1
+                            color: Theme.surface1
+                            radius: Theme.radiusMd
+                        }
+                        DeckComponent.BeatJump {
+                            id: movePane
+
+                            anchors.fill: parent
+                            group: root.group
+                            visible: root.activePane === Deck.Pane.Move
+
+                            Skin.FadeBehavior on visible {
+                                fadeTarget: movePane
+                            }
+                        }
+                        DeckComponent.HotcueAndStem {
+                            id: cuePane
+
+                            anchors.fill: parent
+                            currentTrack: root.currentTrack
+                            group: root.group
+                            // Cue is the fallback pane: it stays visible unless
+                            // the selector explicitly asks for another tab, so
+                            // the strip is never empty for an out-of-range
+                            // selection.
+                            visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid
+
+                            Skin.FadeBehavior on visible {
+                                fadeTarget: cuePane
+                            }
+                        }
+                        DeckComponent.GridPane {
+                            id: gridPane
+
+                            anchors.fill: parent
+                            group: root.group
+                            visible: root.activePane === Deck.Pane.Grid
+
+                            Skin.FadeBehavior on visible {
+                                fadeTarget: gridPane
+                            }
                         }
                     }
-                    DeckComponent.HotcueAndStem {
-                        id: cuePane
-
-                        anchors.fill: parent
-                        currentTrack: root.currentTrack
-                        group: root.group
-                        // Cue is the fallback pane: it stays visible unless the
-                        // selector explicitly asks for another tab, so the
-                        // strip is never empty for an out-of-range selection.
-                        visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid
-
-                        Skin.FadeBehavior on visible {
-                            fadeTarget: cuePane
-                        }
-                    }
-                    DeckComponent.GridPane {
-                        id: gridPane
-
-                        anchors.fill: parent
-                        group: root.group
-                        visible: root.activePane === Deck.Pane.Grid
-
-                        Skin.FadeBehavior on visible {
-                            fadeTarget: gridPane
-                        }
-                    }
-                }
-            }
-        }
-        DelegateChoice {
-            roleValue: "paneTabs"
-
-            LayoutItem {
-                Layout.alignment: Qt.AlignVCenter
-                Layout.maximumHeight: root.paneTabsHeight
-                Layout.maximumWidth: 34
-                Layout.minimumHeight: root.paneTabsHeight
-                Layout.minimumWidth: 34
-                Layout.preferredHeight: root.paneTabsHeight
-                Layout.preferredWidth: 34
-                height: root.paneTabsHeight
-                width: 34
-
-                DeckComponent.DeckPaneTabs {
-                    activePane: root.activePane
-                    anchors.fill: parent
-                    gridLocked: bpmlockControl.value > 0
-
-                    onSelected: pane => root.showPane(pane)
                 }
             }
         }

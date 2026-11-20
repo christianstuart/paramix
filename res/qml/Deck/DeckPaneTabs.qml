@@ -3,14 +3,13 @@ import QtQuick 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Vertical MOVE / CUE / GRID selector for the deck pane stack.
+/// Horizontal CUE / MOVE / GRID selector above the deck pane.
 ///
-/// Traktor puts this stacked selector at the right edge of the loop row, one
-/// block wide, with the active pane filled by the accent. The stack is exactly
-/// as tall as the loop card next to it, so the two read as one row and neither
-/// can overlap the other. The host is a constant height, so switching panes
-/// never reflows the transport and the pane strip below stays put.
-ColumnLayout {
+/// The row is one tab high and spans the pane width, so the deck's transport
+/// band stays the same height while the old 34 px vertical column is gone. The
+/// active pane is filled by the accent; the grid lock badge stays on the GRID
+/// tab so the state is visible from every pane.
+RowLayout {
     id: root
 
     /// 0 = Move (beatjump), 1 = Cue (hotcues), 2 = Grid (beatgrid).
@@ -20,6 +19,7 @@ ColumnLayout {
 
     signal selected(int pane)
 
+    objectName: "deckPaneTabs"
     spacing: Theme.space1
 
     Repeater {
@@ -52,8 +52,16 @@ ColumnLayout {
 
             Layout.fillHeight: true
             Layout.fillWidth: true
-            Layout.minimumHeight: 16
+            // Pin the whole height contract, not just the minimum: the row is
+            // 16 px while a plain Button implies 26, and a parent layout that
+            // is only told about the cap can shrink the row (and the pane
+            // below it) to resolve the deficit. Matching implicit and preferred
+            // to the tab height makes the row's own hint 16 as well.
+            Layout.maximumHeight: Theme.deckPaneTabHeight
+            Layout.minimumHeight: Theme.deckPaneTabHeight
+            Layout.preferredHeight: Theme.deckPaneTabHeight
             highlight: tab.current
+            implicitHeight: Theme.deckPaneTabHeight
             normalColor: Theme.textMuted
 
             Accessible.checkable: true
@@ -67,7 +75,7 @@ ColumnLayout {
                 font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
                 font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Theme.fontSizeXs
+                font.pixelSize: Math.min(Theme.fontSizeXs, Theme.deckPaneTabHeight - 4)
                 font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
                 text: tab.modelData.label
@@ -76,15 +84,14 @@ ColumnLayout {
 
             onClicked: root.selected(tab.modelData.pane)
 
-            // BPM-lock badge: the grid lock stays visible from every pane, so
-            // dropping the toolbar's Beatgrid key does not hide that state.
+            // BPM-lock badge: the grid lock stays visible from every pane.
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
-                anchors.topMargin: 3
+                anchors.topMargin: 2
                 color: tab.activeState ? Theme.textOnAccent : Theme.accent
-                height: 3
-                radius: 1.5
+                height: 2
+                radius: 1
                 visible: tab.modelData.pane === 2 && root.gridLocked
                 width: 12
             }
