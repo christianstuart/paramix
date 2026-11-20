@@ -14,7 +14,6 @@
 #include "util/cmdlineargs.h"
 #include "util/desktophelper.h"
 #include "util/experiment.h"
-#include "util/restartapplication.h"
 #include "vinylcontrol/defs_vinylcontrol.h"
 
 namespace {
@@ -744,21 +743,6 @@ void WMainMenuBar::initialize() {
         slotVisitUrl(QUrl(MIXXX_TRANSLATION_URL));
     });
     pHelpMenu->addAction(pHelpTranslation);
-
-    // Restart into the Paramix QML interface. The reverse switch lives in the
-    // QML interface's customizer.
-    QString qmlInterfaceTitle = tr("Use &Paramix QML Interface");
-    QString qmlInterfaceText = tr("Restart in the Paramix QML interface.");
-    auto* pHelpQmlInterface = new QAction(qmlInterfaceTitle, this);
-    pHelpQmlInterface->setStatusTip(qmlInterfaceText);
-    pHelpQmlInterface->setWhatsThis(
-            buildWhatsThis(qmlInterfaceTitle, qmlInterfaceText));
-    connect(pHelpQmlInterface, &QAction::triggered, this, [] {
-        if (mixxx::restartApplication(true)) {
-            QCoreApplication::quit();
-        }
-    });
-    pHelpMenu->addAction(pHelpQmlInterface);
 
     pHelpMenu->addSeparator();
 

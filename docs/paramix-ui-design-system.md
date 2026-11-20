@@ -115,13 +115,14 @@ Waveform playhead position, waveform style and stem lane stacking use the
 existing `[Waveform]` settings (`PlayMarkerPosition`, `WaveformType`,
 `StemSplitTracks`).
 
-The Paramix options live in the native Preferences dialog: appearance and
-layout on **Interface**, the fourth EQ band on **Mixer**, and the waveform
-settings on **Waveform**. The old QML settings popup is retired.
+The QML scene reads these `[Paramix]` keys. The flag-absent behavior, which is
+now the only behavior, keeps the Paramix group box on the native **Interface**
+page and the fourth EQ band checkbox on **Mixer** hidden; re-exposing those
+controls there is a separate follow-up. The old QML settings popup is retired.
 
-The Interface page no longer offers **Switch to classic Mixxx interface**; the
-native Help menu has the reverse action, **Use Paramix QML Interface**, which
-restarts with `--new-ui`.
+The Interface page no longer offers **Switch to classic Mixxx interface**, and
+the native Help menu no longer has the reverse action; the QML interface is
+always used. `--new-ui` and `--qml` are obsolete and ignored.
 
 ## 7. Scope and status
 

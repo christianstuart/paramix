@@ -14,7 +14,6 @@
 #include "library/libraryview.h"
 #include "mixer/playermanager.h"
 #include "moc_librarycontrol.cpp"
-#include "util/cmdlineargs.h"
 #include "widget/wlibrary.h"
 #include "widget/wlibrarysidebar.h"
 #include "widget/wsearchlineedit.h"
@@ -111,9 +110,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pMoveUp = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "MoveUp"));
     m_pMoveDown = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "MoveDown"));
     m_pMoveVertical = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "MoveVertical"), false);
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pMoveUp.get(),
                 &ControlPushButton::valueChanged,
@@ -133,9 +129,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pScrollUp = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "ScrollUp"));
     m_pScrollDown = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "ScrollDown"));
     m_pScrollVertical = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "ScrollVertical"), false);
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pScrollUp.get(),
                 &ControlPushButton::valueChanged,
@@ -155,9 +148,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pMoveLeft = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "MoveLeft"));
     m_pMoveRight = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "MoveRight"));
     m_pMoveHorizontal = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "MoveHorizontal"), false);
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pMoveLeft.get(),
                 &ControlPushButton::valueChanged,
@@ -178,9 +168,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pMoveFocusForward = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "MoveFocusForward"));
     m_pMoveFocusBackward = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "MoveFocusBackward"));
     m_pMoveFocus = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "MoveFocus"), false);
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pMoveFocusForward.get(),
                 &ControlPushButton::valueChanged,
@@ -202,9 +189,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pMoveTrackDown = std::make_unique<ControlPushButton>(
             ConfigKey("[Library]", "MoveTrackDown"));
     m_pMoveTrack = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "MoveTrack"), false);
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pMoveTrackUp.get(),
                 &ControlPushButton::valueChanged,
@@ -224,9 +208,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pFocusedWidgetCO = std::make_unique<ControlPushButton>(
             ConfigKey("[Library]", "focused_widget"));
     m_pFocusedWidgetCO->setStates(static_cast<int>(FocusWidget::Count));
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         m_pFocusedWidgetCO->connectValueChangeRequest(
                 this,
@@ -251,9 +232,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pRefocusPrevWidgetCO = std::make_unique<ControlPushButton>(
             ConfigKey("[Library]", "refocus_prev_widget"));
     m_pRefocusPrevWidgetCO->setButtonMode(mixxx::control::ButtonMode::Trigger);
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         m_pRefocusPrevWidgetCO->connectValueChangeRequest(this,
                 &LibraryControl::refocusPrevLibraryWidget);
@@ -261,9 +239,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
 
     // Control to "edit" the currently selected item/field in focused widget (context dependent)
     m_pEditItem = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "EditItem"));
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pEditItem.get(),
                 &ControlPushButton::valueChanged,
@@ -273,9 +248,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
 
     // Control to "goto" the currently selected item in focused widget (context dependent)
     m_pGoToItem = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "GoToItem"));
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pGoToItem.get(),
                 &ControlPushButton::valueChanged,
@@ -287,9 +259,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pAutoDjAddTop = std::make_unique<ControlPushButton>(ConfigKey("[Library]", "AutoDjAddTop"));
     m_pAutoDjAddTop->addAlias(ConfigKey(
             QStringLiteral("[Playlist]"), QStringLiteral("AutoDjAddTop")));
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pAutoDjAddTop.get(),
                 &ControlPushButton::valueChanged,
@@ -301,9 +270,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
             ConfigKey("[Library]", "AutoDjAddBottom"));
     m_pAutoDjAddBottom->addAlias(ConfigKey(
             QStringLiteral("[Playlist]"), QStringLiteral("AutoDjAddBottom")));
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pAutoDjAddBottom.get(),
                 &ControlPushButton::valueChanged,
@@ -313,9 +279,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
 
     m_pAutoDjAddReplace = std::make_unique<ControlPushButton>(
             ConfigKey("[Library]", "AutoDjAddReplace"));
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pAutoDjAddReplace.get(),
                 &ControlPushButton::valueChanged,
@@ -330,9 +293,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
     m_pSortColumnToggle = std::make_unique<ControlEncoder>(ConfigKey("[Library]", "sort_column_toggle"), false);
     m_pSortFocusedColumn = std::make_unique<ControlPushButton>(
             ConfigKey("[Library]", "sort_focused_column"));
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(m_pSortColumn.get(),
                 &ControlEncoder::valueChanged,
@@ -551,9 +511,6 @@ LibraryControl::LibraryControl(Library* pLibrary)
             this,
             &LibraryControl::slotLoadSelectedIntoFirstStopped);
 
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         QApplication* app = qApp;
         // Update controls if any widget in any Mixxx window gets or loses focus
@@ -1191,7 +1148,7 @@ void LibraryControl::slotSortColumnToggle(double v) {
         // Get the ID of the column with the cursor
         sortColumnId =
                 static_cast<int>(m_pLibraryWidget->getActiveView()
-                                         ->getColumnIdFromCurrentIndex());
+                                ->getColumnIdFromCurrentIndex());
     }
 
     if (static_cast<int>(m_pSortColumn->get()) == sortColumnId) {

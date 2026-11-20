@@ -122,9 +122,6 @@ LibraryScanner::LibraryScanner(
     // connect them to our slots to run the command on the scanner thread.
     connect(this, &LibraryScanner::startScan, this, &LibraryScanner::slotStartScan);
 
-#ifdef MIXXX_USE_QML
-    if (!CmdlineArgs::Instance().isQml())
-#endif
     {
         connect(this,
                 &LibraryScanner::progressLoading,
@@ -231,8 +228,7 @@ void LibraryScanner::slotStartScan() {
     m_numRelocatedTracks = 0;
 
     m_scannerGlobal = ScannerGlobalPointer(
-            new ScannerGlobal(trackLocations, directoryHashes, extensionFilter,
-                              coverExtensionFilter, directoryBlacklist));
+            new ScannerGlobal(trackLocations, directoryHashes, extensionFilter, coverExtensionFilter, directoryBlacklist));
 
     m_scannerGlobal->startTimer();
 
@@ -368,8 +364,8 @@ void LibraryScanner::cleanUpScan() {
     // non normalized paths.
     kLogger.debug() << "Checking remaining unverified tracks";
     if (!m_trackDao.verifyRemainingTracks(
-            m_libraryRootDirs,
-            m_scannerGlobal->shouldCancelPointer())) {
+                m_libraryRootDirs,
+                m_scannerGlobal->shouldCancelPointer())) {
         // canceled
         return;
     }
@@ -386,9 +382,9 @@ void LibraryScanner::cleanUpScan() {
     {
         QList<RelocatedTrack> relocatedTracks;
         if (!m_trackDao.detectMovedTracks(
-                &relocatedTracks,
-                m_scannerGlobal->addedTracks(),
-                m_scannerGlobal->shouldCancelPointer())) {
+                    &relocatedTracks,
+                    m_scannerGlobal->addedTracks(),
+                    m_scannerGlobal->shouldCancelPointer())) {
             kLogger.info()
                     << "Detecting moved files has been canceled or aborted";
             return;
@@ -441,7 +437,7 @@ void LibraryScanner::slotFinishUnhashedScan() {
     // Finish adding the tracks -- rollback the transaction if the scan did not
     // finish cleanly and the user did not cancel the transaction.
     m_trackDao.addTracksFinish(!m_scannerGlobal->shouldCancel() &&
-                               !bScanFinishedCleanly);
+            !bScanFinishedCleanly);
 
     if (!m_scannerGlobal->shouldCancel() && bScanFinishedCleanly) {
         cleanUpScan();
@@ -570,7 +566,7 @@ void LibraryScanner::cancel() {
 }
 
 void LibraryScanner::queueTask(ScannerTask* pTask) {
-    //kLogger.debug() << "queueTask" << pTask;
+    // kLogger.debug() << "queueTask" << pTask;
     ScopedTimer timer(QStringLiteral("LibraryScanner::queueTask"));
     if (m_scannerGlobal.isNull() || m_scannerGlobal->shouldCancel()) {
         delete pTask;
@@ -618,7 +614,8 @@ void LibraryScanner::queueTask(ScannerTask* pTask) {
 }
 
 void LibraryScanner::slotDirectoryHashedAndScanned(const QString& directoryPath,
-                                               bool newDirectory, mixxx::cache_key_t hash) {
+        bool newDirectory,
+        mixxx::cache_key_t hash) {
     ScopedTimer timer(QStringLiteral("LibraryScanner::slotDirectoryHashedAndScanned"));
     // kLogger.debug() << "sloDirectoryHashedAndScanned" << directoryPath
     //           << newDirectory << hash;
@@ -655,7 +652,7 @@ void LibraryScanner::slotDirectoryHashedAndScanned(const QString& directoryPath,
 void LibraryScanner::slotDirectoryUnchanged(const QString& directoryPath,
         const QStringList& presentTrackLocations) {
     ScopedTimer timer(QStringLiteral("LibraryScanner::slotDirectoryUnchanged"));
-    //kLogger.debug() << "slotDirectoryUnchanged" << directoryPath;
+    // kLogger.debug() << "slotDirectoryUnchanged" << directoryPath;
     if (m_scannerGlobal) {
         m_scannerGlobal->addVerifiedDirectory(directoryPath);
         // The directory hash matched the saved one, so every file currently
@@ -672,7 +669,7 @@ void LibraryScanner::slotDirectoryUnchanged(const QString& directoryPath,
 }
 
 void LibraryScanner::slotTrackExists(const QString& trackPath) {
-    //kLogger.debug() << "slotTrackExists" << trackPath;
+    // kLogger.debug() << "slotTrackExists" << trackPath;
     ScopedTimer timer(QStringLiteral("LibraryScanner::slotTrackExists"));
     if (m_scannerGlobal) {
         m_scannerGlobal->addVerifiedTrack(trackPath);

@@ -80,7 +80,7 @@ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
     QString mainQmlFilePath;
     // The Paramix QML skin (res/qml) is the interface. The classic QtWidgets
     // skins were removed from res/skins, so there is no widgets UI to fall back
-    // to and --new-ui is kept only as an accepted no-op alias.
+    // to. The obsolete --new-ui flag is still accepted and ignored.
     bool loadQml = true;
     if (loadQml) {
         // This is a workaround to support Qt 6.4.2, currently shipped on
