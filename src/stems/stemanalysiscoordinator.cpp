@@ -6,6 +6,7 @@
 #include "moc_stemanalysiscoordinator.cpp"
 #include "preferences/configobject.h"
 #include "soundio/audiodiagnostics.h"
+#include "util/counter.h"
 #include "util/logger.h"
 #ifdef __STEM__
 #include "waveform/stemdetail/stemdetailcache.h"
@@ -163,6 +164,14 @@ void StemAnalysisCoordinator::logDiagnosticsIfNeeded(double usage) {
             ? cacheMisses - m_lastSampledCacheMissCount
             : 0;
     m_lastSampledCacheMissCount = cacheMisses;
+
+    // Feed the developer stat from this non-real-time tick. The CachingReader
+    // used to increment it on the audio callback, which allocates a QString and
+    // a StatReport exactly when the reader is starving.
+    if (cacheMissesThisTick > 0) {
+        Counter("CachingReader::read(): Failed to read chunk on cache miss") +=
+                static_cast<int>(cacheMissesThisTick);
+    }
 
     const int overloadCount = static_cast<int>(
             ControlObject::get(kAudioLatencyOverloadCountKey));

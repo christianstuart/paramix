@@ -467,8 +467,13 @@ CachingReader::ReadResult CachingReader::read(SINT startSample,
                     // pending.
                     DEBUG_ASSERT(!pChunk ||
                             (pChunk->getState() == CachingReaderChunkForOwner::READ_PENDING));
+                    // Only a relaxed atomic increment belongs on the audio
+                    // callback. The developer stat with the same tag is fed
+                    // from the ~1 Hz diagnostics tick instead
+                    // (StemAnalysisCoordinator::logDiagnosticsIfNeeded),
+                    // because constructing a QString and a StatReport here
+                    // allocates precisely while the reader is starving.
                     s_cacheMissCount.fetch_add(1, std::memory_order_relaxed);
-                    Counter("CachingReader::read(): Failed to read chunk on cache miss")++;
                     if (kLogger.traceEnabled()) {
                         kLogger.trace()
                                 << "Cache miss for chunk with index"

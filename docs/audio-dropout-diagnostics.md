@@ -154,3 +154,11 @@ the audio callback and `Stat::track()` looks the tag up in the stats manager.
 It is left unchanged in this change (scope: counters only) and reported in the
 F03 worklog. The new `CachingReader::cacheMissCount()` counter next to it is a
 plain relaxed atomic.
+
+## Resolved: allocation on the reader cache-miss path
+
+The pre-existing Counter(...)++ on CachingReader::read()'s miss branch built a
+QString and a StatReport on the audio callback. It has been replaced by a
+relaxed atomic increment; the developer stat is now updated from the 1 Hz
+diagnostics tick. The reader path no longer allocates when the reader starves.
+
