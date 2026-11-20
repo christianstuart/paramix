@@ -2,9 +2,8 @@
 
 Paramix can import rekordbox analysis files and databases but, until this
 work, could not write them. This document describes the writers added for F09.
-It currently covers **PR 1, the ANLZ analysis writer**, and **PR 2, the
-`export.pdb` database writer**; the export job and the UI follow in separate
-pull requests.
+It covers **PR 1, the ANLZ analysis writer**, **PR 2, the `export.pdb`
+database writer**, and **PR 3, the export job**; the UI follows in PR 4.
 
 ## What an export contains
 
@@ -23,8 +22,8 @@ Contents/
   <audio files>
 ```
 
-Only the three ANLZ files are written by PR 1, and `export.pdb` by PR 2. The
-audio copy and the directory layout belong to the later export job.
+The writers produce the three ANLZ files and `export.pdb`. The export job copies
+the audio and lays out the tree below.
 
 ## Format
 
@@ -163,7 +162,48 @@ The writer takes the numeric ids from the caller. Allocating them and mapping
 Paramix tracks, artists, albums and playlists onto them is the export job's
 work, so the writer stays a pure function of its input.
 
+## The export job
+
+`RekordboxExportJob` runs on a worker thread and writes the device tree. It
+loads tracks and their stored waveform summaries on the collection thread,
+then copies audio, writes ANLZ files and builds `export.pdb` on the worker
+thread.
+
+The request selects the device root and either the whole library or a set of
+crates and playlists. Selected crates only choose tracks; playlists also become
+`playlist_tree` rows. With neither crates nor playlists selected, the whole
+library and every non-hidden playlist are exported.
+
+Paths and ids are assigned deterministically:
+
+```text
+Contents/<Artist>/<Album>/<track id> - <file name>
+PIONEER/USBANLZ/P<folder>/<track id>/ANLZ0000.DAT
+```
+
+The audio path, `PPTH` and the PDB `filePath` are media-relative
+(`/Contents/...`). Artist, album, genre and key rows are deduplicated and
+numbered from 1 in track order. Playlist rows are numbered from 1 in playlist
+order.
+
+The job writes into a staging directory under the device root and renames
+`PIONEER` and `Contents` into place only after every file is written. It
+refuses to start when either directory already exists, so an existing
+rekordbox export must be erased or a different empty device chosen. This keeps
+the commit from replacing a library the user did not select.
+
+MP3 timing offsets are applied in the same decoder-dependent way as the
+importer, by adding the offset to every ANLZ beat and cue time. A non-MP3 file
+gets offset 0. File types rekordbox cannot play (for example Ogg and Opus) are
+skipped with a warning; if every selected track is skipped, the job fails
+instead of writing an empty export.
+
+The job does not export track colors yet: `PdbTrack::colorId` is 0, because the
+eight device color rows are names rather than RGB values and the mapping from
+an arbitrary Mixxx color has not been established.
+
 ## Provenance
+
 
 The owner has waived the license gate. The writers are C++ translations of two
 crates from [chrisle/rbxport](https://github.com/chrisle/rbxport) at commit
@@ -253,15 +293,25 @@ with the Kaitai-generated `rekordbox_pdb_t` reader, which is the reader
 ./build/mixxx-test --gtest_filter='RekordboxExportPdb.*'
 ```
 
+`src/test/rekordboxexportjobtest.cpp` covers the job's pure parts: path
+sanitizing, the `Contents` and `USBANLZ` paths, and the artist/album/genre/key
+id allocation and playlist entries in `buildPdbLibrary`.
+
+```bash
+./build/mixxx-test --gtest_filter='RekordboxExportJob.*'
+```
+
 The full `RekordboxFeature` import is not run in the test: it needs a mounted
 device tree and a database connection pool. The Kaitai reader and the row
-layouts are shared with that path.
+layouts are shared with that path. The job's copy, staging and rename path is
+not automated yet; that needs a temporary collection and is left to PR 4's
+manual export check.
 
 ## Not implemented yet
 
-- The export job: worker thread, progress, free-space checks, audio copy,
-  path mapping, ID allocation and the MP3 timing offset — PR 3.
 - The export dialog and QML action — PR 4.
+- Track colors in `export.pdb`. The color is written as 0 (none); see "The
+  export job" above.
 - `labels`, `artwork` and the history tables. The tables are present and empty.
   Tracks can carry a label or artwork id, but nothing writes the matching row.
 - `PSSI` song structure and `PVDI` vocals. The writer does not invent them;
