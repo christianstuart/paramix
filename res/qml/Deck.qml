@@ -295,6 +295,9 @@ Item {
                 Layout.alignment: Qt.AlignVCenter
                 // The card fills the 112 px band and keeps the pane's 196 px
                 // minimum beside it at the 564 px deck the 1280 window gives.
+                // Min, max and preferred are all the band height so a layout
+                // cannot stretch the card away from the pane beside it.
+                Layout.maximumHeight: root.paneHeight
                 Layout.maximumWidth: Theme.deckLoopCardWidth
                 Layout.minimumHeight: root.paneHeight
                 Layout.minimumWidth: Theme.deckLoopCardWidth
@@ -314,12 +317,12 @@ Item {
             LayoutItem {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: true
+                Layout.maximumHeight: root.paneHeight
                 Layout.minimumHeight: root.paneHeight
                 // 196, not 200: the loop card and the tempo strip still fit a
                 // 564 px deck, which is what a 1280 px window gives.
                 Layout.minimumWidth: Theme.deckPaneMinWidth
                 Layout.preferredHeight: root.paneHeight
-                height: root.paneHeight
 
                 ColumnLayout {
                     anchors.fill: parent

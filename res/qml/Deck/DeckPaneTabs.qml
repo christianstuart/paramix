@@ -52,8 +52,16 @@ RowLayout {
 
             Layout.fillHeight: true
             Layout.fillWidth: true
+            // Pin the whole height contract, not just the minimum: the row is
+            // 16 px while a plain Button implies 26, and a parent layout that
+            // is only told about the cap can shrink the row (and the pane
+            // below it) to resolve the deficit. Matching implicit and preferred
+            // to the tab height makes the row's own hint 16 as well.
+            Layout.maximumHeight: Theme.deckPaneTabHeight
             Layout.minimumHeight: Theme.deckPaneTabHeight
+            Layout.preferredHeight: Theme.deckPaneTabHeight
             highlight: tab.current
+            implicitHeight: Theme.deckPaneTabHeight
             normalColor: Theme.textMuted
 
             Accessible.checkable: true

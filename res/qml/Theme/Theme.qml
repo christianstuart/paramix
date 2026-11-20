@@ -331,8 +331,11 @@ QtObject {
     readonly property int deckPaneHeight: Math.round(112 * uiScale)
     /// Horizontal pane tab row above the pane (CUE / MOVE / GRID).
     readonly property int deckPaneTabHeight: Math.round(16 * uiScale)
-    /// Visible pane below the tab row and its gap.
-    readonly property int deckPaneContentHeight: deckPaneHeight - deckPaneTabHeight - space1
+    /// Visible pane below the tab row and its gap. Floored at zero: a pane
+    /// height below the tab row would otherwise feed negative sizes into the
+    /// pane contents while the deck is being laid out.
+    readonly property int deckPaneContentHeight: Math.max(0,
+            deckPaneHeight - deckPaneTabHeight - space1)
     /// Hard floor the pane may not shrink below beside the loop card.
     readonly property int deckPaneMinWidth: 196
     /// Width of the loop card. Fixed rather than scaled so the 196 px pane
@@ -345,9 +348,10 @@ QtObject {
     readonly property int deckLoopHeaderHeight: space4
     readonly property int deckLoopActionRowHeight: space5
     readonly property int deckLoopRollRowHeight: space5
-    readonly property int deckLoopBeatRowHeight: deckPaneHeight - 2 - 2 * deckLoopInset
+    readonly property int deckLoopBeatRowHeight: Math.max(0,
+            deckPaneHeight - 2 - 2 * deckLoopInset
             - deckLoopHeaderHeight - deckLoopActionRowHeight - deckLoopRollRowHeight
-            - 3 * deckLoopRowGap
+            - 3 * deckLoopRowGap)
 
     // Deck-local width gates: the spinny/FX column hides first, then the tempo
     // strip, each at its own deck width rather than the window's. The row is

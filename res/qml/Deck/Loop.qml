@@ -186,7 +186,11 @@ Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: parent.height - 6
+                // The app is laid out before the first pass gives this row its
+                // height, so a plain subtraction is negative there (and on a
+                // zero-height card). Never hand a negative height to the keys
+                // or to the font size below them.
+                height: Math.max(0, parent.height - 6)
                 spacing: 2
 
                 Skin.ControlButton {
@@ -252,7 +256,8 @@ Rectangle {
                                     elide: Text.ElideRight
                                     font.capitalization: Font.AllUppercase
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: Math.min(Theme.fontSizeXs, fixedLoopButton.height - 8)
+                                    font.pixelSize: Math.max(1,
+                                            Math.min(Theme.fontSizeXs, fixedLoopButton.height - 8))
                                     font.weight: Theme.fontWeightDemiBold
                                     horizontalAlignment: Text.AlignHCenter
                                     text: fixedLoopButton.text
@@ -306,8 +311,12 @@ Rectangle {
                     color: Theme.borderStrong
                     height: parent.height
                     radius: Theme.radiusXs
-                    width: Math.max(12, scrollTrack.width * beatFlick.width
-                            / Math.max(1, beatFlick.contentWidth))
+                    // At a very narrow card the 12 px minimum thumb would be
+                    // wider than the track; clamp it back to the track so it
+                    // cannot paint over the halve/double keys.
+                    width: Math.min(scrollTrack.width, Math.max(12,
+                            scrollTrack.width * beatFlick.width
+                            / Math.max(1, beatFlick.contentWidth)))
                     x: Math.max(0, Math.min(scrollTrack.width - width,
                             beatFlick.contentX / Math.max(1, beatFlick.contentWidth) * scrollTrack.width))
                 }

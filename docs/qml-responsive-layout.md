@@ -99,10 +99,12 @@ breakpoints rather than duplicated:
   real 1792x1008 window), asserts the design size as well, fails when the band
   geometry never settles instead of silently measuring at the 3 s cap, and
   flags (a) visible items collapsed to zero height inside a live parent,
-  (b) the deck FX-assign column below 30 px, (c) the deck pane below 90 px, and
-  (d) the horizontal pane tab row below 16 px. The settle check compares the
-  top two layout levels only, because waveform playheads and VU segments animate
-  by design.
+  (b) the deck FX-assign column below 30 px, (c) the deck pane below
+  `Theme.deckPaneContentHeight` (92 px), and (d) the horizontal pane tab row
+  below `Theme.deckPaneTabHeight` (16 px). Both deck heights are pinned in the
+  test, so lowering the Theme token fails rather than relaxing the check. The
+  settle check compares the top two layout levels only, because waveform
+  playheads and VU segments animate by design.
 
 ## Overlap pass (2026-11-16)
 
@@ -292,11 +294,15 @@ with halve and double pinned at the ends and a visible scrollbar), an In / In-go
 the fixed rows leave, so the card always fills the band exactly at any `uiScale`.
 
 The pane keeps its 196 px floor: at the 564 px deck a 1280 px window gives,
-`224 (loop) + 4 (gap) + 196 (pane) = 424` transport px. At 1440x852 the pane is 276 and at
-1792x1008 it is 452. Deck height, waveform strip and library split are unchanged.
+`224 (loop) + 4 (gap) + 196 (pane) = 424` transport px inside a 429 px main column. The pane is
+273 px at 1440x852 and 309 px at 1792x1008; the 135 px FX-assign column appears from a 708 px
+deck, which is why the pane does not grow by the full window delta. At 2560x1369 it is 693 px.
+Deck height, waveform strip and library split are unchanged.
 
-The bounds test now asserts the pane is at least 90 px, the tab row at least 16 px, and keeps the
-FX-assign column at 30 px. The old `Deck/Loop.qml` width gate is gone.
+The bounds test now asserts the pane is at least `Theme.deckPaneContentHeight` (92) and the tab
+row at least `Theme.deckPaneTabHeight` (16), and keeps the FX-assign column at 30 px. Both
+numbers are pinned in the test, so a Theme edit that lowers the band fails instead of quietly
+weakening the assertion. The old `Deck/Loop.qml` width gate is gone.
 
 ## Still open
 
