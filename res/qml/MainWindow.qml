@@ -437,6 +437,10 @@ Item {
 
                         Accessible.name: qsTr("Show Pad FX window")
 
+                        ToolTip.delay: 500
+                        ToolTip.text: qsTr("Per-stem performance pads for each deck")
+                        ToolTip.visible: showPadFxButton.hovered
+
                         onClicked: {
                             if (padFxWindow.visible)
                                 padFxWindow.close();
@@ -446,6 +450,8 @@ Item {
 
                         Skin.PadFxWindow {
                             id: padFxWindow
+
+                            deckCount: root.show4decks ? 4 : 2
                         }
                     }
                     Skin.Button {
