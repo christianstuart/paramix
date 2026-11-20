@@ -320,6 +320,7 @@ Item {
                                         (previewDeckBar.item && previewDeckBar.item.revealed) ||
                                         previewDeckPlaying.value > 0;
                                 padFxItem.checked = padFxWindow.visible;
+                                mappingItem.checked = controllerMappingWindow.visible;
                                 fxUnitsItem.checked = show4EffectUnitsControl.value > 0;
                             }
 
@@ -355,6 +356,14 @@ Item {
                                 text: qsTr("Pad FX")
 
                                 onTriggered: checked ? padFxWindow.show() : padFxWindow.close()
+                            }
+                            Skin.CheckMenuItem {
+                                id: mappingItem
+
+                                checkable: true
+                                text: qsTr("Controller mapping")
+
+                                onTriggered: checked ? controllerMappingWindow.show() : controllerMappingWindow.close()
                             }
                             Skin.CheckMenuItem {
                                 id: fxUnitsItem
