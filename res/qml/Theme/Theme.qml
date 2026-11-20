@@ -221,6 +221,16 @@ QtObject {
     readonly property color phraseChorus: "#FF4D8D"
     readonly property color phraseOutro: "#7C879E"
 
+    // ── Waveform frequency colors ──────────────────────────────────────────
+    // Frequency coding for the non-stem RGB waveform and the overview: low
+    // band reads red, mid green, high blue. Fully saturated primaries read
+    // harsh on the near-black stage, so each keeps a little of its neighbours.
+    // Both renderers normalise by the largest channel, so these are also the
+    // exact colours a column that only carries one band reaches.
+    readonly property color waveformLowColor: "#FF3B30"
+    readonly property color waveformMidColor: "#34D058"
+    readonly property color waveformHighColor: "#3B82F6"
+
     // ── Typography ─────────────────────────────────────────────────────────
     // Helvetica Neue throughout, where it exists. It is a macOS system font,
     // so everywhere else Qt used to substitute whatever it liked (Tahoma on
