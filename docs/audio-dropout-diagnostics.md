@@ -161,4 +161,3 @@ The pre-existing Counter(...)++ on CachingReader::read()'s miss branch built a
 QString and a StatReport on the audio callback. It has been replaced by a
 relaxed atomic increment; the developer stat is now updated from the 1 Hz
 diagnostics tick. The reader path no longer allocates when the reader starves.
-
