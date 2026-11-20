@@ -1,5 +1,7 @@
 #include "controllers/controlpickermenu.h"
 
+#include <utility>
+
 #include "control/controlobject.h"
 #include "effects/chains/equalizereffectchain.h"
 #include "effects/chains/quickeffectchain.h"
@@ -18,8 +20,109 @@ namespace {
 const QString kAppGroup = QStringLiteral("[App]");
 } // namespace
 
+ControlPickerModel::ControlPickerModel(QObject* pParent)
+        : QAbstractListModel(pParent) {
+}
+
+int ControlPickerModel::rowCount(const QModelIndex& parent) const {
+    if (parent.isValid()) {
+        return 0;
+    }
+    return m_entries.size();
+}
+
+QVariant ControlPickerModel::data(const QModelIndex& index, int role) const {
+    if (!index.isValid() || index.row() < 0 || index.row() >= m_entries.size()) {
+        return QVariant();
+    }
+    const ControlPickerEntry& entry = m_entries.at(index.row());
+    switch (role) {
+    case GroupRole:
+        return entry.key.group;
+    case KeyRole:
+        return entry.key.item;
+    case ConfigKeyRole:
+        return QVariant::fromValue(entry.key);
+    case TitleRole:
+        return entry.title;
+    case DescriptionRole:
+        return entry.description;
+    case CategoryRole:
+        return entry.category;
+    case CategoryPathRole:
+        return entry.categoryPath;
+    default:
+        return QVariant();
+    }
+}
+
+QHash<int, QByteArray> ControlPickerModel::roleNames() const {
+    return {
+            {GroupRole, QByteArrayLiteral("group")},
+            {KeyRole, QByteArrayLiteral("key")},
+            {ConfigKeyRole, QByteArrayLiteral("configKey")},
+            {TitleRole, QByteArrayLiteral("title")},
+            {DescriptionRole, QByteArrayLiteral("description")},
+            {CategoryRole, QByteArrayLiteral("category")},
+            {CategoryPathRole, QByteArrayLiteral("categoryPath")},
+    };
+}
+
+QVariantMap ControlPickerModel::get(int row) const {
+    QVariantMap result;
+    if (row < 0 || row >= m_entries.size()) {
+        return result;
+    }
+    const ControlPickerEntry& entry = m_entries.at(row);
+    result.insert(QStringLiteral("group"), entry.key.group);
+    result.insert(QStringLiteral("key"), entry.key.item);
+    result.insert(QStringLiteral("configKey"), QVariant::fromValue(entry.key));
+    result.insert(QStringLiteral("title"), entry.title);
+    result.insert(QStringLiteral("description"), entry.description);
+    result.insert(QStringLiteral("category"), entry.category);
+    result.insert(QStringLiteral("categoryPath"), entry.categoryPath);
+    return result;
+}
+
+int ControlPickerModel::rowForConfigKey(const QString& group, const QString& key) const {
+    for (int row = 0; row < m_entries.size(); ++row) {
+        const ConfigKey& candidate = m_entries.at(row).key;
+        if (candidate.group == group && candidate.item == key) {
+            return row;
+        }
+    }
+    return -1;
+}
+
+void ControlPickerModel::append(ControlPickerEntry entry) {
+    beginInsertRows(QModelIndex(), m_entries.size(), m_entries.size());
+    m_entries.append(std::move(entry));
+    endInsertRows();
+}
+
+void ControlPickerModel::clear() {
+    if (m_entries.isEmpty()) {
+        return;
+    }
+    beginResetModel();
+    m_entries.clear();
+    endResetModel();
+}
+
+// static
+ControlPickerModel* ControlPickerModel::createDetached(QObject* pParent) {
+    // The control definitions live in ControlPickerMenu's constructor, so the
+    // inventory is collected from a detached menu instance that is never shown
+    // and is discarded before returning. Callers only ever see the model.
+    ControlPickerMenu menu(nullptr);
+    auto* pModel = new ControlPickerModel(pParent);
+    pModel->m_entries = menu.controlModel()->entries();
+    return pModel;
+}
+
 ControlPickerMenu::ControlPickerMenu(QWidget* pParent)
-        : QMenu(pParent) {
+        : QMenu(pParent),
+          m_pControlModel(new ControlPickerModel(this)) {
     m_effectMainOutputStr = tr("Main Output");
     m_effectHeadphoneOutputStr = tr("Headphone Output");
     m_deckStr = tr("Deck %1");
@@ -1677,15 +1780,26 @@ void ControlPickerMenu::addSingleControl(const QString& group,
         QMenu* pMenu,
         const QString& prefix,
         const QString& actionTitle) {
-    int controlIndex;
-
-    if (prefix.isEmpty()) {
-        controlIndex = addAvailableControl(ConfigKey(group, control), title, description);
-    } else {
-        QString prefixedTitle = QString("%1: %2").arg(prefix, title);
-        QString prefixedDescription = QString("%1: %2").arg(prefix, description);
-        controlIndex = addAvailableControl(ConfigKey(group, control), prefixedTitle, prefixedDescription);
+    const ConfigKey key(group, control);
+    QString inventoryTitle = title;
+    QString inventoryDescription = description;
+    if (!prefix.isEmpty()) {
+        inventoryTitle = QString("%1: %2").arg(prefix, title);
+        inventoryDescription = QString("%1: %2").arg(prefix, description);
     }
+
+    const int controlIndex = addAvailableControl(
+            key, inventoryTitle, inventoryDescription);
+
+    ControlPickerEntry entry;
+    entry.key = key;
+    entry.title = inventoryTitle;
+    entry.description = inventoryDescription;
+    entry.categoryPath = categoryPathForMenu(pMenu);
+    if (!entry.categoryPath.isEmpty()) {
+        entry.category = entry.categoryPath.first();
+    }
+    m_pControlModel->append(std::move(entry));
 
     auto pAction = make_parented<QAction>(actionTitle.isEmpty() ? title : actionTitle, pMenu);
     connect(pAction, &QAction::triggered, this, [this, controlIndex] {
@@ -2091,6 +2205,20 @@ QMenu* ControlPickerMenu::addSubmenu(QString title, QMenu* pParent) {
     auto pSubMenu = make_parented<QMenu>(title, pParent);
     pParent->addMenu(pSubMenu);
     return pSubMenu;
+}
+
+QStringList ControlPickerMenu::categoryPathForMenu(const QMenu* pMenu) const {
+    QStringList categoryPath;
+    // Walk the parent chain up to (but excluding) this menu. ControlPickerMenu
+    // parents every menu it creates, so the chain is always available.
+    const QMenu* pCurrent = pMenu;
+    while (pCurrent != nullptr && pCurrent != this) {
+        if (!pCurrent->title().isEmpty()) {
+            categoryPath.prepend(pCurrent->title());
+        }
+        pCurrent = qobject_cast<QMenu*>(pCurrent->parentWidget());
+    }
+    return categoryPath;
 }
 
 void ControlPickerMenu::controlChosen(int controlIndex) {
