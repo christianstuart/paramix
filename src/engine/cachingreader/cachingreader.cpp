@@ -36,6 +36,12 @@ constexpr SINT kNumberOfCachedChunksInMemory = 80;
 
 } // anonymous namespace
 
+std::atomic<quint64> CachingReader::s_cacheMissCount{0};
+
+quint64 CachingReader::cacheMissCount() {
+    return s_cacheMissCount.load(std::memory_order_relaxed);
+}
+
 CachingReader::CachingReader(const QString& group,
         UserSettingsPointer config,
         mixxx::audio::ChannelCount maxSupportedChannel)
@@ -79,15 +85,9 @@ CachingReader::CachingReader(const QString& group,
     }
 
     // Forward signals from worker
-    connect(&m_worker, &CachingReaderWorker::trackLoading,
-            this, &CachingReader::trackLoading,
-            Qt::DirectConnection);
-    connect(&m_worker, &CachingReaderWorker::trackLoaded,
-            this, &CachingReader::trackLoaded,
-            Qt::DirectConnection);
-    connect(&m_worker, &CachingReaderWorker::trackLoadFailed,
-            this, &CachingReader::trackLoadFailed,
-            Qt::DirectConnection);
+    connect(&m_worker, &CachingReaderWorker::trackLoading, this, &CachingReader::trackLoading, Qt::DirectConnection);
+    connect(&m_worker, &CachingReaderWorker::trackLoaded, this, &CachingReader::trackLoaded, Qt::DirectConnection);
+    connect(&m_worker, &CachingReaderWorker::trackLoadFailed, this, &CachingReader::trackLoadFailed, Qt::DirectConnection);
 
     m_worker.start(QThread::HighPriority);
 }
@@ -417,7 +417,6 @@ CachingReader::ReadResult CachingReader::read(SINT startSample,
             for (SINT chunkIndex = firstChunkIndex;
                     chunkIndex <= lastChunkIndex;
                     ++chunkIndex) {
-
                 // Process new messages from the reader thread before looking up
                 // the next chunk
                 process();
@@ -468,6 +467,7 @@ CachingReader::ReadResult CachingReader::read(SINT startSample,
                     // pending.
                     DEBUG_ASSERT(!pChunk ||
                             (pChunk->getState() == CachingReaderChunkForOwner::READ_PENDING));
+                    s_cacheMissCount.fetch_add(1, std::memory_order_relaxed);
                     Counter("CachingReader::read(): Failed to read chunk on cache miss")++;
                     if (kLogger.traceEnabled()) {
                         kLogger.trace()
@@ -545,18 +545,18 @@ void CachingReader::hintAndMaybeWake(const HintVector& hintList) {
     // any are not, then wake.
     bool shouldWake = false;
 
-    for (const auto& hint: hintList) {
+    for (const auto& hint : hintList) {
         SINT hintFrame = hint.frame;
         SINT hintFrameCount = hint.frameCount;
 
         // Handle some special length values
         if (hintFrameCount == Hint::kFrameCountForward) {
-        	hintFrameCount = kDefaultHintFrames;
+            hintFrameCount = kDefaultHintFrames;
         } else if (hintFrameCount == Hint::kFrameCountBackward) {
-        	hintFrame -= kDefaultHintFrames;
-        	hintFrameCount = kDefaultHintFrames;
+            hintFrame -= kDefaultHintFrames;
+            hintFrameCount = kDefaultHintFrames;
             if (hintFrame < 0) {
-            	hintFrameCount += hintFrame;
+                hintFrameCount += hintFrame;
                 if (hintFrameCount <= 0) {
                     continue;
                 }

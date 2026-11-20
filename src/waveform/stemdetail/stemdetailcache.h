@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QSet>
 #include <QTimer>
+#include <atomic>
 #include <memory>
 
 #include "track/track_decl.h"
@@ -31,6 +32,18 @@ class StemDetailCache final : public QObject {
             int samplesPerColumn,
             int height,
             float magnification);
+
+    /// Suspends or resumes background builds on behalf of the audio-overload
+    /// coordinator. Suspension only prevents new builds from starting: a build
+    /// that is already running is allowed to finish, and a deferred or newly
+    /// requested one stays pending and starts exactly once after resume().
+    /// Must be called from the cache's thread (the GUI thread).
+    void setBackgroundSuspended(bool suspended);
+
+    /// True while a build is pending or running. Lock-free, for diagnostics.
+    bool isBuilding() const {
+        return m_activity.load(std::memory_order_relaxed);
+    }
 
   signals:
     /// Emitted on the GUI thread when a new picture has been inserted.
@@ -71,6 +84,10 @@ class StemDetailCache final : public QObject {
     /// queued invocation to the cache thread.
     StemDetailKey m_lastScheduledKey;
     bool m_hasLastScheduledKey = false;
+    /// Set by the audio-overload coordinator; read on the cache thread.
+    std::atomic<bool> m_backgroundSuspended{false};
+    /// True while a build is queued or running, for the diagnostics line.
+    std::atomic<bool> m_activity{false};
     QList<StemDetailKey> m_order;
     QList<std::shared_ptr<const StemDetailTrack>> m_details;
     QSet<StemDetailKey> m_failed;

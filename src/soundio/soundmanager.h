@@ -11,6 +11,7 @@
 #include "control/pollingcontrolproxy.h"
 #include "engine/sidechain/enginenetworkstream.h"
 #include "preferences/usersettings.h"
+#include "soundio/audiodiagnostics.h"
 #include "soundio/portaudioenumerator.h"
 #include "soundio/sounddevice.h"
 #include "soundio/sounddeviceenumerator.h"
@@ -27,7 +28,6 @@ class PipewireEnumerator;
 #define SOUNDMANAGER_DISCONNECTED 0
 #define SOUNDMANAGER_CONNECTING 1
 #define SOUNDMANAGER_CONNECTED 2
-
 
 class SoundManager : public QObject {
     Q_OBJECT
@@ -81,7 +81,7 @@ class SoundManager : public QObject {
     // into the mixing engine.
     void pushInputBuffer(const AudioInput& input, const SINT iFramesPerBuffer);
     void pushInputBuffers(const QList<AudioInputBuffer>& inputs,
-                          const SINT iFramesPerBuffer);
+            const SINT iFramesPerBuffer);
 
     void writeProcess(SINT framesPerBuffer) const;
     void readProcess(SINT framesPerBuffer) const;
@@ -97,11 +97,10 @@ class SoundManager : public QObject {
 
     void underflowHappened(int code) {
         m_underflowHappened = 1;
-        // Disable the engine warnings by default, because printing a warning is a
-        // locking function that will make the problem worse
-        if (CmdlineArgs::Instance().getDeveloper()) {
-            qWarning() << "underflowHappened code:" << code;
-        }
+        // Called from the real-time device callback. Only a relaxed atomic
+        // store here: no logging, no allocation and no CmdlineArgs lookup. The
+        // code is reported by the rate-limited dropout line on the GUI thread.
+        mixxx::audio::diagnostics::recordUnderflow(code);
     }
 
     void processUnderflowHappened(SINT framesPerBuffer);
@@ -161,8 +160,8 @@ class SoundManager : public QObject {
     void deviceDisconnected(const AudioPath* pPath);
 
     void devicesUpdated(); // emitted when pointers to SoundDevices go stale
-    void devicesSetup(); // emitted when the sound devices have been set up
-    void devicesClosed(); // emitted when the sound devices have been closed and resources freed
+    void devicesSetup();   // emitted when the sound devices have been set up
+    void devicesClosed();  // emitted when the sound devices have been closed and resources freed
     void outputRegistered(const AudioOutput& output, AudioSource* src);
     void inputRegistered(const AudioInput& input, AudioDestination* dest);
     void configInvalidated();
