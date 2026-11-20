@@ -5,18 +5,29 @@ import QtQuick.Layouts
 import "Theme"
 
 /// A labelled 0..1 Pad FX parameter slider bound to a [ChannelN_PadFX] key.
+///
+/// Only the parameter rows an effect actually uses are instantiated; the row
+/// height and label width come from the Pad FX Theme tokens so every effect
+/// editor lines up.
 RowLayout {
     id: root
 
     required property string group
     required property string key
     required property string label
+    /// Optional owner name for assistive text, e.g. "Pad 2".
+    property string ownerLabel: ""
+
+    readonly property string accessibleName: root.ownerLabel.length > 0
+            ? qsTr("%1 %2").arg(root.ownerLabel).arg(root.label)
+            : root.label
 
     Layout.fillWidth: true
+    implicitHeight: Theme.padfxControlHeight
     spacing: Theme.space1
 
     Text {
-        Layout.preferredWidth: 64
+        Layout.preferredWidth: Theme.space8
         color: Theme.textSecondary
         elide: Text.ElideRight
         font.family: Theme.fontFamily
@@ -29,7 +40,20 @@ RowLayout {
 
         Layout.fillWidth: true
         enabled: root.enabled
+        height: Theme.padfxControlHeight
         value: control.parameter
+
+        Accessible.description: qsTr("%1 for %2").arg(root.label).arg(root.ownerLabel)
+        Accessible.name: root.accessibleName
+        Accessible.role: Accessible.Slider
+
+        ToolTip.delay: 500
+        ToolTip.text: root.accessibleName
+        ToolTip.visible: sliderHover.hovered
+
+        HoverHandler {
+            id: sliderHover
+        }
 
         Connections {
             target: slider.slider

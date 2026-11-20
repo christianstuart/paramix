@@ -299,6 +299,23 @@ QtObject {
     // longer needs a strip-wide width gate. TopBarEffects.qml compares each
     // unit against its natural minimum width instead.
 
+    // ── Pad FX window ──────────────────────────────────────────────────────
+    // Perform-first pad cards. Four deck columns at `padfxDeckMinWidth` plus
+    // the gaps are exactly the 1240 px default window width; narrower windows
+    // page two columns at a time instead of squeezing the stem chips.
+    /// Height of the pad trigger itself. The pad face is the LED.
+    readonly property int padfxPadHeight: space8 + space2
+    /// Minimum hit height for stem chips, shortcuts, bank keys, the edit rail
+    /// and the page key. Floors at the 24 px pointer target.
+    readonly property int padfxHitHeight: Math.max(24, fontSizeXs + 2 * space2)
+    /// Shared row height for combo boxes, slider rows and compact pad rows.
+    readonly property int padfxControlHeight: Math.max(Math.round(26 * uiScale),
+                                                      fontSizeSm + 2 * space2)
+    /// Informational mode / mute pill height.
+    readonly property int padfxModeBadgeHeight: space4
+    /// Column width at which four decks fit side by side.
+    readonly property int padfxDeckMinWidth: Math.round(300 * uiScale)
+
     readonly property int deckHeaderHeight: Math.round(52 * uiScale)
     readonly property int stemLaneMinWidth: Math.round(58 * uiScale)
     /// Width a stem lane needs for its label to read as a word rather than an
