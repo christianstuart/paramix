@@ -119,3 +119,34 @@ Tool: `C:\Users\chris\AppData\Roaming\Python\Python313\Scripts\clang-format.exe`
   defaults is a follow-up if the signal-path tests should exercise the boost.
 - Tracks already analysed as stems keep their old ReplayGain until re-analysed.
 - No main-output limiter; the plan keeps that out of scope.
+
+## Integrator lane addition (2026-11-19)
+
+The 8-channel-vs-stereo-mixdown loudness test from the parallel Engine-lane
+implementation is now included:
+
+- `src/test/analyzerebur128test.cpp` — `AnalyzerEbur128Test.StemSourceMeasuresStereoMixdown`.
+  It feeds a four-stereo-pair (8 channel) signal and its stereo mixdown,
+  produced with `SampleUtil::mixMultichannelToStereo` (the helper
+  `EngineDeck::processStem()` uses), through two `AnalyzerEbur128` instances and
+  asserts the stored ReplayGain ratios are within 0.5 LU.
+- One `CMakeLists.txt` line.
+
+Verified on macOS x86_64:
+
+```sh
+# On the Engine-lane tree (commit 70667e9) with the identical analyzer code:
+./build/mixxx-test --gtest_filter='AnalyzerEbur128Test.*'
+# 1 test, PASS
+
+./build/mixxx-test --gtest_filter='ReplayGain*:EnginePregain*:AnalyzerEbur*:AdjustReplayGainTest*'
+# 12 tests, PASS
+
+# On this branch (d24ee6b):
+./build/mixxx-test --gtest_filter='EnginePregainTest.*:EngineBufferE2ETest.*'
+# 13 tests, PASS
+```
+
+The final incremental build of the commit that adds the test was still queued
+for one of the two shared build slots when this note was written; the analyzer
+implementation it exercises is unchanged from the tree where the test passed.

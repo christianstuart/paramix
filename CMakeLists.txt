@@ -2975,6 +2975,7 @@ if(BUILD_TESTING)
     src/test/analyserwaveformtest.cpp
     src/test/stemdetailrenderertest.cpp
     src/test/waveformstemdetailtest.cpp
+    src/test/analyzerebur128test.cpp
     src/test/analyzersilence_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp
