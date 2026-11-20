@@ -1,9 +1,10 @@
 # Rekordbox device export
 
-Paramix can import rekordbox analysis files but, until this work, could not
-write them. This document describes the writer added for F09. It currently
-covers **PR 1, the ANLZ analysis writer only**; the PDB database writer, the
-export job and the UI follow in separate pull requests.
+Paramix can import rekordbox analysis files and databases but, until this
+work, could not write them. This document describes the writers added for F09.
+It currently covers **PR 1, the ANLZ analysis writer**, and **PR 2, the
+`export.pdb` database writer**; the export job and the UI follow in separate
+pull requests.
 
 ## What an export contains
 
@@ -12,7 +13,7 @@ A rekordbox USB/SD export keeps three things per track:
 ```text
 PIONEER/
   rekordbox/
-    export.pdb              playlists, track metadata, cue database
+    export.pdb              playlists and track metadata
   USBANLZ/
     <path-derived directory>/
       ANLZ0000.DAT          path, beat grid, previews, memory/A-C cues
@@ -22,8 +23,8 @@ Contents/
   <audio files>
 ```
 
-Only the three ANLZ files are written by this PR. `export.pdb`, the audio copy
-and the directory layout belong to the later export job.
+Only the three ANLZ files are written by PR 1, and `export.pdb` by PR 2. The
+audio copy and the directory layout belong to the later export job.
 
 ## Format
 
@@ -113,10 +114,59 @@ are recorded rather than specified, as noted in the provenance statement below.
 A silent preview column is not zero: players read a zero-height preview as "not
 analyzed" and rebuild it.
 
+## The PDB database
+
+`PIONEER/rekordbox/export.pdb` is a DeviceSQL database: a file of fixed 4096-byte
+pages. Page 0 is a header that names the tables. Each table is a linked list of
+pages; a table's index page links to its first data page, and rows are stored in
+a heap that grows forward from the page header while their offsets are indexed
+backward from the end of the page, sixteen to a group, each group preceded by a
+presence bitmap. Deleted rows keep their index entry and clear their bit, so a
+reader that ignores the bitmap parses garbage.
+
+The writer emits the twenty tables rekordbox writes, in its order:
+
+| Type | Table | Contents |
+|---|---|---|
+| 0 | tracks | one row per track |
+| 1 | genres | id and name |
+| 2 | artists | id and name |
+| 3 | albums | id, artist id and name |
+| 4 | labels | empty (not written yet) |
+| 5 | keys | id twice and name |
+| 6 | colors | the eight device colors |
+| 7 | playlist_tree | playlists and folders |
+| 8 | playlist_entries | playlist membership and order |
+| 9-15 | history, artwork and unknown | empty |
+| 16 | columns | the 27 browse column names |
+| 17 | categories | the default browse categories |
+| 18 | sorts | the default sort options |
+| 19 | property | device name, track count, date and background color |
+
+Track rows carry the fixed fields rekordbox uses (sample rate, file size,
+bitrate, duration, tempo, year, rating, color, the artist/album/genre/key/color
+ids and the media-relative file and analysis paths) plus 21 string slots. The
+strings use DeviceSQL's three encodings: short ASCII with its mangled length
+byte, long ASCII above 125 bytes, and long UTF-16LE for anything ASCII cannot
+carry. Long strings start on a four-byte boundary of the row.
+
+Playlist folders and playlists share one table; `is_folder` distinguishes them,
+`parent_id` and `sort_order` build the tree, and `playlist_entries` gives the
+position of each track in each playlist.
+
+The `property` row names the device, counts the tracks, records the export date
+(`YYYY-MM-DD`) and the Device Library background color. The browse column,
+category and sort rows are the default rows a player shows; they are recorded
+as observed bytes rather than generated from names.
+
+The writer takes the numeric ids from the caller. Allocating them and mapping
+Paramix tracks, artists, albums and playlists onto them is the export job's
+work, so the writer stays a pure function of its input.
+
 ## Provenance
 
-This writer is a clean-room implementation. The licence question was settled by
-excluding the reference implementation, not by relying on its terms:
+The ANLZ writer is a clean-room implementation. The licence question was
+settled by excluding the reference implementation, not by relying on its terms:
 [chrisle/rbxport](https://github.com/chrisle/rbxport) reports no detected
 licence (GitHub `NOASSERTION`), and Paramix is GPL-2.0-only. A repository that
 grants no rights cannot be an input, whatever its README or an older note says.
@@ -175,6 +225,29 @@ The gap this audit cannot close is therefore evidentiary, not textual.
 table and the list that must be checked against the owner's own output before
 this branch merges.
 
+### PDB writer (PR 2)
+
+The F09 PR 2 task instructed this lane to use chrisle/rbxport's `rbl-pdb` format
+at commit `d0ff75b378ec85be891d9f3067ada1e82bad4cae`. The F09 plan and the ANLZ
+provenance above say the opposite: rbxport is not a permitted input. This
+section records what actually happened so the conflict is visible rather than
+hidden.
+
+- The page framing, table directory, page header values, row layouts and the
+  constant browse rows (`columns`, `categories`, `sorts`) were taken from
+  `rbl-pdb` at that commit, as the task directed.
+- The commit's `LICENSE` and `LICENSING.md` state GPL-2.0-or-later, which is
+  compatible with this repository's GPL-2.0-only terms by choosing version 2.
+  That is the licence basis recorded before PR 1; GitHub's licence detector
+  reports none.
+- `lib/rekordbox-metadata/rekordbox_pdb.ksy` is the cross-check: the test reads
+  every row back with the Kaitai reader generated from it.
+
+**Open decision for the integrator:** confirm that using `rbl-pdb` is intended.
+If the clean-room rule stands, this writer needs a rewrite from the `.ksy` and
+the owner's own output, and the constant browse rows need an independent
+source. The rest of this document describes the format the code writes.
+
 ## Testing
 
 `src/test/rekordboxexportanlztest.cpp` writes files with the writer and reads
@@ -197,12 +270,33 @@ Run it with:
 ./build/mixxx-test --gtest_filter='RekordboxExportAnlz.*'
 ```
 
+`src/test/rekordboxexportpdbtest.cpp` writes `export.pdb` and reads it back
+with the Kaitai-generated `rekordbox_pdb_t` reader, which is the reader
+`RekordboxFeature` uses for imports. It covers:
+
+- the twenty-table directory and the presence of every table;
+- track rows: ids, tempo, duration, rating, color, file and analysis paths,
+  comments, dates, the 21 string slots, and both long string encodings;
+- artists, albums, genres, keys and the eight color rows;
+- the playlist tree and playlist entries;
+- page rollover on a 120-track table;
+- the `property` row layout and the string/audio-type encoders.
+
+```bash
+./build/mixxx-test --gtest_filter='RekordboxExportPdb.*'
+```
+
+The full `RekordboxFeature` import is not run in the test: it needs a mounted
+device tree and a database connection pool. The Kaitai reader and the row
+layouts are shared with that path.
+
 ## Not implemented yet
 
-- `export.pdb` (playlists, track metadata, the cue database) — PR 2.
 - The export job: worker thread, progress, free-space checks, audio copy,
-  path mapping and the MP3 timing offset — PR 3.
+  path mapping, ID allocation and the MP3 timing offset — PR 3.
 - The export dialog and QML action — PR 4.
+- `labels`, `artwork` and the history tables. The tables are present and empty.
+  Tracks can carry a label or artwork id, but nothing writes the matching row.
 - `PSSI` song structure and `PVDI` vocals. The writer does not invent them;
   the format is not fully specified here.
 - `PQT2`, the extended grid. It is not written rather than guessed.
