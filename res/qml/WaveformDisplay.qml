@@ -183,6 +183,11 @@ Item {
         }
         Mixxx.WaveformRendererBeat {
             color: Qt.rgba(161 / 255, 161 / 255, 161 / 255, Mixxx.Config.waveformBeatGridAlpha / 100)
+            // Bar starts get the same hue at a heavier weight; the renderer
+            // derives the opacity from the grid alpha and dims the assumed
+            // 4/4 fallback on its own.
+            downbeatColor: Theme.waveformDownbeatColor
+            downbeatWidth: Theme.waveformDownbeatWidth
         }
         Mixxx.WaveformRendererMark {
             playMarkerBackground: '#D9D9D9'

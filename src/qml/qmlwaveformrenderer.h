@@ -374,6 +374,8 @@ class QmlWaveformRendererBeat
         : public QmlWaveformRendererFactory {
     Q_OBJECT
     Q_PROPERTY(QColor color MEMBER m_color NOTIFY colorChanged REQUIRED)
+    Q_PROPERTY(QColor downbeatColor MEMBER m_downbeatColor NOTIFY downbeatColorChanged)
+    Q_PROPERTY(float downbeatWidth MEMBER m_downbeatWidth NOTIFY downbeatWidthChanged)
     QML_NAMED_ELEMENT(WaveformRendererBeat)
 
   public:
@@ -382,9 +384,14 @@ class QmlWaveformRendererBeat
             const override;
   signals:
     void colorChanged(const QColor&);
+    void downbeatColorChanged(const QColor&);
+    void downbeatWidthChanged(float);
 
   private:
     QColor m_color;
+    QColor m_downbeatColor;
+    /// Logical pixels; the renderer scales it with the device pixel ratio.
+    float m_downbeatWidth{3.0f};
     ::WaveformRendererAbstract::PositionSource m_position{::WaveformRendererAbstract::Play};
 };
 

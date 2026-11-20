@@ -276,6 +276,8 @@ QmlWaveformRendererFactory::Renderer QmlWaveformRendererBeat::create(
             waveformWidget, m_position);
     waveformWidget->setDisplayBeatGridAlpha(m_color.alphaF() * 100);
     pRenderer->setColor(m_color);
+    pRenderer->setDownbeatColor(m_downbeatColor);
+    pRenderer->setDownbeatWidth(m_downbeatWidth);
     connect(this,
             &QmlWaveformRendererBeat::colorChanged,
             pRenderer.get(),
@@ -283,6 +285,14 @@ QmlWaveformRendererFactory::Renderer QmlWaveformRendererBeat::create(
                 waveformWidget->setDisplayBeatGridAlpha(color.alphaF() * 100);
                 pRenderer->setColor(color);
             });
+    connect(this,
+            &QmlWaveformRendererBeat::downbeatColorChanged,
+            pRenderer.get(),
+            &allshader::WaveformRenderBeat::setDownbeatColor);
+    connect(this,
+            &QmlWaveformRendererBeat::downbeatWidthChanged,
+            pRenderer.get(),
+            &allshader::WaveformRenderBeat::setDownbeatWidth);
     return QmlWaveformRendererFactory::Renderer{pRenderer.get(), std::move(pRenderer)};
 }
 
