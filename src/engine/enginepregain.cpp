@@ -31,7 +31,7 @@ EnginePregain::EnginePregain(const QString& group, const UserSettingsPointer& pC
           m_fPrevGain(1.0),
           m_bSmoothFade(false) {
     m_pPotmeterPregain = new ControlAudioTaperPot(ConfigKey(group, "pregain"), -12, 12, 0.5);
-    //Replay Gain things
+    // Replay Gain things
     m_pCOReplayGain = new ControlObject(ConfigKey(group, "replaygain"));
     m_pTotalGain = new ControlObject(ConfigKey(group, "total_gain"));
     m_pPassthroughEnabled = ControlObject::getControl(ConfigKey(group, "passthrough"));

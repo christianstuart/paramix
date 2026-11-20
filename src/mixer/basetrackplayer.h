@@ -63,8 +63,8 @@ class BaseTrackPlayer : public BasePlayer {
     virtual void slotCloneFromGroup(const QString& group) = 0;
     virtual void slotCloneDeck() = 0;
     virtual void slotEjectTrack(double) = 0;
-    virtual void slotSetAndConfirmTrackMenuControl(bool){};
-    virtual void slotTrackRatingChangeRequest(int){};
+    virtual void slotSetAndConfirmTrackMenuControl(bool) {};
+    virtual void slotTrackRatingChangeRequest(int) {};
 
   signals:
     void newTrackLoaded(TrackPointer pLoadedTrack);
