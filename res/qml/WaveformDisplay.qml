@@ -161,9 +161,12 @@ Item {
             gainHigh: Mixxx.Config.waveformVisualGainHigh
             gainLow: Mixxx.Config.waveformVisualGainLow
             gainMid: Mixxx.Config.waveformVisualGainMedium
-            highColor: '#D5C2A2'
-            lowColor: '#2154D7'
-            midColor: '#97632D'
+            // Frequency-coded: lows red, mids green, highs blue. The renderer
+            // normalises by the largest channel, so a full-range section
+            // trends toward white instead of grey.
+            highColor: Theme.waveformHighColor
+            lowColor: Theme.waveformLowColor
+            midColor: Theme.waveformMidColor
         }
         Mixxx.WaveformRendererStem {
             // Per-stem visual gain, multiplied on top of the automatic lane
