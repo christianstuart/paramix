@@ -5,6 +5,7 @@
 #include <QList>
 #include <QVarLengthArray>
 #include <QVector>
+#include <atomic>
 #include <list>
 
 #include "engine/cachingreader/cachingreaderworker.h"
@@ -88,6 +89,16 @@ class CachingReader : public QObject {
 
     void process();
 
+    /// Number of chunk cache misses since the process started, summed over all
+    /// CachingReader instances. Audio dropout diagnostics read the delta around
+    /// an underflow: a positive delta means a deck asked for audio that the
+    /// worker had not decoded yet, i.e. reader starvation rather than a device
+    /// or scheduler stall.
+    ///
+    /// The counter is incremented from the engine callback, so it is a plain
+    /// relaxed atomic: no allocation, no lock and no logging on that path.
+    static quint64 cacheMissCount();
+
     enum class ReadResult {
         // No samples read and buffer untouched(!), try again later in case of a cache miss
         UNAVAILABLE,
@@ -137,6 +148,9 @@ class CachingReader : public QObject {
 
   private:
     const UserSettingsPointer m_pConfig;
+
+    /// Process-wide cache-miss counter, see cacheMissCount().
+    static std::atomic<quint64> s_cacheMissCount;
 
     // Thread-safe FIFOs for communication between the engine callback and
     // reader thread.

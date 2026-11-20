@@ -26,7 +26,10 @@ StemDetailCache::StemDetailCache(QObject* parent)
             this,
             &StemDetailCache::onBuilt,
             Qt::QueuedConnection);
-    m_pThread->start();
+    // Background work: keep it below the audio callback, the engine and the
+    // GUI. The renderer keeps drawing the previous picture until a build is
+    // ready, so a lower priority only delays the first stem waveform.
+    m_pThread->start(QThread::LowPriority);
 }
 
 StemDetailCache::~StemDetailCache() {
@@ -92,6 +95,27 @@ std::shared_ptr<const StemDetailTrack> StemDetailCache::request(
     return pDetail;
 }
 
+void StemDetailCache::setBackgroundSuspended(bool suspended) {
+    if (m_backgroundSuspended.exchange(suspended) == suspended) {
+        return;
+    }
+    if (suspended) {
+        // A pending request keeps m_hasPending; only its timer is stopped.
+        m_debounce.stop();
+        return;
+    }
+    if (!m_hasPending) {
+        return;
+    }
+    // Resume the deferred request exactly once. Restarting the debounce rather
+    // than calling startPendingBuild() directly also covers the case where a
+    // build was already running when the suspension was requested: that build
+    // is allowed to finish instead of being cancelled and thrown away.
+    m_debounce.stop();
+    m_debounce.setInterval(kDebounceMilliseconds);
+    m_debounce.start();
+}
+
 void StemDetailCache::scheduleBuild(const StemDetailKey& key,
         const TrackPointer& pTrack) {
     if ((m_hasPending && m_pendingKey == key) ||
@@ -122,8 +146,13 @@ void StemDetailCache::scheduleBuild(const StemDetailKey& key,
         m_pendingKey = key;
         m_pendingTrack = pTrack;
         m_hasPending = true;
+        m_activity.store(true, std::memory_order_relaxed);
     }
     m_debounce.stop();
+    if (m_backgroundSuspended.load(std::memory_order_relaxed)) {
+        // Keep the request pending; setBackgroundSuspended(false) starts it.
+        return;
+    }
     m_debounce.setInterval(debounceMs);
     m_debounce.start();
 }
@@ -173,6 +202,10 @@ void StemDetailCache::insert(const StemDetailKey& key,
 }
 
 void StemDetailCache::startPendingBuild() {
+    if (m_backgroundSuspended.load(std::memory_order_relaxed)) {
+        // Keep the request pending; resume restarts the debounce.
+        return;
+    }
     if (!m_hasPending) {
         return;
     }
@@ -180,6 +213,7 @@ void StemDetailCache::startPendingBuild() {
     std::shared_ptr<const StemDetailTrack> pDetail;
     if (find(m_pendingKey, &pDetail)) {
         m_hasPending = false;
+        m_activity.store(false, std::memory_order_relaxed);
         emit detailReady();
         return;
     }
@@ -221,6 +255,7 @@ void StemDetailCache::onBuilt(const StemDetailKey& key,
             m_failed.clear();
         }
         m_failed.insert(key);
+        m_activity.store(m_hasPending, std::memory_order_relaxed);
         return;
     }
     insert(key, pDetail);
@@ -230,5 +265,6 @@ void StemDetailCache::onBuilt(const StemDetailKey& key,
             m_hasLastScheduledKey = false;
         }
     }
+    m_activity.store(m_hasPending, std::memory_order_relaxed);
     emit detailReady();
 }
