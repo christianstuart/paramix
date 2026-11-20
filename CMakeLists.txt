@@ -3061,6 +3061,7 @@ if(BUILD_TESTING)
     src/test/queryutiltest.cpp
     src/test/rangelist_test.cpp
     src/test/readaheadmanager_test.cpp
+    src/test/rekordboxexportanlztest.cpp
     src/test/replaygaintest.cpp
     src/test/rescalertest.cpp
     src/test/rgbcolor_test.cpp
@@ -3586,6 +3587,13 @@ if(ENGINEPRIME)
   target_compile_definitions(mixxx-lib PUBLIC __ENGINEPRIME__)
 endif()
 
+# Rekordbox ANLZ writer.
+target_sources(
+  mixxx-lib
+  PRIVATE
+    src/library/export/rekordbox/rekordboxanlzwriter.cpp
+)
+
 # Ebur128
 find_package(Ebur128 REQUIRED)
 target_link_libraries(mixxx-lib PRIVATE Ebur128::Ebur128)
@@ -3789,6 +3797,11 @@ target_include_directories(Kaitai SYSTEM PUBLIC lib/kaitai)
 target_compile_definitions(Kaitai PRIVATE KS_STR_ENCODING_NONE)
 target_link_libraries(rekordbox_metadata PRIVATE Kaitai)
 target_link_libraries(mixxx-lib PRIVATE Kaitai)
+
+# The ANLZ writer test reads its files back with the Kaitai reader.
+if(BUILD_TESTING)
+  target_link_libraries(mixxx-test PRIVATE rekordbox_metadata Kaitai)
+endif()
 
 # For determining MP3 timing offset cases in Rekordbox library feature
 add_library(
