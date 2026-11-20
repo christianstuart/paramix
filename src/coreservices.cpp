@@ -6,6 +6,7 @@
 #include <QProcessEnvironment>
 #include <QStandardPaths>
 #include <QThread>
+#include <QTimer>
 #include <QtGlobal>
 #include <gsl/pointers>
 
@@ -596,20 +597,34 @@ void CoreServices::initialize() {
             &mixxx::stems::StemService::stemsReady,
             this,
             [this](TrackId trackId) {
-                // Existing stereo waveform data would satisfy the version
-                // check, so drop it before re-analyzing the 8-channel cache.
-                m_pTrackCollectionManager->internalCollection()
-                        ->getAnalysisDAO()
-                        .deleteAnalysesForTrack(trackId);
-                QList<AnalyzerScheduledTrack> tracks{AnalyzerScheduledTrack(trackId)};
-                m_pLibrary->scheduleAnalysis(tracks);
+                // Re-analysis rewrites the analysis rows of a track that may
+                // still be playing, and starts waveform and gain work. Defer it
+                // so it is staggered after the separation job instead of
+                // stacking onto the worker's cleanup and the next queued job.
+                constexpr int kPostSeparationReanalysisDelayMs = 2000;
+                QTimer::singleShot(
+                        kPostSeparationReanalysisDelayMs,
+                        this,
+                        [this, trackId]() {
+                            // Existing stereo waveform data would satisfy the
+                            // version check, so drop it before re-analyzing the
+                            // 8-channel cache.
+                            m_pTrackCollectionManager->internalCollection()
+                                    ->getAnalysisDAO()
+                                    .deleteAnalysesForTrack(trackId);
+                            QList<AnalyzerScheduledTrack> tracks{
+                                    AnalyzerScheduledTrack(trackId)};
+                            m_pLibrary->scheduleAnalysis(tracks);
+                        });
             });
 
     // Batch analysis yields to stem separation and stem separation yields to
     // an overloaded audio callback. Both pauses compose with user pauses.
     m_pStemAnalysisCoordinator =
             std::make_unique<mixxx::stems::StemAnalysisCoordinator>(
-                    pStemService, m_pLibrary->analysisFeature());
+                    pStemService,
+                    m_pLibrary->analysisFeature(),
+                    m_pPlayerManager.get());
 
     kLogger.info() << QStringLiteral(
             "Thread separation audit: analyzer workers=%1 (priority=low), "

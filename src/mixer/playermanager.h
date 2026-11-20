@@ -141,6 +141,24 @@ class PlayerManager : public PlayerManagerInterface {
     // must exist at least for the lifetime of this instance.
     void bindToLibrary(Library* pLibrary);
 
+    /// Suspends or resumes the ad-hoc analysis that runs when a track is
+    /// loaded and played. Tracks scheduled while suspended stay queued in the
+    /// scheduler and run after resume(), so a suspended job is never lost.
+    /// A track loaded while suspended must not clear the suspension, which is
+    /// why slotAnalyzeTrack() only resumes when no suspension is owned.
+    /// Must be called from the GUI thread.
+    void setBackgroundAnalysisSuspended(bool suspended);
+
+    /// True while the audio-overload coordinator owns the suspension.
+    bool isBackgroundAnalysisSuspended() const {
+        return m_backgroundAnalysisSuspended;
+    }
+
+    /// True while a load-triggered analysis is queued or running.
+    bool hasPendingLoadAnalysis() const {
+        return m_loadAnalysisPending;
+    }
+
     QStringList getVisualPlayerGroups();
 
     // Returns the group for the ith sampler where i is zero indexed
@@ -301,6 +319,8 @@ class PlayerManager : public PlayerManagerInterface {
     parented_ptr<ControlProxy> m_pAutoDjEnabled;
 
     TrackAnalysisScheduler::Pointer m_pTrackAnalysisScheduler;
+    bool m_backgroundAnalysisSuspended = false;
+    bool m_loadAnalysisPending = false;
 
     TrackId m_secondLastEjectedTrackId;
     TrackId m_lastEjectedTrackId;

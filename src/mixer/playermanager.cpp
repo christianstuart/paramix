@@ -31,8 +31,10 @@ const mixxx::Logger kLogger("PlayerManager");
 const QString kAppGroup = QStringLiteral("[App]");
 const QString kLegacyGroup = QStringLiteral("[Master]");
 
-// Utilize half of the available cores for adhoc analysis of tracks
-const int kNumberOfAnalyzerThreads = math_max(1, QThread::idealThreadCount() / 2);
+// Utilize half of the available cores for adhoc analysis of tracks, capped
+// like batch analysis. The cap leaves headroom for the audio callback, stem
+// separation and the GUI on machines with many cores.
+const int kNumberOfAnalyzerThreads = math_max(1, math_min(8, QThread::idealThreadCount() / 2));
 
 const QRegularExpression kDeckRegex(QStringLiteral("^\\[Channel(\\d+)\\]$"));
 const QRegularExpression kSamplerRegex(QStringLiteral("^\\[Sampler(\\d+)\\]$"));
@@ -179,7 +181,8 @@ void PlayerManager::bindToLibrary(Library* pLibrary) {
     DEBUG_ASSERT(!m_pTrackAnalysisScheduler);
     m_pTrackAnalysisScheduler = pLibrary->createTrackAnalysisScheduler(
             kNumberOfAnalyzerThreads,
-            AnalyzerModeFlags::WithWaveform);
+            static_cast<AnalyzerModeFlags>(
+                    AnalyzerModeFlags::WithWaveform | AnalyzerModeFlags::LowPriority));
 
     connect(m_pTrackAnalysisScheduler.get(), &TrackAnalysisScheduler::trackProgress, this, &PlayerManager::onTrackAnalysisProgress);
     connect(m_pTrackAnalysisScheduler.get(), &TrackAnalysisScheduler::finished, this, &PlayerManager::onTrackAnalysisFinished);
@@ -808,12 +811,34 @@ void PlayerManager::slotAnalyzeTrack(TrackPointer track) {
     }
     if (m_pTrackAnalysisScheduler) {
         if (m_pTrackAnalysisScheduler->scheduleTrack(track->getId())) {
-            m_pTrackAnalysisScheduler->resume();
+            m_loadAnalysisPending = true;
+            // A coordinator-owned suspension outranks a new job: keep the
+            // track queued instead of clearing the pause.
+            if (!m_backgroundAnalysisSuspended) {
+                m_pTrackAnalysisScheduler->resume();
+            }
         }
         // The first progress signal will suspend a running batch analysis
         // until all loaded tracks have been analyzed. Emit it once just now
         // before any signals from the analyzer queue arrive.
         emit trackAnalyzerProgress(track->getId(), kAnalyzerProgressUnknown);
+    }
+}
+
+void PlayerManager::setBackgroundAnalysisSuspended(bool suspended) {
+    if (m_backgroundAnalysisSuspended == suspended) {
+        return;
+    }
+    m_backgroundAnalysisSuspended = suspended;
+    if (!m_pTrackAnalysisScheduler) {
+        return;
+    }
+    kLogger.info() << (suspended ? "Suspending" : "Resuming")
+                   << "load analysis (queued tracks are kept)";
+    if (suspended) {
+        m_pTrackAnalysisScheduler->suspend();
+    } else {
+        m_pTrackAnalysisScheduler->resume();
     }
 }
 
@@ -834,6 +859,7 @@ void PlayerManager::onTrackAnalysisProgress(TrackId trackId, AnalyzerProgress an
 }
 
 void PlayerManager::onTrackAnalysisFinished() {
+    m_loadAnalysisPending = false;
     emit trackAnalyzerIdle();
 }
 
