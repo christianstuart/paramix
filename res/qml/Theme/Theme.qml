@@ -231,6 +231,14 @@ QtObject {
     readonly property color waveformMidColor: "#34D058"
     readonly property color waveformHighColor: "#3B82F6"
 
+    // ── Downbeat lines ─────────────────────────────────────────────────────
+    // Bar lines reuse the ordinary beat-grid hue and are distinguished by
+    // width (logical pixels, scaled by the device pixel ratio) and a stronger
+    // opacity. Kept as tokens so the emphasis can be tuned without touching
+    // the renderer.
+    readonly property color waveformDownbeatColor: "#A1A1A1"
+    readonly property real waveformDownbeatWidth: 3
+
     // ── Typography ─────────────────────────────────────────────────────────
     // Helvetica Neue throughout, where it exists. It is a macOS system font,
     // so everywhere else Qt used to substitute whatever it liked (Tahoma on

@@ -3017,6 +3017,7 @@ if(BUILD_TESTING)
     src/test/demucsstfttest.cpp
     src/test/scnetonnxseparatortest.cpp
     src/test/directorydaotest.cpp
+    src/test/downbeattest.cpp
     src/test/duration_test.cpp
     src/test/durationutiltest.cpp
     #TODO: write useful tests for refactored effects system
