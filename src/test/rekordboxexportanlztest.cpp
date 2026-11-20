@@ -4,7 +4,6 @@
 #include <QList>
 #include <QString>
 #include <QVector>
-#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -145,12 +144,13 @@ TEST(RekordboxExportAnlz, WriterMatchesRekordboxSectionLayout) {
     auto* pathBody = static_cast<rekordbox_anlz_t::path_tag_t*>(path->body());
     EXPECT_EQ(utf16BeBytes(QStringLiteral("?/track.mp3"), false), pathBody->path());
 
-    // A fresh `.DAT` carries the zero VBR table: a zero header word and 401
-    // zero words, which is what rekordbox writes for a track it cannot index.
+    // A fresh `.DAT` carries the zero VBR table described by `vbr_tag`: one
+    // unused word and 400 zero entries, the form used for a track whose
+    // bitrate is not indexed.
     auto* vbr = findSection(dat.file.get(), rekordbox_anlz_t::SECTION_TAGS_VBR);
     ASSERT_NE(nullptr, vbr);
     EXPECT_EQ(16u, vbr->len_header());
-    EXPECT_EQ(1620u, vbr->len_tag());
+    EXPECT_EQ(1616u, vbr->len_tag());
 
     auto* preview = findSection(dat.file.get(), rekordbox_anlz_t::SECTION_TAGS_WAVE_PREVIEW);
     ASSERT_NE(nullptr, preview);
@@ -249,37 +249,85 @@ TEST(RekordboxExportAnlz, DownbeatPhaseShiftsBeatNumbers) {
     EXPECT_EQ(4, grid.at(4).beatNumber);
 }
 
-TEST(RekordboxExportAnlz, CueEntryMatchesTheReferenceImplementationBytes) {
-    // A single hot cue A at 83032 ms with palette color 46. The expected
-    // `PCP2` payload is the byte string rbxport's `rbl-anlz` crate asserts
-    // for the same cue.
-    AnlzCue cue;
-    cue.slot = 1;
-    cue.timeMs = 83032;
-    cue.colorCode = 46;
+TEST(RekordboxExportAnlz, CueListsRoundTripThroughKaitaiReader) {
+    // The reader is the oracle for both cue list forms: `cue_tag` (`PCPT`) and
+    // `cue_extended_tag` (`PCP2`) in `rekordbox_anlz.ksy`. No expected byte
+    // string from a third-party implementation is used.
+    AnlzCue hot;
+    hot.slot = 1;
+    hot.timeMs = 83032;
+    hot.colorCode = 46;
+    hot.comment = QStringLiteral("Drop");
 
-    const auto sections = AnlzWriter::cueSections({cue}, true);
-    ASSERT_EQ(4, sections.size());
-    EXPECT_EQ(std::string("PCOB"), std::string(sections.at(0).tag.data(), 4));
-    EXPECT_EQ(std::string("PCOB"), std::string(sections.at(1).tag.data(), 4));
-    EXPECT_EQ(std::string("PCO2"), std::string(sections.at(2).tag.data(), 4));
-    EXPECT_EQ(std::string("PCO2"), std::string(sections.at(3).tag.data(), 4));
+    AnlzCue memory;
+    memory.slot = 0;
+    memory.timeMs = 1000;
 
-    const QByteArray expected(
-            "50435032000000100000005800000001010003e800014458ffffffff000100000000000000"
-            "000000000000002eff005c00000000000000000000000000000000000000000000000000"
-            "000000000000000000000000000000");
-    EXPECT_EQ(expected, sections.at(2).payload.toHex());
+    const auto dat = ParsedAnlz(
+            AnlzWriter::render(AnlzWriter::cueSections({hot, memory}, false)));
+    EXPECT_EQ((std::vector<std::string>{"PCOB", "PCOB"}), tagsOf(*dat.file));
 
-    // An empty DAT cue list keeps rekordbox's own header: the hot list
-    // points at 0xffffffff and the memory list at 0xffffffff when empty.
-    AnlzCue memoryCue;
-    memoryCue.slot = 0;
-    memoryCue.timeMs = 1000;
-    const auto emptyHot = AnlzWriter::cueSections({memoryCue}, false);
-    ASSERT_EQ(2, emptyHot.size());
-    EXPECT_EQ(QByteArray("0000000100000000ffffffff"), emptyHot.at(0).header.toHex());
-    EXPECT_EQ(QByteArray("000000000000000100000000"), emptyHot.at(1).header.toHex());
+    auto* hotList = findSection(dat.file.get(), rekordbox_anlz_t::SECTION_TAGS_CUES, 0);
+    ASSERT_NE(nullptr, hotList);
+    auto* hotBody = static_cast<rekordbox_anlz_t::cue_tag_t*>(hotList->body());
+    EXPECT_EQ(rekordbox_anlz_t::CUE_LIST_TYPE_HOT_CUES, hotBody->type());
+    ASSERT_EQ(1, static_cast<int>(hotBody->num_cues()));
+    const auto* hotEntry = hotBody->cues()->at(0).get();
+    EXPECT_EQ(1u, hotEntry->hot_cue());
+    EXPECT_EQ(83032u, hotEntry->time());
+    EXPECT_EQ(0xffffffffu, hotEntry->loop_time());
+    EXPECT_EQ(rekordbox_anlz_t::CUE_ENTRY_TYPE_MEMORY_CUE, hotEntry->type());
+    // The `.ksy` leaves the last header word unexplained; the writer records
+    // the observed convention, 0xffffffff for a hot list.
+    EXPECT_EQ(0xffffffffu, hotBody->memory_count());
+
+    auto* memoryList = findSection(dat.file.get(), rekordbox_anlz_t::SECTION_TAGS_CUES, 1);
+    ASSERT_NE(nullptr, memoryList);
+    auto* memoryBody = static_cast<rekordbox_anlz_t::cue_tag_t*>(memoryList->body());
+    EXPECT_EQ(rekordbox_anlz_t::CUE_LIST_TYPE_MEMORY_CUES, memoryBody->type());
+    ASSERT_EQ(1, static_cast<int>(memoryBody->num_cues()));
+    EXPECT_EQ(0u, memoryBody->cues()->at(0)->hot_cue());
+    EXPECT_EQ(1000u, memoryBody->cues()->at(0)->time());
+    EXPECT_EQ(0u, memoryBody->memory_count());
+
+    const auto ext = ParsedAnlz(
+            AnlzWriter::render(AnlzWriter::cueSections({hot, memory}, true)));
+    EXPECT_EQ((std::vector<std::string>{"PCOB", "PCOB", "PCO2", "PCO2"}),
+            tagsOf(*ext.file));
+
+    // An `.EXT`'s legacy `PCOB` list carries only hot cues D-P: A-C are in the
+    // `.DAT` and memory cues are covered by `PCO2`. Both lists are therefore
+    // empty for a slot-A hot cue and one memory cue.
+    auto* legacyHot = findSection(ext.file.get(), rekordbox_anlz_t::SECTION_TAGS_CUES, 0);
+    ASSERT_NE(nullptr, legacyHot);
+    EXPECT_EQ(0, static_cast<int>(static_cast<rekordbox_anlz_t::cue_tag_t*>(legacyHot->body())->num_cues()));
+    auto* legacyMemory = findSection(ext.file.get(), rekordbox_anlz_t::SECTION_TAGS_CUES, 1);
+    ASSERT_NE(nullptr, legacyMemory);
+    EXPECT_EQ(0,
+            static_cast<int>(
+                    static_cast<rekordbox_anlz_t::cue_tag_t*>(legacyMemory->body())->num_cues()));
+
+    auto* extHot = findSection(ext.file.get(), rekordbox_anlz_t::SECTION_TAGS_CUES_2, 0);
+    ASSERT_NE(nullptr, extHot);
+    auto* extHotBody = static_cast<rekordbox_anlz_t::cue_extended_tag_t*>(extHot->body());
+    ASSERT_EQ(1, static_cast<int>(extHotBody->num_cues()));
+    const auto* extEntry = extHotBody->cues()->at(0).get();
+    EXPECT_EQ(1u, extEntry->hot_cue());
+    EXPECT_EQ(83032u, extEntry->time());
+    EXPECT_EQ(0xffffffffu, extEntry->loop_time());
+    EXPECT_EQ(utf16BeBytes(QStringLiteral("Drop"), true), extEntry->comment());
+    EXPECT_EQ(46u, extEntry->color_code());
+    EXPECT_EQ(0xffu, extEntry->color_red());
+    EXPECT_EQ(0x00u, extEntry->color_green());
+    EXPECT_EQ(0x5cu, extEntry->color_blue());
+
+    auto* extMemory = findSection(ext.file.get(), rekordbox_anlz_t::SECTION_TAGS_CUES_2, 1);
+    ASSERT_NE(nullptr, extMemory);
+    auto* extMemoryBody =
+            static_cast<rekordbox_anlz_t::cue_extended_tag_t*>(extMemory->body());
+    ASSERT_EQ(1, static_cast<int>(extMemoryBody->num_cues()));
+    EXPECT_EQ(1000u, extMemoryBody->cues()->at(0)->time());
+    EXPECT_EQ(0u, extMemoryBody->cues()->at(0)->color_id());
 }
 
 TEST(RekordboxExportAnlz, CuesConvertToDeviceListsAndParseBack) {
@@ -351,38 +399,47 @@ TEST(RekordboxExportAnlz, CuesConvertToDeviceListsAndParseBack) {
     EXPECT_EQ(0u, extMemoryBody->cues()->at(0)->color_id());
 }
 
-TEST(RekordboxExportAnlz, WaveformEncodersMatchReferenceValues) {
-    struct Reference {
-        BandColumn column;
-        quint16 pwv5Word;
-        quint8 pwv3Height;
+TEST(RekordboxExportAnlz, WaveformEncodersFollowTheirDocumentedPacking) {
+    // `rekordbox_anlz.ksy` fixes each tag's entry width but not its bit
+    // layout. The layout is recorded in docs/rekordbox-export.md ("Waveforms")
+    // from rekordbox's own files, and these assertions check the encoders
+    // against it. No third-party test vector is used.
+    const auto wordOf = [](const QByteArray& bytes) {
+        EXPECT_EQ(2, bytes.size());
+        return static_cast<quint16>((static_cast<quint8>(bytes.at(0)) << 8) |
+                static_cast<quint8>(bytes.at(1)));
     };
-    // Measured PWV5 words and PWV3 heights from rbxport's own tests.
-    const std::array<Reference, 10> reference = {{
-            {{44, 102, 109, 186}, 0x4fc0, 16},
-            {{217, 94, 55, 198}, 0xe9cc, 19},
-            {{189, 45, 35, 222}, 0xe55c, 23},
-            {{179, 112, 106, 252}, 0xef78, 30},
-            {{233, 76, 21, 253}, 0xe8fc, 31},
-            {{176, 173, 127, 239}, 0xd7ec, 27},
-            {{162, 90, 57, 190}, 0xee44, 17},
-            {{41, 68, 149, 182}, 0x2bc0, 16},
-            {{173, 97, 41, 236}, 0xed6c, 27},
-            {{133, 216, 145, 253}, 0x97fc, 31},
-    }};
 
-    const QVector<BandColumn> empty;
-    for (const Reference& expected : reference) {
-        const auto pwv5 = AnlzWriter::encodePwv5({expected.column});
-        ASSERT_EQ(2, pwv5.size());
-        const quint16 word = static_cast<quint16>(
-                (static_cast<quint8>(pwv5.at(0)) << 8) |
-                static_cast<quint8>(pwv5.at(1)));
-        EXPECT_EQ(expected.pwv5Word, word);
-        const auto pv3 = AnlzWriter::encodePwv3({expected.column});
-        ASSERT_EQ(1, pv3.size());
-        EXPECT_EQ(expected.pwv3Height, static_cast<quint8>(pv3.at(0) & 0x1f));
-    }
+    BandColumn lowOnly;
+    lowOnly.low = 255;
+    lowOnly.peak = 255;
+    BandColumn midOnly;
+    midOnly.mid = 255;
+    midOnly.peak = 255;
+    BandColumn highOnly;
+    highOnly.high = 255;
+    highOnly.peak = 255;
+
+    // `PWV5` is rrrgggbbbhhhhh00: the dominant band fills its own field.
+    const quint16 lowWord = wordOf(AnlzWriter::encodePwv5({lowOnly}));
+    EXPECT_EQ(7, static_cast<int>((lowWord >> 13) & 0x7));
+    EXPECT_EQ(0, static_cast<int>((lowWord >> 10) & 0x7));
+    EXPECT_EQ(0, static_cast<int>((lowWord >> 7) & 0x7));
+    const quint16 midWord = wordOf(AnlzWriter::encodePwv5({midOnly}));
+    EXPECT_EQ(0, static_cast<int>((midWord >> 13) & 0x7));
+    EXPECT_EQ(5, static_cast<int>((midWord >> 10) & 0x7));
+    EXPECT_EQ(0, static_cast<int>((midWord >> 7) & 0x7));
+    const quint16 highWord = wordOf(AnlzWriter::encodePwv5({highOnly}));
+    EXPECT_EQ(0, static_cast<int>((highWord >> 13) & 0x7));
+    EXPECT_EQ(0, static_cast<int>((highWord >> 10) & 0x7));
+    EXPECT_EQ(7, static_cast<int>((highWord >> 7) & 0x7));
+    // The low two bits are unused and the height occupies bits 2-6. A full
+    // peak is the detail ceiling, which `PWV3` also reaches.
+    EXPECT_EQ(0, static_cast<int>(lowWord & 0x3));
+    EXPECT_EQ(0x1f, static_cast<int>((lowWord >> 2) & 0x1f));
+    EXPECT_EQ(0x1f,
+            static_cast<int>(static_cast<quint8>(AnlzWriter::encodePwv3({lowOnly}).at(0)) &
+                    0x1f));
 
     BandColumn full;
     full.low = 255;
@@ -391,9 +448,20 @@ TEST(RekordboxExportAnlz, WaveformEncodersMatchReferenceValues) {
     full.peak = 255;
     const auto pwv4 = AnlzWriter::encodePwv4({full});
     ASSERT_EQ(AnlzWriter::kOverviewColumns * 6, pwv4.size());
+    // Six-byte entry: peak, two unused bytes, then the three bands.
+    EXPECT_EQ(127, static_cast<quint8>(pwv4.at(0)));
+    EXPECT_EQ(0, static_cast<quint8>(pwv4.at(1)));
+    EXPECT_EQ(0, static_cast<quint8>(pwv4.at(2)));
     EXPECT_EQ(127, static_cast<quint8>(pwv4.at(3)));
     EXPECT_EQ(101, static_cast<quint8>(pwv4.at(4)));
     EXPECT_EQ(82, static_cast<quint8>(pwv4.at(5)));
+
+    // `PWV6` is three bytes per entry at the documented band scale.
+    const auto pwv6 = AnlzWriter::encodePwv6({full});
+    ASSERT_EQ(AnlzWriter::kOverviewColumns * 3, pwv6.size());
+    EXPECT_EQ(44, static_cast<quint8>(pwv6.at(0)));
+    // `PWV7` is three seven-bit bands.
+    EXPECT_EQ(127, static_cast<quint8>(AnlzWriter::encodePwv7({full}).at(0)));
 
     const auto columns = rampColumns(3000);
     EXPECT_EQ(AnlzWriter::kPreviewColumns, AnlzWriter::encodePwav(columns).size());
@@ -405,6 +473,7 @@ TEST(RekordboxExportAnlz, WaveformEncodersMatchReferenceValues) {
     EXPECT_EQ(9000, AnlzWriter::encodePwv7(columns).size());
 
     // A silent column is not zero: players read zero as "not analyzed yet".
+    const QVector<BandColumn> empty;
     EXPECT_EQ(2, AnlzWriter::encodePwav(empty).at(0) & 0x1f);
     EXPECT_EQ(1, AnlzWriter::encodePwv2(empty).at(0));
     for (char byte : AnlzWriter::encodePwv2(columns)) {

@@ -15,8 +15,9 @@ using mixxx::rekordbox::AnlzCue;
 using mixxx::rekordbox::AnlzSection;
 using mixxx::rekordbox::BandColumn;
 
-/// The 16 bytes rekordbox writes after the 12-byte `PMAI` frame. Their
-/// meaning is not documented; they are reproduced rather than derived.
+/// Observed value: the 16 bytes rekordbox writes after the 12-byte `PMAI`
+/// frame. `rekordbox_anlz.ksy` only skips them (`size: len_header - _io.pos`),
+/// so their meaning is unknown and they are recorded, not derived.
 constexpr std::array<quint8, 16> kDefaultHeaderExtra = {
         0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0};
 
@@ -81,7 +82,8 @@ quint32 millisecondsOf(
             static_cast<double>(std::numeric_limits<quint32>::max())));
 }
 
-/// The scale rekordbox's own `PWV6` uses for a 0..=255 band.
+/// Observed value: the scale rekordbox's own `PWV6` uses for a 0..=255 band.
+/// The `.ksy` fixes the three-byte entry width but not the band range.
 constexpr quint32 kBandsFullScale = 44;
 
 quint32 band(quint8 value) {
@@ -112,9 +114,10 @@ quint32 monoByte(const BandColumn& column, quint32 height) {
     return (std::min(whiteness, 7u) << 5) | std::min(height, 31u);
 }
 
-/// The device palette a hot cue's color index addresses. Taken from the
-/// CDJ-3000 3.20 EP122 palette at file offset 0x1b55a58, as recorded by
-/// rbxport's `rbl-anlz` crate.
+/// Observed value: the 65-entry palette a hot cue's color index addresses.
+/// These are the RGB triples rekordbox itself writes into `PCO2` entries, not
+/// a value described by the `.ksy`; see the open attestation gap for the
+/// palette in `docs/rekordbox-export.md`.
 constexpr std::array<std::array<quint8, 3>, 65> kDevicePalette = {{{{0x00, 0x00, 0x00}}, {{0x00, 0x00, 0xff}}, {{0x00, 0x1c, 0xff}}, {{0x00, 0x38, 0xff}}, {{0x00, 0x54, 0xff}}, {{0x00, 0x70, 0xff}}, {{0x00, 0x8c, 0xff}}, {{0x00, 0xa8, 0xff}}, {{0x00, 0xc4, 0xff}}, {{0x00, 0xe0, 0xff}}, {{0x00, 0xff, 0xff}}, {{0x00, 0xff, 0xe8}}, {{0x00, 0xff, 0xd1}}, {{0x00, 0xff, 0xba}}, {{0x00, 0xff, 0xa3}}, {{0x00, 0xff, 0x8c}}, {{0x00, 0xff, 0x75}}, {{0x00, 0xff, 0x5e}}, {{0x00, 0xff, 0x47}}, {{0x00, 0xff, 0x30}}, {{0x00, 0xff, 0x1a}}, {{0x00, 0xff, 0x00}}, {{0x1a, 0xff, 0x00}}, {{0x33, 0xff, 0x00}}, {{0x4d, 0xff, 0x00}}, {{0x66, 0xff, 0x00}}, {{0x80, 0xff, 0x00}}, {{0x99, 0xff, 0x00}}, {{0xb3, 0xff, 0x00}}, {{0xcc, 0xff, 0x00}}, {{0xe6, 0xff, 0x00}}, {{0xff, 0xff, 0x00}}, {{0xff, 0xe8, 0x00}}, {{0xff, 0xd1, 0x00}}, {{0xff, 0xba, 0x00}}, {{0xff, 0xa3, 0x00}}, {{0xff, 0x8c, 0x00}}, {{0xff, 0x75, 0x00}}, {{0xff, 0x5e, 0x00}}, {{0xff, 0x47, 0x00}}, {{0xff, 0x30, 0x00}}, {{0xff, 0x1a, 0x00}}, {{0xff, 0x00, 0x00}}, {{0xff, 0x00, 0x17}}, {{0xff, 0x00, 0x2e}}, {{0xff, 0x00, 0x45}}, {{0xff, 0x00, 0x5c}}, {{0xff, 0x00, 0x73}}, {{0xff, 0x00, 0x8a}}, {{0xff, 0x00, 0xa1}}, {{0xff, 0x00, 0xb8}}, {{0xff, 0x00, 0xcf}}, {{0xff, 0x00, 0xe6}}, {{0xff, 0x00, 0xff}}, {{0xe6, 0x00, 0xff}}, {{0xcc, 0x00, 0xff}}, {{0xb3, 0x00, 0xff}}, {{0x99, 0x00, 0xff}}, {{0x80, 0x00, 0xff}}, {{0x66, 0x00, 0xff}}, {{0x4d, 0x00, 0xff}}, {{0x33, 0x00, 0xff}}, {{0x1a, 0x00, 0xff}}, {{0x00, 0x00, 0x00}}, {{0xff, 0xff, 0xff}}}};
 
 QByteArray utf16BeWithNull(const QString& text) {
@@ -133,6 +136,9 @@ QByteArray cueEntry(const AnlzCue& cue, bool modern, int index, int count) {
             : utf16BeWithNull(cue.comment);
     const int commentSize = static_cast<int>(comment.size());
 
+    // `cue_entry` (`PCPT`) is 56 bytes per `rekordbox_anlz.ksy`. A
+    // `cue_extended_entry` (`PCP2`) is 88 bytes plus the comment when it has
+    // no trailing padding; 88 is the size observed in rekordbox's own output.
     const int length = modern ? 88 + commentSize : 56;
     QByteArray entry(length, '\0');
     entry.replace(0, 4, modern ? "PCP2" : "PCPT");
@@ -143,6 +149,8 @@ QByteArray cueEntry(const AnlzCue& cue, bool modern, int index, int count) {
     const int at = modern ? 16 : 28;
     entry[at] = static_cast<char>(cue.isLoop ? 2 : 1);
     entry[at + 1] = 0;
+    // The three-byte gap after the type is 1000 in both entry forms, as the
+    // `.ksy` records ("seems to always be 1000").
     entry[at + 2] = 3;
     entry[at + 3] = static_cast<char>(232);
     putBe32(&entry, at + 4, cue.timeMs);
@@ -150,6 +158,8 @@ QByteArray cueEntry(const AnlzCue& cue, bool modern, int index, int count) {
 
     if (modern) {
         entry[28] = static_cast<char>(cue.memoryColorRow);
+        // Observed value: the first byte of the seven-byte gap after
+        // `color_id` is 1 in rekordbox's own `PCP2` entries.
         entry[29] = 1;
         putBe16(&entry, 36, cue.loopNumerator);
         putBe16(&entry, 38, cue.loopDenominator);
@@ -179,8 +189,9 @@ AnlzSection cueListSection(
     putBe32(&header, 0, listType);
     putBe16(&header, modern ? 4 : 6, static_cast<quint16>(count));
     if (!modern) {
-        // The last word is the last index of a populated memory list, and
-        // 0xffffffff for a hot list or an empty list.
+        // `cue_tag.memory_count`, which the `.ksy` leaves unexplained: the
+        // last index of a populated memory list, 0xffffffff for a hot list or
+        // an empty list, as observed in rekordbox's own output.
         putBe32(&header,
                 8,
                 listType != 0 || count == 0
@@ -238,6 +249,7 @@ QByteArray AnlzWriter::render(const QVector<AnlzSection>& sections) {
 }
 
 AnlzSection AnlzWriter::pathSection(const QString& path) {
+    // PPTH, `path_tag`: u4 byte length, then UTF-16BE with a trailing NUL.
     const QByteArray text = utf16BeWithNull(path);
     QByteArray header;
     appendBe32(&header, static_cast<quint32>(text.size()));
@@ -245,9 +257,10 @@ AnlzSection AnlzWriter::pathSection(const QString& path) {
 }
 
 AnlzSection AnlzWriter::beatGridSection(const QVector<AnlzBeat>& beats) {
+    // PQTZ, `beat_grid_tag`: two u4 words, then num_beats. The `.ksy` records
+    // the second word as always 0x80000.
     QByteArray header;
     appendBe32(&header, 0);
-    // The low 16 bits are a signed grid offset, zero for an unshifted grid.
     appendBe32(&header, 0x00080000);
     appendBe32(&header, static_cast<quint32>(beats.size()));
 
@@ -263,6 +276,8 @@ AnlzSection AnlzWriter::beatGridSection(const QVector<AnlzBeat>& beats) {
 
 AnlzSection AnlzWriter::waveformPreviewSection(
         const std::array<char, 4>& tag, const QByteArray& data) {
+    // PWAV/PWV2, `wave_preview_tag`: len_data, then the 0x10000 word the `.ksy`
+    // records as a constant.
     QByteArray header;
     appendBe32(&header, static_cast<quint32>(data.size()));
     appendBe32(&header, 0x00010000);
@@ -277,9 +292,11 @@ AnlzSection AnlzWriter::waveformScrollSection(
     QByteArray header;
     appendBe32(&header, stride);
     appendBe32(&header, entries);
-    // `PWV6` has the 20-byte three-band preview header; the scrolling tags
-    // carry one more constant word. Its meaning is unknown, so the values
-    // measured across rekordbox's own files are mirrored.
+    // `PWV6` is `wave_3band_preview_tag` and has only two header words. The
+    // scrolling tags are `wave_scroll_tag`, `wave_color_preview_tag`,
+    // `wave_color_scroll_tag` and `wave_3band_scroll_tag`, each of which the
+    // `.ksy` gives one further constant word. Its meaning is unknown, so the
+    // values observed in rekordbox's own files are recorded here.
     if (tag != kTagPwv6) {
         quint32 trailer = 0x00960000;
         if (tag == kTagPwv5) {
@@ -293,9 +310,11 @@ AnlzSection AnlzWriter::waveformScrollSection(
 }
 
 AnlzSection AnlzWriter::vbrTableZeroSection() {
+    // PVBR, `vbr_tag`: one unused u4, then a 400-entry u4 index. An all-zero
+    // table is the form used for a track whose bitrate is not indexed.
     QByteArray header;
     appendBe32(&header, 0);
-    QByteArray payload(401 * 4, '\0');
+    QByteArray payload(400 * 4, '\0');
     return makeSection(kTagPvbr, header, payload);
 }
 
@@ -394,6 +413,8 @@ QByteArray AnlzWriter::encodePwv3(const QVector<BandColumn>& columns) {
 }
 
 QByteArray AnlzWriter::encodePwv4(const QVector<BandColumn>& columns) {
+    // `wave_color_preview_tag` fixes six bytes per entry: peak, two unused
+    // bytes, then the three bands.
     const auto weigh = [](quint8 value, quint32 numerator, quint32 denominator) {
         return static_cast<quint8>(
                 static_cast<quint32>(value >> 1) * numerator / denominator);
@@ -414,6 +435,8 @@ QByteArray AnlzWriter::encodePwv4(const QVector<BandColumn>& columns) {
 }
 
 QByteArray AnlzWriter::encodePwv5(const QVector<BandColumn>& columns) {
+    // `wave_color_scroll_tag` fixes two bytes per entry; the observed packing
+    // is rrrgggbbbhhhhh00.
     QByteArray out;
     out.reserve(columns.size() * 2);
     for (const BandColumn& column : columns) {
@@ -679,6 +702,8 @@ quint8 deviceColorCode(RgbColor color) {
 }
 
 std::array<quint8, 3> deviceColor(quint8 code, quint32 slot) {
+    // Observed slot defaults: a hot cue with no explicit colour falls back to
+    // the palette entry rekordbox shows for that slot.
     quint32 index = code;
     if (index == 0) {
         switch (slot) {

@@ -108,30 +108,72 @@ The preview and detail sections are generated from `Waveform` band columns:
 
 Preview tags take the loudest column of each bucket. Detail tags use
 rekordbox's squared sample-peak curve for the height. The three band scales and
-the color weights are the ones measured from rekordbox's own files and recorded
-by the reference implementation. A silent preview column is not zero: players
-read a zero-height preview as "not analyzed" and rebuild it.
+the color weights are observed values measured from rekordbox's own files; they
+are recorded rather than specified, as noted in the provenance statement below.
+A silent preview column is not zero: players read a zero-height preview as "not
+analyzed" and rebuild it.
 
 ## Provenance
 
-The format work follows [chrisle/rbxport](https://github.com/chrisle/rbxport),
-a Rust workspace. The ANLZ writer ports behavior, constants and section layout
-from its `rbl-anlz` crate:
+This writer is a clean-room implementation. The licence question was settled by
+excluding the reference implementation, not by relying on its terms:
+[chrisle/rbxport](https://github.com/chrisle/rbxport) reports no detected
+licence (GitHub `NOASSERTION`), and Paramix is GPL-2.0-only. A repository that
+grants no rights cannot be an input, whatever its README or an older note says.
 
-- **Commit:** `d0ff75b378ec85be891d9f3067ada1e82bad4cae` (`chore(release): cut
-  1.10.0`, 2026-11-07)
-- **License at that commit:** GPL-2.0-or-later. The repository's `LICENSE`
-  states GNU GPL version 2 or later, and `LICENSING.md` repeats it. GPL-2.0-or-later
-  is compatible with this project's GPL-2.0-only terms by choosing version 2.
+### Permitted inputs
 
-This is a C++ reimplementation, not a copy of the Rust source. The constants
-and measurements it relies on are the ones documented in `rbl-anlz` (the
-`PWV4`/`PWV5` color weights, the `PWV6` band scale, the preview ceilings and
-floors, the device palette, and the section header trailers).
+Only these sources informed this code:
 
-The in-tree reader remains the Kaitai-generated
-`lib/rekordbox-metadata/rekordbox_anlz.ksy` (EPL-1.0); its enums and field
-layout are the second source of truth for this writer.
+1. `lib/rekordbox-metadata/rekordbox_anlz.ksy` and the reader generated from it
+   (EPL-1.0). It supplies the `PMAI` framing, the tag-to-body switch, the field
+   order of every section, the enums, the per-tag entry widths and the notes on
+   which file each waveform tag appears in.
+2. `src/library/rekordbox/rekordboxfeature.cpp`, the in-tree importer, for the
+   1 ms floor applied to beat and cue times.
+3. Public rekordbox documentation published by AlphaTheta/Pioneer DJ.
+4. Files produced by the project owner's own rekordbox installation, and values
+   measured from them.
+
+### Excluded implementation
+
+No part of chrisle/rbxport is an input: not its Rust sources, tests, constants,
+naming, section ordering or measured tables. No revision of that repository was
+read during the clean-room audit that produced this statement.
+
+### Spec and reader used
+
+`lib/rekordbox-metadata/rekordbox_anlz.ksy` is the normative reference.
+`src/test/rekordboxexportanlztest.cpp` parses the writer's output with the
+Kaitai-generated reader built from that file, so the test's oracle is in-tree
+and EPL-1.0. The test contains no fixture of external origin.
+
+### Attestation
+
+No rbxport code was translated, transcribed or mechanically adapted for this
+writer. The section framing is written directly from `tagged_section`; the
+`PPTH`, `PQTZ`, `PCOB`, `PCO2`, `PWAV`/`PWV2` and scrolling-tag headers follow
+the `.ksy` field order and widths. Where the `.ksy` does not describe a value,
+the writer records an *observed value* and marks it as such in the source: the
+`PMAI` header trailer, the scrolling-tag trailer words, the `PWV4`/`PWV5`/
+`PWV6`/`PWV7` bit layouts and band scale, the 65-entry hot-cue palette and its
+slot defaults, the 150 columns/second rate, the 88-byte `PCP2` size and the
+`memory_count` convention. They are recorded as measurements of files that
+rekordbox itself wrote, never as values taken from another implementation.
+
+That origin is the one claim this audit cannot verify from inside the
+repository: no rekordbox output is stored with the test, so those values are
+currently asserted rather than evidenced.
+
+Earlier revisions of this document and of the writer attributed the same values
+to rbxport's `rbl-anlz` crate and quoted one of its `PCP2` test vectors. Both
+were removed in the clean-room pass: a table of values published in a repository
+with no licence grant is not a permitted input either.
+
+The gap this audit cannot close is therefore evidentiary, not textual.
+`docs/plans/fixes-2026-11/worklog/F09-pr1.md` carries the per-section evidence
+table and the list that must be checked against the owner's own output before
+this branch merges.
 
 ## Testing
 
@@ -140,11 +182,14 @@ them back with the existing Kaitai reader. It covers:
 
 - the section order and header sizes of all three files;
 - a beat grid round trip, including downbeat phase;
-- cue list contents in `.DAT` and `.EXT`;
-- waveform payload sizes, the preview floors and the `PWV5`/`PWV3` values
-  measured in the reference implementation;
-- a byte-for-byte `PCP2` cue entry against the expected bytes in `rbl-anlz`'s
-  own test suite.
+- cue list contents in `.DAT` and `.EXT`, parsed back through both the `PCPT`
+  and `PCP2` readers, including a cue comment and its palette RGB;
+- waveform payload sizes, the preview floors, and the documented packing of
+  `PWV4`, `PWV5`, `PWV6` and `PWV7`.
+
+The reader is the only oracle: every assertion is either a field comparison
+after a parse, or a property stated in this document. The test holds no
+recorded file and no vector copied from another implementation.
 
 Run it with:
 
@@ -161,8 +206,7 @@ Run it with:
 - `PSSI` song structure and `PVDI` vocals. The writer does not invent them;
   the format is not fully specified here.
 - `PQT2`, the extended grid. It is not written rather than guessed.
-- A real `PVBR` seek table. The writer emits the zero table rekordbox writes
-  for a track it cannot index.
+- A real `PVBR` seek table. The writer emits the all-zero 400-entry table.
 - `PWVC`, the gain the 3-band waveforms were drawn at. Its values are unknown;
   the sections are written without it.
 - Memory cue colors (the eight device rows). Mixxx stores an RGB color, and the
@@ -177,5 +221,5 @@ Run it with:
 ## Hardware status
 
 Nothing in this PR has been tested in rekordbox or on a CDJ. The bytes are
-verified against the reference implementation and the Kaitai reader; loading a
-stick on hardware remains the owner's check.
+verified against the Kaitai reader and the format description in this document;
+loading a stick on hardware remains the owner's check.

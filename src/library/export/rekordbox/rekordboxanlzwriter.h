@@ -104,9 +104,10 @@ struct AnalysisFiles {
 
 /// Writer for rekordbox ANLZ analysis files (`.DAT`, `.EXT`, `.2EX`).
 ///
-/// The format and the section layout are taken from chrisle/rbxport's
-/// `rbl-anlz` crate at commit d0ff75b378ec85be891d9f3067ada1e82bad4cae and
-/// from `lib/rekordbox-metadata/rekordbox_anlz.ksy`.
+/// The structure is authored from `lib/rekordbox-metadata/rekordbox_anlz.ksy`
+/// (EPL-1.0) and from values observed in rekordbox's own output. No
+/// third-party writer implementation is an input to this file; see the
+/// provenance statement in `docs/rekordbox-export.md`.
 class AnlzWriter {
   public:
     /// Columns in the `PWAV` preview.
@@ -174,7 +175,8 @@ QVector<AnlzCue> cuesFromCues(
 QVector<BandColumn> columnsFromWaveform(const Waveform& waveform);
 
 /// Resamples columns to `columnsPerSecond * durationMs / 1000`, the rate of
-/// the scrolling waveform sections.
+/// the scrolling waveform sections. The 150/s default is observed:
+/// `rekordbox_anlz.ksy` fixes the entry width, not the column rate.
 QVector<BandColumn> columnsForDuration(const QVector<BandColumn>& columns,
         quint32 durationMs,
         int columnsPerSecond = 150);
