@@ -177,6 +177,11 @@ void WTrackMenu::popup(const QPoint& pos, QAction* at) {
 }
 
 void WTrackMenu::createMenus() {
+    if (featureIsEnabled(Feature::AutoDJ)) {
+        m_pAutoDJMenu = make_parented<QMenu>(this);
+        m_pAutoDJMenu->setTitle(tr("Add to Auto DJ Queue"));
+    }
+
     if (featureIsEnabled(Feature::LoadTo)) {
         m_pLoadToMenu = make_parented<QMenu>(this);
         m_pLoadToMenu->setTitle(tr("Load to"));
@@ -308,13 +313,13 @@ void WTrackMenu::createActions() {
                     kHideRemoveShortcutKey);
 
     if (featureIsEnabled(Feature::AutoDJ)) {
-        m_pAutoDJBottomAct = make_parented<QAction>(tr("Add to Auto DJ Queue (bottom)"), this);
+        m_pAutoDJBottomAct = make_parented<QAction>(tr("Bottom"), this);
         connect(m_pAutoDJBottomAct, &QAction::triggered, this, &WTrackMenu::slotAddToAutoDJBottom);
 
-        m_pAutoDJTopAct = make_parented<QAction>(tr("Add to Auto DJ Queue (top)"), this);
+        m_pAutoDJTopAct = make_parented<QAction>(tr("Top"), this);
         connect(m_pAutoDJTopAct, &QAction::triggered, this, &WTrackMenu::slotAddToAutoDJTop);
 
-        m_pAutoDJReplaceAct = make_parented<QAction>(tr("Add to Auto DJ Queue (replace)"), this);
+        m_pAutoDJReplaceAct = make_parented<QAction>(tr("Replace Queue"), this);
         connect(m_pAutoDJReplaceAct, &QAction::triggered, this, &WTrackMenu::slotAddToAutoDJReplace);
     }
 
@@ -644,9 +649,10 @@ void WTrackMenu::setupActions() {
     }
 
     if (featureIsEnabled(Feature::AutoDJ)) {
-        addAction(m_pAutoDJBottomAct);
-        addAction(m_pAutoDJTopAct);
-        addAction(m_pAutoDJReplaceAct);
+        m_pAutoDJMenu->addAction(m_pAutoDJBottomAct);
+        m_pAutoDJMenu->addAction(m_pAutoDJTopAct);
+        m_pAutoDJMenu->addAction(m_pAutoDJReplaceAct);
+        addMenu(m_pAutoDJMenu);
         addSeparator();
     }
 
