@@ -52,7 +52,6 @@ BaseTrackPlayerImpl::BaseTrackPlayerImpl(
           m_pEngineMixer(pMixingEngine),
           m_pLoadedTrack(),
           m_pPrevFailedTrackId(),
-          m_replaygainPending(false),
           m_pChannelToCloneFrom(nullptr) {
     auto channel = std::make_unique<EngineDeck>(handleGroup,
             pConfig,
@@ -97,7 +96,7 @@ BaseTrackPlayerImpl::BaseTrackPlayerImpl(
 
     // Duration of the current song, we create this one because nothing else does.
     m_pDuration = std::make_unique<ControlObject>(
-        ConfigKey(getGroup(), "duration"));
+            ConfigKey(getGroup(), "duration"));
 
     // Track color of the current track
     m_pTrackColor = std::make_unique<ControlObject>(
@@ -325,7 +324,6 @@ BaseTrackPlayerImpl::BaseTrackPlayerImpl(
 
     m_pReplayGain = make_parented<ControlProxy>(getGroup(), "replaygain", this);
     m_pPlay = make_parented<ControlProxy>(getGroup(), "play", this);
-    m_pPlay->connectValueChanged(this, &BaseTrackPlayerImpl::slotPlayToggled);
 
     m_pRateRatio = make_parented<ControlProxy>(getGroup(), "rate_ratio", this);
     m_pPitch = make_parented<ControlProxy>(getGroup(), "pitch", this);
@@ -553,9 +551,9 @@ void BaseTrackPlayerImpl::slotLoadTrack(TrackPointer pNewTrack,
 void BaseTrackPlayerImpl::slotLoadTrack(TrackPointer pNewTrack,
         bool bPlay) {
 #endif
-    //qDebug() << "BaseTrackPlayerImpl::slotLoadTrack" << getGroup() << pNewTrack.get();
-    // Before loading the track, ensure we have access. This uses lazy
-    // evaluation to make sure track isn't NULL before we dereference it.
+    // qDebug() << "BaseTrackPlayerImpl::slotLoadTrack" << getGroup() << pNewTrack.get();
+    //  Before loading the track, ensure we have access. This uses lazy
+    //  evaluation to make sure track isn't NULL before we dereference it.
     if (pNewTrack) {
         auto fileInfo = pNewTrack->getFileInfo();
         if (!Sandbox::askForAccess(&fileInfo)) {
@@ -619,8 +617,8 @@ void BaseTrackPlayerImpl::slotLoadFailed(TrackPointer pTrack, const QString& rea
 }
 
 void BaseTrackPlayerImpl::slotTrackLoaded(TrackPointer pNewTrack,
-                                          TrackPointer pOldTrack) {
-    //qDebug() << "BaseTrackPlayerImpl::slotTrackLoaded" << pNewTrack.get() << pOldTrack.get();
+        TrackPointer pOldTrack) {
+    // qDebug() << "BaseTrackPlayerImpl::slotTrackLoaded" << pNewTrack.get() << pOldTrack.get();
     if (!pNewTrack &&
             pOldTrack &&
             pOldTrack == m_pLoadedTrack) {
@@ -654,8 +652,8 @@ void BaseTrackPlayerImpl::slotTrackLoaded(TrackPointer pNewTrack,
         m_pKey->set(m_pLoadedTrack->getKey());
         slotSetTrackColor(m_pLoadedTrack->getColor());
 
-        if(m_pConfig->getValue(
-                ConfigKey("[Mixer Profile]", "EqAutoReset"), false)) {
+        if (m_pConfig->getValue(
+                    ConfigKey("[Mixer Profile]", "EqAutoReset"), false)) {
             if (m_pLowFilter) {
                 m_pLowFilter->set(1.0);
             }
@@ -676,7 +674,7 @@ void BaseTrackPlayerImpl::slotTrackLoaded(TrackPointer pNewTrack,
             }
         }
         if (m_pConfig->getValue(
-                ConfigKey("[Mixer Profile]", "GainAutoReset"), false)) {
+                    ConfigKey("[Mixer Profile]", "GainAutoReset"), false)) {
             m_pPreGain->set(1.0);
         }
 
@@ -881,13 +879,10 @@ void BaseTrackPlayerImpl::slotSetAndConfirmTrackMenuControl(bool visible) {
 }
 
 void BaseTrackPlayerImpl::slotSetReplayGain(mixxx::ReplayGain replayGain) {
-    // Do not change replay gain when track is playing because
-    // this may lead to an unexpected volume change.
-    if (m_pPlay->get() == 0.0) {
-        setReplayGain(replayGain.getRatio());
-    } else {
-        m_replaygainPending = true;
-    }
+    // EnginePregain ramps a changed replaygain over a fixed time while the
+    // deck plays, so a late analysis result can be applied immediately
+    // instead of waiting for the next stop.
+    setReplayGain(replayGain.getRatio());
 }
 
 void BaseTrackPlayerImpl::slotAdjustReplayGain(
@@ -972,12 +967,6 @@ void BaseTrackPlayerImpl::slotTrackRatingChangeRequestRelative(int change) {
     slotTrackRatingChangeRequest(m_pLoadedTrack->getRating() + change);
 }
 
-void BaseTrackPlayerImpl::slotPlayToggled(double value) {
-    if (value == 0 && m_replaygainPending) {
-        setReplayGain(m_pLoadedTrack->getReplayGain().getRatio());
-    }
-}
-
 EngineDeck* BaseTrackPlayerImpl::getEngineDeck() const {
     return m_pChannel;
 }
@@ -996,8 +985,7 @@ void BaseTrackPlayerImpl::setupEqControls() {
 }
 
 void BaseTrackPlayerImpl::slotWaveformZoomValueChangeRequest(double v) {
-    if (v <= WaveformWidgetRenderer::s_waveformMaxZoom
-            && v >= WaveformWidgetRenderer::s_waveformMinZoom) {
+    if (v <= WaveformWidgetRenderer::s_waveformMaxZoom && v >= WaveformWidgetRenderer::s_waveformMinZoom) {
         m_pWaveformZoom->setAndConfirm(v);
     }
 }
@@ -1059,5 +1047,4 @@ void BaseTrackPlayerImpl::slotUpdateReplayGainFromPregain(double pressed) {
 
 void BaseTrackPlayerImpl::setReplayGain(double value) {
     m_pReplayGain->set(value);
-    m_replaygainPending = false;
 }

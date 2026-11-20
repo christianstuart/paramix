@@ -32,8 +32,8 @@
 #include "engine/bufferscalers/rubberbandworkerpool.h"
 #endif
 
-using ::testing::Return;
 using ::testing::_;
+using ::testing::Return;
 
 #define EXPECT_FRAMEPOS_EQ(pos1, pos2)                    \
     EXPECT_EQ((pos1).isValid(), (pos2).isValid());        \
@@ -128,6 +128,17 @@ class BaseSignalPathTest : public MixxxTest, SoundSourceProviderRegistration {
         addDeck(m_pChannel1);
         addDeck(m_pChannel2);
         addDeck(m_pChannel3);
+
+        // The golden buffers in src/test/reference_buffers/ were recorded while
+        // the shared [ReplayGain] controls still sat at unity: EnginePregain
+        // used to leave them at their neutral value until the preferences
+        // dialog was opened. EnginePregain now seeds them from the stored
+        // settings (the default boost is -6 dB), which would scale every
+        // recorded sample. These are signal-path and gain-staging tests, not
+        // ReplayGain policy tests, so pin the pregain correction to 1.0.
+        ControlObject::set(ConfigKey(QStringLiteral("[ReplayGain]"),
+                                   QStringLiteral("ReplayGainEnabled")),
+                0.0);
 
         m_pEngineSync = m_pEngineMixer->getEngineSync();
         ControlObject::set(ConfigKey(m_sMainGroup, "enabled"), 1.0);

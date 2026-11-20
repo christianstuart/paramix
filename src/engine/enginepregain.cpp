@@ -5,6 +5,7 @@
 #include "control/controlpotmeter.h"
 #include "engine/effects/groupfeaturestate.h"
 #include "moc_enginepregain.cpp"
+#include "preferences/replaygainsettings.h"
 #include "util/math.h"
 #include "util/sample.h"
 
@@ -22,7 +23,7 @@ ControlPotmeter* EnginePregain::s_pReplayGainBoost = nullptr;
 ControlPotmeter* EnginePregain::s_pDefaultBoost = nullptr;
 ControlObject* EnginePregain::s_pEnableReplayGain = nullptr;
 
-EnginePregain::EnginePregain(const QString& group)
+EnginePregain::EnginePregain(const QString& group, const UserSettingsPointer& pConfig)
         : m_dSpeed(0.0),
           m_dOldSpeed(0.0),
           m_dNonScratchSpeed(1.0),
@@ -30,7 +31,7 @@ EnginePregain::EnginePregain(const QString& group)
           m_fPrevGain(1.0),
           m_bSmoothFade(false) {
     m_pPotmeterPregain = new ControlAudioTaperPot(ConfigKey(group, "pregain"), -12, 12, 0.5);
-    //Replay Gain things
+    // Replay Gain things
     m_pCOReplayGain = new ControlObject(ConfigKey(group, "replaygain"));
     m_pTotalGain = new ControlObject(ConfigKey(group, "total_gain"));
     m_pPassthroughEnabled = ControlObject::getControl(ConfigKey(group, "passthrough"));
@@ -39,6 +40,17 @@ EnginePregain::EnginePregain(const QString& group)
         s_pReplayGainBoost = new ControlAudioTaperPot(ConfigKey("[ReplayGain]", "ReplayGainBoost"), -12, 12, 0.5);
         s_pDefaultBoost = new ControlAudioTaperPot(ConfigKey("[ReplayGain]", "DefaultBoost"), -12, 12, 0.5);
         s_pEnableReplayGain = new ControlObject(ConfigKey("[ReplayGain]", "ReplayGainEnabled"));
+        // The preferences dialog also writes these controls, but it is only
+        // constructed on demand. Seed them from the stored settings so a
+        // normal session applies ReplayGain without ever opening Preferences.
+        if (pConfig) {
+            const ReplayGainSettings rgSettings(pConfig);
+            s_pReplayGainBoost->set(
+                    db2ratio(static_cast<double>(rgSettings.getInitialReplayGainBoost())));
+            s_pDefaultBoost->set(
+                    db2ratio(static_cast<double>(rgSettings.getInitialDefaultBoost())));
+            s_pEnableReplayGain->set(rgSettings.getReplayGainEnabled() ? 1.0 : 0.0);
+        }
     }
 }
 

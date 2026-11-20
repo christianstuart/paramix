@@ -44,7 +44,7 @@ EngineDeck::EngineDeck(
             &EngineDeck::slotPassthroughChangeRequest,
             Qt::DirectConnection);
 
-    m_pPregain = new EnginePregain(getGroup());
+    m_pPregain = new EnginePregain(getGroup(), pConfig);
     m_pBuffer = new EngineBuffer(getGroup(),
             pConfig,
             this,

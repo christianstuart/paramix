@@ -2975,6 +2975,7 @@ if(BUILD_TESTING)
     src/test/analyserwaveformtest.cpp
     src/test/stemdetailrenderertest.cpp
     src/test/waveformstemdetailtest.cpp
+    src/test/analyzerebur128test.cpp
     src/test/analyzersilence_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp
@@ -3025,6 +3026,7 @@ if(BUILD_TESTING)
     src/test/enginefilterbiquadtest.cpp
     src/test/enginemixertest.cpp
     src/test/enginemicrophonetest.cpp
+    src/test/enginepregaintest.cpp
     src/test/enginesynctest.cpp
     src/test/fileinfo_test.cpp
     src/test/frametest.cpp

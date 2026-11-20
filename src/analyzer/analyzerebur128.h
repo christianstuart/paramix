@@ -25,4 +25,8 @@ class AnalyzerEbur128 : public Analyzer {
   private:
     ReplayGainSettings m_rgSettings;
     ebur128_state* m_pState;
+    /// Channel count of the incoming samples. Stems (8 channels) are measured
+    /// on their stereo mixdown, which is what the deck plays.
+    mixxx::audio::ChannelCount m_sourceChannelCount =
+            mixxx::audio::ChannelCount::stereo();
 };
