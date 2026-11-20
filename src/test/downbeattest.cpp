@@ -12,8 +12,8 @@
 
 namespace {
 
-using allshader::downbeat::Pattern;
 using allshader::downbeat::isDownbeat;
+using allshader::downbeat::Pattern;
 using allshader::downbeat::patternFor;
 using mixxx::Beats;
 using mixxx::BeatsPointer;
