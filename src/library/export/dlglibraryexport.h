@@ -2,10 +2,13 @@
 
 #include <QComboBox>
 #include <QDialog>
+#include <QDir>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QRadioButton>
+#include <QSet>
+#include <QSharedPointer>
 
 #include "preferences/usersettings.h"
 #include "util/optional.h"
@@ -18,13 +21,28 @@ class CrateId;
 namespace mixxx {
 
 struct EnginePrimeExportRequest;
+struct RekordboxExportRequest;
+
+/// The device format the library-export dialog writes.
+enum class LibraryExportTarget {
+    EnginePrime,
+    Rekordbox,
+};
+
+#ifdef __REKORDBOX__
+/// Builds the request for a device export from the dialog's selection.
+QSharedPointer<RekordboxExportRequest> createRekordboxExportRequest(
+        const QDir& deviceRoot,
+        const QSet<CrateId>& crateIdsToExport,
+        const QSet<int>& playlistIdsToExport);
+#endif
 
 /// The DlgLibraryExport class is a UI window that gathers information from
 /// the user about how they would like to export the Mixxx library.
 ///
-/// Currently, the dialog only supports exporting to the Engine Library format,
-/// but in future it is expected that this dialog could be expanded to include
-/// other formats, and generate different export signals accordingly.
+/// The dialog offers the Engine DJ library format and, when built with
+/// REKORDBOX_EXPORT, a rekordbox USB/SD device target. Each target has its own
+/// request signal.
 class DlgLibraryExport : public QDialog {
     Q_OBJECT
 
@@ -42,11 +60,25 @@ class DlgLibraryExport : public QDialog {
     /// Refresh the contents of the dialog.
     void refresh();
 
+    /// The target the dialog will export to.
+    LibraryExportTarget selectedTarget() const;
+
+    /// Whether this build offers the rekordbox target.
+    bool isRekordboxTargetAvailable() const;
+
+    /// Switch the target to rekordbox. No-op when it is not available.
+    void selectRekordboxTarget();
+
   signals:
     /// The startEnginePrimeExport signal is emitted when sufficient information
     /// has been gathered from the user to kick off an Engine DJ export, and
     /// details of the request are provided as part of the signal.
     void startEnginePrimeExport(QSharedPointer<mixxx::EnginePrimeExportRequest>);
+
+#ifdef __REKORDBOX__
+    /// Emitted when the user chooses the rekordbox target.
+    void startRekordboxExport(QSharedPointer<mixxx::RekordboxExportRequest>);
+#endif
 
   private slots:
     void browseExportDirectory();
@@ -54,10 +86,13 @@ class DlgLibraryExport : public QDialog {
 
   private:
     void checkExistingDatabase();
+    void checkRekordboxDestination();
+    void updateTargetUi();
 
     UserSettingsPointer m_pConfig;
     TrackCollectionManager* m_pTrackCollectionManager;
 
+    parented_ptr<QComboBox> m_pTargetCombo;
     parented_ptr<QRadioButton> m_pWholeLibraryRadio;
     parented_ptr<QRadioButton> m_pCratesAndPlaylistsRadio;
     parented_ptr<QListWidget> m_pCratesList;

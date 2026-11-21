@@ -101,6 +101,7 @@ class QmlLibraryProxy : public QObject {
     Q_PROPERTY(mixxx::qml::QmlLibraryScannerProxy* scanner MEMBER m_pScanner CONSTANT)
     Q_PROPERTY(bool libraryScanActive READ libraryScanActive NOTIFY libraryScanActiveChanged)
     Q_PROPERTY(bool enginePrimeExportAvailable READ enginePrimeExportAvailable CONSTANT)
+    Q_PROPERTY(bool rekordboxExportAvailable READ rekordboxExportAvailable CONSTANT)
     Q_PROPERTY(QString waveformCacheDiskUsage READ waveformCacheDiskUsage NOTIFY
                     waveformCacheDiskUsageChanged)
     Q_PROPERTY(bool analysisActive READ analysisActive NOTIFY analysisActiveChanged)
@@ -201,11 +202,13 @@ class QmlLibraryProxy : public QObject {
                 m_pTrackCollectionManager->isLibraryScanActive();
     }
     bool enginePrimeExportAvailable() const;
+    bool rekordboxExportAvailable() const;
 
     Q_INVOKABLE void analyze(const mixxx::qml::QmlTrackProxy* track) const;
     Q_INVOKABLE void createCrate();
     Q_INVOKABLE void createPlaylist();
     Q_INVOKABLE void exportLibrary();
+    Q_INVOKABLE void exportLibraryToRekordbox();
     Q_INVOKABLE void rescanLibrary();
     Q_INVOKABLE void searchInCurrentView();
     Q_INVOKABLE void searchInTracksLibrary();

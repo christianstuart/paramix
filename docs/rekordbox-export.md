@@ -1,9 +1,10 @@
 # Rekordbox device export
 
 Paramix can import rekordbox analysis files and databases but, until this
-work, could not write them. This document describes the writers added for F09.
-It covers **PR 1, the ANLZ analysis writer**, **PR 2, the `export.pdb`
-database writer**, and **PR 3, the export job**; the UI follows in PR 4.
+work, could not write them. This document describes the writers, the export
+job and the UI added for F09. It covers **PR 1, the ANLZ analysis writer**,
+**PR 2, the `export.pdb` database writer**, **PR 3, the export job**, and
+**PR 4, the target choice and menu action**.
 
 ## What an export contains
 
@@ -202,6 +203,25 @@ The job does not export track colors yet: `PdbTrack::colorId` is 0, because the
 eight device color rows are names rather than RGB values and the mapping from
 an arbitrary Mixxx color has not been established.
 
+## User interface
+
+The existing library-export dialog gains a **Target** choice: Engine DJ or
+Rekordbox. The rekordbox target is compiled when `REKORDBOX_EXPORT` is on
+(default) and the export dialog is built, which currently requires
+`ENGINEPRIME`; the writers and the job are always built.
+
+Choosing Rekordbox treats the selected directory as the device root. The
+dialog warns when it already contains `PIONEER/` or `Contents/`, because the
+job refuses to overwrite an existing export. The version selector and the
+existing-database message belong to Engine DJ and are hidden for rekordbox.
+
+The selection model is shared: whole library, or a set of crates and
+playlists. The File menu gains **Export Library to Rekordbox...,** enabled by
+`Mixxx.Library.rekordboxExportAvailable`; it opens the dialog with the
+rekordbox target preselected. The existing Library menu action still opens the
+dialog at the Engine DJ target. The QML property is false in builds without
+`REKORDBOX_EXPORT`.
+
 ## Provenance
 
 
@@ -301,15 +321,23 @@ id allocation and playlist entries in `buildPdbLibrary`.
 ./build/mixxx-test --gtest_filter='RekordboxExportJob.*'
 ```
 
+`src/test/rekordboxexportuitest.cpp` covers the dialog's target selection and
+the request it builds from the selected crates and playlists.
+
+```bash
+./build/mixxx-test --gtest_filter='RekordboxExportUiTest.*'
+```
+
 The full `RekordboxFeature` import is not run in the test: it needs a mounted
 device tree and a database connection pool. The Kaitai reader and the row
 layouts are shared with that path. The job's copy, staging and rename path is
-not automated yet; that needs a temporary collection and is left to PR 4's
-manual export check.
+covered by a separate test-only change; it needs a temporary collection and
+synthetic audio files.
 
 ## Not implemented yet
 
-- The export dialog and QML action — PR 4.
+- Overwriting or merging into an existing device export. The job refuses a
+  destination that already has `PIONEER/` or `Contents/`.
 - Track colors in `export.pdb`. The color is written as 0 (none); see "The
   export job" above.
 - `labels`, `artwork` and the history tables. The tables are present and empty.
@@ -331,6 +359,7 @@ manual export check.
 
 ## Hardware status
 
-Nothing in this PR has been tested in rekordbox or on a CDJ. The bytes are
-verified against the Kaitai reader and the format description in this document;
-loading a stick on hardware remains the owner's check.
+Nothing in F09 has been tested in rekordbox or on a CDJ. The bytes are verified
+with the Kaitai readers and the format descriptions in this document; loading a
+stick on hardware, checking the grids and cues on a player, and importing the
+export back into Paramix remain the owner's checks.

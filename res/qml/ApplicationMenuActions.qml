@@ -28,6 +28,7 @@ Item {
     property alias libraryCreateCrate: libraryCreateCrateAction
     property alias libraryCreatePlaylist: libraryCreatePlaylistAction
     property alias libraryExport: libraryExportAction
+    property alias libraryExportRekordbox: libraryExportRekordboxAction
     property alias libraryRescan: libraryRescanAction
     property alias librarySearchCurrentView: librarySearchCurrentViewAction
     property alias librarySearchTracks: librarySearchTracksAction
@@ -121,6 +122,14 @@ Item {
         text: qsTranslate("WMainMenuBar", "E&xport Library to Engine DJ")
 
         onTriggered: Mixxx.Library.exportLibrary()
+    }
+    Action {
+        id: libraryExportRekordboxAction
+
+        enabled: Mixxx.Library.rekordboxExportAvailable
+        text: qsTranslate("WMainMenuBar", "Export Library to Rekordbox...")
+
+        onTriggered: Mixxx.Library.exportLibraryToRekordbox()
     }
     Action {
         id: librarySearchCurrentViewAction
