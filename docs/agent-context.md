@@ -4,7 +4,7 @@
 file first, then `docs/paramix-stem-beatgrid-ui-plan.md` (the program plan) and
 `docs/old-context.md` (raw transcript of the original planning session).
 
-**Last updated:** 2026-11-16, after moving the effects chains into the top bar.
+**Last updated:** 2026-11-21, after the 13-issue November fixes program.
 **Update rule:** every agent that changes repo state must append to §9 (Work log) and correct
 §3 (Current state) before finishing.
 
@@ -80,6 +80,26 @@ no telemetry; macOS 13+ / Win10 21H2+ / Ubuntu 22.04+ / Fedora 39+ as the suppor
 ---
 
 ## 3. Current state (truth as of the last update)
+
+### 3.0 November fixes program (2026-11-21)
+
+The 13-issue fixes program is **code-complete except for hardware sign-off**: 11 issues
+merged, F08 (#66) waiting on a DDJ-SX test, F09 (#67) waiting on a rekordbox/CDJ test.
+Plans, mocks and per-fix worklogs live in `docs/plans/fixes-2026-11/`.
+
+- **Merged:** F01 stem-flicker determinism, F02 ReplayGain, F03 audio-dropout diagnostics,
+  F04 `--new-ui` removal, F05 RGB waveform colors, F06 Pad FX UI, F07 deck/loop layout,
+  F10 MIDI mapping UI, F11 FX banks, F12 downbeats, F13 stem lane controls.
+- **Open:** #66 DDJ-SX (code and CI green) and #67 rekordbox export (ANLZ, PDB, job and UI
+  merged; no hardware test yet).
+- **Build environment:** CMake 4.4.5 and Ninja from the Python user site, Qt and the vcpkg
+  tree in `buildenv/`. New worktrees share it by exporting `BUILDENV_BASEPATH` and the
+  existing vcpkg toolchain file; a two-slot build queue is used because this machine has
+  8 cores and 16 GB.
+- **Local gate on the merged tree:** `QmlStartupSmokeTest.Starts/Default`,
+  `Starts/LateNightQML` (run as separate processes), `QmlResponsiveBoundsTest` and 29
+  feature tests (Downbeat, RekordboxExport, PadFx, ControllerLearning, EBU R128,
+  ReplayGain) pass.
 
 ### 3.1 Git / repo
 - Commits: `96f541b` Initial commit → `8c67ba8` Update repository (import, 6035 files) →
@@ -862,3 +882,4 @@ Shared single-owner files (route through A0): `CMakeLists.txt`, `res/schema.xml`
   `stems-onnx.md`, `stem-file-export.md` and `handoff-stems-integration.md` were corrected.
 - **2026-11-16** — **Dead skin components deleted; deck band given its height back.** Removed the unreachable `Settings.qml` popup and its 28 `Settings/*` pages plus the single-use helpers only it used (`FormButton`, `ActionPopup`, `ActionButton`, `InputField`) and the zero-reference duplicates (`StemKnob`, `CrossfaderRow`, `IntroOutroButton` + behavior) — about 9.6k QML lines. `Theme.deckMinHeight` 192 -> 232 with a new `Theme.deckPaneHeight` (112), so the deck's fixed parts (44 header + 22 toolbar + 112 pane) fit and the waveform overview gets the remainder instead of 20 px. Stem lanes wrap to 2x2 and hide their QuickFX row below 64 px; the FX-assign column is no longer 0 px; the loop card fits its 62 px of content; the info bar uses its full band; BeatJump drops its size strip under a 420 px pane. Also: the QML menu bar is built on every desktop platform (Windows/Linux had no File/Library/Options/Help), the window minimum comes from `Theme.minWindowWidth/Height` (1280x720), the crossfader assignment keys fit their well, EQ kill / FX enable moved from double-click (which also reset the knob) to right-click, dropdowns flip up at the window edge, the track menu gained a shortcut column, and the preview pane is a real `[PreviewDeck1]` drop target. The bounds test now drives the Theme window tokens, fails on a non-settling layout, and checks collapsed items, the FX column and the pane height. Details: `docs/qml-responsive-layout.md`.
 - **2026-11-16** — **Crossfader strip and output bar thinned.** `Mixer/CrossfaderUnit.qml` is 34 px tall inside the output bar (was 44): the 1/2 deck-assignment keys are 12 px (was 16) in a 26 px grid, 2x2 in four-deck mode, and the handle is 20 px tall (was 28) so it clears the shorter well. The output bar is 42 px (was 54): the section rules are 2 px instead of 3, the output tiles 38 px with 1 px padding (the dial keeps its 18 px) and the mono rows sit 1 px apart. The 12 px goes back to the library.
+- **2026-11-21** — **The 13-issue November fixes program landed 11 issues; two await hardware.** Ran as eight lanes (Waveform, Engine, Deck UI, FX UI, Shell, DDJ-SX, Export, Mapping) under the master plan in `docs/plans/fixes-2026-11/`, with Wave 0 syncing `main`, repairing the local QML baseline (the bounds test now waits for `PreviewDeckBar` instead of a stable item count) and documenting the machine's split-process requirement for the two skin smoke cases. Merged: **F01** snaps a paused stem picture to whole detail columns, derives `samplesPerColumn` from the zoom (`2 * audioSamplePerPixel / dpr`) and stops polling the detail cache per frame; **F02** seeds the shared `[ReplayGain]` controls from `ReplayGainSettings` at startup, applies late analysis through the existing gain fade, measures 8-channel stems on their stereo mixdown, and pins the reference buffers with `ReplayGainEnabled=0`; **F03** adds underflow/cache-miss diagnostics, caps load-analysis threads and backs background work off under audio pressure; **F04** removes `--new-ui`, the corruption gate and every `isQml()` branch, keeping a one-release no-op shim; **F05** adds `waveformLow/Mid/HighColor` (red/green/blue) and binds the RGB deck and overview to them; **F06** rebuilds Pad FX as perform-first cards with a per-pad editor, A-D banks, stem chips, a muting marker and a no-stems empty state; **F07** gives the loop card the full 112 px band and moves the pane tabs above it, removing 50 px of dead space and the 34 px tab column; **F10** adds the hardware-first mapping window (device, message, search/click target, options, pending list, save) over the new `Mixxx.ControllerLearning` backend; **F11** fixes FX 1-2 in the strip and moves FX 3-4 into a toggleable window, with Qt 6.4-safe flyouts; **F12** draws downbeat lines from the analysis grid with an assumed-4/4 fallback; **F13** puts DRUMS/BASS/OTHER/VOCALS with M, S and a volume slider on the waveform and removes the stem deck pane. Deferred to the owner: a DDJ-SX pass (#66) and a rekordbox/CDJ export check (#67). Known follow-ups: the mapping window's click-to-learn overlay reparent needs a desktop check, manual Invert/Soft-takeover overrides are not exposed, `Mixxx.Config.paramixShowStems` is now dead, and F01's 30 s playing frame-time comparison was not measured. Details: `docs/plans/fixes-2026-11/worklog/`.
