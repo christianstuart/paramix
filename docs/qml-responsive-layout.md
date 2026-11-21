@@ -40,7 +40,7 @@ without clipping; every value is logical px.
 |---|---|---|
 | Top bar | 44 high (main row) + 30 high (effects strip), ~390 wide without effects | `Theme.toolbarHeight` + `Theme.topBarEffectsHeight`; per-key 26x56 minimums |
 | Mixer | 152 wide, ~190 high | `Mixer.qml` `implicitWidth`; `EqColumn` sets the height |
-| Output bar | 42 high | `Mixer/OutputBar.qml` `implicitHeight` |
+| Output bar | 38 high | `Mixer/OutputBar.qml` `implicitHeight` |
 | Deck | ~1265 wide with spinny, ~457 without, ~386 with tempo hidden; 232 high | `Theme.deckMinHeight`; `Deck.qml` DelegateChooser `minWidth` 620 / 270 / 200 |
 | Library | 358 wide, 120 high (228 with preview deck) | `Library.qml` sidebar 150 + browser 200 |
 | Waveform strip | no intrinsic minimum | two `WaveformDisplay`s at `height / 2` |

@@ -23,7 +23,7 @@ Item {
 
     readonly property real controlValue: readoutControl.value
 
-    implicitHeight: 38
+    implicitHeight: 34
     implicitWidth: 54
 
     function formatReadout(value) {
@@ -57,13 +57,8 @@ Item {
 
         spacing: 0
 
-        // The bar's top and bottom rules eat into the tile's breathing room, so
-        // the caption is pushed down and the readout lifted back off the rule.
-        // The dial keeps its 18 px; the 1 px padding comes out of the tile.
-        Item {
-            height: 1
-            width: parent.width
-        }
+        // The bar's top and bottom rules sit directly above and below the
+        // tile; the caption, dial and readout use all 34 px between them.
         Skin.SectionText {
             color: Theme.textMuted
             height: 8
@@ -79,9 +74,9 @@ Item {
             arcStart: root.readoutMode === "gain" ? Skin.Knob.ArcStart.Minimum : Skin.Knob.ArcStart.Center
             color: Theme.textPrimary
             group: root.group
-            height: 18
+            height: 16
             key: root.key
-            width: 18
+            width: 16
         }
         Text {
             color: Theme.textSecondary
@@ -92,10 +87,6 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: root.formatReadout(root.controlValue)
             verticalAlignment: Text.AlignVCenter
-            width: parent.width
-        }
-        Item {
-            height: 1
             width: parent.width
         }
     }

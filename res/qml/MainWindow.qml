@@ -854,7 +854,6 @@ Item {
                     // mixer came out shorter than Theme.deckMinHeight.
                     anchors.topMargin: Math.max(mixer.height, deck1.height + deck3.height)
                     height: visible ? implicitHeight : 0
-                    show4decks: root.show4decks
                     visible: !root.maximizeLibrary
                 }
                 Loader {
