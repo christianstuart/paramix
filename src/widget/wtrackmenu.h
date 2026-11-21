@@ -63,7 +63,7 @@ class WTrackMenu : public QMenu {
         TrackModelFeatures = Remove | HideUnhidePurge,
         All = AutoDJ | LoadTo | Playlist | Crate | Remove | Metadata | Reset | Analyze |
                 BPM | Color | HideUnhidePurge | RemoveFromDisk | FileBrowser |
-                Properties | SearchRelated | UpdateReplayGainFromPregain | SelectInLibrary |
+                Properties | UpdateReplayGainFromPregain | SelectInLibrary |
                 FindOnWeb | StemExport
     };
     Q_DECLARE_FLAGS(Features, Feature)
@@ -306,6 +306,7 @@ class WTrackMenu : public QMenu {
     QString m_deckGroup;
 
     // Submenus
+    parented_ptr<QMenu> m_pAutoDJMenu;
     parented_ptr<QMenu> m_pLoadToMenu;
     parented_ptr<QMenu> m_pDeckMenu;
     parented_ptr<QMenu> m_pSamplerMenu;

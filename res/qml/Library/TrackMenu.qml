@@ -124,14 +124,16 @@ Menu {
         // The Basic style derives Menu.implicitWidth from the background's
         // implicit width. Without it the popup collapses to zero width and is
         // invisible, because the content ListView only reports a height.
-        // 320 px fits the longest classic entry (hotcue sorting) and leaves a
-        // right-aligned column for the shortcuts.
-        implicitWidth: 320
+        // 240 px keeps the menu compact; the smaller font and eliding labels
+        // still fit the longest classic entries.
+        implicitWidth: 240
         border.color: Theme.border
         border.width: 1
         color: Theme.surface2
         radius: Theme.radiusMd
     }
+    delegate: compactMenuItemComponent
+    padding: Theme.space1
     palette.buttonText: Theme.textPrimary
     palette.highlight: Theme.accent
     palette.highlightedText: Theme.textOnAccent
@@ -140,6 +142,22 @@ Menu {
     palette.window: Theme.surface2
     palette.windowText: Theme.textPrimary
 
+    // Default delegate for submenu entries; keeps them as compact as the
+    // hand-built action items.
+    Component {
+        id: compactMenuItemComponent
+
+        MenuItem {
+            bottomPadding: 2
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm
+            implicitHeight: 24
+            // Align submenu titles with the labels of the action items.
+            leftPadding: 28
+            rightPadding: Theme.space2
+            topPadding: 2
+        }
+    }
     Component {
         id: separatorComponent
 
@@ -157,6 +175,26 @@ Menu {
             property int nodeIndex: -1
             property string nodeKind: "action"
             property string nodeShortcut: ""
+
+            bottomPadding: 2
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm
+            implicitHeight: 24
+            // Reserve a column for the checkmark; the custom content item
+            // would otherwise start on top of the default indicator.
+            leftPadding: 28
+            rightPadding: Theme.space2
+            topPadding: 2
+            indicator: Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                color: actionItem.enabled ? Theme.accent : Theme.textMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm
+                text: "\u2713"
+                visible: actionItem.checkable && actionItem.checked
+            }
 
             // Label and shortcut as two columns: gluing the shortcut into the
             // label with spaces pushed long entries past the menu edge and had
@@ -199,21 +237,44 @@ Menu {
             property int nodeIndex: -1
             property string nodeKind: "colorValue"
 
-            contentItem: Row {
-                spacing: 6
+            bottomPadding: 2
+            implicitHeight: 24
+            // Same indicator column as the action items.
+            leftPadding: 28
+            rightPadding: Theme.space2
+            topPadding: 2
+            indicator: Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                color: colorItem.enabled ? Theme.accent : Theme.textMuted
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm
+                text: "\u2713"
+                visible: colorItem.checkable && colorItem.checked
+            }
+            contentItem: Item {
+                Row {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
 
-                Rectangle {
-                    border.color: Theme.borderStrong
-                    border.width: 1
-                    color: colorItem.nodeColor.length > 0 ? colorItem.nodeColor : "transparent"
-                    height: 14
-                    radius: 3
-                    width: 14
-                }
-                Text {
-                    color: colorItem.enabled ? Theme.textPrimary : Theme.textMuted
-                    text: colorItem.text
-                    verticalAlignment: Text.AlignVCenter
+                    Rectangle {
+                        border.color: Theme.borderStrong
+                        border.width: 1
+                        color: colorItem.nodeColor.length > 0 ? colorItem.nodeColor : "transparent"
+                        height: 12
+                        radius: 2
+                        width: 12
+                    }
+                    Text {
+                        color: colorItem.enabled ? Theme.textPrimary : Theme.textMuted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm
+                        text: colorItem.text
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
             }
             onTriggered: root.triggerNode(colorItem)
@@ -230,12 +291,14 @@ Menu {
             }
 
             background: Rectangle {
-                implicitWidth: 320
+                implicitWidth: 240
                 border.color: Theme.border
                 border.width: 1
                 color: Theme.surface2
                 radius: Theme.radiusMd
             }
+            delegate: compactMenuItemComponent
+            padding: Theme.space1
             palette.buttonText: Theme.textPrimary
             palette.highlight: Theme.accent
             palette.highlightedText: Theme.textOnAccent
