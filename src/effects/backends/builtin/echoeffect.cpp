@@ -181,7 +181,7 @@ void EchoEffect::processChannel(
             engineParameters.framesPerBuffer());
 
     int rampIndex = 0;
-    //TODO: rewrite to remove assumption of stereo buffer
+    // TODO: rewrite to remove assumption of stereo buffer
     for (SINT i = 0;
             i < engineParameters.samplesPerBuffer();
             i += engineParameters.channelCount()) {

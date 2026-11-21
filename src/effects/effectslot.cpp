@@ -1,7 +1,6 @@
 #include "effects/effectslot.h"
 
 #include <QDebug>
-
 #include <cmath>
 
 #include "control/controlencoder.h"

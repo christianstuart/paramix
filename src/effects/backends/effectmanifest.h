@@ -23,7 +23,8 @@
 /// the no-argument constructor be non-explicit.
 class EffectManifest {
   public:
-    enum class BeatFxStepUnit { Beats, Percent };
+    enum class BeatFxStepUnit { Beats,
+        Percent };
 
     EffectManifest()
             : m_backendType(EffectBackendType::Unknown),

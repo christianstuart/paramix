@@ -151,7 +151,7 @@ TEST_F(BeatFxTest, BeatStepFollowsDirectParameterChange) {
     ASSERT_GT(slotNumber, 0);
 
     ControlObject::set(ConfigKey(m_group,
-                             QStringLiteral("parameter%1").arg(slotNumber)),
+                               QStringLiteral("parameter%1").arg(slotNumber)),
             1.5);
     EXPECT_EQ(5.0, controlValue(m_group, QStringLiteral("beat_step")));
 }
@@ -171,7 +171,7 @@ TEST_F(BeatFxTest, BeatLevelMapsToParameterRangeAndFollows) {
             parameterSlotNumber(m_pEffectSlot, QStringLiteral("send_amount"));
     if (slotNumber > 0) {
         ControlObject::set(ConfigKey(m_group,
-                                 QStringLiteral("parameter%1").arg(slotNumber)),
+                                   QStringLiteral("parameter%1").arg(slotNumber)),
                 0.25);
         EXPECT_NEAR(0.25, controlValue(m_group, QStringLiteral("beat_level")), 1e-9);
     }
@@ -214,12 +214,12 @@ TEST_F(BeatFxTest, ProxyExposesBeatFxMetadata) {
     pSlotProxy->setEffectId(EchoEffect::getId());
     EXPECT_TRUE(pSlotProxy->isBeatFx());
     EXPECT_EQ(QStringList({QStringLiteral("1/8"),
-                        QStringLiteral("1/4"),
-                        QStringLiteral("1/2"),
-                        QStringLiteral("3/4"),
-                        QStringLiteral("1"),
-                        QStringLiteral("3/2"),
-                        QStringLiteral("2")}),
+                      QStringLiteral("1/4"),
+                      QStringLiteral("1/2"),
+                      QStringLiteral("3/4"),
+                      QStringLiteral("1"),
+                      QStringLiteral("3/2"),
+                      QStringLiteral("2")}),
             pSlotProxy->getBeatStepLabels());
     EXPECT_EQ(QStringLiteral("beats"), pSlotProxy->getBeatStepUnit());
     EXPECT_EQ(QStringLiteral("Send"), pSlotProxy->getBeatLevelName());
