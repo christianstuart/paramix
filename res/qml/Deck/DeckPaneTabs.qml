@@ -3,7 +3,7 @@ import QtQuick 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Horizontal CUE / MOVE / GRID selector above the deck pane.
+/// Horizontal CUE / MOVE / GRID / PAD FX selector above the deck pane.
 ///
 /// The row is one tab high and spans the pane width, so the deck's transport
 /// band stays the same height while the old 34 px vertical column is gone. The
@@ -12,7 +12,8 @@ import "../Theme"
 RowLayout {
     id: root
 
-    /// 0 = Move (beatjump), 1 = Cue (hotcues), 2 = Grid (beatgrid).
+    /// 0 = Move (beatjump), 1 = Cue (hotcues), 2 = Grid (beatgrid),
+    /// 4 = Pad FX. 3 is left unused: it belonged to a removed stem pane.
     property int activePane: 1
     /// Lights a small badge on the GRID tab while the BPM is locked.
     property bool gridLocked: false
@@ -23,7 +24,7 @@ RowLayout {
     spacing: Theme.space1
 
     Repeater {
-        // Display order: Cue first (the default pane), then Move, Grid.
+        // Display order: Cue first (the default pane), then Move, Grid, Pad FX.
         // The `pane` values are the persisted Deck.Pane enum, so reordering the
         // list does not invalidate a saved selection.
         model: [
@@ -41,6 +42,11 @@ RowLayout {
                 "label": qsTr("Grid"),
                 "pane": 2,
                 "hint": qsTr("Show beatgrid controls")
+            },
+            {
+                "label": qsTr("Pad FX"),
+                "pane": 4,
+                "hint": qsTr("Show Pad FX pads")
             }
         ]
 

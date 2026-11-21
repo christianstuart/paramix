@@ -7,7 +7,6 @@ import QtQuick.Window
 import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
 import "Mixer" as MixerComponents
-import "ControllerMapping" as ControllerMappingComponents
 import "Theme"
 
 Item {
@@ -124,12 +123,6 @@ Item {
 
         group: "[Skin]"
         key: "show_microphones"
-    }
-    Mixxx.ControlProxy {
-        id: show4EffectUnitsControl
-
-        group: "[Skin]"
-        key: "show_4effectunits"
     }
     Mixxx.ControlProxy {
         id: showVinylControl
@@ -320,8 +313,6 @@ Item {
                                         (previewDeckBar.item && previewDeckBar.item.revealed) ||
                                         previewDeckPlaying.value > 0;
                                 padFxItem.checked = padFxWindow.visible;
-                                mappingItem.checked = controllerMappingWindow.visible;
-                                fxUnitsItem.checked = show4EffectUnitsControl.value > 0;
                             }
 
                             Skin.CheckMenuItem {
@@ -358,22 +349,6 @@ Item {
                                 onTriggered: checked ? padFxWindow.show() : padFxWindow.close()
                             }
                             Skin.CheckMenuItem {
-                                id: mappingItem
-
-                                checkable: true
-                                text: qsTr("Controller mapping")
-
-                                onTriggered: checked ? controllerMappingWindow.show() : controllerMappingWindow.close()
-                            }
-                            Skin.CheckMenuItem {
-                                id: fxUnitsItem
-
-                                checkable: true
-                                text: qsTr("FX 3-4")
-
-                                onTriggered: show4EffectUnitsControl.value = checked ? 1 : 0
-                            }
-                            Skin.CheckMenuItem {
                                 id: samplersItem
 
                                 checkable: true
@@ -403,89 +378,6 @@ Item {
                                     showPreviewDecks.value = checked ? 1 : 0;
                                 }
                             }
-                        }
-                    }
-                    Skin.Button {
-                        id: showEffectUnitsButton
-
-                        Accessible.checkable: true
-                        Accessible.checked: show4EffectUnitsControl.value > 0
-                        Accessible.name: qsTr("Show effect units 3 and 4")
-                        activeColor: Theme.textOnAccent
-                        checkable: true
-                        text: qsTr("FX 3-4")
-                        ToolTip.delay: 500
-                        ToolTip.text: Accessible.name
-                        ToolTip.visible: hovered
-
-                        onClicked: show4EffectUnitsControl.value = checked ? 1 : 0
-
-                        // checked has no declarative binding: AbstractButton
-                        // overwrites it on every click, so mirror the control
-                        // here instead and keep controller changes in sync.
-                        Connections {
-                            target: show4EffectUnitsControl
-
-                            function onValueChanged() {
-                                showEffectUnitsButton.checked = show4EffectUnitsControl.value > 0;
-                            }
-                        }
-                        Component.onCompleted: showEffectUnitsButton.checked = show4EffectUnitsControl.value > 0
-
-                        Skin.EffectUnitsWindow {
-                            id: effectUnitsWindow
-                        }
-                    }
-                    Skin.Button {
-                        id: showPadFxButton
-
-                        activeColor: Theme.textOnAccent
-                        Layout.preferredWidth: 72
-                        checkable: true
-                        checked: padFxWindow.visible
-                        text: qsTr("Pad FX")
-
-                        Accessible.name: qsTr("Show Pad FX window")
-
-                        ToolTip.delay: 500
-                        ToolTip.text: qsTr("Per-stem performance pads for each deck")
-                        ToolTip.visible: showPadFxButton.hovered
-
-                        onClicked: {
-                            if (padFxWindow.visible)
-                                padFxWindow.close();
-                            else
-                                padFxWindow.show();
-                        }
-
-                        Skin.PadFxWindow {
-                            id: padFxWindow
-
-                            deckCount: root.show4decks ? 4 : 2
-                        }
-                    }
-                    Skin.Button {
-                        id: showControllerMappingButton
-
-                        Accessible.name: qsTr("Open the MIDI controller mapping window")
-                        Layout.preferredWidth: 56
-                        activeColor: Theme.textOnAccent
-                        text: qsTr("Map")
-
-                        ToolTip.delay: 500
-                        ToolTip.text: qsTr("Map controls on your MIDI controller")
-                        ToolTip.visible: showControllerMappingButton.hovered
-
-                        onClicked: {
-                            controllerMappingWindow.show();
-                            controllerMappingWindow.raise();
-                            controllerMappingWindow.requestActivate();
-                        }
-
-                        ControllerMappingComponents.ControllerMappingWindow {
-                            id: controllerMappingWindow
-
-                            applicationWindow: root.applicationWindow
                         }
                     }
                     Skin.Button {
@@ -527,6 +419,12 @@ Item {
 
                         onClicked: Mixxx.PreferencesDialog.show()
                     }
+                }
+
+                Skin.PadFxWindow {
+                    id: padFxWindow
+
+                    deckCount: root.show4decks ? 4 : 2
                 }
             }
             // Effects strip: the standard chains and the per-deck quick chains.

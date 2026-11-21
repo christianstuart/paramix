@@ -4,9 +4,7 @@ import ".." as Skin
 import QtQuick
 import "../Theme"
 
-/// Deck-side keys that assign a deck to one of the four effect units. The four
-/// units are always present now that units 3 and 4 live in their own window, so
-/// this no longer follows the classic [Skin],show_4effectunits display hint.
+/// Deck-side keys that assign a deck to one of the two effect units.
 Row {
     id: root
 
@@ -15,7 +13,7 @@ Row {
     property color inactiveColor: Theme.knobBackgroundColor
 
     Repeater {
-        model: 4
+        model: 2
 
         Skin.ControlButton {
             required property int index

@@ -1307,6 +1307,7 @@ add_library(
   src/dialog/dlgreplacecuecolordlg.ui
   src/effects/backends/builtin/autopaneffect.cpp
   src/effects/backends/builtin/balanceeffect.cpp
+  src/effects/backends/builtin/beatdelayeffect.cpp
   src/effects/backends/builtin/bessel4lvmixeqeffect.cpp
   src/effects/backends/builtin/bessel8lvmixeqeffect.cpp
   src/effects/backends/builtin/biquadfullkilleqeffect.cpp
@@ -1326,13 +1327,18 @@ add_library(
   src/effects/backends/builtin/metronomeclick.cpp
   src/effects/backends/builtin/keycomparisoneffect.cpp
   src/effects/backends/builtin/pianosample.cpp
+  src/effects/backends/builtin/pingpongeffect.cpp
   src/effects/backends/builtin/moogladder4filtereffect.cpp
   src/effects/backends/builtin/compressoreffect.cpp
   src/effects/backends/builtin/autogaincontroleffect.cpp
   src/effects/backends/builtin/parametriceqeffect.cpp
   src/effects/backends/builtin/phasereffect.cpp
   src/effects/backends/builtin/reverbeffect.cpp
+  src/effects/backends/builtin/rolleffect.cpp
+  src/effects/backends/builtin/shimmereffect.cpp
+  src/effects/backends/builtin/spiraleffect.cpp
   src/effects/backends/builtin/threebandbiquadeqeffect.cpp
+  src/effects/backends/builtin/transeffect.cpp
   src/effects/backends/builtin/tremoloeffect.cpp
   src/effects/backends/builtin/vinylbrakeeffect.cpp
   src/effects/backends/builtin/whitenoiseeffect.cpp
@@ -3157,6 +3163,7 @@ if(BUILD_TESTING)
       PRIVATE
         src/test/controller_mapping_file_handler_test.cpp
         src/test/controllerrenderingengine_test.cpp
+        src/test/beatfxtest.cpp
         src/test/qml/qmlcolumnlayouttest.cpp
         src/test/qml/qmlstartupsmoketest.cpp
         src/test/qmlcontrollerlearningproxytest.cpp

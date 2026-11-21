@@ -8,8 +8,7 @@ import "Theme"
 /// A labelled 0..1 Pad FX parameter slider bound to a [ChannelN_PadFX] key.
 ///
 /// Only the parameter rows an effect actually uses are instantiated; the row
-/// height and label width come from the Pad FX Theme tokens so every effect
-/// editor lines up.
+/// height comes from the Pad FX Theme tokens so every effect editor lines up.
 RowLayout {
     id: root
 
@@ -18,19 +17,34 @@ RowLayout {
     required property string label
     /// Optional owner name for assistive text, e.g. "Pad 2".
     property string ownerLabel: ""
+    /// Label column width shared by every row of one editor, so all sliders
+    /// start at the same x. 0 measures this row's own label.
+    property int labelWidth: 0
 
     readonly property string accessibleName: root.ownerLabel.length > 0
             ? qsTr("%1 %2").arg(root.ownerLabel).arg(root.label)
             : root.label
+    /// Sized from the text: a fixed token would cut "Wind-down" off.
+    readonly property int labelColumnWidth: root.labelWidth > 0
+            ? root.labelWidth
+            : Math.ceil(labelMetrics.advanceWidth(root.label))
+
+    FontMetrics {
+        id: labelMetrics
+
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSizeXs
+    }
 
     Layout.fillWidth: true
     implicitHeight: Theme.padfxControlHeight
     spacing: Theme.space1
 
     Text {
-        Layout.preferredWidth: Theme.space8
+        Layout.minimumWidth: root.labelColumnWidth
+        Layout.preferredWidth: root.labelColumnWidth
         color: Theme.textSecondary
-        elide: Text.ElideRight
+        elide: Text.ElideNone
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeXs
         text: root.label

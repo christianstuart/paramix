@@ -313,6 +313,20 @@ QtObject {
     readonly property int fxPowerDotSize: Math.round(12 * uiScale)
     readonly property int fxUnitKeyMinWidth: Math.max(Math.round(38 * uiScale), fontSizeXs * 4)
     readonly property int fxSlotMinWidth: Math.round(64 * uiScale)
+    // Beat FX: the strip stepper, the "BEAT" tag and the wider flyout column.
+    readonly property int fxBeatStepKeyWidth: Math.max(Math.round(18 * uiScale),
+                                                       fontSizeXs * 2 + space1)
+    readonly property int fxBeatStepLabelWidth: Math.max(Math.round(30 * uiScale),
+                                                         fontSizeSm * 3)
+    readonly property int fxBeatKeySize: Math.max(Math.round(22 * uiScale),
+                                                  fontSizeXs * 2 + space2)
+    readonly property int fxBeatGridKeyWidth: Math.max(Math.round(36 * uiScale),
+                                                      fontSizeXs * 3 + 2 * space1)
+    readonly property int fxBeatLevelKnobSize: Math.round(44 * uiScale)
+    readonly property int fxBeatColumnWidth: Math.round(190 * uiScale)
+    readonly property int fxEffectRowHeight: Math.max(Math.round(24 * uiScale),
+                                                      fontSizeSm + 2 * space1)
+    readonly property int fxEffectPopupMinWidth: Math.round(150 * uiScale)
     // The strip gives the two fixed units its full width, so the super knob no
     // longer needs a strip-wide width gate. TopBarEffects.qml compares each
     // unit against its natural minimum width instead.
@@ -376,17 +390,26 @@ QtObject {
     /// Width of the loop card. Fixed rather than scaled so the 196 px pane
     /// minimum still fits at a 564 px deck at every uiScale.
     readonly property int deckLoopCardWidth: 224
-    /// Loop-card row metrics. The beat row takes what the fixed rows leave, so
-    /// the card always fills deckPaneHeight exactly.
+    /// Loop-card row metrics. The header keeps its height and the three key
+    /// rows split what is left, so the card always fills deckPaneHeight exactly.
     readonly property int deckLoopInset: Math.max(1, Math.round(space1 / 2))
     readonly property int deckLoopRowGap: 1
     readonly property int deckLoopHeaderHeight: space4
-    readonly property int deckLoopActionRowHeight: space5
-    readonly property int deckLoopRollRowHeight: space5
-    readonly property int deckLoopBeatRowHeight: Math.max(0,
+    /// Height the fixed-size, action and roll rows share, after the border, the
+    /// insets, the header and the three row gaps.
+    readonly property int deckLoopKeyRowsHeight: Math.max(0,
             deckPaneHeight - 2 - 2 * deckLoopInset
-            - deckLoopHeaderHeight - deckLoopActionRowHeight - deckLoopRollRowHeight
-            - 3 * deckLoopRowGap)
+            - deckLoopHeaderHeight - 3 * deckLoopRowGap)
+    readonly property int deckLoopKeyRowHeight: Math.floor(deckLoopKeyRowsHeight / 3)
+    /// Takes the division remainder so the row sum stays exact at every uiScale.
+    readonly property int deckLoopRollRowHeight: Math.max(0,
+            deckLoopKeyRowsHeight - 2 * deckLoopKeyRowHeight)
+    /// Gap between keys and the side padding inside a key. Key labels are
+    /// measured with their own metrics, so this is the only padding they carry.
+    readonly property int deckLoopKeyGap: Math.max(1, Math.round(2 * uiScale))
+    readonly property int deckLoopKeyPadding: Math.max(1, Math.round(2 * uiScale))
+    /// Loop-active indicator dot in the header.
+    readonly property int deckLoopStatusDotSize: Math.max(4, Math.round(6 * uiScale))
 
     // Deck-local width gates: the spinny/FX column hides first, then the tempo
     // strip, each at its own deck width rather than the window's. The row is

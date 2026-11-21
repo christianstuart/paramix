@@ -40,7 +40,7 @@ inline size_t qHash(
     return qHash(static_cast<uint>(stage), seed);
 };
 
-constexpr int kNumStandardEffectUnits = 4;
+constexpr int kNumStandardEffectUnits = 2;
 constexpr int kNumEffectsPerUnit = 4;
 
 const QString kNoEffectString = QStringLiteral("---");

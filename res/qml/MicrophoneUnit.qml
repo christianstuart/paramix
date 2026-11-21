@@ -14,7 +14,7 @@ Row {
     id: root
 
     required property int unitNumber
-    property int fxUnitCount: 4
+    property int fxUnitCount: 2
     property string group: unitNumber === 1 ? "[Microphone]" : "[Microphone" + unitNumber + "]"
     readonly property bool inputConfigured: inputConfiguredControl.value > 0
 

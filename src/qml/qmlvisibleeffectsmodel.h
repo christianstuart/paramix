@@ -15,11 +15,20 @@ class QmlVisibleEffectsModel : public QAbstractListModel {
   public:
     enum Roles {
         EffectIdRole = Qt::UserRole + 1,
+        IsBeatFxRole,
     };
     Q_ENUM(Roles)
 
+    enum class Filter {
+        All,
+        Beat,
+        Color,
+    };
+    Q_ENUM(Filter)
+
     explicit QmlVisibleEffectsModel(
             std::shared_ptr<EffectsManager> pEffectsManager,
+            Filter filter = Filter::All,
             QObject* parent = nullptr);
 
     QVariant data(const QModelIndex& index, int role) const override;
@@ -32,6 +41,7 @@ class QmlVisibleEffectsModel : public QAbstractListModel {
 
   private:
     const std::shared_ptr<EffectsManager> m_pEffectsManager;
+    const Filter m_filter;
     QList<EffectManifestPointer> m_visibleEffectManifests;
 };
 

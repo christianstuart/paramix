@@ -101,6 +101,13 @@ void EffectKnobParameterSlot::setParameter(double value) {
     m_pControlValue->setParameterFrom(value, this);
 }
 
+void EffectKnobParameterSlot::setParameterValue(double value) {
+    // A set() by the control's owner does not signal the owner back, so the
+    // new value is applied to the EffectParameter here.
+    m_pControlValue->set(value);
+    slotValueChanged(m_pControlValue->get());
+}
+
 void EffectKnobParameterSlot::slotLinkTypeChanging(double v) {
     m_metaknobSoftTakeover.ignoreNext();
     EffectManifestParameter::LinkType newType =

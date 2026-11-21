@@ -57,6 +57,10 @@ EffectManifestPointer GlitchEffect::getManifest() {
     triplet->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
     triplet->setRange(0, 0, 1);
 
+    pManifest->setBeatFx(QStringLiteral("delay_time"),
+            QString(),
+            QList<double>{1 / 8.0, 1 / 4.0, 1 / 2.0, 1.0, 2.0});
+
     return pManifest;
 }
 

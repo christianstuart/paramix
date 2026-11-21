@@ -56,8 +56,11 @@ TEST_F(QmlEffectsProxyTest, UnitLookup) {
     EXPECT_EQ(pUnit1, m_pProxy->getEffectUnit(1));
     EXPECT_EQ(1, pUnit1->getUnitNumber());
     EXPECT_EQ(QStringLiteral("[EffectRack1_EffectUnit1]"), pUnit1->getGroup());
+    auto* pUnit2 = m_pProxy->getEffectUnit(2);
+    ASSERT_NE(nullptr, pUnit2);
+    EXPECT_EQ(2, pUnit2->getUnitNumber());
     EXPECT_EQ(nullptr, m_pProxy->getEffectUnit(0));
-    EXPECT_EQ(nullptr, m_pProxy->getEffectUnit(5));
+    EXPECT_EQ(nullptr, m_pProxy->getEffectUnit(3));
 }
 
 TEST_F(QmlEffectsProxyTest, PresetModelsResetSeparately) {

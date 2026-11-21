@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QQmlEngine>
+#include <QStringList>
 
 #include "effects/effectsmanager.h"
 #include "qml/qmleffectslotparametersmodel.h"
@@ -18,6 +19,10 @@ class QmlEffectSlotProxy : public QObject {
     Q_PROPERTY(QString effectName READ getEffectName NOTIFY effectIdChanged)
     Q_PROPERTY(QString effectDescription READ getEffectDescription NOTIFY effectIdChanged)
     Q_PROPERTY(QString effectId READ getEffectId WRITE setEffectId NOTIFY effectIdChanged)
+    Q_PROPERTY(bool isBeatFx READ isBeatFx NOTIFY effectIdChanged)
+    Q_PROPERTY(QStringList beatStepLabels READ getBeatStepLabels NOTIFY effectIdChanged)
+    Q_PROPERTY(QString beatStepUnit READ getBeatStepUnit NOTIFY effectIdChanged)
+    Q_PROPERTY(QString beatLevelName READ getBeatLevelName NOTIFY effectIdChanged)
     Q_PROPERTY(mixxx::qml::QmlEffectSlotParametersModel* parametersModel
                     READ getParametersModel CONSTANT)
     QML_NAMED_ELEMENT(EffectSlotProxy)
@@ -42,6 +47,10 @@ class QmlEffectSlotProxy : public QObject {
     bool isLoaded() const;
     QString getEffectName() const;
     QString getEffectDescription() const;
+    bool isBeatFx() const;
+    QStringList getBeatStepLabels() const;
+    QString getBeatStepUnit() const;
+    QString getBeatLevelName() const;
     QmlEffectSlotParametersModel* getParametersModel() const;
 
   public slots:

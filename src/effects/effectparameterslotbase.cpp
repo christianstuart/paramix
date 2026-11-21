@@ -65,3 +65,9 @@ void EffectParameterSlotBase::slotValueChanged(double v) {
         emit valueChanged(v);
     }
 }
+
+void EffectParameterSlotBase::setParameterValue(double value) {
+    if (m_pEffectParameter) {
+        m_pEffectParameter->setValue(value);
+    }
+}

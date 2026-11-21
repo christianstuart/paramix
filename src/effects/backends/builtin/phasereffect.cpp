@@ -101,6 +101,11 @@ EffectManifestPointer PhaserEffect::getManifest() {
     stereo->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
     stereo->setRange(0, 0, 1);
 
+    // The DSP rounds the LFO period to 1/2 beat, so 1/4 is not a reachable step.
+    pManifest->setBeatFx(QStringLiteral("lfo_period"),
+            QStringLiteral("depth"),
+            QList<double>{1 / 2.0, 1.0, 2.0, 4.0});
+
     return pManifest;
 }
 

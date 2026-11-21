@@ -105,6 +105,10 @@ EffectManifestPointer EchoEffect::getManifest() {
     triplet->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
     triplet->setRange(0, 0, 1);
 
+    pManifest->setBeatFx(QStringLiteral("delay_time"),
+            QStringLiteral("send_amount"),
+            QList<double>{1 / 8.0, 1 / 4.0, 1 / 2.0, 3 / 4.0, 1.0, 3 / 2.0, 2.0});
+
     return pManifest;
 }
 

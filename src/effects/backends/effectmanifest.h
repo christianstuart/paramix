@@ -23,6 +23,8 @@
 /// the no-argument constructor be non-explicit.
 class EffectManifest {
   public:
+    enum class BeatFxStepUnit { Beats, Percent };
+
     EffectManifest()
             : m_backendType(EffectBackendType::Unknown),
               m_isMixingEQ(false),
@@ -165,6 +167,35 @@ class EffectManifest {
         m_metaknobDefault = metaknobDefault;
     }
 
+    /// Marks the effect as a Beat FX: one existing knob parameter is stepped
+    /// through a fixed ascending list of values and one optional knob parameter
+    /// is the main amount. All other effects are Color FX.
+    void setBeatFx(const QString& stepParameterId,
+            const QString& levelParameterId,
+            const QList<double>& steps,
+            BeatFxStepUnit stepUnit = BeatFxStepUnit::Beats) {
+        m_beatFxStepParameterId = stepParameterId;
+        m_beatFxLevelParameterId = levelParameterId;
+        m_beatFxSteps = steps;
+        m_beatFxStepUnit = stepUnit;
+    }
+
+    bool isBeatFx() const {
+        return !m_beatFxStepParameterId.isEmpty();
+    }
+    const QString& beatFxStepParameterId() const {
+        return m_beatFxStepParameterId;
+    }
+    const QString& beatFxLevelParameterId() const {
+        return m_beatFxLevelParameterId;
+    }
+    const QList<double>& beatFxSteps() const {
+        return m_beatFxSteps;
+    }
+    BeatFxStepUnit beatFxStepUnit() const {
+        return m_beatFxStepUnit;
+    }
+
     bool operator==(const EffectManifest& other) const {
         return other.id() == m_id && other.backendType() == m_backendType;
     }
@@ -199,4 +230,8 @@ class EffectManifest {
     bool m_bAddDryToWet;
     bool m_padFxOnly;
     double m_metaknobDefault;
+    QString m_beatFxStepParameterId;
+    QString m_beatFxLevelParameterId;
+    QList<double> m_beatFxSteps;
+    BeatFxStepUnit m_beatFxStepUnit{BeatFxStepUnit::Beats};
 };

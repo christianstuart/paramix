@@ -20,8 +20,14 @@
 #include "effects/backends/builtin/autopaneffect.h"
 #include "effects/backends/builtin/compressoreffect.h"
 #include "effects/backends/builtin/distortioneffect.h"
+#include "effects/backends/builtin/beatdelayeffect.h"
 #include "effects/backends/builtin/echoeffect.h"
 #include "effects/backends/builtin/echoouteffect.h"
+#include "effects/backends/builtin/pingpongeffect.h"
+#include "effects/backends/builtin/rolleffect.h"
+#include "effects/backends/builtin/shimmereffect.h"
+#include "effects/backends/builtin/spiraleffect.h"
+#include "effects/backends/builtin/transeffect.h"
 #include "effects/backends/builtin/glitcheffect.h"
 #include "effects/backends/builtin/keycomparisoneffect.h"
 #include "effects/backends/builtin/loudnesscontoureffect.h"
@@ -57,6 +63,12 @@ BuiltInBackend::BuiltInBackend() {
     registerEffect<FlangerEffect>();
     registerEffect<EchoEffect>();
     registerEffect<EchoOutEffect>();
+    registerEffect<BeatDelayEffect>();
+    registerEffect<PingPongEffect>();
+    registerEffect<RollEffect>();
+    registerEffect<TransEffect>();
+    registerEffect<SpiralEffect>();
+    registerEffect<ShimmerEffect>();
     registerEffect<VinylBrakeEffect>();
     registerEffect<AutoPanEffect>();
 #ifndef __MACAPPSTORE__

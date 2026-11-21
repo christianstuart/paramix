@@ -1205,6 +1205,20 @@ ControlPickerMenu::ControlPickerMenu(QWidget* pParent)
 
         QMenu* pEffectUnitMenu = addSubmenu(m_effectUnitStr.arg(iEffectUnitNumber),
                 pEffectsMenu);
+        // Deck assignments sit directly in the unit menu instead of the
+        // assignment submenu.
+        for (int iDeckNumber = 1; iDeckNumber <= iNumDecks; ++iDeckNumber) {
+            // PlayerManager::groupForDeck is 0-indexed.
+            QString playerGroup = PlayerManager::groupForDeck(iDeckNumber - 1);
+            addControl(effectUnitGroup,
+                    QString("group_%1_enable").arg(playerGroup),
+                    tr("Assign to Deck %1").arg(iDeckNumber),
+                    tr("Assign to Deck %1").arg(iDeckNumber),
+                    pEffectUnitMenu,
+                    false,
+                    descriptionPrefix);
+        }
+        pEffectUnitMenu->addSeparator();
         addControl(effectUnitGroup,
                 "clear",
                 tr("Clear Unit"),
@@ -1292,19 +1306,6 @@ ControlPickerMenu::ControlPickerMenu(QWidget* pParent)
                 false,
                 groupDescriptionPrefix);
 
-        for (int iDeckNumber = 1; iDeckNumber <= iNumDecks; ++iDeckNumber) {
-            // PlayerManager::groupForDeck is 0-indexed.
-            QString playerGroup = PlayerManager::groupForDeck(iDeckNumber - 1);
-            // TODO(owen): Fix bad i18n here.
-            addControl(effectUnitGroup,
-                    QString("group_%1_enable").arg(playerGroup),
-                    assignString + m_deckStr.arg(iDeckNumber),
-                    assignString + m_deckStr.arg(iDeckNumber),
-                    pEffectUnitGroupsMenu,
-                    false,
-                    groupDescriptionPrefix);
-        }
-
         const int iNumSamplers = static_cast<int>(ControlObject::get(
                 ConfigKey(kAppGroup, QStringLiteral("num_samplers"))));
         for (int iSamplerNumber = 1; iSamplerNumber <= iNumSamplers;
@@ -1379,6 +1380,27 @@ ControlPickerMenu::ControlPickerMenu(QWidget* pParent)
                     tr("Effect Meta Knob (control linked effect parameters)"),
                     pEffectSlotMenu,
                     false,
+                    slotDescriptionPrefix);
+            addControl(effectSlotGroup,
+                    "beat_up",
+                    tr("Beat Up"),
+                    tr("Beat FX: step to the next longer beat value"),
+                    pEffectSlotMenu,
+                    false,
+                    slotDescriptionPrefix);
+            addControl(effectSlotGroup,
+                    "beat_down",
+                    tr("Beat Down"),
+                    tr("Beat FX: step to the next shorter beat value"),
+                    pEffectSlotMenu,
+                    false,
+                    slotDescriptionPrefix);
+            addControl(effectSlotGroup,
+                    "beat_level",
+                    tr("Level/Depth"),
+                    tr("Beat FX: main effect amount"),
+                    pEffectSlotMenu,
+                    true,
                     slotDescriptionPrefix);
             addControl(effectSlotGroup,
                     "enabled",

@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QQmlEngine>
 
+#include <cmath>
+
 #include "effects/effectchain.h"
 #include "effects/effectparameter.h"
 #include "effects/effectslot.h"
@@ -11,6 +13,27 @@
 
 namespace mixxx {
 namespace qml {
+namespace {
+
+QString beatStepLabel(double value, EffectManifest::BeatFxStepUnit unit) {
+    if (unit == EffectManifest::BeatFxStepUnit::Percent) {
+        return QString::number(qRound(value * 100.0)) + QLatin1Char('%');
+    }
+    if (std::abs(value - std::round(value)) < 1e-9) {
+        return QString::number(qRound(value));
+    }
+    for (int denominator : {2, 3, 4, 8, 16}) {
+        const double numerator = value * denominator;
+        if (std::abs(numerator - std::round(numerator)) < 1e-9) {
+            return QStringLiteral("%1/%2")
+                    .arg(qRound(numerator))
+                    .arg(denominator);
+        }
+    }
+    return QString::number(value);
+}
+
+} // namespace
 
 QmlEffectSlotProxy::QmlEffectSlotProxy(
         std::shared_ptr<EffectsManager> pEffectsManager,
@@ -64,6 +87,51 @@ QString QmlEffectSlotProxy::getEffectName() const {
 QString QmlEffectSlotProxy::getEffectDescription() const {
     const auto pManifest = m_pEffectSlot->getManifest();
     return pManifest ? pManifest->description() : QString();
+}
+
+bool QmlEffectSlotProxy::isBeatFx() const {
+    return m_pEffectSlot->isBeatFx();
+}
+
+QStringList QmlEffectSlotProxy::getBeatStepLabels() const {
+    QStringList labels;
+    const auto pManifest = m_pEffectSlot->getManifest();
+    if (!pManifest || !m_pEffectSlot->isBeatFx()) {
+        return labels;
+    }
+    for (double step : m_pEffectSlot->usableBeatFxSteps()) {
+        labels.append(beatStepLabel(step, pManifest->beatFxStepUnit()));
+    }
+    return labels;
+}
+
+QString QmlEffectSlotProxy::getBeatStepUnit() const {
+    const auto pManifest = m_pEffectSlot->getManifest();
+    if (!pManifest || !m_pEffectSlot->isBeatFx()) {
+        return QString();
+    }
+    switch (pManifest->beatFxStepUnit()) {
+    case EffectManifest::BeatFxStepUnit::Beats:
+        return QStringLiteral("beats");
+    case EffectManifest::BeatFxStepUnit::Percent:
+        return QStringLiteral("percent");
+    }
+    return QString();
+}
+
+QString QmlEffectSlotProxy::getBeatLevelName() const {
+    const auto pManifest = m_pEffectSlot->getManifest();
+    if (!pManifest || !m_pEffectSlot->isBeatFx() ||
+            pManifest->beatFxLevelParameterId().isEmpty()) {
+        return QString();
+    }
+    for (const auto& pParameter : pManifest->parameters()) {
+        if (pParameter->id() == pManifest->beatFxLevelParameterId()) {
+            return pParameter->shortName().isEmpty() ? pParameter->name()
+                                                     : pParameter->shortName();
+        }
+    }
+    return QString();
 }
 
 void QmlEffectSlotProxy::setEffectId(const QString& effectId) {
