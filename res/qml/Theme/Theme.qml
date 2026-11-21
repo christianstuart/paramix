@@ -390,20 +390,15 @@ QtObject {
     /// Width of the loop card. Fixed rather than scaled so the 196 px pane
     /// minimum still fits at a 564 px deck at every uiScale.
     readonly property int deckLoopCardWidth: 224
-    /// Loop-card row metrics. The header keeps its height and the three key
-    /// rows split what is left, so the card always fills deckPaneHeight exactly.
+    /// Loop-card metrics: a header and one action row, sized to their content
+    /// and vertically centred in the deck band.
     readonly property int deckLoopInset: Math.max(1, Math.round(space1 / 2))
     readonly property int deckLoopRowGap: 1
     readonly property int deckLoopHeaderHeight: space4
-    /// Height the fixed-size, action and roll rows share, after the border, the
-    /// insets, the header and the three row gaps.
-    readonly property int deckLoopKeyRowsHeight: Math.max(0,
-            deckPaneHeight - 2 - 2 * deckLoopInset
-            - deckLoopHeaderHeight - 3 * deckLoopRowGap)
-    readonly property int deckLoopKeyRowHeight: Math.floor(deckLoopKeyRowsHeight / 3)
-    /// Takes the division remainder so the row sum stays exact at every uiScale.
-    readonly property int deckLoopRollRowHeight: Math.max(0,
-            deckLoopKeyRowsHeight - 2 * deckLoopKeyRowHeight)
+    readonly property int deckLoopKeyRowHeight: space6
+    /// Border, insets, header, gap and the action row; the row sum is exact.
+    readonly property int deckLoopCardHeight: 2 + 2 * deckLoopInset
+            + deckLoopHeaderHeight + deckLoopRowGap + deckLoopKeyRowHeight
     /// Gap between keys and the side padding inside a key. Key labels are
     /// measured with their own metrics, so this is the only padding they carry.
     readonly property int deckLoopKeyGap: Math.max(1, Math.round(2 * uiScale))

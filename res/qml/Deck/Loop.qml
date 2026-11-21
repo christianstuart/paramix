@@ -5,30 +5,21 @@ import QtQuick.Controls 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Loop card: the full height of the deck transport band.
-///
-/// Four rows: a header with the editable beat size and the anchor, the eight
-/// fixed beat sizes, the In / Out / Loop / Reloop transport row, and the
-/// loop-roll row. Every label is measured against the card's inner width and
-/// never elided; the jump-to and reloop-and-stop actions sit on the right
-/// button of their key so the rows fit whole words.
+/// Loop card: a header with the editable beat size and the anchor, and the
+/// In / Out / Loop / Reloop transport row. Every label is measured against the
+/// card's inner width and never elided; the jump-to and reloop-and-stop actions
+/// sit on the right button of their key so the row fits whole words.
 Rectangle {
     id: root
 
     property color buttonColor: root.loaded ? Theme.textSecondary : Theme.textMuted
-    /// Sizes offered as fixed keys, 1/8 to 16. Halve, double and the editable
-    /// size field stay reachable across the full engine range (1/32 to 512).
-    readonly property var fixedSizes: [1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16]
     required property string group
     readonly property bool loaded: trackLoadedControl.value > 0
-    readonly property var rollSizes: [0.5, 1, 2, 4]
 
     /// Width between the border and the insets, and the key widths derived from
     /// it. Each key also takes its own label's measured width as a floor, so
     /// the rows can only overflow if the labels no longer fit the card at all.
     readonly property real innerWidth: Math.max(0, width - 2 * (1 + Theme.deckLoopInset))
-    readonly property real sizeKeyWidth: Math.max(0, (innerWidth
-            - (fixedSizes.length - 1) * Theme.deckLoopKeyGap) / fixedSizes.length)
     /// In, Out, Loop and Reloop share the action row in four equal keys.
     readonly property real actionKeyWidth: Math.max(0, (innerWidth
             - 3 * Theme.deckLoopKeyGap) / 4)
@@ -38,9 +29,6 @@ Rectangle {
             reloopMeasure.implicitWidth + 2 * Theme.deckLoopKeyPadding)
     readonly property real otherActionWidth: Math.max(0, (innerWidth
             - 3 * Theme.deckLoopKeyGap - reloopWidth) / 3)
-    readonly property real rollKeyWidth: Math.max(0, (innerWidth
-            - rollCaption.implicitWidth - rollSizes.length * Theme.deckLoopKeyGap)
-            / rollSizes.length)
 
     /// A key's label: the button's own text, centred and never elided. Keys take
     /// their width from this label's implicitWidth plus Theme.deckLoopKeyPadding.
@@ -319,51 +307,6 @@ Rectangle {
                 }
             }
         }
-        // Eight equal-width fixed sizes. Larger and smaller sizes stay reachable
-        // through halve / double and the editable size field.
-        Row {
-            id: fixedSizeRow
-
-            Layout.fillWidth: true
-            Layout.preferredHeight: Theme.deckLoopKeyRowHeight
-            spacing: Theme.deckLoopKeyGap
-
-            Repeater {
-                model: root.fixedSizes
-
-                Skin.ControlButton {
-                    id: fixedLoopButton
-
-                    required property double modelData
-
-                    Accessible.description: qsTr("Starts or exits a loop over %1 beats").arg(beatloopSize.formatBeatSize(fixedLoopButton.modelData))
-                    Accessible.name: qsTr("Beatloop %1 beats").arg(beatloopSize.formatBeatSize(fixedLoopButton.modelData))
-                    ToolTip.delay: 500
-                    ToolTip.text: qsTr("Beatloop")
-                    ToolTip.visible: fixedLoopButton.hovered
-                    contentItem: KeyLabel {
-                        color: fixedLoopButton.labelColor
-                        text: fixedLoopButton.text
-                    }
-                    enabled: root.loaded
-                    group: root.group
-                    height: fixedSizeRow.height
-                    highlight: fixedLoopEnabled.value > 0
-                    implicitWidth: width
-                    key: `beatloop_${fixedLoopButton.modelData}_toggle`
-                    text: beatloopSize.formatBeatSize(fixedLoopButton.modelData)
-                    width: Math.max(root.sizeKeyWidth,
-                            contentItem.implicitWidth + 2 * Theme.deckLoopKeyPadding)
-
-                    Mixxx.ControlProxy {
-                        id: fixedLoopEnabled
-
-                        group: root.group
-                        key: `beatloop_${fixedLoopButton.modelData}_enabled`
-                    }
-                }
-            }
-        }
         Row {
             id: actionRow
 
@@ -479,54 +422,6 @@ Rectangle {
                 SecondaryKeyArea {
                     controlGroup: root.group
                     controlKey: "reloop_andstop"
-                }
-            }
-        }
-        Row {
-            id: rollRow
-
-            Layout.fillWidth: true
-            Layout.preferredHeight: Theme.deckLoopRollRowHeight
-            spacing: Theme.deckLoopKeyGap
-
-            Text {
-                id: rollCaption
-
-                color: Theme.textMuted
-                font.capitalization: Font.AllUppercase
-                font.family: Theme.fontFamily
-                font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Theme.fontSizeXs
-                height: rollRow.height
-                text: qsTr("Roll")
-                verticalAlignment: Text.AlignVCenter
-                width: implicitWidth
-            }
-            Repeater {
-                model: root.rollSizes
-
-                Skin.ControlButton {
-                    id: rollButton
-
-                    required property double modelData
-
-                    Accessible.description: qsTr("Hold to roll a loop over %1 beats. Playback resumes where the track would have been if it had not entered the loop.").arg(beatloopSize.formatBeatSize(rollButton.modelData))
-                    Accessible.name: qsTr("Loop roll %1 beats").arg(beatloopSize.formatBeatSize(rollButton.modelData))
-                    ToolTip.delay: 500
-                    ToolTip.text: qsTr("Loop roll")
-                    ToolTip.visible: rollButton.hovered
-                    contentItem: KeyLabel {
-                        color: rollButton.labelColor
-                        text: rollButton.text
-                    }
-                    enabled: root.loaded
-                    group: root.group
-                    height: rollRow.height
-                    implicitWidth: width
-                    key: `beatlooproll_${rollButton.modelData}_activate`
-                    text: beatloopSize.formatBeatSize(rollButton.modelData)
-                    width: Math.max(root.rollKeyWidth,
-                            contentItem.implicitWidth + 2 * Theme.deckLoopKeyPadding)
                 }
             }
         }

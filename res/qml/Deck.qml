@@ -299,15 +299,15 @@ Item {
 
             LayoutItem {
                 Layout.alignment: Qt.AlignVCenter
-                // The card fills the 112 px band and keeps the pane's 196 px
-                // minimum beside it at the 564 px deck the 1280 window gives.
-                // Min, max and preferred are all the band height so a layout
-                // cannot stretch the card away from the pane beside it.
-                Layout.maximumHeight: root.paneHeight
+                // The card is as tall as its two rows and stays centred in the
+                // 112 px band. Min, max and preferred are all the card height so
+                // a layout cannot stretch it, and the pane's 196 px minimum
+                // still fits beside it at the 564 px deck the 1280 window gives.
+                Layout.maximumHeight: Theme.deckLoopCardHeight
                 Layout.maximumWidth: Theme.deckLoopCardWidth
-                Layout.minimumHeight: root.paneHeight
+                Layout.minimumHeight: Theme.deckLoopCardHeight
                 Layout.minimumWidth: Theme.deckLoopCardWidth
-                Layout.preferredHeight: root.paneHeight
+                Layout.preferredHeight: Theme.deckLoopCardHeight
                 Layout.preferredWidth: Theme.deckLoopCardWidth
                 Layout.rightMargin: Theme.space1
 
