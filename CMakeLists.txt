@@ -3065,6 +3065,7 @@ if(BUILD_TESTING)
     src/test/rangelist_test.cpp
     src/test/readaheadmanager_test.cpp
     src/test/rekordboxexportanlztest.cpp
+    src/test/rekordboxexportjobintegrationtest.cpp
     src/test/rekordboxexportjobtest.cpp
     src/test/rekordboxexportpdbtest.cpp
     src/test/rekordboxexportuitest.cpp
