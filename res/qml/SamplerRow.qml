@@ -10,7 +10,7 @@ import "Theme"
 ColumnLayout {
     id: root
 
-    property int fxUnitCount: 4
+    property int fxUnitCount: 2
     property int hotcueCount: 8
     property bool minimized: false
     property int page: 0

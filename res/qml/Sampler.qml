@@ -13,7 +13,7 @@ Rectangle {
 
     property var currentTrack: deckPlayer.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
-    property int fxUnitCount: 4
+    property int fxUnitCount: 2
     required property string group
     property int hotcueCount: 8
     readonly property bool loaded: trackLoadedControl.value > 0

@@ -66,8 +66,8 @@ several stems applies the effect to each of them independently.
 
 ## Software controls
 
-Pad FX live in a dedicated window, closed by default. Open it from the
-**Pad FX** toolbar key or **View → Pad FX**. The window has one column per deck:
+Pad FX live in a dedicated window, closed by default. Open it from
+**View → Pad FX**. The window has one column per deck:
 four columns when the main window shows four decks and is wide enough, two
 columns when it shows two decks, and on a narrow window with four decks it pages
 two columns at a time (`Decks 1-2` / `Decks 3-4`) so the stem chips keep their

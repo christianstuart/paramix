@@ -254,7 +254,11 @@ void EffectsManager::readEffectsXml() {
     const QStringList deckStrings = m_quickEffectChains.keys();
     EffectsXmlData data = m_pChainPresetManager->readEffectsXml(doc, deckStrings);
 
-    for (int i = 0; i < data.standardEffectChainPresets.size(); i++) {
+    // A profile saved with more units than we have now is still valid; the
+    // presets for the removed units are ignored.
+    for (int i = 0; i < data.standardEffectChainPresets.size() &&
+            i < m_standardEffectChains.size();
+            i++) {
         m_standardEffectChains.value(i)->loadChainPreset(data.standardEffectChainPresets.at(i));
     }
 

@@ -7,8 +7,7 @@ import QtQuick.Layouts
 import QtQuick.Window 2.15
 import "Theme"
 
-/// Dedicated Pad FX workspace. Closed by default; opened from the toolbar or
-/// the View menu.
+/// Dedicated Pad FX workspace. Closed by default; opened from the View menu.
 ///
 /// One column per deck, each with its own A-D bank. The number of columns
 /// follows the main window (`deckCount`): two decks show two wide columns, four
@@ -72,7 +71,7 @@ Window {
             Text {
                 Layout.fillWidth: true
                 color: Theme.textMuted
-                elide: Text.ElideRight
+                elide: Text.ElideNone
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm
                 text: qsTr("Per-stem performance effects")

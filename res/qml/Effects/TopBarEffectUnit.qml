@@ -19,6 +19,14 @@ RowLayout {
     readonly property int badgeWidth: Math.max(Theme.fxUnitKeyMinWidth, Theme.fontSizeXs * 3 + 12)
     readonly property string group: unit.group
     readonly property int presetKeyWidth: Math.max(Math.round(20 * Theme.uiScale), Theme.fontSizeXs * 2 + 4)
+    /// How many of the unit's three slots hold a Beat FX. TopBarEffects sizes
+    /// the unit from this, so a Color FX unit keeps its super knob.
+    /// getEffectSlot() returns a new proxy per call, so keep these.
+    readonly property Mixxx.EffectSlotProxy countSlot1: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, 1)
+    readonly property Mixxx.EffectSlotProxy countSlot2: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, 2)
+    readonly property Mixxx.EffectSlotProxy countSlot3: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, 3)
+    readonly property int beatSlotCount: (root.countSlot1.isBeatFx ? 1 : 0) + (root.countSlot2.isBeatFx ? 1 : 0) + (root.countSlot3.isBeatFx ? 1 : 0)
+    property bool showStepKeys: true
     property bool showSuper: true
     readonly property Mixxx.EffectUnitProxy unit: Mixxx.EffectsManager.getEffectUnit(unitNumber)
     readonly property bool unitEnabled: unitEnabledControl.value > 0
@@ -155,23 +163,144 @@ RowLayout {
             id: slotRow
 
             required property int index
+            readonly property bool beatFx: slotRow.slot.isBeatFx
             readonly property Mixxx.EffectSlotProxy slot: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, slotRow.index + 1)
+            /// Width the step stepper takes in the row: the label always, the
+            /// two keys only while the unit has room for them.
+            readonly property int stepperWidth: root.showStepKeys
+                    ? 2 * Theme.fxBeatStepKeyWidth + Theme.fxBeatStepLabelWidth + 2 * Theme.space1
+                    : Theme.fxBeatStepLabelWidth
 
             Layout.fillWidth: true
             Layout.minimumWidth: Theme.fxSlotMinWidth + Theme.fxOnKeyWidth + Theme.space1
+                    + (slotRow.beatFx ? Theme.space1 + slotRow.stepperWidth : 0)
             spacing: Theme.space1
 
-            EffectSelector {
-                Accessible.name: qsTr("Effect unit %1 slot %2").arg(root.unitNumber).arg(slotRow.index + 1)
+            // Selector plus stepper: a Beat FX slot carries an accent outline
+            // so it reads differently from a Color FX slot at a glance.
+            Item {
+                id: slotCell
+
                 Layout.fillWidth: true
                 Layout.minimumWidth: Theme.fxSlotMinWidth
-                // Pin the preferred width to the minimum so every selector in
-                // every unit grows by the same share; otherwise the layout
-                // shrinks units with longer effect names more than short ones.
-                Layout.preferredWidth: Theme.fxSlotMinWidth
-                font.pixelSize: Theme.fontSizeXs
+                        + (slotRow.beatFx ? Theme.space1 + slotRow.stepperWidth : 0)
                 implicitHeight: Theme.fxControlHeight
-                slot: slotRow.slot
+
+                RowLayout {
+                    anchors.fill: parent
+                    spacing: Theme.space1
+
+                    EffectSelector {
+                        Accessible.name: qsTr("Effect unit %1 slot %2").arg(root.unitNumber).arg(slotRow.index + 1)
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: Theme.fxSlotMinWidth
+                        // Pin the preferred width to the minimum so every
+                        // selector in every unit grows by the same share;
+                        // otherwise the layout shrinks units with longer effect
+                        // names more than short ones.
+                        Layout.preferredWidth: Theme.fxSlotMinWidth
+                        font.pixelSize: Theme.fontSizeXs
+                        implicitHeight: Theme.fxControlHeight
+                        slot: slotRow.slot
+                    }
+                    // `<` and `>` hide last (TopBarEffects.stepExtraWidth); the
+                    // label alone still steps by wheel or by click.
+                    RowLayout {
+                        id: stepper
+
+                        readonly property var labels: slotRow.slot.beatStepLabels
+                        readonly property int step: Math.round(beatStepControl.value)
+                        readonly property int stepCount: stepper.labels.length
+
+                        Layout.minimumWidth: slotRow.beatFx ? slotRow.stepperWidth : 0
+                        Layout.preferredWidth: slotRow.beatFx ? slotRow.stepperWidth : 0
+                        spacing: Theme.space1
+                        visible: slotRow.beatFx
+
+                        Skin.Button {
+                            Accessible.name: qsTr("Beat step down")
+                            Layout.preferredWidth: Theme.fxBeatStepKeyWidth
+                            ToolTip.delay: 500
+                            ToolTip.text: Accessible.name
+                            ToolTip.visible: hovered
+                            enabled: stepper.step > 0
+                            implicitHeight: Theme.fxControlHeight
+                            text: "<"
+                            visible: root.showStepKeys
+
+                            onClicked: beatDownControl.trigger()
+                        }
+                        Item {
+                            id: stepLabel
+
+                            Accessible.name: qsTr("Beat step")
+                            Accessible.role: Accessible.Button
+                            Layout.preferredWidth: Theme.fxBeatStepLabelWidth
+                            implicitHeight: Theme.fxControlHeight
+                            ToolTip.delay: 500
+                            ToolTip.text: qsTr("Scroll or click to change the beat step")
+                            ToolTip.visible: stepHover.hovered
+
+                            Text {
+                                anchors.fill: parent
+                                color: Theme.accent
+                                elide: Text.ElideRight
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeXs
+                                font.weight: Theme.fontWeightDemiBold
+                                horizontalAlignment: Text.AlignHCenter
+                                text: stepper.step >= 0 && stepper.step < stepper.stepCount ? stepper.labels[stepper.step] : ""
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            TapHandler {
+                                acceptedButtons: Qt.LeftButton
+
+                                onTapped: beatUpControl.trigger()
+                            }
+                            TapHandler {
+                                acceptedButtons: Qt.RightButton
+
+                                onTapped: beatDownControl.trigger()
+                            }
+                            WheelHandler {
+                                onWheel: event => {
+                                    if (event.angleDelta.y > 0) {
+                                        beatUpControl.trigger();
+                                    } else if (event.angleDelta.y < 0) {
+                                        beatDownControl.trigger();
+                                    }
+                                    event.accepted = true;
+                                }
+                            }
+                            HoverHandler {
+                                id: stepHover
+
+                                cursorShape: Qt.PointingHandCursor
+                            }
+                        }
+                        Skin.Button {
+                            Accessible.name: qsTr("Beat step up")
+                            Layout.preferredWidth: Theme.fxBeatStepKeyWidth
+                            ToolTip.delay: 500
+                            ToolTip.text: Accessible.name
+                            ToolTip.visible: hovered
+                            enabled: stepper.step < stepper.stepCount - 1
+                            implicitHeight: Theme.fxControlHeight
+                            text: ">"
+                            visible: root.showStepKeys
+
+                            onClicked: beatUpControl.trigger()
+                        }
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    border.color: Theme.accent
+                    border.width: slotRow.beatFx ? 1 : 0
+                    color: "transparent"
+                    radius: Theme.radiusSm
+                    z: 1
+                }
             }
             Skin.ControlButton {
                 Accessible.name: qsTr("Effect unit %1 slot %2 enabled").arg(root.unitNumber).arg(slotRow.index + 1)
@@ -185,6 +314,26 @@ RowLayout {
                 key: "enabled"
                 text: qsTr("On")
                 toggleable: true
+            }
+            // Stepper controls on the slot group. trigger() writes 1 then 0,
+            // which is the push the engine steps on.
+            Mixxx.ControlProxy {
+                id: beatDownControl
+
+                group: slotRow.slot.group
+                key: "beat_down"
+            }
+            Mixxx.ControlProxy {
+                id: beatStepControl
+
+                group: slotRow.slot.group
+                key: "beat_step"
+            }
+            Mixxx.ControlProxy {
+                id: beatUpControl
+
+                group: slotRow.slot.group
+                key: "beat_up"
             }
         }
     }
@@ -269,7 +418,7 @@ RowLayout {
             radius: Theme.radiusMd
         }
         // Only build the three parameter columns while the flyout is open, so
-        // four units do not instantiate 3 x parametersModel rows at startup.
+        // the units do not instantiate 3 x parametersModel rows at startup.
         contentItem: Loader {
             active: controlsPopup.visible
 
@@ -279,15 +428,32 @@ RowLayout {
                 Repeater {
                     model: 3
 
-                    EffectSlotControls {
-                        id: slotControls
+                    Item {
+                        id: slotColumn
 
                         required property int index
+                        readonly property Mixxx.EffectSlotProxy slot: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, index + 1)
 
                         Layout.alignment: Qt.AlignTop
-                        Layout.preferredWidth: slotControls.columnWidth
-                        slot: Mixxx.EffectsManager.getEffectSlot(root.unitNumber, index + 1)
-                        unitGroup: root.group
+                        Layout.preferredWidth: slotColumn.slot.isBeatFx ? beatColumn.columnWidth : colorColumn.columnWidth
+                        implicitHeight: slotColumn.slot.isBeatFx ? beatColumn.implicitHeight : colorColumn.implicitHeight
+
+                        EffectSlotControls {
+                            id: colorColumn
+
+                            anchors.fill: parent
+                            visible: !slotColumn.slot.isBeatFx
+                            slot: slotColumn.slot
+                            unitGroup: root.group
+                        }
+                        BeatFxSlotControls {
+                            id: beatColumn
+
+                            anchors.fill: parent
+                            visible: slotColumn.slot.isBeatFx
+                            slot: slotColumn.slot
+                            unitGroup: root.group
+                        }
                     }
                 }
             }
