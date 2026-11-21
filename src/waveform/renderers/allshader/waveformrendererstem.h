@@ -41,11 +41,13 @@ inline int samplesPerColumn(double audioSamplesPerPixel, float devicePixelRatio)
     if (!(audioSamplesPerPixel > 0.0) || !(devicePixelRatio > 0.0f)) {
         return 1;
     }
-    // WaveformWidgetRenderer measures audioSamplesPerPixel in stereo frames
-    // (two samples per frame), and the picture is one texel per device pixel.
+    // audioSamplesPerPixel is already frames per logical pixel
+    // (trackPixelCount = trackSamples / 2 / audioSamplesPerPixel), and the
+    // picture is one texel per device pixel. A 2x here zooms the stems out
+    // against the beat grid.
     return std::max(1,
             static_cast<int>(
-                    std::lround(2.0 * audioSamplesPerPixel / devicePixelRatio)));
+                    std::lround(audioSamplesPerPixel / devicePixelRatio)));
 }
 
 /// Snap a sample position onto the whole-column grid.

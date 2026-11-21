@@ -460,16 +460,17 @@ TEST(StemDetailColumns, FollowsZoomAndNotTheRoundedViewport) {
     const int expected =
             allshader::stemdetail::samplesPerColumn(kAudioSamplesPerPixel,
                     kDevicePixelRatio);
-    ASSERT_EQ(154, expected); // lround(2 * 96 / 1.25)
+    ASSERT_EQ(77, expected); // lround(96 / 1.25)
 
     const int lengths[] = {320, 640, 1000, 1440, 1920, 2560};
     for (int length : lengths) {
         const int pixelLength =
                 static_cast<int>(std::lround(length * kDevicePixelRatio));
         // The old, viewport-rounded derivation: the viewport spans
-        // length * 2 * audioSamplesPerPixel audio samples.
+        // length * audioSamplesPerPixel frames, the same span the beat grid
+        // and the other waveform renderers draw.
         const int viewportSamplesPerColumn = std::max(1,
-                static_cast<int>(std::lround(length * 2.0 * kAudioSamplesPerPixel /
+                static_cast<int>(std::lround(length * kAudioSamplesPerPixel /
                         pixelLength)));
         // The zoom-derived value has no viewport input at all, so a resize
         // cannot change the cache key.
@@ -490,7 +491,7 @@ TEST(StemDetailPausedFrame, ConsecutivePreprocessPassesAreIdentical) {
     constexpr float kDevicePixelRatio = 2.0f;
     const int samplesPerColumn = allshader::stemdetail::samplesPerColumn(
             kAudioSamplesPerPixel, kDevicePixelRatio);
-    ASSERT_EQ(96, samplesPerColumn);
+    ASSERT_EQ(48, samplesPerColumn);
 
     // A visual position on a column boundary, plus the sub-column wobble the
     // raw play position has between frames. Without snapping the wobble moves
