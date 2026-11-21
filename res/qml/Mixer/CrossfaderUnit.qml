@@ -9,14 +9,14 @@ import "../Theme"
 Item {
     id: root
 
-    implicitHeight: 34
+    implicitHeight: 28
     implicitWidth: 360
 
     Rectangle {
         id: crossfaderSurface
 
         anchors.fill: parent
-        anchors.margins: Theme.space1
+        anchors.margins: 2
         border.color: Theme.borderStrong
         border.width: 1
         color: Theme.surface0

@@ -1,29 +1,30 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQuick.Shapes
 import "../Theme"
 
 /// One labelled knob with a numeric readout, used by the mixer output strip.
 ///
-/// The tile keeps the console micro-type legend above the knob and prints the
-/// live control value underneath, so the main and headphone sections show the
-/// same information a hardware master section would.
-///
-/// The host (Mixer.qml) assigns the width and never goes below 52 px, which is
-/// the narrowest tile that still fits the widest caption ("BOOTH") and readout
-/// ("CUE 50%") at the default font scale. Narrower columns wrap instead.
+/// The label and readout sit beside the knob so the tile is only as tall as the
+/// knob itself. The headphone gain shows a cue glyph above its knob instead of
+/// the text label.
 Item {
     id: root
 
     required property string group
     required property string key
     required property string label
+    /// Name read out by assistive technology in place of the visual label.
+    property string accessibleName: root.label
+    /// Draw the headphone cue glyph above the knob instead of the text label.
+    property bool headphoneIcon: false
     /// "gain" (dB), "balance" (L/C/R) or "mix" (cue/main split).
     property string readoutMode: "gain"
 
     readonly property real controlValue: readoutControl.value
 
-    implicitHeight: 34
+    implicitHeight: 24
     implicitWidth: 54
 
     function formatReadout(value) {
@@ -52,42 +53,101 @@ Item {
         return qsTr("%1 dB").arg((db > 0.05 ? "+" : "") + db.toFixed(1));
     }
 
-    Column {
+    Row {
         anchors.fill: parent
 
-        spacing: 0
+        spacing: 2
 
-        // The bar's top and bottom rules sit directly above and below the
-        // tile; the caption, dial and readout use all 34 px between them.
-        Skin.SectionText {
-            color: Theme.textMuted
-            height: 8
-            text: root.label
-            width: parent.width
+        Column {
+            spacing: 0
+            width: 16
+
+            Item {
+                height: 8
+                width: 16
+
+                visible: root.headphoneIcon
+
+                // Cue glyph: the arc over two earcups.
+                Shape {
+                    anchors.fill: parent
+
+                    ShapePath {
+                        capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"
+                        startX: 3
+                        startY: 6
+                        strokeColor: Theme.textMuted
+                        strokeWidth: 1
+
+                        PathArc {
+                            direction: PathArc.Clockwise
+                            radiusX: 5
+                            radiusY: 5
+                            useLargeArc: false
+                            x: 13
+                            y: 6
+                        }
+                    }
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.leftMargin: 2
+                    color: Theme.textMuted
+                    height: 4
+                    radius: 1
+                    width: 2
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    anchors.rightMargin: 2
+                    color: Theme.textMuted
+                    height: 4
+                    radius: 1
+                    width: 2
+                }
+            }
+            Skin.ControlKnob {
+                Accessible.name: root.accessibleName
+                anchors.horizontalCenter: parent.horizontalCenter
+                arcStart: root.readoutMode === "gain" ? Skin.Knob.ArcStart.Minimum : Skin.Knob.ArcStart.Center
+                color: Theme.textPrimary
+                group: root.group
+                height: 16
+                key: root.key
+                width: 16
+            }
         }
         Item {
-            height: 1
-            width: parent.width
-        }
-        Skin.ControlKnob {
-            anchors.horizontalCenter: parent.horizontalCenter
-            arcStart: root.readoutMode === "gain" ? Skin.Knob.ArcStart.Minimum : Skin.Knob.ArcStart.Center
-            color: Theme.textPrimary
-            group: root.group
-            height: 16
-            key: root.key
-            width: 16
-        }
-        Text {
-            color: Theme.textSecondary
-            elide: Text.ElideRight
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeXs
-            height: 9
-            horizontalAlignment: Text.AlignHCenter
-            text: root.formatReadout(root.controlValue)
-            verticalAlignment: Text.AlignVCenter
-            width: parent.width
+            height: 24
+            width: root.width - 18
+
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 0
+                width: parent.width
+
+                Skin.SectionText {
+                    color: Theme.textMuted
+                    height: 8
+                    text: root.label
+                    visible: !root.headphoneIcon
+                    width: parent.width
+                }
+                Text {
+                    color: Theme.textSecondary
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeXs
+                    height: 9
+                    horizontalAlignment: Text.AlignLeft
+                    text: root.formatReadout(root.controlValue)
+                    verticalAlignment: Text.AlignVCenter
+                    width: parent.width
+                }
+            }
         }
     }
     Mixxx.ControlProxy {

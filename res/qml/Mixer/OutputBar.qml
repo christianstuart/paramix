@@ -13,8 +13,8 @@ Item {
     readonly property int sideMargin: Theme.space3
     readonly property int tileWidth: root.width < 1200 ? 56 : 64
 
-    // 34 px of controls between the two 2 px section rules.
-    implicitHeight: 38
+    // 24 px tiles and a 28 px fader unit between the two 2 px section rules.
+    implicitHeight: 32
 
     Skin.SectionBackground {
         anchors.fill: parent
@@ -52,15 +52,16 @@ Item {
         spacing: Theme.space2
 
         OutputTile {
-            height: 34
+            accessibleName: qsTr("Headphone volume")
             group: "[Master]"
+            headphoneIcon: true
             key: "headGain"
             label: qsTr("HEAD")
             readoutMode: "gain"
             width: root.tileWidth
         }
         OutputTile {
-            height: 34
+            accessibleName: qsTr("Headphone mix")
             group: "[Master]"
             key: "headMix"
             label: qsTr("MIX")
@@ -76,7 +77,7 @@ Item {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        height: 34
+        height: 28
         width: 360
     }
 }
