@@ -1,9 +1,14 @@
 #include "library/export/libraryexporter.h"
 
+#include <QMessageBox>
 #include <QProgressDialog>
 
 #include "library/export/engineprimeexportjob.h"
 #include "library/export/engineprimeexportrequest.h"
+#ifdef __REKORDBOX__
+#include "library/export/rekordbox/rekordboxexportjob.h"
+#include "library/export/rekordbox/rekordboxexportrequest.h"
+#endif
 #include "moc_libraryexporter.cpp"
 #include "util/parented_ptr.h"
 
@@ -27,6 +32,12 @@ void LibraryExporter::requestExportWithOptionalInitialSelection(
                 &DlgLibraryExport::startEnginePrimeExport,
                 this,
                 &LibraryExporter::beginEnginePrimeExport);
+#ifdef __REKORDBOX__
+        connect(m_pDialog.get(),
+                &DlgLibraryExport::startRekordboxExport,
+                this,
+                &LibraryExporter::beginRekordboxExport);
+#endif
     } else {
         m_pDialog->show();
         m_pDialog->raise();
@@ -38,6 +49,15 @@ void LibraryExporter::requestExportWithOptionalInitialSelection(
     m_pDialog->refresh();
     m_pDialog->setInitialSelection(initialSelectedCrateId, initialSelectedPlaylistId);
 }
+
+#ifdef __REKORDBOX__
+void LibraryExporter::slotRequestRekordboxExport() {
+    requestExportWithOptionalInitialSelection(std::nullopt, std::nullopt);
+    if (m_pDialog) {
+        m_pDialog->selectRekordboxTarget();
+    }
+}
+#endif
 
 void LibraryExporter::beginEnginePrimeExport(
         QSharedPointer<EnginePrimeExportRequest> pRequest) {
@@ -89,5 +109,53 @@ void LibraryExporter::beginEnginePrimeExport(
 
     pJobThread->start();
 }
+
+#ifdef __REKORDBOX__
+void LibraryExporter::beginRekordboxExport(
+        QSharedPointer<RekordboxExportRequest> pRequest) {
+    // Note that the job will run in a background thread.
+    auto pJobThread = make_parented<rekordbox::RekordboxExportJob>(
+            this,
+            m_pTrackCollectionManager,
+            pRequest);
+    connect(pJobThread, &rekordbox::RekordboxExportJob::finished, pJobThread, &QObject::deleteLater);
+
+    connect(pJobThread,
+            &rekordbox::RekordboxExportJob::completed,
+            this,
+            [](int numTracks, int numPlaylists) {
+                QMessageBox::information(nullptr,
+                        tr("Export Completed"),
+                        tr("Exported %1 track(s) and %2 playlist(s).")
+                                .arg(numTracks)
+                                .arg(numPlaylists));
+            });
+    connect(pJobThread,
+            &rekordbox::RekordboxExportJob::failed,
+            this,
+            [](const QString& message) {
+                QMessageBox::critical(nullptr, tr("Export Failed"), message);
+            });
+
+    auto pProgressDlg = make_parented<QProgressDialog>(this);
+    pProgressDlg->setLabelText(tr("Exporting to rekordbox..."));
+    pProgressDlg->setMinimumDuration(0);
+    connect(pJobThread,
+            &rekordbox::RekordboxExportJob::jobMaximum,
+            pProgressDlg,
+            &QProgressDialog::setMaximum);
+    connect(pJobThread,
+            &rekordbox::RekordboxExportJob::jobProgress,
+            pProgressDlg,
+            &QProgressDialog::setValue);
+    connect(pJobThread, &rekordbox::RekordboxExportJob::finished, pProgressDlg, &QObject::deleteLater);
+    connect(pProgressDlg,
+            &QProgressDialog::canceled,
+            pJobThread,
+            &rekordbox::RekordboxExportJob::slotCancel);
+
+    pJobThread->start();
+}
+#endif
 
 } // namespace mixxx

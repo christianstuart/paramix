@@ -37,6 +37,11 @@ MenuBar {
         MenuSeparator {
         }
         MenuItem {
+            action: root.actions.libraryExportRekordbox
+        }
+        MenuSeparator {
+        }
+        MenuItem {
             action: root.actions.fileQuit
         }
     }

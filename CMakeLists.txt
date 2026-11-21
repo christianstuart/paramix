@@ -3067,6 +3067,7 @@ if(BUILD_TESTING)
     src/test/rekordboxexportanlztest.cpp
     src/test/rekordboxexportjobtest.cpp
     src/test/rekordboxexportpdbtest.cpp
+    src/test/rekordboxexportuitest.cpp
     src/test/replaygaintest.cpp
     src/test/rescalertest.cpp
     src/test/rgbcolor_test.cpp
@@ -3436,6 +3437,9 @@ endif()
 
 # Denon Engine Prime library export support (using libdjinterop)
 option(ENGINEPRIME "Support for library export to Denon Engine Prime" ON)
+# Rekordbox device export. The target lives in the library-export dialog, which
+# is built with Engine Prime support, so it requires both options.
+option(REKORDBOX_EXPORT "Support for library export to rekordbox USB/SD devices" ON)
 if(ENGINEPRIME)
   # libdjinterop does not currently have a stable ABI, so we fetch sources for a specific tag, build here, and link
   # statically.  This situation should be reviewed once libdjinterop hits version 1.x.
@@ -3601,6 +3605,11 @@ target_sources(
     src/library/export/rekordbox/rekordboxexportjob.cpp
     src/library/export/rekordbox/rekordboxpdbwriter.cpp
 )
+if(REKORDBOX_EXPORT AND ENGINEPRIME)
+  target_compile_definitions(mixxx-lib PUBLIC __REKORDBOX__)
+elseif(REKORDBOX_EXPORT)
+  message(STATUS "REKORDBOX_EXPORT requires ENGINEPRIME; the rekordbox target is disabled.")
+endif()
 
 # Ebur128
 find_package(Ebur128 REQUIRED)
@@ -4047,6 +4056,10 @@ if(QML)
 
   if(ENGINEPRIME)
     target_compile_definitions(mixxx-qml-lib PUBLIC __ENGINEPRIME__)
+  endif()
+
+  if(REKORDBOX_EXPORT AND ENGINEPRIME)
+    target_compile_definitions(mixxx-qml-lib PUBLIC __REKORDBOX__)
   endif()
 
   foreach(component ${QT_COMPONENTS})

@@ -1,14 +1,19 @@
 #include "library/export/dlglibraryexport.h"
 
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <djinterop/djinterop.hpp>
 
 #include "library/export/engineprimeexportrequest.h"
+#ifdef __REKORDBOX__
+#include "library/export/rekordbox/rekordboxexportrequest.h"
+#endif
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/trackset/crate/crate.h"
@@ -53,6 +58,19 @@ void populatePlaylists(
 }
 } // namespace
 
+#ifdef __REKORDBOX__
+QSharedPointer<RekordboxExportRequest> createRekordboxExportRequest(
+        const QDir& deviceRoot,
+        const QSet<CrateId>& crateIdsToExport,
+        const QSet<int>& playlistIdsToExport) {
+    auto pRequest = QSharedPointer<RekordboxExportRequest>::create();
+    pRequest->deviceRoot = deviceRoot;
+    pRequest->crateIdsToExport = crateIdsToExport;
+    pRequest->playlistIdsToExport = playlistIdsToExport;
+    return pRequest;
+}
+#endif
+
 DlgLibraryExport::DlgLibraryExport(
         QWidget* parent,
         UserSettingsPointer pConfig,
@@ -86,6 +104,18 @@ DlgLibraryExport::DlgLibraryExport(
 
     m_pExportDirectoryTextField->setText(lastExportDirectory);
 
+    m_pTargetCombo = make_parented<QComboBox>(this);
+    m_pTargetCombo->addItem(tr("Engine DJ"),
+            static_cast<int>(LibraryExportTarget::EnginePrime));
+#ifdef __REKORDBOX__
+    m_pTargetCombo->addItem(tr("Rekordbox"),
+            static_cast<int>(LibraryExportTarget::Rekordbox));
+#endif
+    connect(m_pTargetCombo,
+            &QComboBox::currentIndexChanged,
+            this,
+            [this](int) { updateTargetUi(); });
+
     m_pVersionCombo = make_parented<QComboBox>(this);
     m_pVersionCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
@@ -118,6 +148,7 @@ DlgLibraryExport::DlgLibraryExport(
     pExportDirLayout->addWidget(pExportDirBrowseButton);
 
     auto pFormLayout = std::make_unique<QFormLayout>();
+    pFormLayout->addRow(tr("Target"), m_pTargetCombo);
     pFormLayout->addRow(tr("Export directory"), pExportDirLayout.release());
     pFormLayout->addRow(tr("Database version"), m_pVersionCombo);
     pFormLayout->addRow(m_pExistingDatabaseLabel);
@@ -164,8 +195,7 @@ DlgLibraryExport::DlgLibraryExport(
     pLayout->addLayout(pButtonBarLayout.release(), 4, 0, 1, 3);
 
     setLayout(pLayout);
-    //: "Engine DJ" must not be translated
-    setWindowTitle(tr("Export Library to Engine DJ"));
+    updateTargetUi();
 
     show();
     raise();
@@ -177,8 +207,12 @@ void DlgLibraryExport::refresh() {
     populateCrates(m_pCratesList, *m_pTrackCollectionManager->internalCollection());
     populatePlaylists(m_pPlaylistsList, *m_pTrackCollectionManager->internalCollection());
 
-    // Check whether a database already exists in the specified directory.
-    checkExistingDatabase();
+    if (selectedTarget() == LibraryExportTarget::Rekordbox) {
+        checkRekordboxDestination();
+    } else {
+        // Check whether a database already exists in the specified directory.
+        checkExistingDatabase();
+    }
 }
 
 void DlgLibraryExport::setInitialSelection(
@@ -234,8 +268,12 @@ void DlgLibraryExport::browseExportDirectory() {
 
     m_pExportDirectoryTextField->setText(exportDirectory);
 
-    // Check if there is an existing database in the given directory.
-    checkExistingDatabase();
+    if (selectedTarget() == LibraryExportTarget::Rekordbox) {
+        checkRekordboxDestination();
+    } else {
+        // Check if there is an existing database in the given directory.
+        checkExistingDatabase();
+    }
 }
 
 void DlgLibraryExport::exportRequested() {
@@ -247,6 +285,42 @@ void DlgLibraryExport::exportRequested() {
                    "in order to export the music library."),
                 QMessageBox::Ok,
                 QMessageBox::Ok);
+        return;
+    }
+
+    QSet<CrateId> crateIdsToExport;
+    QSet<int> playlistIdsToExport;
+    if (m_pCratesList->isEnabled()) {
+        const auto selectedItems = m_pCratesList->selectedItems();
+        for (auto* pItem : selectedItems) {
+            crateIdsToExport.insert(CrateId{pItem->data(Qt::UserRole)});
+        }
+    }
+    if (m_pPlaylistsList->isEnabled()) {
+        const auto selectedItems = m_pPlaylistsList->selectedItems();
+        for (auto* pItem : selectedItems) {
+            playlistIdsToExport.insert(pItem->data(Qt::UserRole).toInt());
+        }
+    }
+
+    if (selectedTarget() == LibraryExportTarget::Rekordbox) {
+#ifdef __REKORDBOX__
+        const QDir deviceRoot{m_pExportDirectoryTextField->text()};
+        if (QFileInfo::exists(deviceRoot.filePath(QStringLiteral("PIONEER"))) ||
+                QFileInfo::exists(deviceRoot.filePath(QStringLiteral("Contents")))) {
+            QMessageBox::warning(this,
+                    tr("Existing rekordbox Export"),
+                    tr("The chosen directory already contains PIONEER or Contents. "
+                       "Choose an empty device or erase the existing rekordbox export."),
+                    QMessageBox::Ok,
+                    QMessageBox::Ok);
+            return;
+        }
+        auto pRequest = createRekordboxExportRequest(
+                deviceRoot, crateIdsToExport, playlistIdsToExport);
+        emit startRekordboxExport(pRequest);
+        accept();
+#endif
         return;
     }
 
@@ -266,23 +340,69 @@ void DlgLibraryExport::exportRequested() {
     pRequest->engineLibraryDbDir.setPath(databaseDirectory);
     pRequest->musicFilesDir.setPath(musicDirectory);
     pRequest->exportSchemaVersion = exportSchemaVersion;
-    if (m_pCratesList->isEnabled()) {
-        const auto selectedItems = m_pCratesList->selectedItems();
-        for (auto* pItem : selectedItems) {
-            CrateId id{pItem->data(Qt::UserRole)};
-            pRequest->crateIdsToExport.insert(id);
-        }
-    }
-    if (m_pPlaylistsList->isEnabled()) {
-        const auto selectedItems = m_pPlaylistsList->selectedItems();
-        for (auto* pItem : selectedItems) {
-            int id = pItem->data(Qt::UserRole).toInt();
-            pRequest->playlistIdsToExport.insert(id);
-        }
-    }
+    pRequest->crateIdsToExport = crateIdsToExport;
+    pRequest->playlistIdsToExport = playlistIdsToExport;
 
     emit startEnginePrimeExport(pRequest);
     accept();
+}
+
+LibraryExportTarget DlgLibraryExport::selectedTarget() const {
+    if (m_pTargetCombo &&
+            m_pTargetCombo->currentData().toInt() ==
+                    static_cast<int>(LibraryExportTarget::Rekordbox)) {
+        return LibraryExportTarget::Rekordbox;
+    }
+    return LibraryExportTarget::EnginePrime;
+}
+
+bool DlgLibraryExport::isRekordboxTargetAvailable() const {
+#ifdef __REKORDBOX__
+    return m_pTargetCombo &&
+            m_pTargetCombo->findData(static_cast<int>(LibraryExportTarget::Rekordbox)) >= 0;
+#else
+    return false;
+#endif
+}
+
+void DlgLibraryExport::selectRekordboxTarget() {
+#ifdef __REKORDBOX__
+    const int index =
+            m_pTargetCombo->findData(static_cast<int>(LibraryExportTarget::Rekordbox));
+    if (index >= 0) {
+        m_pTargetCombo->setCurrentIndex(index);
+    }
+#endif
+}
+
+void DlgLibraryExport::updateTargetUi() {
+    const bool rekordbox = selectedTarget() == LibraryExportTarget::Rekordbox;
+    m_pVersionCombo->setVisible(!rekordbox);
+    if (rekordbox) {
+        setWindowTitle(tr("Export Library to rekordbox"));
+        checkRekordboxDestination();
+    } else {
+        //: "Engine DJ" must not be translated
+        setWindowTitle(tr("Export Library to Engine DJ"));
+        checkExistingDatabase();
+    }
+}
+
+void DlgLibraryExport::checkRekordboxDestination() {
+#ifdef __REKORDBOX__
+    const QDir deviceRoot{m_pExportDirectoryTextField->text()};
+    if (QFileInfo::exists(deviceRoot.filePath(QStringLiteral("PIONEER"))) ||
+            QFileInfo::exists(deviceRoot.filePath(QStringLiteral("Contents")))) {
+        m_pExistingDatabaseLabel->setText(
+                tr("The chosen directory already contains a rekordbox export. "
+                   "Choose an empty device or erase the existing export."));
+    } else {
+        m_pExistingDatabaseLabel->setText(
+                tr("The export writes PIONEER and Contents below this directory."));
+    }
+#else
+    m_pExistingDatabaseLabel->clear();
+#endif
 }
 
 void DlgLibraryExport::checkExistingDatabase() {

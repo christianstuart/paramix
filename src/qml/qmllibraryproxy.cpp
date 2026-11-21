@@ -383,6 +383,25 @@ void QmlLibraryProxy::exportLibrary() {
 #endif
 }
 
+bool QmlLibraryProxy::rekordboxExportAvailable() const {
+#ifdef __REKORDBOX__
+    return true;
+#else
+    return false;
+#endif
+}
+
+void QmlLibraryProxy::exportLibraryToRekordbox() {
+#ifdef __REKORDBOX__
+    VERIFY_OR_DEBUG_ASSERT(s_pLibrary) {
+        return;
+    }
+    if (m_pLibraryExporter) {
+        m_pLibraryExporter->slotRequestRekordboxExport();
+    }
+#endif
+}
+
 void QmlLibraryProxy::rescanLibrary() {
     VERIFY_OR_DEBUG_ASSERT(s_pLibrary) {
         return;

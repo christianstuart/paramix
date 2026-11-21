@@ -12,6 +12,7 @@
 class TrackCollectionManager;
 namespace mixxx {
 struct EnginePrimeExportRequest;
+struct RekordboxExportRequest;
 } // Namespace mixxx
 
 namespace mixxx {
@@ -44,8 +45,17 @@ class LibraryExporter : public QWidget {
                 std::nullopt, std::make_optional(initialSelectedPlaylistId));
     }
 
+#ifdef __REKORDBOX__
+    /// Begin the process of a rekordbox device export, with the rekordbox
+    /// target preselected in the dialog.
+    void slotRequestRekordboxExport();
+#endif
+
   private slots:
     void beginEnginePrimeExport(QSharedPointer<mixxx::EnginePrimeExportRequest> pRequest);
+#ifdef __REKORDBOX__
+    void beginRekordboxExport(QSharedPointer<mixxx::RekordboxExportRequest> pRequest);
+#endif
 
   private:
     void requestExportWithOptionalInitialSelection(
