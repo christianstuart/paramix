@@ -3166,7 +3166,6 @@ if(BUILD_TESTING)
         src/test/beatfxtest.cpp
         src/test/qml/qmlcolumnlayouttest.cpp
         src/test/qml/qmlstartupsmoketest.cpp
-        src/test/qmlcontrollerlearningproxytest.cpp
         src/test/qmlcontrolproxytest.cpp
         src/test/qmldurationformattertest.cpp
         src/test/qmleffectsproxytest.cpp
@@ -4172,7 +4171,6 @@ if(QML)
       src/qml/qmlchainpresetmodel.cpp
       src/qml/qmlconfigproxy.cpp
       src/qml/qmlconfigproxybase.cpp
-      src/qml/qmlcontrollerlearningproxy.cpp
       src/qml/qmlcontrolproxy.cpp
       src/qml/qmlcuesmodel.cpp
       src/qml/qmldlgpreferencesproxy.cpp
