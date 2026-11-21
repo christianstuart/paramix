@@ -42,6 +42,9 @@ Item {
     readonly property int bandMinimumHeight: Math.min(root.bandContentHeight + root.bandChromeHeight,
             Math.max(0, root.height - Theme.topBarHeight))
     property bool showSamplers: false
+    /// The crossfader bar can be folded away from the View menu; the
+    /// [Master],crossfader control keeps working through controllers.
+    property bool showCrossfader: true
     readonly property bool showMicrophoneInputs: showMicrophonesControl.value > 0
     readonly property int waveformOverviewTypeRgb: 2
 
@@ -306,6 +309,7 @@ Item {
                             onAboutToShow: {
                                 fourDecksItem.checked = root.fourDecksRequested;
                                 libraryItem.checked = root.maximizeLibrary;
+                                crossfaderItem.checked = root.showCrossfader;
                                 auxItem.checked = root.showMicrophoneInputs;
                                 samplersItem.checked = root.showSamplers;
                                 vinylItem.checked = showVinylControl.value > 0;
@@ -331,6 +335,14 @@ Item {
                                 text: qsTr("Library")
 
                                 onTriggered: root.maximizeLibrary = checked
+                            }
+                            Skin.CheckMenuItem {
+                                id: crossfaderItem
+
+                                checkable: true
+                                text: qsTr("Crossfader")
+
+                                onTriggered: root.showCrossfader = checked
                             }
                             Skin.CheckMenuItem {
                                 id: auxItem
@@ -752,7 +764,7 @@ Item {
                     // mixer came out shorter than Theme.deckMinHeight.
                     anchors.topMargin: Math.max(mixer.height, deck1.height + deck3.height)
                     height: visible ? implicitHeight : 0
-                    visible: !root.maximizeLibrary
+                    visible: !root.maximizeLibrary && root.showCrossfader
                 }
                 Loader {
                     id: previewDeckBar

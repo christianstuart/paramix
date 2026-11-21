@@ -5,8 +5,8 @@ import "../Theme"
 /// Headphone controls and the crossfader for the mixer.
 ///
 /// The narrow mixer column cannot fit these without clipping, so they live in a
-/// full-width bar directly below the deck/mixer row: the headphone gain and cue
-/// mix on the far left and the crossfader centered in the bar.
+/// full-width bar directly below the deck/mixer row: the headphone gain at the
+/// left edge, the cue mix at the right edge and the crossfader between them.
 Item {
     id: root
 
@@ -40,34 +40,20 @@ Item {
         z: 2
     }
 
-    // Headphone gain and cue mix. Balance, booth, the mono folds and the split
-    // key used to share this bar; they stay on controllers and in Preferences
-    // so the bar can stay thin.
-    Row {
-        id: leftControls
-
+    // Headphone gain at the left edge. Balance, booth, the mono folds and the
+    // split key used to share this bar; they stay on controllers and in
+    // Preferences so the bar can stay thin.
+    OutputTile {
         anchors.left: parent.left
         anchors.leftMargin: root.sideMargin
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Theme.space2
-
-        OutputTile {
-            accessibleName: qsTr("Headphone volume")
-            group: "[Master]"
-            headphoneIcon: true
-            key: "headGain"
-            label: qsTr("HEAD")
-            readoutMode: "gain"
-            width: root.tileWidth
-        }
-        OutputTile {
-            accessibleName: qsTr("Headphone mix")
-            group: "[Master]"
-            key: "headMix"
-            label: qsTr("MIX")
-            readoutMode: "mix"
-            width: root.tileWidth
-        }
+        accessibleName: qsTr("Headphone volume")
+        group: "[Master]"
+        headphoneIcon: true
+        key: "headGain"
+        label: qsTr("HEAD")
+        readoutMode: "gain"
+        width: root.tileWidth
     }
 
     // Crossfader, centered in the bar. 360 px is the width it had when the
@@ -79,5 +65,19 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         height: 28
         width: 360
+    }
+
+    // Cue mix at the right edge, mirrored so its knob faces outward.
+    OutputTile {
+        anchors.right: parent.right
+        anchors.rightMargin: root.sideMargin
+        anchors.verticalCenter: parent.verticalCenter
+        accessibleName: qsTr("Headphone mix")
+        group: "[Master]"
+        key: "headMix"
+        knobRight: true
+        label: qsTr("MIX")
+        readoutMode: "mix"
+        width: root.tileWidth
     }
 }
