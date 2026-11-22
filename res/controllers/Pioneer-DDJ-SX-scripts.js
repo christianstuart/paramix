@@ -93,8 +93,9 @@ PioneerDDJSX.jumpPreviewPosition = 0.3;
 // loaded track from cue-point, else it causes to play loaded track from the beginning (default: false).
 PioneerDDJSX.samplerCueGotoAndPlay = false;
 
-// If true, PFL / Cue (headphone) is being activated by loading a track into certain deck (default: true).
-PioneerDDJSX.autoPFL = true;
+// If true, PFL / Cue (headphone) is being activated by loading a track into certain deck (default: false).
+// The mapping has no user settings, so this is the place to change it.
+PioneerDDJSX.autoPFL = false;
 
 
 ///////////////////////////////////////////////////////////////
@@ -113,6 +114,13 @@ PioneerDDJSX.needleSearchTouched = [false, false, false, false];
 PioneerDDJSX.chFaderStart = [null, null, null, null];
 PioneerDDJSX.toggledBrake = [false, false, false, false];
 PioneerDDJSX.scratchMode = [true, true, true, true];
+// Platter inertia: after the platter is released, scratching continues while platter ticks
+// keep arriving, and is disabled only once they have stopped for this many ms. A thrown
+// backspin therefore carries through instead of stopping with the hand. 20 ms is the
+// window used by Numark-Mixtrack-Pro-scripts.js; no Pioneer mapping in res/controllers
+// implements platter inertia.
+PioneerDDJSX.jogInertiaTimeout = 20;
+PioneerDDJSX.scratchReleaseTimer = [0, 0, 0, 0];
 PioneerDDJSX.wheelLedsBlinkStatus = [0, 0, 0, 0];
 PioneerDDJSX.wheelLedsPosition = [0, 0, 0, 0];
 PioneerDDJSX.setUpSpeedSliderRange = [0.08, 0.08, 0.08, 0.08];
@@ -2088,6 +2096,33 @@ PioneerDDJSX.getJogWheelDelta = function(value) {
     return value - 0x40;
 };
 
+PioneerDDJSX.cancelScratchReleaseTimer = function(deck) {
+    if (PioneerDDJSX.scratchReleaseTimer[deck] !== 0) {
+        engine.stopTimer(PioneerDDJSX.scratchReleaseTimer[deck]);
+        PioneerDDJSX.scratchReleaseTimer[deck] = 0;
+    }
+};
+
+PioneerDDJSX.restartScratchReleaseTimer = function(deck) {
+    PioneerDDJSX.cancelScratchReleaseTimer(deck);
+    PioneerDDJSX.scratchReleaseTimer[deck] = engine.beginTimer(
+        PioneerDDJSX.jogInertiaTimeout,
+        function() {
+            PioneerDDJSX.scratchReleaseTimer[deck] = 0;
+            engine.scratchDisable(deck + 1, true);
+        },
+        true
+    );
+};
+
+PioneerDDJSX.refreshScratchReleaseTimer = function(deck) {
+    // Only a platter that was already released gets more inertia; while the top is
+    // still touched, the release timer is not running and must not be started here.
+    if (PioneerDDJSX.scratchReleaseTimer[deck] !== 0) {
+        PioneerDDJSX.restartScratchReleaseTimer(deck);
+    }
+};
+
 PioneerDDJSX.jogRingTick = function(channel, control, value, status, group) {
     PioneerDDJSX.pitchBendFromJog(group, PioneerDDJSX.getJogWheelDelta(value));
 };
@@ -2122,6 +2157,7 @@ PioneerDDJSX.jogPlatterTick = function(channel, control, value, status, group) {
     }
 
     if (PioneerDDJSX.scratchMode[deck] && engine.isScratching(deck + 1)) {
+        PioneerDDJSX.refreshScratchReleaseTimer(deck);
         engine.scratchTick(deck + 1, PioneerDDJSX.getJogWheelDelta(value));
     } else {
         PioneerDDJSX.pitchBendFromJog(group, PioneerDDJSX.getJogWheelDelta(value));
@@ -2132,6 +2168,7 @@ PioneerDDJSX.jogPlatterTickShift = function(channel, control, value, status, gro
     var deck = PioneerDDJSX.channelGroups[group];
 
     if (PioneerDDJSX.scratchMode[deck] && engine.isScratching(deck + 1)) {
+        PioneerDDJSX.refreshScratchReleaseTimer(deck);
         engine.scratchTick(deck + 1, PioneerDDJSX.getJogWheelDelta(value));
     } else {
         PioneerDDJSX.pitchBendFromJog(
@@ -2146,6 +2183,7 @@ PioneerDDJSX.jogTouch = function(channel, control, value, status, group) {
 
     if (PioneerDDJSX.scratchMode[deck]) {
         if (value) {
+            PioneerDDJSX.cancelScratchReleaseTimer(deck);
             engine.scratchEnable(
                 deck + 1,
                 PioneerDDJSX.scratchSettings.jogResolution,
@@ -2155,7 +2193,10 @@ PioneerDDJSX.jogTouch = function(channel, control, value, status, group) {
                 true
             );
         } else {
-            engine.scratchDisable(deck + 1, true);
+            // Do not disable scratch immediately: the platter may still be spinning
+            // (a thrown backspin). Platter ticks restart this timer, and scratch is
+            // disabled once they stop for PioneerDDJSX.jogInertiaTimeout ms.
+            PioneerDDJSX.restartScratchReleaseTimer(deck);
         }
     }
 };
