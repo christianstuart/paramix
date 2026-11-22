@@ -179,7 +179,6 @@ Rectangle {
         root.afterColumnLayoutChange();
     }
     function afterColumnLayoutChange() {
-        view.updateColumnSize();
         view.forceLayout();
     }
     function setColumnHidden(column, hidden) {
@@ -419,7 +418,6 @@ Rectangle {
                         if (columnDef.preferredWidth === width)
                             return;
                         columnDef.preferredWidth = width;
-                        view.updateColumnSize();
                         view.forceLayout();
                     }
                     onPressed: {
@@ -433,9 +431,7 @@ Rectangle {
     TableView {
         id: view
 
-        property int dynamicColumnCount: 0
         readonly property int pageRowCount: Math.max(1, Math.floor(height / root.rowHeight))
-        property int usedWidth: 0
 
         function ensureRowVisible(row) {
             if (row < 0)
@@ -464,26 +460,6 @@ Rectangle {
 
             Mixxx.PlayerManager.loadLocationUrlIntoNextAvailableDeck(url, play);
         }
-        function updateColumnSize() {
-            const oldUsedWidth = usedWidth;
-            const oldDynamicColumnCount = dynamicColumnCount;
-            usedWidth = 0;
-            dynamicColumnCount = 0;
-            if (model == null) {
-                return;
-            }
-            for (let c = 0; c < model.columns.length; c++) {
-                if (model.columns[c].hidden || model.columns[c].autoHideWidth > view.width) {
-                    continue;
-                } else if (model.columns[c].preferredWidth > 0) {
-                    usedWidth += model.columns[c].preferredWidth;
-                } else {
-                    dynamicColumnCount += model.columns[c].fillSpan || 1;
-                }
-            }
-            return oldDynamicColumnCount != dynamicColumnCount || oldUsedWidth != usedWidth;
-        }
-
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.margins: Theme.space1
@@ -491,7 +467,11 @@ Rectangle {
         anchors.top: horizontalHeader.bottom
         clip: true
         columnWidthProvider: function (column) {
-            const columnDef = view.model.columns[column];
+            const columns = view.model ? view.model.columns : null;
+            if (!columns || column < 0 || column >= columns.length) {
+                return 0;
+            }
+            const columnDef = columns[column];
             if (columnDef.hidden) {
                 return 0;
             }
@@ -501,9 +481,25 @@ Rectangle {
             if (columnDef.preferredWidth >= 0) {
                 return columnDef.preferredWidth;
             }
+            // Count the fixed width and fill spans on demand. Caching them at
+            // startup left the counts at zero for the first layout, so the first
+            // fill column took the whole header and the other labels vanished.
+            let usedWidth = 0;
+            let fillSpanCount = 0;
+            for (let i = 0; i < columns.length; ++i) {
+                const def = columns[i];
+                if (def.hidden || (def.autoHideWidth > 0 && def.autoHideWidth > view.width))
+                    continue;
+                if (def.preferredWidth >= 0)
+                    usedWidth += def.preferredWidth;
+                else
+                    fillSpanCount += def.fillSpan || 1;
+            }
+            if (fillSpanCount <= 0)
+                return root.minimumColumnWidth;
             const span = columnDef.fillSpan || 1;
             return Math.max(root.minimumColumnWidth,
-                    span * (view.width - view.usedWidth) / view.dynamicColumnCount);
+                    span * (view.width - usedWidth) / fillSpanCount);
         }
         keyNavigationEnabled: false
         model: root.model
@@ -789,7 +785,6 @@ Rectangle {
             model: view.model
         }
 
-        Component.onCompleted: this.updateColumnSize()
         Keys.onPressed: event => {
             const selection = view.selectionModel;
             const extend = (event.modifiers & Qt.ShiftModifier) !== 0;
@@ -846,13 +841,6 @@ Rectangle {
                 return;
             }
             event.accepted = true;
-        }
-        onModelChanged: this.updateColumnSize()
-        onWidthChanged: {
-            if (view.updateColumnSize()) {
-                // forceLayout is costly - only invoke if there was a change in the column layouts
-                view.forceLayout();
-            }
         }
 
         DropArea {
