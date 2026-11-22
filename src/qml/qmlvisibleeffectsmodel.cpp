@@ -15,13 +15,17 @@ const QHash<int, QByteArray> kRoleNames = {
         {Qt::DisplayRole, "display"},
         {Qt::ToolTipRole, "tooltip"},
         {QmlVisibleEffectsModel::EffectIdRole, "effectId"},
+        {QmlVisibleEffectsModel::IsBeatFxRole, "isBeatFx"},
 };
 }
 
 QmlVisibleEffectsModel::QmlVisibleEffectsModel(
         std::shared_ptr<EffectsManager> pEffectsManager,
+        Filter filter,
         QObject* parent)
-        : QAbstractListModel(parent), m_pEffectsManager(pEffectsManager) {
+        : QAbstractListModel(parent),
+          m_pEffectsManager(pEffectsManager),
+          m_filter(filter) {
     slotVisibleEffectsUpdated();
     connect(m_pEffectsManager->getVisibleEffectsList().get(),
             &VisibleEffectsList::visibleEffectsListChanged,
@@ -31,7 +35,15 @@ QmlVisibleEffectsModel::QmlVisibleEffectsModel(
 
 void QmlVisibleEffectsModel::slotVisibleEffectsUpdated() {
     beginResetModel();
-    m_visibleEffectManifests = m_pEffectsManager->getVisibleEffectsList()->getList();
+    m_visibleEffectManifests.clear();
+    for (const auto& pManifest :
+            m_pEffectsManager->getVisibleEffectsList()->getList()) {
+        const bool isBeat = pManifest->isBeatFx();
+        if (m_filter == Filter::All ||
+                (m_filter == Filter::Beat) == isBeat) {
+            m_visibleEffectManifests.append(pManifest);
+        }
+    }
     endResetModel();
 }
 
@@ -42,6 +54,8 @@ QVariant QmlVisibleEffectsModel::data(const QModelIndex& index, int role) const 
             return kNoEffectString;
         case Qt::ToolTipRole:
             return tr("No effect loaded.");
+        case QmlVisibleEffectsModel::IsBeatFxRole:
+            return false;
         default:
             return QVariant();
         }
@@ -59,6 +73,8 @@ QVariant QmlVisibleEffectsModel::data(const QModelIndex& index, int role) const 
         return pManifest->description();
     case QmlVisibleEffectsModel::EffectIdRole:
         return pManifest->id();
+    case QmlVisibleEffectsModel::IsBeatFxRole:
+        return pManifest->isBeatFx();
     default:
         return QVariant();
     }

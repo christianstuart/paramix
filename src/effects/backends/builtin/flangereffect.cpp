@@ -95,6 +95,11 @@ EffectManifestPointer FlangerEffect::getManifest() {
     triplet->setUnitsHint(EffectManifestParameter::UnitsHint::Unknown);
     triplet->setRange(0, 0, 1);
 
+    // The DSP rounds the LFO period to 1/2 beat, so 1/4 is not a reachable step.
+    pManifest->setBeatFx(QStringLiteral("speed"),
+            QStringLiteral("mix"),
+            QList<double>{1 / 2.0, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0});
+
     return pManifest;
 }
 

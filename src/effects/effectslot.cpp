@@ -1,6 +1,7 @@
 #include "effects/effectslot.h"
 
 #include <QDebug>
+#include <cmath>
 
 #include "control/controlencoder.h"
 #include "control/controlpushbutton.h"
@@ -37,7 +38,8 @@ EffectSlot::EffectSlot(const QString& group,
           m_pVisibleEffects(m_pEffectsManager->getVisibleEffectsList()),
           m_pChain(pChainSlot),
           m_pEngineEffectChain(pEngineEffectChain),
-          m_pEngineEffect(nullptr) {
+          m_pEngineEffect(nullptr),
+          m_beatFxUpdateInProgress(false) {
     VERIFY_OR_DEBUG_ASSERT(m_pEngineEffectChain) {
         return;
     }
@@ -141,6 +143,46 @@ EffectSlot::EffectSlot(const QString& group,
             [=, this](double value) { slotEffectMetaParameter(value); });
     m_pControlMetaParameter->set(0.0);
     m_pControlMetaParameter->setDefaultValue(0.0);
+
+    m_pControlBeatFx = std::make_unique<ControlObject>(ConfigKey(m_group, "beat_fx"));
+    m_pControlBeatFx->setReadOnly();
+    m_pControlBeatStep = std::make_unique<ControlObject>(ConfigKey(m_group, "beat_step"));
+    m_pControlBeatStep->setReadOnly();
+    m_pControlBeatNumSteps = std::make_unique<ControlObject>(
+            ConfigKey(m_group, "beat_num_steps"));
+    m_pControlBeatNumSteps->setReadOnly();
+    m_pControlBeatUp = std::make_unique<ControlPushButton>(
+            ConfigKey(m_group, "beat_up"));
+    connect(m_pControlBeatUp.get(),
+            &ControlObject::valueChanged,
+            this,
+            &EffectSlot::slotBeatFxStepUp);
+    m_pControlBeatDown = std::make_unique<ControlPushButton>(
+            ConfigKey(m_group, "beat_down"));
+    connect(m_pControlBeatDown.get(),
+            &ControlObject::valueChanged,
+            this,
+            &EffectSlot::slotBeatFxStepDown);
+    m_pControlBeatLevel = std::make_unique<ControlPotmeter>(
+            ConfigKey(m_group, "beat_level"), 0.0, 1.0);
+    connect(m_pControlBeatLevel.get(),
+            &ControlObject::valueChanged,
+            this,
+            &EffectSlot::slotBeatFxLevel);
+
+    for (const auto& slotList : std::as_const(m_parameterSlots)) {
+        for (const auto& pSlot : std::as_const(slotList)) {
+            // A parameter can be changed by its knob, the meta knob or a
+            // controller, all of which end up in the parameter slot.
+            connect(pSlot.get(),
+                    &EffectParameterSlotBase::valueChanged,
+                    this,
+                    [this](double) { updateBeatFxControls(); });
+        }
+    }
+
+    m_beatFxUpdateInProgress = false;
+    updateBeatFxControls();
 
     m_pControlLoaded->forceSet(0.0);
 }
@@ -375,6 +417,12 @@ void EffectSlot::loadEffectInner(const EffectManifestPointer pManifest,
     // ControlObjects are 1-indexed
     m_pControlLoadedEffect->setAndConfirm(m_pVisibleEffects->indexOf(pManifest) + 1);
 
+    if (m_pManifest->isBeatFx() && usableBeatFxSteps().size() < 2) {
+        qWarning() << debugString() << "Beat FX" << m_pManifest->id()
+                   << "has fewer than two usable steps; treating it as Color FX";
+    }
+    updateBeatFxControls();
+
     emit effectChanged();
     updateEngineState();
 }
@@ -413,6 +461,8 @@ void EffectSlot::unloadEffect() {
     m_pManifest.clear();
 
     removeFromEngine();
+
+    updateBeatFxControls();
 }
 
 void EffectSlot::loadParameters() {
@@ -595,4 +645,206 @@ void EffectSlot::slotEffectMetaParameter(double v, bool force) {
 
 void EffectSlot::slotPresetListVisibleChanged(bool visible) {
     m_pControlShowPresetList->setAndConfirm(visible ? 1.0 : 0.0);
+}
+
+EffectManifestParameterPointer EffectSlot::manifestParameterById(const QString& id) const {
+    if (!m_pManifest) {
+        return EffectManifestParameterPointer();
+    }
+    for (const auto& pParameter : m_pManifest->parameters()) {
+        if (pParameter->id() == id) {
+            return pParameter;
+        }
+    }
+    return EffectManifestParameterPointer();
+}
+
+EffectParameterPointer EffectSlot::effectParameterById(const QString& id) const {
+    for (const auto& parameterList : m_allParameters) {
+        for (const auto& pParameter : parameterList) {
+            if (pParameter->manifest()->id() == id) {
+                return pParameter;
+            }
+        }
+    }
+    return EffectParameterPointer();
+}
+
+EffectParameterSlotBasePointer EffectSlot::loadedParameterSlot(
+        const EffectParameterPointer& pParameter) const {
+    if (!pParameter) {
+        return EffectParameterSlotBasePointer();
+    }
+    for (const auto& slotList : m_parameterSlots) {
+        for (const auto& pSlot : slotList) {
+            if (pSlot->isLoaded() &&
+                    pSlot->getManifest()->id() == pParameter->manifest()->id()) {
+                return pSlot;
+            }
+        }
+    }
+    return EffectParameterSlotBasePointer();
+}
+
+void EffectSlot::setEffectParameterValue(
+        const EffectParameterPointer& pParameter, double value) {
+    if (!pParameter) {
+        return;
+    }
+    const auto pSlot = loadedParameterSlot(pParameter);
+    if (pSlot) {
+        // Sets the parameterN control, which updates the EffectParameter and
+        // the engine exactly like a controller knob does.
+        pSlot->setParameterValue(value);
+    } else {
+        pParameter->setValue(value);
+    }
+}
+
+QList<double> EffectSlot::usableBeatFxSteps() const {
+    if (!m_pManifest || !m_pManifest->isBeatFx()) {
+        return QList<double>();
+    }
+    const auto pStepParameter =
+            manifestParameterById(m_pManifest->beatFxStepParameterId());
+    if (!pStepParameter) {
+        return QList<double>();
+    }
+    QList<double> steps;
+    for (double step : m_pManifest->beatFxSteps()) {
+        if (step >= pStepParameter->getMinimum() &&
+                step <= pStepParameter->getMaximum()) {
+            steps.append(step);
+        }
+    }
+    return steps;
+}
+
+bool EffectSlot::isBeatFx() const {
+    return usableBeatFxSteps().size() >= 2;
+}
+
+void EffectSlot::stepBeatFx(int direction) {
+    if (direction == 0 || !isBeatFx()) {
+        return;
+    }
+    const auto pStepParameter = effectParameterById(m_pManifest->beatFxStepParameterId());
+    if (!pStepParameter) {
+        return;
+    }
+    const QList<double> steps = usableBeatFxSteps();
+    const double current = pStepParameter->getValue();
+    // Small epsilon so an exact match is not selected again.
+    constexpr double kEpsilon = 1e-6;
+
+    bool found = false;
+    double target = 0.0;
+    if (direction > 0) {
+        for (double step : steps) {
+            if (step > current + kEpsilon) {
+                target = step;
+                found = true;
+                break;
+            }
+        }
+    } else {
+        for (double step : steps) {
+            if (step < current - kEpsilon) {
+                target = step;
+                found = true;
+            }
+        }
+    }
+
+    if (found) {
+        setEffectParameterValue(pStepParameter, target);
+        updateBeatFxControls();
+    }
+}
+
+void EffectSlot::slotBeatFxStepUp(double v) {
+    if (v > 0) {
+        stepBeatFx(1);
+    }
+}
+
+void EffectSlot::slotBeatFxStepDown(double v) {
+    if (v > 0) {
+        stepBeatFx(-1);
+    }
+}
+
+void EffectSlot::slotBeatFxLevel(double v) {
+    if (m_beatFxUpdateInProgress || !isBeatFx()) {
+        return;
+    }
+    if (m_pManifest->beatFxLevelParameterId().isEmpty()) {
+        return;
+    }
+    const auto pLevelParameter =
+            effectParameterById(m_pManifest->beatFxLevelParameterId());
+    if (!pLevelParameter) {
+        return;
+    }
+    const auto pManifestParameter = pLevelParameter->manifest();
+    const double minimum = pManifestParameter->getMinimum();
+    const double maximum = pManifestParameter->getMaximum();
+    const double value = minimum + math_clamp(v, 0.0, 1.0) * (maximum - minimum);
+    setEffectParameterValue(pLevelParameter, value);
+    updateBeatFxControls();
+}
+
+void EffectSlot::updateBeatFxControls() {
+    if (!m_pControlBeatFx) {
+        return;
+    }
+    const bool wasUpdating = m_beatFxUpdateInProgress;
+    m_beatFxUpdateInProgress = true;
+
+    if (!isBeatFx()) {
+        m_pControlBeatFx->forceSet(0.0);
+        m_pControlBeatStep->forceSet(-1.0);
+        m_pControlBeatNumSteps->forceSet(0.0);
+        m_pControlBeatLevel->set(0.0);
+        m_beatFxUpdateInProgress = wasUpdating;
+        return;
+    }
+
+    const QList<double> steps = usableBeatFxSteps();
+    m_pControlBeatFx->forceSet(1.0);
+    m_pControlBeatNumSteps->forceSet(static_cast<double>(steps.size()));
+
+    const auto pStepParameter = effectParameterById(m_pManifest->beatFxStepParameterId());
+    int nearestIndex = -1;
+    if (pStepParameter) {
+        const double current = pStepParameter->getValue();
+        double nearestDistance = 0.0;
+        for (int i = 0; i < steps.size(); ++i) {
+            const double distance = std::abs(steps.at(i) - current);
+            if (nearestIndex == -1 || distance < nearestDistance) {
+                nearestIndex = i;
+                nearestDistance = distance;
+            }
+        }
+    }
+    m_pControlBeatStep->forceSet(static_cast<double>(nearestIndex));
+
+    if (!m_pManifest->beatFxLevelParameterId().isEmpty()) {
+        const auto pLevelParameter =
+                effectParameterById(m_pManifest->beatFxLevelParameterId());
+        if (pLevelParameter) {
+            const double minimum = pLevelParameter->manifest()->getMinimum();
+            const double maximum = pLevelParameter->manifest()->getMaximum();
+            const double range = maximum - minimum;
+            m_pControlBeatLevel->set(range > 0.0
+                            ? (pLevelParameter->getValue() - minimum) / range
+                            : 0.0);
+        } else {
+            m_pControlBeatLevel->set(0.0);
+        }
+    } else {
+        m_pControlBeatLevel->set(0.0);
+    }
+
+    m_beatFxUpdateInProgress = wasUpdating;
 }

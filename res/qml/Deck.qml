@@ -16,10 +16,13 @@ Item {
     enum Pane {
         Move = 0,
         Cue = 1,
-        Grid = 2
+        Grid = 2,
+        // 3 belonged to a removed stem pane and must stay unused.
+        PadFx = 4
     }
 
-    /// 0 = move, 1 = cue, 2 = grid. Seeded from `[Skin],deckN_pane`.
+    /// 0 = move, 1 = cue, 2 = grid, 4 = Pad FX. Seeded from
+    /// `[Skin],deckN_pane`.
     property int activePane: Deck.Pane.Cue
     readonly property var currentTrack: deckPlayer.currentTrack
     property var deckPlayer: Mixxx.PlayerManager.getPlayer(group)
@@ -27,8 +30,9 @@ Item {
     property bool minimized: false
     /// Persisted per deck so the chosen pane survives a restart.
     readonly property string paneControlKey: "deck" + group.replace(/[^0-9]/g, "") + "_pane"
-    /// Height shared by the MOVE / CUE / GRID pane band and the full-height
-    /// loop card inside the transport block, so both line up top and bottom.
+    /// Height shared by the MOVE / CUE / GRID / PAD FX pane band and the
+    /// full-height loop card inside the transport block, so both line up top and
+    /// bottom.
     readonly property int paneHeight: Theme.deckPaneHeight
 
     signal toggleFocus
@@ -122,9 +126,10 @@ Item {
                                                 {
                                                     // Loop card on the left, the pane
                                                     // column on the right: the
-                                                    // CUE/MOVE/GRID row sits above
-                                                    // the pane, so there is no
-                                                    // vertical tab column.
+                                                    // CUE/MOVE/GRID/PAD FX row
+                                                    // sits above the pane, so
+                                                    // there is no vertical tab
+                                                    // column.
                                                     "type": "row",
                                                     "items": [
                                                         {
@@ -211,9 +216,9 @@ Item {
     }
 
     // Persisted pane selection: a [Skin] ControlPushButton per deck (0 = move,
-    // 1 = cue, 2 = grid) that the skin control creator makes on first use, so
-    // the choice survives a restart without touching C++. `persist` writes it
-    // to the user config under [Skin].
+    // 1 = cue, 2 = grid, 4 = Pad FX) that the skin control creator makes on
+    // first use, so the choice survives a restart without touching C++.
+    // `persist` writes it to the user config under [Skin].
     Mixxx.SkinControlCreator {
         id: paneControlCreator
 
@@ -230,7 +235,8 @@ Item {
 
         onValueChanged: pane => {
             const index = Math.round(pane);
-            if (index >= Deck.Pane.Move && index <= Deck.Pane.Grid) {
+            if (index === Deck.Pane.Move || index === Deck.Pane.Cue
+                    || index === Deck.Pane.Grid || index === Deck.Pane.PadFx) {
                 root.activePane = index;
                 return;
             }
@@ -293,15 +299,15 @@ Item {
 
             LayoutItem {
                 Layout.alignment: Qt.AlignVCenter
-                // The card fills the 112 px band and keeps the pane's 196 px
-                // minimum beside it at the 564 px deck the 1280 window gives.
-                // Min, max and preferred are all the band height so a layout
-                // cannot stretch the card away from the pane beside it.
-                Layout.maximumHeight: root.paneHeight
+                // The card is as tall as its two rows and stays centred in the
+                // 112 px band. Min, max and preferred are all the card height so
+                // a layout cannot stretch it, and the pane's 196 px minimum
+                // still fits beside it at the 564 px deck the 1280 window gives.
+                Layout.maximumHeight: Theme.deckLoopCardHeight
                 Layout.maximumWidth: Theme.deckLoopCardWidth
-                Layout.minimumHeight: root.paneHeight
+                Layout.minimumHeight: Theme.deckLoopCardHeight
                 Layout.minimumWidth: Theme.deckLoopCardWidth
-                Layout.preferredHeight: root.paneHeight
+                Layout.preferredHeight: Theme.deckLoopCardHeight
                 Layout.preferredWidth: Theme.deckLoopCardWidth
                 Layout.rightMargin: Theme.space1
 
@@ -328,9 +334,9 @@ Item {
                     anchors.fill: parent
                     spacing: Theme.space1
 
-                    // Horizontal CUE / MOVE / GRID tabs above the pane. The
-                    // 16 px row replaces the old 34 px vertical column without
-                    // changing the band height.
+                    // Horizontal CUE / MOVE / GRID / PAD FX tabs above the
+                    // pane. The 16 px row replaces the old 34 px vertical
+                    // column without changing the band height.
                     DeckComponent.DeckPaneTabs {
                         Layout.fillWidth: true
                         Layout.maximumHeight: Theme.deckPaneTabHeight
@@ -344,7 +350,7 @@ Item {
                     // One stacked host keeps the pane band at a constant height,
                     // so switching tabs never reflows the transport above it.
                     //
-                    // The three panes live inside one wrapper item: the layout
+                    // The four panes live inside one wrapper item: the layout
                     // item can only own a single content child, and stacking
                     // them here keeps the host geometry independent of the
                     // active tab.
@@ -390,6 +396,7 @@ Item {
                             // the strip is never empty for an out-of-range
                             // selection.
                             visible: root.activePane !== Deck.Pane.Move && root.activePane !== Deck.Pane.Grid
+                                     && root.activePane !== Deck.Pane.PadFx
 
                             Skin.FadeBehavior on visible {
                                 fadeTarget: cuePane
@@ -404,6 +411,17 @@ Item {
 
                             Skin.FadeBehavior on visible {
                                 fadeTarget: gridPane
+                            }
+                        }
+                        DeckComponent.PadFxPane {
+                            id: padFxPane
+
+                            anchors.fill: parent
+                            group: root.group
+                            visible: root.activePane === Deck.Pane.PadFx
+
+                            Skin.FadeBehavior on visible {
+                                fadeTarget: padFxPane
                             }
                         }
                     }

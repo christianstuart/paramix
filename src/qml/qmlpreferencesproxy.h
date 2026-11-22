@@ -361,13 +361,6 @@ class QmlControllerManagerProxy : public QObject {
         s_controllerPreviewScreens = controllerPreviewScreens;
     }
 
-    /// The manager registered by CoreServices, or null before registration.
-    /// Consumers that must run work on the controller thread use this to reach
-    /// ControllerManager without duplicating the singleton.
-    static std::shared_ptr<ControllerManager> registeredManager() {
-        return s_pControllerManager;
-    }
-
   private slots:
     void refreshKnownDevices();
     void refreshMappings();

@@ -14,8 +14,15 @@ QmlEffectsManagerProxy::QmlEffectsManagerProxy(
         std::shared_ptr<EffectsManager> pEffectsManager, QObject* parent)
         : QObject(parent),
           m_pEffectsManager(std::move(pEffectsManager)),
-          m_pVisibleEffectsModel(
-                  new QmlVisibleEffectsModel(m_pEffectsManager, this)),
+          m_pVisibleEffectsModel(new QmlVisibleEffectsModel(m_pEffectsManager,
+                  QmlVisibleEffectsModel::Filter::All,
+                  this)),
+          m_pBeatEffectsModel(new QmlVisibleEffectsModel(m_pEffectsManager,
+                  QmlVisibleEffectsModel::Filter::Beat,
+                  this)),
+          m_pColorEffectsModel(new QmlVisibleEffectsModel(m_pEffectsManager,
+                  QmlVisibleEffectsModel::Filter::Color,
+                  this)),
           m_pQuickChainPresetModel(
                   new QmlChainPresetModel(m_pEffectsManager,
                           QmlChainPresetModel::PresetType::Quick,

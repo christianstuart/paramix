@@ -87,10 +87,6 @@ Rectangle {
     function stemLabel(bit) {
         return [qsTr("Drums"), qsTr("Bass"), qsTr("Other"), qsTr("Vocals")][bit] || "";
     }
-    function stemColor(bit) {
-        return [Theme.stemDrums, Theme.stemBass, Theme.stemOther, Theme.stemVocals][bit]
-                || Theme.stemMuted;
-    }
     /// Full words, so a pad never reads as "D+B".
     function targetWords(mask) {
         const value = Math.round(mask);
@@ -121,18 +117,6 @@ Rectangle {
                 parts.push(root.stemLabel(bit));
         }
         return parts.join("+");
-    }
-    function paramLabel(effect, index) {
-        if (effect === 1)
-            return [qsTr("Wind-down"), qsTr("Curve"), qsTr("Wind-up"), "", ""][index] || "";
-        if (effect === 2)
-            return [qsTr("Echo Time"), qsTr("Feedback"), qsTr("Tail"), qsTr("Reverb"), qsTr("Rev Time")][index] || "";
-        return "";
-    }
-    function toggleTarget(targetControl, bit) {
-        const current = Math.round(targetControl.value);
-        const next = current ^ (1 << bit);
-        targetControl.value = next === 0 ? (1 << bit) : next;
     }
     function effectName(effect) {
         return root.effectNames[Math.max(0, Math.min(2, Math.round(effect)))];
@@ -230,7 +214,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 color: Theme.textPrimary
-                elide: Text.ElideRight
+                elide: Text.ElideNone
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeMd
                 font.weight: Theme.fontWeightDemiBold
@@ -311,14 +295,19 @@ Rectangle {
                                                                          padCard.effectIndex,
                                                                          padCard.modeIndex,
                                                                          padCard.targetMask)
+                        /// The summary wraps instead of eliding, so the row
+                        /// grows when one line cannot hold every field.
+                        readonly property int summaryHeight: Math.max(Theme.padfxControlHeight,
+                                summaryRow.implicitHeight)
 
                         Layout.fillHeight: root.editingPad === 0
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.editingPad === 0
-                                                 ? root.padCardHeight
+                                                 ? Math.max(root.padCardHeight,
+                                                            cardContent.implicitHeight + 2 * Theme.space2)
                                                  : padCard.isEditing
                                                    ? cardContent.implicitHeight + 2 * Theme.space2
-                                                   : Theme.padfxControlHeight
+                                                   : padCard.summaryHeight
                         color: Theme.surface2
                         radius: Theme.radiusSm
 
@@ -361,6 +350,8 @@ Rectangle {
 
                         // ── Collapsed summary while a sibling pad is edited ──
                         RowLayout {
+                            id: summaryRow
+
                             anchors.fill: parent
                             anchors.leftMargin: Theme.space2
                             anchors.rightMargin: Theme.space1
@@ -370,7 +361,7 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true
                                 color: Theme.textSecondary
-                                elide: Text.ElideRight
+                                elide: Text.ElideNone
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeXs
                                 font.weight: Theme.fontWeightMedium
@@ -380,6 +371,7 @@ Rectangle {
                                         .arg(root.modeGlyphs[padCard.modeIndex])
                                         .arg(root.targetSummary(padCard.targetMask))
                                 verticalAlignment: Text.AlignVCenter
+                                wrapMode: Text.WordWrap
                             }
                             Rectangle {
                                 Layout.alignment: Qt.AlignVCenter
@@ -500,10 +492,16 @@ Rectangle {
                                         Text {
                                             id: padEffectName
 
+                                            anchors.bottom: parent.bottom
+                                            anchors.bottomMargin: Theme.space2
                                             anchors.left: parent.left
                                             anchors.leftMargin: Theme.space2
                                             anchors.right: parent.right
-                                            anchors.rightMargin: Theme.space2
+                                            // Clear the muting marker in the
+                                            // bottom-right corner.
+                                            anchors.rightMargin: padCard.isMuted
+                                                                 ? mutingBadge.implicitWidth + 2 * Theme.space1
+                                                                 : Theme.space2
                                             anchors.top: padCaption.bottom
                                             anchors.topMargin: Theme.space1
                                             color: padButton.highlight
@@ -511,11 +509,14 @@ Rectangle {
                                                    : padCard.effectIndex === 0
                                                      ? Theme.textMuted
                                                      : Theme.textPrimary
-                                            elide: Text.ElideRight
+                                            elide: Text.ElideNone
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeMd
                                             font.weight: Theme.fontWeightDemiBold
+                                            maximumLineCount: 2
                                             text: padCard.effectText
+                                            verticalAlignment: Text.AlignVCenter
+                                            wrapMode: Text.Wrap
                                         }
                                         // Mode badge: H / L / 1x. Informational,
                                         // the full sentence lives in the tooltip and
@@ -639,7 +640,7 @@ Rectangle {
                                 Text {
                                     Layout.fillWidth: true
                                     color: Theme.textPrimary
-                                    elide: Text.ElideRight
+                                    elide: Text.ElideNone
                                     font.capitalization: Font.AllUppercase
                                     font.family: Theme.fontFamily
                                     font.letterSpacing: Theme.letterSpacingCaps
@@ -691,220 +692,13 @@ Rectangle {
                                 }
                             }
 
-                            // Effect selector
-                            RowLayout {
+                            // Effect, mode, targets and parameters live in the shared
+                            // editor; perform view shows only the chips and shortcuts.
+                            Skin.PadFxPadEditor {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: Theme.padfxControlHeight
-                                spacing: Theme.space1
-                                visible: padCard.isEditing
-
-                                Text {
-                                    Layout.preferredHeight: Theme.padfxControlHeight
-                                    Layout.preferredWidth: Theme.space8
-                                    color: Theme.textSecondary
-                                    elide: Text.ElideRight
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeXs
-                                    text: qsTr("Effect")
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                                Skin.ComboBox {
-                                    Accessible.name: qsTr("Pad %1 effect").arg(padCard.pad)
-                                    Layout.fillWidth: true
-                                    currentIndex: padCard.effectIndex
-                                    model: root.effectNames
-                                    popupMaxItem: 3
-                                    textLeftPadding: Theme.space2
-
-                                    ToolTip.delay: 500
-                                    ToolTip.text: qsTr("Effect for pad %1").arg(padCard.pad)
-                                    ToolTip.visible: hovered
-
-                                    onActivated: index => {
-                                        padEffect.value = index;
-                                    }
-                                }
-                            }
-
-                            // Mode selector
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: Theme.padfxControlHeight
-                                spacing: Theme.space1
-                                visible: padCard.isEditing
-
-                                Text {
-                                    Layout.preferredHeight: Theme.padfxControlHeight
-                                    Layout.preferredWidth: Theme.space8
-                                    color: Theme.textSecondary
-                                    elide: Text.ElideRight
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeXs
-                                    text: qsTr("Mode")
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                                Skin.ComboBox {
-                                    Accessible.name: qsTr("Pad %1 mode").arg(padCard.pad)
-                                    Layout.fillWidth: true
-                                    currentIndex: padCard.modeIndex
-                                    model: root.modeNames
-                                    popupMaxItem: 3
-                                    textLeftPadding: Theme.space2
-
-                                    ToolTip.delay: 500
-                                    ToolTip.text: qsTr("Press behavior for pad %1").arg(padCard.pad)
-                                    ToolTip.visible: hovered
-
-                                    onActivated: index => {
-                                        padMode.value = index;
-                                    }
-                                }
-                            }
-
-                            // Labelled stem chips. The dot reinforces the label;
-                            // it never replaces it.
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: Theme.padfxHitHeight
-                                spacing: Theme.space1
-
-                                Repeater {
-                                    model: 4
-
-                                    delegate: AbstractButton {
-                                        id: stemChip
-
-                                        required property int index
-
-                                        readonly property bool on: (padCard.targetMask & (1 << stemChip.index)) !== 0
-                                        readonly property color stemColor: root.stemColor(stemChip.index)
-                                        readonly property string stemLabelText: root.stemLabel(stemChip.index)
-
-                                        Accessible.checkable: true
-                                        Accessible.checked: stemChip.on
-                                        Accessible.name: qsTr("Pad %1 target %2").arg(padCard.pad).arg(stemChip.stemLabelText)
-                                        Accessible.role: Accessible.CheckBox
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: Theme.padfxHitHeight
-                                        hoverEnabled: true
-                                        implicitHeight: Theme.padfxHitHeight
-                                        padding: 0
-
-                                        ToolTip.delay: 500
-                                        ToolTip.text: stemChip.on
-                                                       ? qsTr("Remove %1 from pad %2").arg(stemChip.stemLabelText.toLowerCase()).arg(padCard.pad)
-                                                       : qsTr("Include %1 in pad %2").arg(stemChip.stemLabelText.toLowerCase()).arg(padCard.pad)
-                                        ToolTip.visible: stemChip.hovered
-
-                                        onClicked: root.toggleTarget(padTarget, stemChip.index)
-
-                                        background: Rectangle {
-                                            border.color: stemChip.on ? stemChip.stemColor : Theme.border
-                                            border.width: 1
-                                            color: stemChip.on ? Qt.alpha(stemChip.stemColor, 0.18) : Theme.surface2
-                                            radius: Theme.radiusSm
-
-                                            Behavior on color {
-                                                ColorAnimation {
-                                                    duration: Theme.motionFast
-                                                }
-                                            }
-                                        }
-                                        contentItem: RowLayout {
-                                            spacing: Theme.space1
-
-                                            Rectangle {
-                                                Layout.alignment: Qt.AlignVCenter
-                                                Layout.leftMargin: Theme.space1
-                                                Layout.preferredHeight: Theme.space2
-                                                Layout.preferredWidth: Theme.space2
-                                                color: stemChip.on ? stemChip.stemColor : Theme.stemMuted
-                                                radius: Theme.radiusPill
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                Layout.rightMargin: Theme.space1
-                                                color: stemChip.on ? Theme.textPrimary : Theme.textMuted
-                                                elide: Text.ElideRight
-                                                font.family: Theme.fontFamily
-                                                font.pixelSize: Theme.fontSizeXs
-                                                font.weight: stemChip.on
-                                                             ? Theme.fontWeightMedium
-                                                             : Theme.fontWeightRegular
-                                                text: stemChip.stemLabelText
-                                                verticalAlignment: Text.AlignVCenter
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // All / Instrumental / Vocals shortcuts. Lit only
-                            // when the mask equals the preset exactly.
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: Theme.padfxHitHeight
-                                spacing: Theme.space1
-
-                                Repeater {
-                                    model: [
-                                        {
-                                            "label": qsTr("All"),
-                                            "mask": 15,
-                                            "hint": qsTr("Set pad %1 to all stems")
-                                        },
-                                        {
-                                            "label": qsTr("Instrumental"),
-                                            "mask": 7,
-                                            "hint": qsTr("Set pad %1 to drums, bass and other")
-                                        },
-                                        {
-                                            "label": qsTr("Vocals"),
-                                            "mask": 8,
-                                            "hint": qsTr("Set pad %1 to vocals")
-                                        }
-                                    ]
-
-                                    delegate: Skin.Button {
-                                        id: presetKey
-
-                                        required property var modelData
-
-                                        Accessible.name: presetKey.modelData.hint.arg(padCard.pad)
-                                        Layout.fillWidth: true
-                                        Layout.preferredHeight: Theme.padfxHitHeight
-                                        enabled: true
-                                        highlight: padCard.targetMask === presetKey.modelData.mask
-                                        implicitHeight: Theme.padfxHitHeight
-                                        text: presetKey.modelData.label
-
-                                        ToolTip.delay: 500
-                                        ToolTip.text: presetKey.modelData.hint.arg(padCard.pad)
-                                        ToolTip.visible: presetKey.hovered
-
-                                        onClicked: padTarget.value = presetKey.modelData.mask
-                                    }
-                                }
-                            }
-
-                            // Effect parameters, only the rows the effect labels.
-                            Repeater {
-                                model: 5
-
-                                delegate: Skin.PadFxParameter {
-                                    required property int index
-
-                                    readonly property string parameterLabel: root.paramLabel(padCard.effectIndex,
-                                                                                            index)
-
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: Theme.padfxControlHeight
-                                    group: root.padFxGroup
-                                    key: "pad" + padCard.pad + "_param" + (index + 1)
-                                    label: parameterLabel
-                                    ownerLabel: qsTr("Pad %1").arg(padCard.pad)
-                                    visible: padCard.isEditing && parameterLabel.length > 0
-                                }
+                                pad: padCard.pad
+                                padFxGroup: root.padFxGroup
+                                showEffectRows: padCard.isEditing
                             }
                         }
                     }

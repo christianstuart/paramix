@@ -51,6 +51,9 @@ class EffectParameterSlotBase : public QObject {
 
     virtual void setParameter(double value) = 0;
 
+    /// Sets the raw parameter value like a controller knob would.
+    virtual void setParameterValue(double value);
+
     std::optional<double> neutralPointOnScale() const {
         if (m_pManifestParameter == nullptr) {
             return std::nullopt;

@@ -125,6 +125,12 @@ class EffectSlot : public QObject {
 
     void setEnabled(bool enabled);
 
+    /// True when the loaded effect is a Beat FX with at least two usable steps.
+    bool isBeatFx() const;
+    /// Manifest steps of the loaded Beat FX that lie inside the step
+    /// parameter's range. Empty when the loaded effect is not a Beat FX.
+    QList<double> usableBeatFxSteps() const;
+
   public slots:
     void setMetaParameter(double v, bool force = false);
 
@@ -144,11 +150,23 @@ class EffectSlot : public QObject {
   private slots:
     void updateEngineState();
     void visibleEffectsListChanged();
+    void slotBeatFxStepUp(double v);
+    void slotBeatFxStepDown(double v);
+    void slotBeatFxLevel(double v);
 
   private:
     QString debugString() const {
         return QString("EffectSlot(%1)").arg(m_group);
     }
+
+    EffectManifestParameterPointer manifestParameterById(const QString& id) const;
+    EffectParameterPointer effectParameterById(const QString& id) const;
+    EffectParameterSlotBasePointer loadedParameterSlot(
+            const EffectParameterPointer& pParameter) const;
+    /// Writes a raw parameter value the same way a controller knob does.
+    void setEffectParameterValue(const EffectParameterPointer& pParameter, double value);
+    void stepBeatFx(int direction);
+    void updateBeatFxControls();
 
     void addToEngine();
     void removeFromEngine();
@@ -191,6 +209,14 @@ class EffectSlot : public QObject {
     std::unique_ptr<ControlObject> m_pControlClear;
     std::unique_ptr<ControlPotmeter> m_pControlMetaParameter;
     std::unique_ptr<ControlPushButton> m_pControlShowPresetList;
+
+    std::unique_ptr<ControlObject> m_pControlBeatFx;
+    std::unique_ptr<ControlPushButton> m_pControlBeatUp;
+    std::unique_ptr<ControlPushButton> m_pControlBeatDown;
+    std::unique_ptr<ControlObject> m_pControlBeatStep;
+    std::unique_ptr<ControlObject> m_pControlBeatNumSteps;
+    std::unique_ptr<ControlPotmeter> m_pControlBeatLevel;
+    bool m_beatFxUpdateInProgress;
 
     SoftTakeover m_metaknobSoftTakeover;
 

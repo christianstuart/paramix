@@ -66,6 +66,11 @@ EffectManifestPointer ReverbEffect::getManifest() {
     send->setDefaultLinkInversion(EffectManifestParameter::LinkInversion::NotInverted);
     send->setRange(0, 0, 1);
 
+    pManifest->setBeatFx(QStringLiteral("decay"),
+            QStringLiteral("send_amount"),
+            QList<double>{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+            EffectManifest::BeatFxStepUnit::Percent);
+
     return pManifest;
 }
 

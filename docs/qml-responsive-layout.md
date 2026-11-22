@@ -40,7 +40,7 @@ without clipping; every value is logical px.
 |---|---|---|
 | Top bar | 44 high (main row) + 30 high (effects strip), ~390 wide without effects | `Theme.toolbarHeight` + `Theme.topBarEffectsHeight`; per-key 26x56 minimums |
 | Mixer | 152 wide, ~190 high | `Mixer.qml` `implicitWidth`; `EqColumn` sets the height |
-| Output bar | 42 high | `Mixer/OutputBar.qml` `implicitHeight` |
+| Output bar | 32 high | `Mixer/OutputBar.qml` `implicitHeight` |
 | Deck | ~1265 wide with spinny, ~457 without, ~386 with tempo hidden; 232 high | `Theme.deckMinHeight`; `Deck.qml` DelegateChooser `minWidth` 620 / 270 / 200 |
 | Library | 358 wide, 120 high (228 with preview deck) | `Library.qml` sidebar 150 + browser 200 |
 | Waveform strip | no intrinsic minimum | two `WaveformDisplay`s at `height / 2` |
@@ -273,25 +273,23 @@ bounds test still passes; the deck band is 30 px shorter than before.
 
 ## Deck band and pane tabs (F07, 2026-11-19)
 
-The deck transport band stays at `Theme.deckPaneHeight` (112), but the loop card now uses its full
-height and the 34 px vertical tab column is gone. The band is the full-height loop card (224 px
-wide) beside a pane column with a horizontal CUE / MOVE / GRID row above the pane:
+The deck transport band stays at `Theme.deckPaneHeight` (112), but the 34 px vertical tab column is
+gone. The band is a compact loop card (224 px wide, 53 px tall) centred beside a pane column with a
+horizontal CUE / MOVE / GRID row above the pane:
 
 | Part | Height | Token |
 |---|---|---|
-| Loop card | 112 | `Theme.deckPaneHeight` |
+| Loop card | 53 | `Theme.deckLoopCardHeight` |
 | Pane tab row | 16 | `Theme.deckPaneTabHeight` |
 | Tab gap | 4 | `Theme.space1` |
 | Pane | 92 | `Theme.deckPaneContentHeight` |
 | Loop header | 16 | `Theme.deckLoopHeaderHeight` |
-| Loop beat row | 39 | `Theme.deckLoopBeatRowHeight` |
-| Loop action row | 24 | `Theme.deckLoopActionRowHeight` |
-| Loop roll row | 24 | `Theme.deckLoopRollRowHeight` |
+| Loop action row | 32 | `Theme.deckLoopKeyRowHeight` |
 
-The loop card has a header (beat size, anchor, loop lamp), a scrolling beat-size row (1/8 to 32
-with halve and double pinned at the ends and a visible scrollbar), an In / In-goto / Out / Out-goto
-/ Loop / Rel / Stop row, and the roll row. The beat row is the one flexible row: it absorbs what
-the fixed rows leave, so the card always fills the band exactly at any `uiScale`.
+The loop card has a header (beat size, anchor, loop lamp) and one In / In-goto / Out / Out-goto /
+Loop / Rel / Stop row. The row heights are fixed and sum to the card height exactly at any
+`uiScale`, so the card never needs to stretch. The fixed beat-size and loop-roll rows are gone;
+both control sets remain in the engine for controllers.
 
 The pane keeps its 196 px floor: at the 564 px deck a 1280 px window gives,
 `224 (loop) + 4 (gap) + 196 (pane) = 424` transport px inside a 429 px main column. The pane is
