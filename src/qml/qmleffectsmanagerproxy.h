@@ -21,6 +21,8 @@ class QmlEffectsManagerProxy : public QObject {
                     MEMBER m_pBeatEffectsModel CONSTANT)
     Q_PROPERTY(mixxx::qml::QmlVisibleEffectsModel* colorEffectsModel
                     MEMBER m_pColorEffectsModel CONSTANT)
+    Q_PROPERTY(mixxx::qml::QmlVisibleEffectsModel* padEffectsModel
+                    MEMBER m_pPadEffectsModel CONSTANT)
     Q_PROPERTY(mixxx::qml::QmlChainPresetModel* quickChainPresetModel
                     MEMBER m_pQuickChainPresetModel CONSTANT)
     Q_PROPERTY(mixxx::qml::QmlChainPresetModel* standardChainPresetModel
@@ -49,6 +51,7 @@ class QmlEffectsManagerProxy : public QObject {
     QmlVisibleEffectsModel* m_pVisibleEffectsModel;
     QmlVisibleEffectsModel* m_pBeatEffectsModel;
     QmlVisibleEffectsModel* m_pColorEffectsModel;
+    QmlVisibleEffectsModel* m_pPadEffectsModel;
     QmlChainPresetModel* m_pQuickChainPresetModel;
     QmlChainPresetModel* m_pStandardChainPresetModel;
     QList<QmlEffectUnitProxy*> m_effectUnitProxies;

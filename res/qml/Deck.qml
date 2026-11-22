@@ -344,6 +344,7 @@ Item {
                         Layout.preferredHeight: Theme.deckPaneTabHeight
                         activePane: root.activePane
                         gridLocked: bpmlockControl.value > 0
+                        group: root.group
 
                         onSelected: pane => root.showPane(pane)
                     }

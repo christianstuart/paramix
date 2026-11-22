@@ -9,10 +9,11 @@ import "Theme"
 
 /// Dedicated Pad FX workspace. Closed by default; opened from the View menu.
 ///
-/// One column per deck, each with its own A-D bank. The number of columns
-/// follows the main window (`deckCount`): two decks show two wide columns, four
-/// decks show four columns when the window is wide enough and otherwise page
-/// two decks at a time, so stem chip labels never get squeezed.
+/// One column per deck. Every deck shares the same eight pad assignments and
+/// only owns its active FX 1 / FX 2 bank. The number of columns follows the
+/// main window (`deckCount`): two decks show two wide columns, four decks show
+/// four columns when the window is wide enough and otherwise page two decks at
+/// a time.
 Window {
     id: root
 
@@ -74,7 +75,7 @@ Window {
                 elide: Text.ElideNone
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm
-                text: qsTr("Per-stem performance effects")
+                text: qsTr("Shared effect presets, per-deck triggers")
                 verticalAlignment: Text.AlignVCenter
             }
             Skin.Button {

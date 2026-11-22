@@ -1055,39 +1055,43 @@ ControlPickerMenu::ControlPickerMenu(QWidget* pParent)
         addControl(padFxGroup,
                 "bank",
                 tr("Deck %1 Pad FX Bank").arg(i),
-                tr("Select the active Pad FX bank (A-D)"),
+                tr("Select the active Pad FX bank (FX 1 or FX 2)"),
                 pPadFxMenu,
                 false,
                 tr("Pad FX"));
-        for (int j = 1; j <= 4; ++j) {
+        for (int j = 1; j <= 8; ++j) {
             addControl(padFxGroup,
                     QStringLiteral("pad%1").arg(j),
                     tr("Deck %1 Pad FX Pad %2").arg(QString::number(i), QString::number(j)),
-                    tr("Trigger the Pad FX effect"),
+                    tr("Trigger the shared Pad FX assignment"),
                     pPadFxMenu,
                     false,
                     tr("Pad FX"));
-            addControl(padFxGroup,
-                    QStringLiteral("effect%1").arg(j),
-                    tr("Deck %1 Pad FX Effect %2").arg(QString::number(i), QString::number(j)),
-                    tr("Select the effect for this pad"),
-                    pPadFxMenu,
-                    false,
-                    tr("Pad FX"));
-            addControl(padFxGroup,
-                    QStringLiteral("target%1").arg(j),
-                    tr("Deck %1 Pad FX Target %2").arg(QString::number(i), QString::number(j)),
-                    tr("Stem mask for this pad: drums=1, bass=2, other=4, vocals=8"),
-                    pPadFxMenu,
-                    false,
-                    tr("Pad FX"));
-            addControl(padFxGroup,
-                    QStringLiteral("mode%1").arg(j),
-                    tr("Deck %1 Pad FX Mode %2").arg(QString::number(i), QString::number(j)),
-                    tr("Pad behavior: momentary=0, toggle=1, one-shot=2"),
-                    pPadFxMenu,
-                    false,
-                    tr("Pad FX"));
+        }
+    }
+
+    {
+        QMenu* pPadFxPresetMenu =
+                addSubmenu(tr("Pad FX Presets"), pEffectsMenu);
+        const QString padFxPresetGroup = QStringLiteral("[PadFX]");
+        for (int bank = 1; bank <= 2; ++bank) {
+            for (int pad = 1; pad <= 8; ++pad) {
+                const QString prefix = QStringLiteral("fx%1_").arg(bank);
+                addControl(padFxPresetGroup,
+                        prefix + QStringLiteral("effect%1").arg(pad),
+                        tr("Pad FX FX %1 Effect %2").arg(QString::number(bank), QString::number(pad)),
+                        tr("Select the effect assigned to this pad on every deck"),
+                        pPadFxPresetMenu,
+                        false,
+                        tr("Pad FX"));
+                addControl(padFxPresetGroup,
+                        prefix + QStringLiteral("target%1").arg(pad),
+                        tr("Pad FX FX %1 Target %2").arg(QString::number(bank), QString::number(pad)),
+                        tr("0 = whole deck; stem mask: drums=1, bass=2, other=4, vocals=8"),
+                        pPadFxPresetMenu,
+                        false,
+                        tr("Pad FX"));
+            }
         }
     }
 

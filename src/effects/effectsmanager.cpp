@@ -140,6 +140,14 @@ EffectChainPointer EffectsManager::getStandardEffectChain(int unitNumber) const 
 void EffectsManager::addDeck(const ChannelHandleAndGroup& deckHandleGroup) {
     addEqualizerEffectChain(deckHandleGroup);
     addQuickEffectChain(deckHandleGroup);
+    // The deck-level Pad FX chain is separate from the per-stem pad chains so
+    // pads can target the whole deck on tracks without stems.
+    if (!m_padEffectChains.contains(deckHandleGroup.name())) {
+        auto pPadChain = EffectChainPointer(
+                new PadEffectChain(deckHandleGroup, this, m_pMessenger));
+        m_padEffectChains.insert(deckHandleGroup.name(), pPadChain);
+        m_effectChainSlotsByGroup.insert(pPadChain->group(), pPadChain);
+    }
     // If a deck is added after setup() was run we need to read effects.xml
     // again to initialize its QuickEffect chain, either with defaults or the
     // previous state.
@@ -228,6 +236,22 @@ void EffectsManager::loadDefaultEqsAndQuickEffects() {
     for (const auto& pChainSlot : std::as_const(m_quickEffectChains)) {
         pChainSlot->loadChainPreset(pDefaultQuickEffectPreset);
     }
+}
+
+QList<EffectManifestPointer> EffectsManager::getPadEffectManifests() const {
+    QList<EffectManifestPointer> manifests;
+    const auto all = m_pBackendManager->getManifests();
+    for (const auto& pManifest : all) {
+        if (pManifest->isPadFxOnly()) {
+            manifests.append(pManifest);
+        }
+    }
+    for (const auto& pManifest : all) {
+        if (!pManifest->isPadFxOnly()) {
+            manifests.append(pManifest);
+        }
+    }
+    return manifests;
 }
 
 EffectChainPointer EffectsManager::getEffectChain(

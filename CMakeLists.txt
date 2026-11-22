@@ -1352,6 +1352,7 @@ add_library(
   src/effects/chains/pergroupeffectchain.cpp
   src/effects/chains/quickeffectchain.cpp
   src/effects/padfx/padfxmanager.cpp
+  src/effects/padfx/padfxpreset.cpp
   src/effects/padfx/padfxunit.cpp
   src/effects/chains/standardeffectchain.cpp
   src/effects/effectbuttonparameterslot.cpp

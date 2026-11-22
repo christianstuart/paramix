@@ -8,14 +8,15 @@ import "Theme"
 
 /// Right-click editor for one Pad FX pad in a deck pane.
 ///
-/// Holds the same PadFxPadEditor the Pad FX window's edit card uses, so the tab
-/// band stays four pads wide and the controls exist once.
+/// Holds the shared PadFxPadEditor used by the deck pane and the Pad FX
+/// window, so the controls exist once for every deck.
 Popup {
     id: root
 
     property string padFxGroup: ""
+    property string presetGroup: "[PadFX]"
+    property int bank: 1
     property int pad: 1
-    property int deckNumber: 1
     /// The pad the popup points at; set through openFor().
     property Item anchor: null
 
@@ -63,6 +64,12 @@ Popup {
                                              bottom - root.height - Theme.space1)));
     }
 
+    readonly property int editorHeight: editorLoader.height
+    readonly property int maxHeight: {
+        const win = root.anchor ? root.anchor.Window.window : null;
+        return win ? Math.max(200, win.height - 2 * Theme.space1) : 600;
+    }
+
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     dim: false
     focus: true
@@ -79,51 +86,70 @@ Popup {
         radius: Theme.radiusMd
     }
     // Only build the editor while the popup is open, so four decks do not
-    // instantiate five parameter rows each at startup.
-    contentItem: Loader {
-        active: root.visible
+    // instantiate the parameter rows at startup. The Flickable keeps a tall
+    // Beat FX editor usable when the window is short.
+    contentItem: Flickable {
+        id: editorFlickable
 
-        sourceComponent: ColumnLayout {
-            spacing: Theme.space1
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        contentHeight: editorLoader.height
+        contentWidth: width
+        implicitHeight: Math.min(root.editorHeight,
+                root.maxHeight - 2 * root.padding)
 
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(Theme.padfxHitHeight, titleText.implicitHeight)
+        ScrollIndicator.vertical: ScrollIndicator {
+        }
+
+        Loader {
+            id: editorLoader
+
+            active: root.visible
+            width: editorFlickable.width
+
+            sourceComponent: ColumnLayout {
                 spacing: Theme.space1
 
-                // Wraps instead of eliding if a larger type scale ever needs it.
-                Text {
-                    id: titleText
-
+                RowLayout {
                     Layout.fillWidth: true
-                    color: Theme.textPrimary
-                    elide: Text.ElideNone
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeMd
-                    font.weight: Theme.fontWeightDemiBold
-                    text: qsTr("Deck %1 - Pad %2").arg(root.deckNumber).arg(root.pad)
-                    verticalAlignment: Text.AlignVCenter
-                    wrapMode: Text.WordWrap
+                    Layout.preferredHeight: Math.max(Theme.padfxHitHeight, titleText.implicitHeight)
+                    spacing: Theme.space1
+
+                    // Wraps instead of eliding if a larger type scale ever needs it.
+                    Text {
+                        id: titleText
+
+                        Layout.fillWidth: true
+                        color: Theme.textPrimary
+                        elide: Text.ElideNone
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeMd
+                        font.weight: Theme.fontWeightDemiBold
+                        text: qsTr("Pad %1 - FX %2").arg(root.pad).arg(root.bank)
+                        verticalAlignment: Text.AlignVCenter
+                        wrapMode: Text.WordWrap
+                    }
+                    Skin.Button {
+                        id: closeKey
+
+                        Accessible.name: qsTr("Close pad editor")
+                        Layout.preferredHeight: Theme.padfxHitHeight
+                        implicitHeight: Theme.padfxHitHeight
+                        text: qsTr("Close")
+
+                        ToolTip.delay: 500
+                        ToolTip.text: qsTr("Close pad editor")
+                        ToolTip.visible: closeKey.hovered
+
+                        onClicked: root.close()
+                    }
                 }
-                Skin.Button {
-                    id: closeKey
-
-                    Accessible.name: qsTr("Close pad editor")
-                    Layout.preferredHeight: Theme.padfxHitHeight
-                    implicitHeight: Theme.padfxHitHeight
-                    text: qsTr("Close")
-
-                    ToolTip.delay: 500
-                    ToolTip.text: qsTr("Close pad editor")
-                    ToolTip.visible: closeKey.hovered
-
-                    onClicked: root.close()
+                Skin.PadFxPadEditor {
+                    Layout.fillWidth: true
+                    bank: root.bank
+                    pad: root.pad
+                    presetGroup: root.presetGroup
                 }
-            }
-            Skin.PadFxPadEditor {
-                Layout.fillWidth: true
-                pad: root.pad
-                padFxGroup: root.padFxGroup
             }
         }
     }

@@ -1,5 +1,6 @@
 #include "effects/padfx/padfxmanager.h"
 
+#include "effects/padfx/padfxpreset.h"
 #include "effects/padfx/padfxunit.h"
 #include "moc_padfxmanager.cpp"
 #include "util/assert.h"
@@ -10,6 +11,8 @@ PadFxManager::PadFxManager(UserSettingsPointer pConfig,
         : QObject(parent),
           m_pConfig(std::move(pConfig)),
           m_pEffectsManager(pEffectsManager) {
+    m_pPreset = std::make_unique<PadFxPreset>(
+            m_pConfig, m_pEffectsManager, this);
     DEBUG_ASSERT(m_pEffectsManager != nullptr);
 }
 
@@ -22,7 +25,11 @@ void PadFxManager::addDeck(const QString& deckGroup) {
     if (m_units.contains(deckGroup)) {
         return;
     }
-    auto* pUnit = new PadFxUnit(deckGroup, m_pConfig, m_pEffectsManager, this);
+    auto* pUnit = new PadFxUnit(deckGroup,
+            m_pConfig,
+            m_pEffectsManager,
+            m_pPreset.get(),
+            this);
     m_units.insert(deckGroup, pUnit);
 }
 
