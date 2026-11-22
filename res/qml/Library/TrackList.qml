@@ -166,9 +166,16 @@ Rectangle {
         to = Math.max(0, Math.min(root.model.columns.length - 1, to));
         if (to === from)
             return;
-        // The sort indicator cannot follow the moved column.
-        horizontalHeader.sortingColumn = -1;
+        // Keep the sort arrow on the sorted column while it moves.
+        const sorted = horizontalHeader.sortingColumn;
         root.sidebar.moveColumn(from, to);
+        if (sorted === from) {
+            horizontalHeader.sortingColumn = to;
+        } else if (from < sorted && to >= sorted) {
+            horizontalHeader.sortingColumn = sorted - 1;
+        } else if (from > sorted && to <= sorted) {
+            horizontalHeader.sortingColumn = sorted + 1;
+        }
         root.afterColumnLayoutChange();
     }
     function afterColumnLayoutChange() {
@@ -181,11 +188,25 @@ Rectangle {
         root.sidebar.setColumnHidden(column, hidden);
         root.afterColumnLayoutChange();
     }
-    function openColumnMenu() {
-        columnMenu.entries = root.columnMenuEntries();
-        // popup() opens at the cursor like the source-tree menu; open() would
-        // use a parent-relative position.
-        columnMenu.popup();
+    function sortByColumn(column) {
+        // The Auto DJ queue does not advertise sorting: the processor always
+        // plays row 0, so sorting would change the playback order. Sorting a
+        // regular playlist still works.
+        if (!view.model || !view.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Sorting))
+            return;
+        if (horizontalHeader.sortingColumn === column) {
+            horizontalHeader.sortingOrder = horizontalHeader.sortingOrder === Qt.DescendingOrder ? Qt.AscendingOrder : Qt.DescendingOrder;
+        } else {
+            horizontalHeader.sortingColumn = column;
+            horizontalHeader.sortingOrder = Qt.AscendingOrder;
+        }
+        view.model.sort(horizontalHeader.sortingColumn, horizontalHeader.sortingOrder);
+    }
+    function openColumnMenu(x, y) {
+        columnMenu.model = root.columnMenuEntries();
+        columnMenu.x = Math.max(0, Math.min(x, root.width - columnMenu.width));
+        columnMenu.y = Math.max(0, Math.min(y, root.height - columnMenu.height));
+        columnMenu.open();
     }
     function columnMenuEntries() {
         const entries = [];
@@ -273,73 +294,59 @@ Rectangle {
             required property string display
             required property int index
 
-            /// Set once the pointer moved far enough to be a column drag.
-            property bool dragMoved: false
-            /// The click that follows a drop must not also sort the column.
-            property bool suppressClick: false
-            property int pressX: 0
-            property int pressedButton: Qt.NoButton
+            /// True while this column is being dragged to another slot.
+            property bool reordering: false
 
             Accessible.name: qsTr("Sort by %1").arg(display)
             Accessible.role: Accessible.Button
             implicitHeight: 32
             implicitWidth: columnName.contentWidth + Theme.space2
-            opacity: column.dragMoved ? 0.45 : 1
+            opacity: column.reordering ? 0.45 : 1
 
-            MouseArea {
-                id: columnMouseHandler
+            HoverHandler {
+                id: columnHover
+            }
+            TapHandler {
+                id: columnTap
 
-                acceptedButtons: Qt.LeftButton
-                anchors.fill: parent
-                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-                onClicked: mouse => {
-                    if (column.suppressClick) {
-                        column.suppressClick = false;
-                        return;
-                    }
-                    // The Auto DJ queue does not advertise sorting: the
-                    // processor always plays row 0, so sorting would change the
-                    // playback order. Sorting a regular playlist still works.
-                    if (!view.model || !view.model.hasCapabilities(Mixxx.LibraryTrackListModel.Capability.Sorting))
-                        return;
-                    if (horizontalHeader.sortingColumn == index) {
-                        horizontalHeader.sortingOrder = horizontalHeader.sortingOrder == Qt.DescendingOrder ? Qt.AscendingOrder : Qt.DescendingOrder;
+                onTapped: (eventPoint, button) => {
+                    if (button === Qt.RightButton) {
+                        const point = column.mapToItem(root, eventPoint.position.x, eventPoint.position.y);
+                        root.openColumnMenu(point.x, point.y);
                     } else {
-                        horizontalHeader.sortingColumn = index;
-                        horizontalHeader.sortingOrder = Qt.AscendingOrder;
+                        root.sortByColumn(index);
                     }
-                    view.model.sort(horizontalHeader.sortingColumn, horizontalHeader.sortingOrder);
                 }
-                onPositionChanged: mouse => {
-                    if (!pressed || column.pressedButton !== Qt.LeftButton)
-                        return;
-                    if (!column.dragMoved && Math.abs(mouse.x - column.pressX) < 6)
-                        return;
-                    column.dragMoved = true;
-                    const point = column.mapToItem(root, mouse.x, 0);
-                    root.updateColumnDrop(point.x);
+            }
+            DragHandler {
+                id: columnDrag
+
+                enabled: !columnResizeHandler.pressed && !columnResizeHandler.containsMouse
+                target: null
+                xAxis.enabled: true
+                yAxis.enabled: false
+
+                onActiveChanged: {
+                    if (active) {
+                        column.reordering = true;
+                        const point = column.mapToItem(root, centroid.position.x, 0);
+                        root.updateColumnDrop(point.x);
+                    } else if (column.reordering) {
+                        column.reordering = false;
+                        const from = index;
+                        const slot = root.columnDropSlot;
+                        // The reorder rebuilds the header delegates, so move out
+                        // of the finished gesture before the view is laid out.
+                        Qt.callLater(() => root.moveColumnToSlot(from, slot));
+                    }
                 }
-                onPressed: mouse => {
-                    column.dragMoved = false;
-                    column.suppressClick = false;
-                    column.pressedButton = mouse.button;
-                    column.pressX = mouse.x;
-                }
-                onReleased: mouse => {
-                    if (!column.dragMoved || column.pressedButton !== Qt.LeftButton)
-                        return;
-                    const from = index;
-                    const slot = root.columnDropSlot;
-                    column.dragMoved = false;
-                    column.suppressClick = true;
-                    // The reorder rebuilds the header delegates, so move out of
-                    // the finished gesture before the view is laid out again.
-                    Qt.callLater(() => root.moveColumnToSlot(from, slot));
-                }
-                onCanceled: {
-                    column.dragMoved = false;
-                    root.columnDropSlot = -1;
+                onTranslationChanged: {
+                    if (active) {
+                        const point = column.mapToItem(root, centroid.position.x, 0);
+                        root.updateColumnDrop(point.x);
+                    }
                 }
             }
             Text {
@@ -348,7 +355,7 @@ Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.space3
                 anchors.rightMargin: Theme.space4
-                color: columnMouseHandler.containsMouse ? Theme.textPrimary : Theme.textSecondary
+                color: columnHover.hovered ? Theme.textPrimary : Theme.textSecondary
                 elide: Text.ElideRight
                 font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
@@ -371,59 +378,57 @@ Rectangle {
                 text: horizontalHeader.sortingOrder == Qt.AscendingOrder ? "▲" : "▼"
                 visible: horizontalHeader.sortingColumn == index
             }
-            Rectangle {
+            Item {
                 id: columnResizer
 
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
                 anchors.top: parent.top
-                color: columnResizeHandler.containsMouse || columnResizeHandler.drag.active ? Theme.accent : Theme.border
-                width: 1
+                visible: column.width > 0
+                width: 7
 
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    color: columnResizeHandler.containsMouse ? Theme.accent : Theme.border
+                    width: 1
+                }
                 MouseArea {
                     id: columnResizeHandler
 
-                    property int sizeOffset: 0
+                    property real startPointerX: 0
+                    property real startWidth: 0
 
                     anchors.fill: parent
                     cursorShape: Qt.SizeHorCursor
                     hoverEnabled: true
                     preventStealing: true
 
-                    onMouseXChanged: {
-                        if (drag.active) {
-                            column.width += mouseX;
-                            sizeOffset += mouseX;
-                        }
+                    onPositionChanged: {
+                        if (!pressed)
+                            return;
+                        const pointerX = columnResizer.mapToItem(root, mouse.x, 0).x;
+                        const dx = pointerX - startPointerX;
+                        if (Math.abs(dx) < 1)
+                            return;
+                        const columnDef = view.model ? view.model.columns[index] : null;
+                        if (!columnDef)
+                            return;
+                        const width = Math.max(root.minimumColumnWidth, Math.round(startWidth + dx));
+                        if (columnDef.preferredWidth === width)
+                            return;
+                        columnDef.preferredWidth = width;
+                        view.updateColumnSize();
+                        view.forceLayout();
                     }
-
-                    drag {
-                        axis: Drag.XAxis
-                        target: parent
-                        threshold: 2
-
-                        onActiveChanged: {
-                            if (!drag.active && columnResizeHandler.sizeOffset !== 0) {
-                                view.model.columns[index].preferredWidth = column.width;
-                                columnResizeHandler.sizeOffset = 0;
-                                view.updateColumnSize();
-                                view.forceLayout();
-                            }
-                        }
+                    onPressed: {
+                        startWidth = view.columnWidthProvider(index);
+                        startPointerX = columnResizer.mapToItem(root, mouse.x, 0).x;
                     }
                 }
             }
         }
-    }
-    // A right-click anywhere on the header opens the column menu. Accepting
-    // only the right button leaves sort, drag and resize clicks to the header
-    // delegates underneath.
-    MouseArea {
-        anchors.fill: horizontalHeader
-        acceptedButtons: Qt.RightButton
-        z: 5
-
-        onClicked: root.openColumnMenu()
     }
     TableView {
         id: view
@@ -998,12 +1003,19 @@ Rectangle {
         y: horizontalHeader.y
         z: 20
     }
-    // Right-click on the column header: add or remove metadata columns. The
-    // layout is shared by every library source and saved by SourceTree.qml.
-    Menu {
+    // Right-click on the column header: add or remove metadata columns. A plain
+    // Popup with text rows is used instead of a Menu, because the Menu items
+    // relied on palette styling that did not render in this skin.
+    Popup {
         id: columnMenu
 
-        property var entries: []
+        property var model: []
+
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        height: Math.min(420, columnMenu.model.length * 29 + 2 * padding)
+        padding: Theme.space1
+        parent: root
+        width: 260
 
         background: Rectangle {
             border.color: Theme.borderStrong
@@ -1011,23 +1023,62 @@ Rectangle {
             color: Theme.surface2
             radius: Theme.radiusMd
         }
-        padding: Theme.space1
 
-        Instantiator {
-            model: columnMenu.entries
+        ListView {
+            id: list
 
-            delegate: MenuItem {
+            anchors.fill: parent
+            clip: true
+            model: columnMenu.model
+            spacing: 1
+
+            delegate: Item {
+                id: menuRow
+
                 required property var modelData
 
-                checkable: true
-                checked: !modelData.hidden
-                text: modelData.label
+                height: 28
+                width: ListView.view.width
 
-                onTriggered: root.setColumnHidden(modelData.column, !checked)
+                Rectangle {
+                    anchors.fill: parent
+                    color: rowMouse.containsMouse ? Theme.surface3 : "transparent"
+                    radius: Theme.radiusXs
+                }
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.leftMargin: Theme.space2
+                    anchors.verticalCenter: parent.verticalCenter
+                    border.color: menuRow.modelData.hidden ? Theme.borderStrong : Theme.accent
+                    border.width: 1
+                    color: menuRow.modelData.hidden ? "transparent" : Theme.accent
+                    height: 12
+                    radius: Theme.radiusXs
+                    width: 12
+                }
+                Text {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.space2 + 16
+                    anchors.rightMargin: Theme.space2
+                    color: Theme.textPrimary
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm
+                    text: menuRow.modelData.label
+                    verticalAlignment: Text.AlignVCenter
+                }
+                MouseArea {
+                    id: rowMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+
+                    onClicked: {
+                        root.setColumnHidden(menuRow.modelData.column, !menuRow.modelData.hidden);
+                        columnMenu.close();
+                    }
+                }
             }
-
-            onObjectAdded: (index, object) => columnMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => columnMenu.removeItem(object)
         }
     }
     Rectangle {
