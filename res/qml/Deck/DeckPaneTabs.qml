@@ -1,5 +1,9 @@
+pragma ComponentBehavior: Bound
+
 import ".." as Skin
+import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQuick.Controls 2.15
 import QtQuick.Layouts
 import "../Theme"
 
@@ -17,11 +21,33 @@ RowLayout {
     property int activePane: 1
     /// Lights a small badge on the GRID tab while the BPM is locked.
     property bool gridLocked: false
+    /// Deck group, used to read and write the per-deck Pad FX bank.
+    property string group: ""
 
     signal selected(int pane)
 
+    readonly property string padFxGroup: root.group.length > 0
+            ? root.group.substr(0, root.group.length - 1) + "_PadFX]"
+            : ""
+    readonly property int padFxBank: Math.max(1, Math.min(2,
+            Math.round(padFxBankControl.value)))
+
+    function selectPane(pane, shift) {
+        if (pane === 4) {
+            padFxBankControl.value = shift ? 2 : 1;
+        }
+        root.selected(pane);
+    }
+
     objectName: "deckPaneTabs"
     spacing: Theme.space1
+
+    Mixxx.ControlProxy {
+        id: padFxBankControl
+
+        group: root.padFxGroup
+        key: "bank"
+    }
 
     Repeater {
         // Display order: Cue first (the default pane), then Move, Grid, Pad FX.
@@ -55,6 +81,13 @@ RowLayout {
 
             required property var modelData
             readonly property bool current: root.activePane === modelData.pane
+            readonly property bool padFxTab: modelData.pane === 4
+            readonly property string displayLabel: tab.padFxTab
+                    ? qsTr("FX %1").arg(root.padFxBank)
+                    : modelData.label
+            readonly property string tabHint: tab.padFxTab
+                    ? qsTr("Pad FX. Click for FX 1, shift-click for FX 2.")
+                    : modelData.hint
 
             Layout.fillHeight: true
             Layout.fillWidth: true
@@ -72,9 +105,13 @@ RowLayout {
 
             Accessible.checkable: true
             Accessible.checked: tab.current
-            Accessible.description: tab.modelData.hint
-            Accessible.name: qsTr("Show %1 pane").arg(tab.modelData.label)
+            Accessible.description: tab.tabHint
+            Accessible.name: qsTr("Show %1 pane").arg(tab.displayLabel)
             Accessible.role: Accessible.RadioButton
+
+            ToolTip.delay: 500
+            ToolTip.text: tab.tabHint
+            ToolTip.visible: tabHover.hovered
 
             contentItem: Text {
                 color: tab.activeState ? tab.activeColor : tab.hovered ? Theme.textPrimary : Theme.textMuted
@@ -84,11 +121,25 @@ RowLayout {
                 font.pixelSize: Math.min(Theme.fontSizeXs, Theme.deckPaneTabHeight - 4)
                 font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
-                text: tab.modelData.label
+                text: tab.displayLabel
                 verticalAlignment: Text.AlignVCenter
             }
 
-            onClicked: root.selected(tab.modelData.pane)
+            // Keyboard activation always selects FX 1. Mouse activation is
+            // handled below so it can see the Shift modifier.
+            onClicked: root.selectPane(tab.modelData.pane, false)
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton
+
+                onClicked: mouse => root.selectPane(
+                        tab.modelData.pane,
+                        (mouse.modifiers & Qt.ShiftModifier) !== 0)
+            }
+            HoverHandler {
+                id: tabHover
+            }
 
             // BPM-lock badge: the grid lock stays visible from every pane.
             Rectangle {

@@ -24,7 +24,7 @@ alternatives that were rejected, and the consequences a future contributor inher
 | [0002](0002-stem-cache.md) | Stem cache format and lifecycle | Proposed |
 | [0003](0003-grid-format.md) | Beatgrid format for bar and downbeat information | Proposed |
 | [0006](0006-stem-detail-renderer.md) | Stem detail renderer | Proposed |
-| [0007](0007-pad-fx.md) | Per-stem Pad FX banks | Proposed |
+| [0007](0007-pad-fx.md) | Pad FX presets | Accepted |
 
 ADR-004 (UI and customization) and ADR-005 (model distribution) are planned in
 [`docs/paramix-stem-beatgrid-ui-plan.md`](../paramix-stem-beatgrid-ui-plan.md) and are not

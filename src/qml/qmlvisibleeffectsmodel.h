@@ -11,11 +11,16 @@ namespace qml {
 class QmlVisibleEffectsModel : public QAbstractListModel {
     Q_OBJECT
     QML_NAMED_ELEMENT(VisibleEffectsModel)
-    QML_UNCREATABLE("Only accessible via Mixxx.EffectsManager.visibleEffectsModel")
+    QML_UNCREATABLE("Only accessible via Mixxx.EffectsManager effect models")
   public:
     enum Roles {
         EffectIdRole = Qt::UserRole + 1,
         IsBeatFxRole,
+        ParametersRole,
+        PadFxOnlyRole,
+        BeatStepLabelsRole,
+        BeatStepValuesRole,
+        BeatStepParameterIndexRole,
     };
     Q_ENUM(Roles)
 
@@ -23,6 +28,8 @@ class QmlVisibleEffectsModel : public QAbstractListModel {
         All,
         Beat,
         Color,
+        /// Pad FX catalogue: pad-only effects followed by the visible list.
+        PadFx,
     };
     Q_ENUM(Filter)
 

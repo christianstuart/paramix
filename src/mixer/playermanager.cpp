@@ -105,7 +105,8 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
           m_pLibrary(nullptr),
           m_pSoundManager(pSoundManager),
           m_pEffectsManager(pEffectsManager),
-          m_pPadFxManager(std::make_unique<PadFxManager>(pConfig, pEffectsManager, this)),
+          m_pPadFxManager(std::make_unique<PadFxManager>(
+                  pConfig, pEffectsManager, this)),
           m_pEngine(pEngine),
           // NOTE(XXX) LegacySkinParser relies on these controls being Controls
           // and not ControlProxies.
@@ -404,9 +405,8 @@ void PlayerManager::addDeckInner() {
     }
 #endif
 
-#ifdef __STEM__
-    // Pad FX are a separate per-stem layer. The manager owns the stable
-    // [ChannelN_PadFX] controls and loads effects into the pad chains.
+    // Pad FX are available on every deck, with or without stems. The manager
+    // owns the shared assignments and the stable [ChannelN_PadFX] controls.
     m_pPadFxManager->addDeck(handleGroup.name());
     connect(pDeck,
             &BaseTrackPlayer::newTrackLoaded,
@@ -414,7 +414,6 @@ void PlayerManager::addDeckInner() {
             [this, group = pDeck->getGroup()](TrackPointer) {
                 m_pPadFxManager->resetDeck(group);
             });
-#endif
 
     // Setup EQ ControlProxies used for resetting EQs on track load
     pDeck->setupEqControls();

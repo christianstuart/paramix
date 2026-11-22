@@ -225,6 +225,37 @@ TEST_F(BeatFxTest, ProxyExposesBeatFxMetadata) {
     EXPECT_EQ(QStringLiteral("Send"), pSlotProxy->getBeatLevelName());
 }
 
+TEST_F(BeatFxTest, PadModelExposesBeatStepMetadata) {
+    auto* pPadModel = m_pProxy->property("padEffectsModel")
+                              .value<mixxx::qml::QmlVisibleEffectsModel*>();
+    ASSERT_NE(nullptr, pPadModel);
+
+    int echoRow = -1;
+    int filterRow = -1;
+    for (int row = 1; row < pPadModel->rowCount({}); ++row) {
+        const QString id = pPadModel->get(row).toMap().value("effectId").toString();
+        if (id == EchoEffect::getId()) {
+            echoRow = row;
+        } else if (id == FilterEffect::getId()) {
+            filterRow = row;
+        }
+    }
+    ASSERT_GT(echoRow, 0);
+    ASSERT_GT(filterRow, 0);
+
+    const QVariantMap echo = pPadModel->get(echoRow).toMap();
+    EXPECT_TRUE(echo.value("isBeatFx").toBool());
+    EXPECT_EQ(7, echo.value("beatStepLabels").toStringList().size());
+    EXPECT_EQ(echo.value("beatStepLabels").toStringList().size(),
+            echo.value("beatStepValues").toList().size());
+    EXPECT_GE(echo.value("beatStepParameterIndex").toInt(), 0);
+
+    const QVariantMap filter = pPadModel->get(filterRow).toMap();
+    EXPECT_FALSE(filter.value("isBeatFx").toBool());
+    EXPECT_TRUE(filter.value("beatStepLabels").toStringList().isEmpty());
+    EXPECT_EQ(-1, filter.value("beatStepParameterIndex").toInt());
+}
+
 TEST_F(BeatFxTest, FilteredModelsSeparateBeatAndColorFx) {
     auto* pBeatModel = m_pProxy->property("beatEffectsModel")
                                .value<mixxx::qml::QmlVisibleEffectsModel*>();

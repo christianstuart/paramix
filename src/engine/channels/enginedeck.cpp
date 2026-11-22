@@ -289,6 +289,15 @@ void EngineDeck::process(CSAMPLE* pOut, const std::size_t bufferSize) {
 
     EngineEffectsManager* pEngineEffectsManager = m_pEffectsManager->getEngineEffectsManager();
     if (pEngineEffectsManager != nullptr) {
+        // Deck-targeted Pad FX run after the stem mix and pregain, so they work
+        // on ordinary tracks too. Per-stem pad chains still run earlier inside
+        // processStem(), before each stem fader.
+        pEngineEffectsManager->processPadFxInPlace(m_group.handle(),
+                m_pEffectsManager->getMainHandle(),
+                pOut,
+                bufferSize,
+                mixxx::audio::SampleRate::fromDouble(m_sampleRate.get()),
+                GroupFeatureState{});
         pEngineEffectsManager->processPreFaderInPlace(m_group.handle(),
                 m_pEffectsManager->getMainHandle(),
                 pOut,

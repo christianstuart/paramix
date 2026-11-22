@@ -7,11 +7,13 @@
 #include "preferences/usersettings.h"
 
 class EffectsManager;
+class PadFxPreset;
 class PadFxUnit;
 
-/// PadFxManager owns one PadFxUnit per primary deck. It is intentionally
-/// independent of the controller layer: mappings only need the stable
-/// [ChannelN_PadFX] controls.
+/// PadFxManager owns the shared PadFxPreset and one PadFxUnit per primary
+/// deck. It is intentionally independent of the controller layer: mappings use
+/// the shared [PadFX] assignment controls and the per-deck [ChannelN_PadFX]
+/// triggers.
 class PadFxManager : public QObject {
     Q_OBJECT
   public:
@@ -26,5 +28,6 @@ class PadFxManager : public QObject {
   private:
     UserSettingsPointer m_pConfig;
     EffectsManager* m_pEffectsManager;
+    std::unique_ptr<PadFxPreset> m_pPreset;
     QHash<QString, PadFxUnit*> m_units;
 };

@@ -30,10 +30,15 @@ class EffectsManager {
     void addStem(const ChannelHandleAndGroup& stemHandleGroup);
     void resetStemQuickFxKnob(const ChannelHandleAndGroup& stemHandleGroup);
 
-    /// Pad FX chain for a stem group such as "[Channel1_Stem1]".
-    EffectChainPointer getPadEffectChain(const QString& stemGroup) const {
-        return m_padEffectChains.value(stemGroup);
+    /// Pad FX chain for a deck group ("[Channel1]") or stem group
+    /// ("[Channel1_Stem1]").
+    EffectChainPointer getPadEffectChain(const QString& group) const {
+        return m_padEffectChains.value(group);
     }
+
+    /// Effect catalogue offered to Pad FX: the pad-only effects first, then
+    /// every other manifest available from the backends.
+    QList<EffectManifestPointer> getPadEffectManifests() const;
 
     void loadDefaultEqsAndQuickEffects();
 

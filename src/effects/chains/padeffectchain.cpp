@@ -1,6 +1,7 @@
 #include "effects/chains/padeffectchain.h"
 
 #include "effects/effectslot.h"
+#include "effects/padfx/padfxdefs.h"
 #include "moc_padeffectchain.cpp"
 
 PadEffectChain::PadEffectChain(const ChannelHandleAndGroup& handleAndGroup,
@@ -12,7 +13,7 @@ PadEffectChain::PadEffectChain(const ChannelHandleAndGroup& handleAndGroup,
                   pEffectsManager,
                   pEffectsMessenger,
                   true) {
-    for (int i = 0; i < kNumEffectsPerUnit; ++i) {
+    for (int i = 0; i < mixxx::padfx::kNumPadsPerBank; ++i) {
         addEffectSlot(formatEffectSlotGroup(handleAndGroup.name(), i));
         // Pad slots are silent until the pad control layer loads an effect
         // and explicitly enables it.

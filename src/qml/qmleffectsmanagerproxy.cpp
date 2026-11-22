@@ -23,6 +23,9 @@ QmlEffectsManagerProxy::QmlEffectsManagerProxy(
           m_pColorEffectsModel(new QmlVisibleEffectsModel(m_pEffectsManager,
                   QmlVisibleEffectsModel::Filter::Color,
                   this)),
+          m_pPadEffectsModel(new QmlVisibleEffectsModel(m_pEffectsManager,
+                  QmlVisibleEffectsModel::Filter::PadFx,
+                  this)),
           m_pQuickChainPresetModel(
                   new QmlChainPresetModel(m_pEffectsManager,
                           QmlChainPresetModel::PresetType::Quick,
