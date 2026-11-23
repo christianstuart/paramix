@@ -1,6 +1,7 @@
 import ".." as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.15
+import QtQuick.Controls 2.15
 import QtQuick.Layouts
 import "../Theme"
 
@@ -18,6 +19,9 @@ Rectangle {
             ? qsTr("Load a track to use hotcues")
             : qsTr("Hotcues are hidden in the interface settings")
     readonly property bool showHotcues: Mixxx.Config.paramixShowHotcues
+    /// Eight pads in one row once each pad gets room for a two-line face;
+    /// narrower panes use 4 x 2 with the number and label on one line.
+    readonly property bool oneRow: width >= Theme.deckPadRowMinWidth
 
     /// Choose dark or light text for a hotcue color so every pad stays legible.
     function hotcueTextColorFor(color) {
@@ -75,13 +79,10 @@ Rectangle {
         }
 
         GridLayout {
-            anchors.bottomMargin: Theme.space2
             anchors.fill: parent
-            anchors.leftMargin: Theme.space3
-            anchors.rightMargin: Theme.space3
-            anchors.topMargin: Theme.space2
-            columnSpacing: Theme.space1
-            rowSpacing: Theme.space1
+            anchors.margins: Theme.deckPaneTabGap
+            columnSpacing: Theme.deckPaneTabGap
+            rowSpacing: Theme.deckPaneTabGap
 
             Repeater {
                 model: 8
@@ -113,10 +114,12 @@ Rectangle {
 
                     Accessible.description: qsTr("Left click jumps to the hotcue, right click opens the color and clear menu")
                     Accessible.name: padCue.isSet ? qsTr("Hotcue %1").arg(index + 1) : qsTr("Hotcue %1, empty").arg(index + 1)
-                    Layout.column: index % 4
+                    Layout.column: root.oneRow ? index : index % 4
                     Layout.fillHeight: true
                     Layout.fillWidth: true
-                    Layout.row: parseInt(index / 4)
+                    Layout.minimumHeight: 0
+                    Layout.minimumWidth: 0
+                    Layout.row: root.oneRow ? 0 : parseInt(index / 4)
                     group: root.group
                     hotcueNumber: index + 1
 
@@ -144,30 +147,41 @@ Rectangle {
                             height: 1
                         }
                     }
+                    ToolTip.delay: 500
+                    ToolTip.text: hotcueButton.label
+                    ToolTip.visible: hotcueButton.hovered && hotcueButton.label.length > 0
+
+                    // Two-line face (number over label) in one row of eight;
+                    // one line ("N label") in the 4 x 2 grid.
                     contentItem: Item {
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 0
-                            width: parent.width
+                        GridLayout {
+                            anchors.left: parent.left
+                            anchors.leftMargin: root.oneRow ? 0 : Theme.space1
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            columnSpacing: Theme.space1
+                            columns: root.oneRow ? 1 : 2
+                            rowSpacing: 0
 
                             Text {
+                                Layout.fillWidth: root.oneRow
                                 color: hotcueButton.textColor
                                 font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeLg
+                                font.pixelSize: root.oneRow ? Theme.fontSizeLg : Theme.fontSizeXs
                                 font.weight: Theme.fontWeightDemiBold
-                                horizontalAlignment: Text.AlignHCenter
+                                horizontalAlignment: root.oneRow ? Text.AlignHCenter : Text.AlignLeft
                                 text: `${hotcueButton.hotcueNumber}`
-                                width: parent.width
                             }
                             Text {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 color: hotcueButton.textColor
                                 elide: Text.ElideRight
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeXs
-                                horizontalAlignment: Text.AlignHCenter
+                                horizontalAlignment: root.oneRow ? Text.AlignHCenter : Text.AlignLeft
                                 text: hotcueButton.label
                                 visible: hotcueButton.label.length > 0
-                                width: parent.width
                             }
                         }
                     }

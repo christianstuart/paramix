@@ -302,6 +302,31 @@ row at least `Theme.deckPaneTabHeight` (16), and keeps the FX-assign column at 3
 numbers are pinned in the test, so a Theme edit that lowers the band fails instead of quietly
 weakening the assertion. The old `Deck/Loop.qml` width gate is gone.
 
+## Deck band at loop-card height (F15, 2026-11-22)
+
+The band beside the loop card is now exactly as tall as the card: `Theme.deckPaneHeight` is
+bound to `deckLoopCardHeight` (55 px at uiScale 1), so the two never drift under `uiScale`. This
+supersedes the "pane cannot go much below 72" note above: the panes went to single rows
+instead.
+
+| Part | Before | After | Token |
+|---|---|---|---|
+| Tab row | 16 | 12 | `deckPaneTabHeight` |
+| Tab gap | 4 | 2 | `deckPaneTabGap` (= `deckLoopKeyGap`) |
+| Pane | 92 | 41 | `deckPaneContentHeight` |
+| Band | 112 | 55 | `deckPaneHeight` = `deckLoopCardHeight` |
+| `deckMinHeight` | 240 | 183 | 128 + band |
+
+| Pane | Layout |
+|---|---|
+| Tabs | Same four keys; the Grid lock badge is a 2 px underline. |
+| Cue, Pad FX | 4 x 2 one-line faces (`N label`, elided, tooltip) below `deckPadRowMinWidth` (540); one row of eight two-line faces above it. |
+| Move | One row: Back, editable size, size strip (still hidden below a 420 px pane), Fwd. The "Beatjump" caption is gone. Back/Fwd minimum 60 so the row fits the 196 px pane. |
+| Grid | Two rows: BPM, ½, ×2, Tap, F, C, Align, Match / four intro-outro markers, ◀ ▶, B− B+, Lock, Undo. The cue-shift keys (`shift_cues_*`) are controller-only. |
+
+The deck is `max(mixer, deckMinHeight)` tall, so the band now follows the mixer and the main
+waveforms and library get the difference. `QmlResponsiveBoundsTest` pins 55 / 41 / 12.
+
 ## Still open
 
 - **Narrow-width mixer rules still deferred.** The sleek-mixer work landed, and

@@ -372,19 +372,24 @@ QtObject {
     /// Height the deck needs for its fixed parts: info bar, waveform overview,
     /// pane and toolbar. The band uses it so the deck can never be clipped by a
     /// shorter mixer, which is what made the panes read wrong.
-    /// 4 + 52 (header) + 134 (toolbar 22 + pane 112) + 4 + 46 (overview) = 240.
-    readonly property int deckMinHeight: Math.round(240 * uiScale)
-    /// Height of the MOVE / CUE / GRID deck band: the horizontal tab row plus
-    /// the pane content. Kept constant so the waveform, library and deck height
-    /// do not move when panes change.
-    readonly property int deckPaneHeight: Math.round(112 * uiScale)
-    /// Horizontal pane tab row above the pane (CUE / MOVE / GRID).
-    readonly property int deckPaneTabHeight: Math.round(16 * uiScale)
+    /// 4 + 52 (header) + 22 (toolbar) + 55 (pane band) + 4 + 46 (overview) = 183.
+    readonly property int deckMinHeight: Math.round(128 * uiScale) + deckPaneHeight
+    /// Height of the MOVE / CUE / GRID / PAD FX deck band: the horizontal tab
+    /// row plus the pane content. Bound to the loop card so the band is exactly
+    /// as tall as the card beside it at every uiScale.
+    readonly property int deckPaneHeight: deckLoopCardHeight
+    /// Horizontal pane tab row above the pane (CUE / MOVE / GRID / PAD FX).
+    readonly property int deckPaneTabHeight: Math.round(12 * uiScale)
+    /// Gap between the tab row and the pane.
+    readonly property int deckPaneTabGap: deckLoopKeyGap
     /// Visible pane below the tab row and its gap. Floored at zero: a pane
     /// height below the tab row would otherwise feed negative sizes into the
     /// pane contents while the deck is being laid out.
     readonly property int deckPaneContentHeight: Math.max(0,
-            deckPaneHeight - deckPaneTabHeight - space1)
+            deckPaneHeight - deckPaneTabHeight - deckPaneTabGap)
+    /// Pane width from which the Cue and Pad FX pads fit one row of eight with
+    /// two-line faces; narrower panes use a 4 x 2 grid of one-line faces.
+    readonly property int deckPadRowMinWidth: 540
     /// Hard floor the pane may not shrink below beside the loop card.
     readonly property int deckPaneMinWidth: 196
     /// Width of the loop card. Fixed rather than scaled so the 196 px pane

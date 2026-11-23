@@ -92,10 +92,10 @@ RowLayout {
             Layout.fillHeight: true
             Layout.fillWidth: true
             // Pin the whole height contract, not just the minimum: the row is
-            // 16 px while a plain Button implies 26, and a parent layout that
+            // 12 px while a plain Button implies 26, and a parent layout that
             // is only told about the cap can shrink the row (and the pane
             // below it) to resolve the deficit. Matching implicit and preferred
-            // to the tab height makes the row's own hint 16 as well.
+            // to the tab height makes the row's own hint 12 as well.
             Layout.maximumHeight: Theme.deckPaneTabHeight
             Layout.minimumHeight: Theme.deckPaneTabHeight
             Layout.preferredHeight: Theme.deckPaneTabHeight
@@ -141,11 +141,11 @@ RowLayout {
                 id: tabHover
             }
 
-            // BPM-lock badge: the grid lock stays visible from every pane.
+            // BPM-lock badge: the grid lock stays visible from every pane. It
+            // underlines the label because the 12 px tab has no room above it.
             Rectangle {
+                anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                anchors.topMargin: 2
                 color: tab.activeState ? Theme.textOnAccent : Theme.accent
                 height: 2
                 radius: 1

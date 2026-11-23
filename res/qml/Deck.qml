@@ -299,8 +299,8 @@ Item {
 
             LayoutItem {
                 Layout.alignment: Qt.AlignVCenter
-                // The card is as tall as its two rows and stays centred in the
-                // 112 px band. Min, max and preferred are all the card height so
+                // The card is as tall as its two rows, and the pane band
+                // beside it is bound to the same height. Min, max and preferred are all the card height so
                 // a layout cannot stretch it, and the pane's 196 px minimum
                 // still fits beside it at the 564 px deck the 1280 window gives.
                 Layout.maximumHeight: Theme.deckLoopCardHeight
@@ -332,11 +332,10 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: Theme.space1
+                    spacing: Theme.deckPaneTabGap
 
                     // Horizontal CUE / MOVE / GRID / PAD FX tabs above the
-                    // pane. The 16 px row replaces the old 34 px vertical
-                    // column without changing the band height.
+                    // pane; tab row, gap and pane sum to the loop card height.
                     DeckComponent.DeckPaneTabs {
                         Layout.fillWidth: true
                         Layout.maximumHeight: Theme.deckPaneTabHeight

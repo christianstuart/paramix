@@ -13,6 +13,8 @@ Skin.Button {
     required property int bank
     required property int pad
     property string presetGroup: "[PadFX]"
+    /// One-line face ("N name", elided) for the compact 4 x 2 deck grid.
+    property bool oneLine: false
     signal editRequested(int pad, Item anchor)
 
     readonly property var padEffects: Mixxx.EffectsManager.padEffectsModel
@@ -105,11 +107,13 @@ Skin.Button {
         Text {
             id: effectNameText
 
-            anchors.bottomMargin: Theme.space1
+            anchors.bottomMargin: root.oneLine ? 0 : Theme.space1
             anchors.fill: parent
-            anchors.leftMargin: Theme.space1
+            anchors.leftMargin: root.oneLine
+                                ? padNumberText.width + 2 * Theme.space1
+                                : Theme.space1
             anchors.rightMargin: Theme.space1
-            anchors.topMargin: Theme.space1
+            anchors.topMargin: root.oneLine ? 0 : Theme.space1
             color: root.highlight
                    ? Theme.textOnAccent
                    : root.effectIndex === 0
@@ -119,17 +123,20 @@ Skin.Button {
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeXs
             font.weight: Theme.fontWeightDemiBold
-            horizontalAlignment: Text.AlignHCenter
-            maximumLineCount: 2
+            horizontalAlignment: root.oneLine ? Text.AlignLeft : Text.AlignHCenter
+            maximumLineCount: root.oneLine ? 1 : 2
             text: root.effectText
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.Wrap
         }
         Text {
+            id: padNumberText
+
             anchors.left: parent.left
             anchors.leftMargin: Theme.space1
-            anchors.top: parent.top
+            anchors.top: root.oneLine ? undefined : parent.top
             anchors.topMargin: Theme.space1
+            anchors.verticalCenter: root.oneLine ? parent.verticalCenter : undefined
             color: root.highlight ? Theme.textOnAccent : Theme.textMuted
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeXs

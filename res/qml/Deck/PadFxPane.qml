@@ -6,7 +6,8 @@ import QtQuick 2.15
 import QtQuick.Layouts
 import "../Theme"
 
-/// Deck pane tab: the shared Pad FX assignment as an 8-pad 4 x 2 grid.
+/// Deck pane tab: the shared Pad FX assignment as 8 pads, 4 x 2 with
+/// one-line faces on narrow panes and one row of eight on wide ones.
 ///
 /// The active bank belongs to this deck; the pad assignments themselves are
 /// shared through [PadFX], so every deck shows the same effects and targets.
@@ -19,6 +20,7 @@ Rectangle {
     readonly property string presetGroup: "[PadFX]"
     readonly property int bank: Math.max(1, Math.min(2,
             Math.round(bankControl.value)))
+    readonly property bool oneRow: width >= Theme.deckPadRowMinWidth
 
     border.color: Theme.border
     border.width: 1
@@ -34,14 +36,12 @@ Rectangle {
     }
 
     GridLayout {
-        anchors.bottomMargin: Theme.space2
         anchors.fill: parent
-        anchors.leftMargin: Theme.space3
-        anchors.rightMargin: Theme.space3
-        anchors.topMargin: Theme.space2
-        columnSpacing: Theme.space1
-        columns: 4
-        rowSpacing: Theme.space1
+        anchors.margins: Theme.deckPaneTabGap
+        columnSpacing: Theme.deckPaneTabGap
+        // Same rule as the Cue pane: one row of eight once two-line faces fit.
+        columns: root.oneRow ? 8 : 4
+        rowSpacing: Theme.deckPaneTabGap
 
         Repeater {
             model: 8
@@ -54,6 +54,7 @@ Rectangle {
                 Layout.minimumHeight: 0
                 Layout.minimumWidth: 0
                 bank: root.bank
+                oneLine: !root.oneRow
                 pad: index + 1
                 padFxGroup: root.padFxGroup
                 presetGroup: root.presetGroup

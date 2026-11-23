@@ -4,8 +4,11 @@ Pad FX are eight effect presets per bank, triggered from a deck. The
 assignments are **shared by every deck**: editing pad 3 changes pad 3 on all
 decks. Each deck keeps its own active bank, pad triggers and active/mute state.
 
-Each deck has two banks, **FX 1** and **FX 2**. Every bank is an 8-pad 4 x 2
-grid, the same shape as the Cue pane. Clicking the deck's Pad FX tab opens
+Each deck has two banks, **FX 1** and **FX 2**. Every bank has 8 pads, laid
+out like the Cue pane: a 4 x 2 grid of one-line faces (pad number and an
+elided effect name, full name in the tooltip) on a narrow deck pane, and one
+row of eight two-line faces once the pane is at least `Theme.deckPadRowMinWidth`
+(540 px) wide. Clicking the deck's Pad FX tab opens
 FX 1; shift-clicking it opens FX 2 for that deck. The Pad FX window has the
 same grid per deck and a `FX 1` / `FX 2` key with the same click and
 shift-click behaviour.
