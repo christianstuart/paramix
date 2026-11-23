@@ -5,7 +5,6 @@
 #include <QStringList>
 #include <QVector>
 #include <QtDebug>
-
 #include <algorithm>
 
 #include "analyzer/analyzertrack.h"

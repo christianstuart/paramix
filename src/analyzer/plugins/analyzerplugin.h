@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QString>
-
 #include <cstddef>
 
 #include "audio/frame.h"

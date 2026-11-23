@@ -14,7 +14,7 @@ class QWidget;
 class DlgPrefBeats : public DlgPreferencePage, public Ui::DlgBeatsDlg {
     Q_OBJECT
   public:
-    DlgPrefBeats(QWidget *parent, UserSettingsPointer _config);
+    DlgPrefBeats(QWidget* parent, UserSettingsPointer _config);
     virtual ~DlgPrefBeats();
 
     QUrl helpUrl() const override;

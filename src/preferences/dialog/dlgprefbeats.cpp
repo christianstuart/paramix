@@ -4,8 +4,8 @@
 
 #include "analyzer/analyzerbeats.h"
 #include "defs_urls.h"
-#include "paramix/analysis/bpmrange.h"
 #include "moc_dlgprefbeats.cpp"
+#include "paramix/analysis/bpmrange.h"
 
 DlgPrefBeats::DlgPrefBeats(QWidget* parent, UserSettingsPointer pConfig)
         : DlgPreferencePage(parent),
