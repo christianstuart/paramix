@@ -124,7 +124,10 @@ Skin.Button {
             font.pixelSize: Theme.fontSizeXs
             font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: root.oneLine ? Text.AlignLeft : Text.AlignHCenter
-            maximumLineCount: root.oneLine ? 1 : 2
+            // Narrow 4 x 2 faces wrap names onto two tight lines rather than
+            // eliding them; ElideRight is only the last resort.
+            lineHeight: root.oneLine ? 0.85 : 1
+            maximumLineCount: 2
             text: root.effectText
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.Wrap

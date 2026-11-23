@@ -180,7 +180,11 @@ Rectangle {
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeXs
                                 horizontalAlignment: root.oneRow ? Text.AlignHCenter : Text.AlignLeft
+                                // Wrap to two tight lines before eliding.
+                                lineHeight: root.oneRow ? 1 : 0.85
+                                maximumLineCount: 2
                                 text: hotcueButton.label
+                                wrapMode: Text.Wrap
                                 visible: hotcueButton.label.length > 0
                             }
                         }

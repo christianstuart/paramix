@@ -378,3 +378,22 @@ A temporary `console.log` from `MainWindow.qml` root handlers did not appear in
 the file is the live one. Logging from `main.qml` works. Worth understanding
 before relying on QML-side instrumentation again; the numbers above were taken
 from `main.qml` and from reading the components.
+
+## Taller cards and the jog column (F16, 2026-11-22)
+
+| Part | Before | After |
+|---|---|---|
+| Loop card / pane band | 55 | 64 (header 20 + key row 37) |
+| Loop card width | 224 | 184 |
+| Pane floor | 196 | 188 |
+| Play / Cue | 60 x 60 each | 52 wide, together toolbar + band high |
+
+- Columns fill the row height, so the overview stretches and the cards sit on the deck's bottom edge.
+- The opt-in jog platter is its own side column between the main column and the tempo strip, as
+  wide as the row is tall, capped at `width - deckJogReservedWidth` (516). It shows from a
+  626 px deck (`deckSpinnyMinWidth`) and no longer replaces the tempo strip.
+- `Button.labelPadding` / `labelWidth`: Grid keys use 2 px padding and their label width as the
+  layout minimum, so no key elides. Below a 240 px pane the Grid adds a middle row for
+  Align / Match / Lock / Undo.
+- 4 x 2 pad and hotcue faces wrap names to two tight lines before eliding.
+- The Play key shows only its glyph; the word stays on the minimized deck.

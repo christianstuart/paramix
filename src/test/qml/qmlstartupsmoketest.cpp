@@ -469,17 +469,17 @@ TEST_F(QmlResponsiveBoundsTest, BandsStayInsideTheWindow) {
     QObject* pTheme = resolveTheme(pMainWindow);
     ASSERT_NE(nullptr, pTheme) << "Theme singleton not found in the skin context";
 
-    // F15 pins the deck band at the loop card's 55 px: a 12 px tab row, a 2 px
-    // gap and a 41 px pane. The measured pane is the visible content below the
+    // F16 pins the deck band at the loop card's 64 px: a 12 px tab row, a 2 px
+    // gap and a 50 px pane. The measured pane is the visible content below the
     // tabs, not the whole band, so the assertions use the tokens instead of a
     // hard-coded floor that a Theme edit could silently lower.
     const int paneMinHeight = pTheme->property("deckPaneContentHeight").toInt();
     const int tabsMinHeight = pTheme->property("deckPaneTabHeight").toInt();
-    EXPECT_EQ(55, pTheme->property("deckPaneHeight").toInt())
-            << "Theme.deckPaneHeight must equal the loop card height (55)";
-    EXPECT_EQ(41, paneMinHeight)
+    EXPECT_EQ(64, pTheme->property("deckPaneHeight").toInt())
+            << "Theme.deckPaneHeight must equal the loop card height (64)";
+    EXPECT_EQ(50, paneMinHeight)
             << "Theme.deckPaneContentHeight changed; re-check the F15 band "
-               "arithmetic (55 - 12 - 2) and the loop card row sum";
+               "arithmetic (64 - 12 - 2) and the loop card row sum";
     EXPECT_EQ(12, tabsMinHeight)
             << "Theme.deckPaneTabHeight changed; the CUE / MOVE / GRID / PAD FX "
                "row is one 12 px key high";

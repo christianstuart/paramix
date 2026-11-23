@@ -372,7 +372,7 @@ QtObject {
     /// Height the deck needs for its fixed parts: info bar, waveform overview,
     /// pane and toolbar. The band uses it so the deck can never be clipped by a
     /// shorter mixer, which is what made the panes read wrong.
-    /// 4 + 52 (header) + 22 (toolbar) + 55 (pane band) + 4 + 46 (overview) = 183.
+    /// 4 + 52 (header) + 22 (toolbar) + 64 (pane band) + 4 + 46 (overview) = 192.
     readonly property int deckMinHeight: Math.round(128 * uiScale) + deckPaneHeight
     /// Height of the MOVE / CUE / GRID / PAD FX deck band: the horizontal tab
     /// row plus the pane content. Bound to the loop card so the band is exactly
@@ -391,16 +391,16 @@ QtObject {
     /// two-line faces; narrower panes use a 4 x 2 grid of one-line faces.
     readonly property int deckPadRowMinWidth: 540
     /// Hard floor the pane may not shrink below beside the loop card.
-    readonly property int deckPaneMinWidth: 196
+    readonly property int deckPaneMinWidth: 188
     /// Width of the loop card. Fixed rather than scaled so the 196 px pane
     /// minimum still fits at a 564 px deck at every uiScale.
-    readonly property int deckLoopCardWidth: 224
+    readonly property int deckLoopCardWidth: 184
     /// Loop-card metrics: a header and one action row, sized to their content
     /// and vertically centred in the deck band.
     readonly property int deckLoopInset: Math.max(1, Math.round(space1 / 2))
     readonly property int deckLoopRowGap: 1
-    readonly property int deckLoopHeaderHeight: space4
-    readonly property int deckLoopKeyRowHeight: space6
+    readonly property int deckLoopHeaderHeight: Math.round(20 * uiScale)
+    readonly property int deckLoopKeyRowHeight: Math.round(37 * uiScale)
     /// Border, insets, header, gap and the action row; the row sum is exact.
     readonly property int deckLoopCardHeight: 2 + 2 * deckLoopInset
             + deckLoopHeaderHeight + deckLoopRowGap + deckLoopKeyRowHeight
@@ -415,11 +415,16 @@ QtObject {
     // strip, each at its own deck width rather than the window's. The row is
     // main column 490 + 5 + tempo 60 (+ 5 + spinny 140) + 8 of deck margin; a
     // gate below that sum lets the row outgrow the deck, which clips it.
-    // The jog wheel is opt-in (Preferences > Interface > Show a jog wheel).
-    // Between the first two
-    // gates there is room for it or the tempo strip, not both, and it wins.
-    readonly property int deckSpinnyMinWidth: 643
+    // The jog wheel is opt-in (Preferences > Interface > Show a jog wheel). It
+    // sits beside the tempo strip, as wide as the row is tall, and shows once
+    // the deck has deckJogReservedWidth plus a 110 px platter.
+    readonly property int deckSpinnyMinWidth: deckJogReservedWidth + 110
     readonly property int deckFullRowMinWidth: 708
+    /// Everything in the deck row except the jog column: margins 8, Play/Cue 52,
+    /// loop card 184 + 4, pane floor 188, tempo strip 60 and four 5 px gaps.
+    readonly property int deckJogReservedWidth: 516
+    /// Play / Cue key width beside the loop card.
+    readonly property int deckTransportKeyWidth: 52
     readonly property int deckTempoMinWidth: 563
 
     /// Window width below which the focused deck keeps the centred mixer.

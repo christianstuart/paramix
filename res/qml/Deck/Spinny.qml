@@ -29,13 +29,13 @@ Item {
         border.color: Theme.borderStrong
         border.width: 1
         color: Theme.surface2
-        height: 140
+        height: Math.min(root.width, root.height)
         radius: width / 2
-        width: 140
+        width: height
 
         Rectangle {
             anchors.fill: parent
-            anchors.margins: 6
+            anchors.margins: Math.max(3, Math.round(spinner.width * 0.04))
             border.color: Theme.border
             border.width: 1
             color: "transparent"
@@ -48,10 +48,10 @@ Item {
             border.color: Theme.border
             border.width: 1
             color: Theme.surface0
-            height: 64
+            height: Math.round(spinner.width * 0.46)
             opacity: trackLoadedControl.value ? 1 : 0.75
             radius: width / 2
-            width: 64
+            width: height
 
             Behavior on opacity {
                 NumberAnimation {
@@ -75,9 +75,9 @@ Item {
 
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
-                    anchors.topMargin: 16
+                    anchors.topMargin: Math.round(spinner.width * 0.1)
                     color: trackLoadedControl.value ? Theme.textSecondary : Theme.textMuted
-                    height: 16
+                    height: Math.round(spinner.width * 0.11)
                     radius: 1
                     width: 2
 
@@ -112,7 +112,8 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             color: Theme.textPrimary
             font.family: Theme.fontFamilyMono
-            font.pixelSize: Theme.fontSizeLg
+            // The hub shrinks with the platter, so the readout drops a size.
+            font.pixelSize: spinner.width >= 140 ? Theme.fontSizeLg : Theme.fontSizeMd
             font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: Text.AlignHCenter
             text: `${Math.round(bpm)}.${((bpm % 1) * Math.pow(10, precision)).toFixed().padEnd(precision, "0")}`

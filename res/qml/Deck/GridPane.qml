@@ -18,8 +18,12 @@ Rectangle {
     id: root
 
     readonly property color buttonColor: root.loaded ? Theme.textSecondary : Theme.textMuted
-    /// Height of each of the two key rows inside the 2 px margins and gap.
-    readonly property real rowHeight: Math.max(0, (root.height - 6) / 2)
+    /// Below this width the keys' label minimums no longer fit two rows, so
+    /// Align / Match / Lock / Undo move to a middle row.
+    readonly property bool threeRows: root.width < 240
+    readonly property int rowCount: root.threeRows ? 3 : 2
+    /// Height of each key row inside the 2 px margins and gaps.
+    readonly property real rowHeight: Math.max(0, (root.height - 4 - 2 * (root.rowCount - 1)) / root.rowCount)
     /// FINE latch: while active the beats earlier / later keys send the
     /// half-beat translate instead of the coarse nudge.
     property bool fineAdjust: false
@@ -55,7 +59,8 @@ Rectangle {
         key: "beats_undo_possible"
     }
     // Two equal rows: BPM tools and grid alignment on top, the intro/outro
-    // markers, grid nudges, lock and undo below. The cue-shift keys
+    // markers, grid nudges, lock and undo below. Narrow panes add a middle
+    // row for Align / Match / Lock / Undo (see threeRows). The cue-shift keys
     // (shift_cues_*) are controller-only.
     ColumnLayout {
         anchors.fill: parent
@@ -63,6 +68,8 @@ Rectangle {
         spacing: 2
 
         RowLayout {
+            id: topRow
+
             Layout.fillWidth: true
             Layout.maximumHeight: root.rowHeight
             Layout.minimumHeight: root.rowHeight
@@ -102,7 +109,8 @@ Rectangle {
                 Accessible.description: qsTr("Halve the track BPM, e.g. 174 to 87")
                 Accessible.name: qsTr("Halve BPM")
                 Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
                 Layout.fillHeight: true
                 Layout.preferredWidth: 26
                 activeColor: Theme.textOnAccent
@@ -118,7 +126,8 @@ Rectangle {
                 Accessible.description: qsTr("Double the track BPM, e.g. 87 to 174")
                 Accessible.name: qsTr("Double BPM")
                 Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
                 Layout.fillHeight: true
                 Layout.preferredWidth: 26
                 activeColor: Theme.textOnAccent
@@ -134,7 +143,8 @@ Rectangle {
                 Accessible.description: qsTr("Tap along with the beat to set the BPM")
                 Accessible.name: qsTr("Tap tempo")
                 Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
                 Layout.fillHeight: true
                 Layout.preferredWidth: 40
                 activeColor: Theme.textOnAccent
@@ -154,14 +164,15 @@ Rectangle {
                 Accessible.role: Accessible.CheckBox
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillHeight: true
-                Layout.preferredWidth: 14
+                Layout.preferredWidth: labelWidth
+                labelPadding: 2
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Fine adjust: half-beat grid nudge")
                 ToolTip.visible: fineLatch.hovered
                 enabled: root.loaded
                 highlight: root.fineAdjust
                 implicitHeight: 18
-                implicitWidth: 14
+                implicitWidth: labelWidth
                 text: qsTr("F", "fine adjust key")
 
                 onClicked: root.fineAdjust = !root.fineAdjust
@@ -176,14 +187,15 @@ Rectangle {
                 Accessible.role: Accessible.CheckBox
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillHeight: true
-                Layout.preferredWidth: 14
+                Layout.preferredWidth: labelWidth
+                labelPadding: 2
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Clear markers: marker keys clear instead of set")
                 ToolTip.visible: markerClearLatch.hovered
                 enabled: root.loaded
                 highlight: root.markerClear
                 implicitHeight: 18
-                implicitWidth: 14
+                implicitWidth: labelWidth
                 text: qsTr("C", "clear marker key")
 
                 onClicked: root.markerClear = !root.markerClear
@@ -191,11 +203,14 @@ Rectangle {
             Skin.ControlButton {
                 id: alignButton
 
+                parent: root.threeRows ? middleRow : topRow
+                Layout.column: 0
                 Accessible.description: qsTr("Move the beatgrid so a beat lands on the current position")
                 Accessible.name: qsTr("Align beatgrid to current position")
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
                 activeColor: Theme.textOnAccent
                 group: root.group
                 implicitHeight: 24
@@ -205,11 +220,14 @@ Rectangle {
             Skin.ControlButton {
                 id: matchButton
 
+                parent: root.threeRows ? middleRow : topRow
+                Layout.column: 1
                 Accessible.description: qsTr("Align the grid to the nearest beat of another playing deck")
                 Accessible.name: qsTr("Match beatgrid to other deck")
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
                 activeColor: Theme.textOnAccent
                 group: root.group
                 implicitHeight: 24
@@ -217,7 +235,23 @@ Rectangle {
                 text: qsTr("Match")
             }
         }
+        // Only populated in three-row mode: the four text keys reparent here.
+        // A one-row grid so each key's Layout.column fixes the order, whatever
+        // order the parent bindings evaluate in.
+        GridLayout {
+            id: middleRow
+
+            Layout.fillWidth: true
+            Layout.maximumHeight: root.rowHeight
+            Layout.minimumHeight: root.rowHeight
+            Layout.preferredHeight: root.rowHeight
+            columnSpacing: 2
+            rows: 1
+            visible: root.threeRows
+        }
         RowLayout {
+            id: bottomRow
+
             Layout.fillWidth: true
             Layout.maximumHeight: root.rowHeight
             Layout.minimumHeight: root.rowHeight
@@ -273,11 +307,14 @@ Rectangle {
             Skin.ControlButton {
                 id: lockButton
 
+                parent: root.threeRows ? middleRow : bottomRow
+                Layout.column: 2
                 Accessible.description: qsTr("Prevent accidental BPM and grid changes")
                 Accessible.name: qsTr("BPM lock")
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
                 activeColor: Theme.textOnAccent
                 group: root.group
                 implicitHeight: 16
@@ -288,11 +325,14 @@ Rectangle {
             Skin.ControlButton {
                 id: undoButton
 
+                parent: root.threeRows ? middleRow : bottomRow
+                Layout.column: 3
                 Accessible.description: qsTr("Revert the last BPM or beatgrid adjustment")
                 Accessible.name: qsTr("Undo beatgrid adjustment")
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
                 activeColor: Theme.textOnAccent
                 enabled: root.loaded && beatsUndoPossible.value > 0
                 group: root.group
@@ -313,7 +353,8 @@ Rectangle {
 
         Layout.fillHeight: true
         Layout.fillWidth: true
-        Layout.minimumWidth: 0
+        Layout.minimumWidth: labelWidth
+        labelPadding: 2
         ToolTip.delay: 500
         ToolTip.visible: gridKey.hovered
         activeFocusOnTab: true
@@ -372,7 +413,8 @@ Rectangle {
         Accessible.name: marker.title
         Layout.fillHeight: true
         Layout.fillWidth: true
-        Layout.minimumWidth: 0
+        Layout.minimumWidth: labelWidth
+        labelPadding: 2
         ToolTip.delay: 500
         ToolTip.text: root.markerClear ? qsTr("Clear %1").arg(marker.title) : marker.title
         ToolTip.visible: marker.hovered

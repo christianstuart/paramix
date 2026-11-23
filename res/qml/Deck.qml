@@ -34,26 +34,29 @@ Item {
     /// full-height loop card inside the transport block, so both line up top and
     /// bottom.
     readonly property int paneHeight: Theme.deckPaneHeight
+    /// Play and Cue together are exactly the toolbar plus the card band, so
+    /// the cards have no blank space above or below them.
+    readonly property int transportKeyHeight: Math.floor((22 + root.paneHeight) / 2)
+    /// The opt-in jog platter sits beside the tempo strip once the deck has
+    /// room for the whole row plus a usable platter.
+    readonly property bool jogShown: Mixxx.Config.paramixShowJogWheels
+            && (root.width <= 0 || root.width >= Theme.deckSpinnyMinWidth)
 
     signal toggleFocus
 
     /// Whether a deck row item with the given width gate is shown.
     function rowItemShown(type, minWidth) {
-        const jog = Mixxx.Config.paramixShowJogWheels;
         if (type === "spinny") {
-            return jog;
+            return root.jogShown;
+        }
+        if (type === "sideColumn") {
+            return true;
         }
         if (root.width <= 0) {
             return true;
         }
-        // Room for the jog wheel column or the tempo strip, not both.
-        if (jog && root.width > Theme.deckSpinnyMinWidth && root.width <= Theme.deckFullRowMinWidth) {
-            if (type === "tempo") {
-                return false;
-            }
-            if (minWidth === Theme.deckFullRowMinWidth) {
-                return true;
-            }
+        if (type === "fxAssign") {
+            return root.width >= Theme.deckFullRowMinWidth + (root.jogShown ? 140 : 0);
         }
         return minWidth < root.width;
     }
@@ -147,11 +150,9 @@ Item {
                             ]
                         },
                         {
-                            "type": "column",
-                            // The spinny needs the full deck minimum: main
-                            // column, spinny/FX column and tempo strip. Below
-                            // this the tempo fader is pushed over the mixer.
-                            "minWidth": Theme.deckFullRowMinWidth,
+                            // Jog platter (opt-in) and the FX-assign keys,
+                            // each with its own width gate in rowItemShown().
+                            "type": "sideColumn",
                             "items": [
                                 {
                                     "type": "spinny"
@@ -451,8 +452,13 @@ Item {
                 required property int index
 
                 Layout.alignment: Qt.AlignHCenter
-                Layout.fillHeight: true
+                // Under the jog the keys keep their 30 px slot; alone they fill.
+                Layout.fillHeight: !root.jogShown
+                Layout.preferredHeight: 30
                 objectName: "deckFxAssign"
+                // `required property index` hides the model's `type` role, so
+                // name the gate explicitly.
+                visible: root.rowItemShown("fxAssign", 0)
                 width: 135
 
                 DeckComponent.FXAssign {
@@ -481,8 +487,8 @@ Item {
             roleValue: "play"
 
             LayoutItem {
-                Layout.preferredHeight: root.minimized ? 32 : 60
-                Layout.preferredWidth: 60
+                Layout.preferredHeight: root.minimized ? 32 : root.transportKeyHeight
+                Layout.preferredWidth: Theme.deckTransportKeyWidth
 
                 DeckComponent.PlayButton {
                     anchors.fill: parent
@@ -495,8 +501,8 @@ Item {
             roleValue: "cue"
 
             LayoutItem {
-                Layout.preferredHeight: root.minimized ? 32 : 60
-                Layout.preferredWidth: 60
+                Layout.preferredHeight: root.minimized ? 32 : root.transportKeyHeight
+                Layout.preferredWidth: Theme.deckTransportKeyWidth
 
                 DeckComponent.CueButton {
                     anchors.fill: parent
@@ -509,9 +515,16 @@ Item {
             roleValue: "spinny"
 
             LayoutItem {
-                Layout.alignment: Qt.AlignTop
-                height: 140
-                width: 140
+                id: jogItem
+
+                /// As wide as the row is tall, capped so the cards keep their floor.
+                readonly property real size: Math.max(0, Math.min(jogItem.height,
+                        root.width - Theme.deckJogReservedWidth))
+
+                Layout.fillHeight: true
+                Layout.maximumWidth: jogItem.size
+                Layout.minimumWidth: jogItem.size
+                Layout.preferredWidth: jogItem.size
 
                 DeckComponent.Spinny {
                     anchors.fill: parent
@@ -559,8 +572,21 @@ Item {
         DelegateChoice {
             roleValue: "column"
 
+            // Columns fill the row height, so the overview stretches and the
+            // cards sit on the deck's bottom edge instead of floating.
             LayoutContainer {
+                Layout.fillHeight: true
                 Layout.fillWidth: true
+                disposition: GridLayout.TopToBottom
+            }
+        }
+        DelegateChoice {
+            roleValue: "sideColumn"
+
+            // Sized by its children (jog platter, FX keys), never stretched.
+            LayoutContainer {
+                Layout.fillHeight: true
+                Layout.fillWidth: false
                 disposition: GridLayout.TopToBottom
             }
         }
