@@ -15,6 +15,8 @@ Skin.Button {
     property string presetGroup: "[PadFX]"
     /// One-line face ("N name", elided) for the compact 4 x 2 deck grid.
     property bool oneLine: false
+    /// Face text size: larger once the pad is tall enough to read it.
+    readonly property int faceFontSize: root.height >= 34 ? Theme.fontSizeMd : Theme.fontSizeXs
     signal editRequested(int pad, Item anchor)
 
     readonly property var padEffects: Mixxx.EffectsManager.padEffectsModel
@@ -121,7 +123,7 @@ Skin.Button {
                      : Theme.textPrimary
             elide: Text.ElideRight
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeXs
+            font.pixelSize: root.faceFontSize
             font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: root.oneLine ? Text.AlignLeft : Text.AlignHCenter
             // Narrow 4 x 2 faces wrap names onto two tight lines rather than
@@ -142,7 +144,7 @@ Skin.Button {
             anchors.verticalCenter: root.oneLine ? parent.verticalCenter : undefined
             color: root.highlight ? Theme.textOnAccent : Theme.textMuted
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeXs
+            font.pixelSize: root.faceFontSize
             font.weight: Theme.fontWeightDemiBold
             text: root.pad
         }

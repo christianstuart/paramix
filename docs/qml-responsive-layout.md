@@ -397,3 +397,12 @@ from `main.qml` and from reading the components.
   Align / Match / Lock / Undo.
 - 4 x 2 pad and hotcue faces wrap names to two tight lines before eliding.
 - The Play key shows only its glyph; the word stays on the minimized deck.
+
+### F17: cards fill, toolbar under the jog
+
+The overview is a fixed `deckOverviewHeight` (44) and the card band fills the rest (64 minimum,
+~109 at 1440x852), so the deck footprint is unchanged. While the jog shows, the deck toolbar
+(reverse, QNT, SLIP, RPT, eject) sits under the platter in two rows (`Toolbar.stacked`,
+`deckSideToolbarHeight` 48) and the platter shrinks to ~105. The loop card is 168 wide
+(`deckJogReservedWidth` 500). Grid keys and pad/hotcue faces switch to 12 px text once their rows are tall
+enough.

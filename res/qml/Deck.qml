@@ -34,9 +34,6 @@ Item {
     /// full-height loop card inside the transport block, so both line up top and
     /// bottom.
     readonly property int paneHeight: Theme.deckPaneHeight
-    /// Play and Cue together are exactly the toolbar plus the card band, so
-    /// the cards have no blank space above or below them.
-    readonly property int transportKeyHeight: Math.floor((22 + root.paneHeight) / 2)
     /// The opt-in jog platter sits beside the tempo strip once the deck has
     /// room for the whole row plus a usable platter.
     readonly property bool jogShown: Mixxx.Config.paramixShowJogWheels
@@ -51,6 +48,13 @@ Item {
         }
         if (type === "sideColumn") {
             return true;
+        }
+        // The toolbar moves under the jog platter while the jog shows.
+        if (type === "toolbar") {
+            return !root.jogShown;
+        }
+        if (type === "toolbarSide") {
+            return root.jogShown;
         }
         if (root.width <= 0) {
             return true;
@@ -156,6 +160,9 @@ Item {
                             "items": [
                                 {
                                     "type": "spinny"
+                                },
+                                {
+                                    "type": "toolbarSide"
                                 },
                                 {
                                     "type": "fxAssign"
@@ -299,16 +306,12 @@ Item {
             roleValue: "loop"
 
             LayoutItem {
-                Layout.alignment: Qt.AlignVCenter
-                // The card is as tall as its two rows, and the pane band
-                // beside it is bound to the same height. Min, max and preferred are all the card height so
-                // a layout cannot stretch it, and the pane's 196 px minimum
-                // still fits beside it at the 564 px deck the 1280 window gives.
-                Layout.maximumHeight: Theme.deckLoopCardHeight
+                // The card and the pane beside it fill the band under the
+                // fixed-height overview; deckLoopCardHeight is only the floor.
+                Layout.fillHeight: true
                 Layout.maximumWidth: Theme.deckLoopCardWidth
                 Layout.minimumHeight: Theme.deckLoopCardHeight
                 Layout.minimumWidth: Theme.deckLoopCardWidth
-                Layout.preferredHeight: Theme.deckLoopCardHeight
                 Layout.preferredWidth: Theme.deckLoopCardWidth
                 Layout.rightMargin: Theme.space1
 
@@ -322,14 +325,12 @@ Item {
             roleValue: "deckPane"
 
             LayoutItem {
-                Layout.alignment: Qt.AlignVCenter
+                Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.maximumHeight: root.paneHeight
                 Layout.minimumHeight: root.paneHeight
                 // 196, not 200: the loop card and the tempo strip still fit a
                 // 564 px deck, which is what a 1280 px window gives.
                 Layout.minimumWidth: Theme.deckPaneMinWidth
-                Layout.preferredHeight: root.paneHeight
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -360,7 +361,6 @@ Item {
 
                         Layout.fillHeight: true
                         Layout.fillWidth: true
-                        Layout.maximumHeight: Theme.deckPaneContentHeight
                         Layout.minimumHeight: Theme.deckPaneContentHeight
                         objectName: "deckPane"
 
@@ -433,8 +433,11 @@ Item {
             roleValue: "waveformOverview"
 
             LayoutItem {
-                Layout.fillHeight: true
+                // Fixed height in the full deck so the cards get the rest; the
+                // minimized deck has nothing else to give the height to.
+                Layout.fillHeight: root.minimized
                 Layout.fillWidth: true
+                Layout.preferredHeight: root.minimized ? -1 : Theme.deckOverviewHeight
 
                 DeckComponent.WaveformOverview {
                     anchors.fill: parent
@@ -487,7 +490,10 @@ Item {
             roleValue: "play"
 
             LayoutItem {
-                Layout.preferredHeight: root.minimized ? 32 : root.transportKeyHeight
+                // Play and Cue split the transport row's height, so they end
+                // flush with the cards.
+                Layout.fillHeight: !root.minimized
+                Layout.preferredHeight: 32
                 Layout.preferredWidth: Theme.deckTransportKeyWidth
 
                 DeckComponent.PlayButton {
@@ -501,7 +507,8 @@ Item {
             roleValue: "cue"
 
             LayoutItem {
-                Layout.preferredHeight: root.minimized ? 32 : root.transportKeyHeight
+                Layout.fillHeight: !root.minimized
+                Layout.preferredHeight: 32
                 Layout.preferredWidth: Theme.deckTransportKeyWidth
 
                 DeckComponent.CueButton {
@@ -543,11 +550,10 @@ Item {
         DelegateChoice {
             roleValue: "transport"
 
-            // The transport row is content driven: play/cue next to the loop
-            // card and the pane tabs. It must not grow, otherwise it steals
-            // height from the waveform and pushes the pane off the deck.
+            // The transport row takes all height below the fixed overview, so
+            // the cards grow instead of the waveform.
             LayoutContainer {
-                Layout.fillHeight: false
+                Layout.fillHeight: true
                 Layout.fillWidth: true
                 disposition: GridLayout.LeftToRight
             }
@@ -601,6 +607,22 @@ Item {
                 DeckComponent.Toolbar {
                     anchors.fill: parent
                     group: root.group
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "toolbarSide"
+
+            // The same toolbar, stacked in two rows under the jog platter.
+            LayoutItem {
+                Layout.fillWidth: true
+                Layout.minimumHeight: Theme.deckSideToolbarHeight
+                Layout.preferredHeight: Theme.deckSideToolbarHeight
+
+                DeckComponent.Toolbar {
+                    anchors.fill: parent
+                    group: root.group
+                    stacked: true
                 }
             }
         }

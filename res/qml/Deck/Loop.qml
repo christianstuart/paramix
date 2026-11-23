@@ -121,6 +121,8 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
+            // The header keeps its height; only the key row grows with the card.
+            Layout.maximumHeight: Theme.deckLoopHeaderHeight
             Layout.preferredHeight: Theme.deckLoopHeaderHeight
             spacing: Theme.deckLoopKeyGap
 
@@ -310,7 +312,10 @@ Rectangle {
         Row {
             id: actionRow
 
+            // The key row takes the card's extra height when the band grows.
+            Layout.fillHeight: true
             Layout.fillWidth: true
+            Layout.minimumHeight: Theme.deckLoopKeyRowHeight
             Layout.preferredHeight: Theme.deckLoopKeyRowHeight
             spacing: Theme.deckLoopKeyGap
 

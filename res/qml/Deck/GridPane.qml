@@ -21,6 +21,8 @@ Rectangle {
     /// Below this width the keys' label minimums no longer fit two rows, so
     /// Align / Match / Lock / Undo move to a middle row.
     readonly property bool threeRows: root.width < 240
+    /// Key label size: larger once the rows are tall enough to read it.
+    readonly property int keyFontSize: root.rowHeight >= 26 ? Theme.fontSizeMd : Theme.fontSizeXs
     readonly property int rowCount: root.threeRows ? 3 : 2
     /// Height of each key row inside the 2 px margins and gaps.
     readonly property real rowHeight: Math.max(0, (root.height - 4 - 2 * (root.rowCount - 1)) / root.rowCount)
@@ -111,6 +113,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.minimumWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 Layout.fillHeight: true
                 Layout.preferredWidth: 26
                 activeColor: Theme.textOnAccent
@@ -128,6 +131,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.minimumWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 Layout.fillHeight: true
                 Layout.preferredWidth: 26
                 activeColor: Theme.textOnAccent
@@ -145,6 +149,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.minimumWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 Layout.fillHeight: true
                 Layout.preferredWidth: 40
                 activeColor: Theme.textOnAccent
@@ -166,6 +171,7 @@ Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Fine adjust: half-beat grid nudge")
                 ToolTip.visible: fineLatch.hovered
@@ -189,6 +195,7 @@ Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Clear markers: marker keys clear instead of set")
                 ToolTip.visible: markerClearLatch.hovered
@@ -211,6 +218,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.minimumWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 activeColor: Theme.textOnAccent
                 group: root.group
                 implicitHeight: 24
@@ -228,6 +236,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.minimumWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 activeColor: Theme.textOnAccent
                 group: root.group
                 implicitHeight: 24
@@ -315,6 +324,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.minimumWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 activeColor: Theme.textOnAccent
                 group: root.group
                 implicitHeight: 16
@@ -333,6 +343,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.minimumWidth: labelWidth
                 labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 activeColor: Theme.textOnAccent
                 enabled: root.loaded && beatsUndoPossible.value > 0
                 group: root.group
@@ -355,6 +366,7 @@ Rectangle {
         Layout.fillWidth: true
         Layout.minimumWidth: labelWidth
         labelPadding: 2
+        labelPixelSize: root.keyFontSize
         ToolTip.delay: 500
         ToolTip.visible: gridKey.hovered
         activeFocusOnTab: true
@@ -415,6 +427,7 @@ Rectangle {
         Layout.fillWidth: true
         Layout.minimumWidth: labelWidth
         labelPadding: 2
+        labelPixelSize: root.keyFontSize
         ToolTip.delay: 500
         ToolTip.text: root.markerClear ? qsTr("Clear %1").arg(marker.title) : marker.title
         ToolTip.visible: marker.hovered

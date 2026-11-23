@@ -167,7 +167,7 @@ Rectangle {
                                 Layout.fillWidth: root.oneRow
                                 color: hotcueButton.textColor
                                 font.family: Theme.fontFamily
-                                font.pixelSize: root.oneRow ? Theme.fontSizeLg : Theme.fontSizeXs
+                                font.pixelSize: root.oneRow ? Theme.fontSizeLg : (hotcueButton.height >= 34 ? Theme.fontSizeMd : Theme.fontSizeXs)
                                 font.weight: Theme.fontWeightDemiBold
                                 horizontalAlignment: root.oneRow ? Text.AlignHCenter : Text.AlignLeft
                                 text: `${hotcueButton.hotcueNumber}`
@@ -178,7 +178,7 @@ Rectangle {
                                 color: hotcueButton.textColor
                                 elide: Text.ElideRight
                                 font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeXs
+                                font.pixelSize: hotcueButton.height >= 34 ? Theme.fontSizeMd : Theme.fontSizeXs
                                 horizontalAlignment: root.oneRow ? Text.AlignHCenter : Text.AlignLeft
                                 // Wrap to two tight lines before eliding.
                                 lineHeight: root.oneRow ? 1 : 0.85

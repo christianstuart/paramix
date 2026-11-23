@@ -394,7 +394,7 @@ QtObject {
     readonly property int deckPaneMinWidth: 188
     /// Width of the loop card. Fixed rather than scaled so the 196 px pane
     /// minimum still fits at a 564 px deck at every uiScale.
-    readonly property int deckLoopCardWidth: 184
+    readonly property int deckLoopCardWidth: 168
     /// Loop-card metrics: a header and one action row, sized to their content
     /// and vertically centred in the deck band.
     readonly property int deckLoopInset: Math.max(1, Math.round(space1 / 2))
@@ -417,12 +417,16 @@ QtObject {
     // gate below that sum lets the row outgrow the deck, which clips it.
     // The jog wheel is opt-in (Preferences > Interface > Show a jog wheel). It
     // sits beside the tempo strip, as wide as the row is tall, and shows once
-    // the deck has deckJogReservedWidth plus a 110 px platter.
-    readonly property int deckSpinnyMinWidth: deckJogReservedWidth + 110
+    // the deck has deckJogReservedWidth plus a 96 px platter.
+    readonly property int deckSpinnyMinWidth: deckJogReservedWidth + 96
     readonly property int deckFullRowMinWidth: 708
     /// Everything in the deck row except the jog column: margins 8, Play/Cue 52,
-    /// loop card 184 + 4, pane floor 188, tempo strip 60 and four 5 px gaps.
-    readonly property int deckJogReservedWidth: 516
+    /// loop card 168 + 4, pane floor 188, tempo strip 60 and four 5 px gaps.
+    readonly property int deckJogReservedWidth: 500
+    /// Fixed waveform overview height; the card band below takes the rest.
+    readonly property int deckOverviewHeight: Math.round(44 * uiScale)
+    /// Deck toolbar stacked in two rows under the jog platter.
+    readonly property int deckSideToolbarHeight: Math.round(48 * uiScale)
     /// Play / Cue key width beside the loop card.
     readonly property int deckTransportKeyWidth: 52
     readonly property int deckTempoMinWidth: 563
