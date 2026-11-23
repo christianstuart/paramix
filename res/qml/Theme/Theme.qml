@@ -373,18 +373,20 @@ QtObject {
     /// pane and toolbar. The band uses it so the deck can never be clipped by a
     /// shorter mixer, which is what made the panes read wrong.
     /// 4 + 52 (header) + 22 (toolbar) + 64 (pane band) + 4 + 46 (overview) = 192.
-    /// F18 rows: margins, header, top row (overview / jog / tempo), transport
-    /// row and the pane row's floor, with the three 5 px layout gaps.
-    readonly property int deckMinHeight: 8 + deckHeaderHeight + deckTopHeight
-            + deckTransportRowHeight + deckPaneContentHeight + 15
+    /// Margins, header, then the left column: overview, transport row, loop
+    /// row and the pane floor, with the four 5 px layout gaps.
+    readonly property int deckMinHeight: 8 + deckHeaderHeight + deckTopHeight + deckTransportRowHeight
+            + deckTransportRowHeight + deckPaneRowMinHeight + 20
     /// Top row: overview, optional jog platter and the compact tempo strip.
-    readonly property int deckTopHeight: Math.round(56 * uiScale)
+    readonly property int deckTopHeight: Math.round(36 * uiScale)
     /// Traktor-style transport row under the overview.
-    readonly property int deckTransportRowHeight: Math.round(28 * uiScale)
+    readonly property int deckTransportRowHeight: Math.round(26 * uiScale)
+    /// Floor of the pane row beside the jog.
+    readonly property int deckPaneRowMinHeight: Math.round(40 * uiScale)
     /// Width of the stacked CUE / MOVE / GRID / FX selector.
     readonly property int deckPaneTabColumnWidth: Math.round(44 * uiScale)
     /// Compact tempo strip beside the overview.
-    readonly property int deckTempoCompactWidth: Math.round(100 * uiScale)
+    readonly property int deckTempoCompactWidth: Math.round(84 * uiScale)
     /// Narrowest loop-row key (the one-letter anchor).
     readonly property int deckLoopKeyMinWidth: Math.round(22 * uiScale)
     /// Height of the MOVE / CUE / GRID / PAD FX deck band: the horizontal tab
@@ -435,7 +437,7 @@ QtObject {
     readonly property int deckFullRowMinWidth: 708
     /// Everything in the deck row except the jog column: margins 8, Play/Cue 52,
     /// loop card 168 + 4, pane floor 188, tempo strip 60 and four 5 px gaps.
-    readonly property int deckJogReservedWidth: 500
+    readonly property int deckJogReservedWidth: 380
     /// Fixed waveform overview height; the card band below takes the rest.
     readonly property int deckOverviewHeight: Math.round(44 * uiScale)
     /// Deck toolbar stacked in two rows under the jog platter.

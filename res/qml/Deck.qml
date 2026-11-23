@@ -82,12 +82,46 @@ Item {
                     "type": "info"
                 },
                 {
-                    // Traktor layout: overview with the optional jog and the
-                    // compact tempo strip beside it...
-                    "type": "topRow",
+                    // Controls on the left; the jog and the tempo strip run
+                    // the full height on the right.
+                    "type": "row",
                     "items": [
                         {
-                            "type": "waveformOverview"
+                            "type": "column",
+                            "items": [
+                                {
+                                    "type": "waveformOverview"
+                                },
+                                {
+                                    "type": "transport",
+                                    "items": [
+                                        {
+                                            "type": "play"
+                                        },
+                                        {
+                                            "type": "cue"
+                                        },
+                                        {
+                                            "type": "toolbar"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "transport",
+                                    "items": [
+                                        {
+                                            "type": "loop"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "vinyl"
+                                },
+                                {
+                                    // The pane with its stacked selector.
+                                    "type": "deckPane"
+                                }
+                            ]
                         },
                         {
                             "type": "spinny"
@@ -99,34 +133,6 @@ Item {
                             "type": "fxAssign"
                         }
                     ]
-                },
-                {
-                    // ...then two full-width rows: transport and loop...
-                    "type": "transport",
-                    "items": [
-                        {
-                            "type": "play"
-                        },
-                        {
-                            "type": "cue"
-                        },
-                        {
-                            "type": "toolbar"
-                        },
-                        {
-                            "type": "loop"
-                        },
-                        {
-                            "type": "syncRange"
-                        }
-                    ]
-                },
-                {
-                    "type": "vinyl"
-                },
-                {
-                    // ...and the pane with its stacked selector.
-                    "type": "deckPane"
                 }
             ]
         });
@@ -281,7 +287,7 @@ Item {
             LayoutItem {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumHeight: Theme.deckPaneContentHeight
+                Layout.minimumHeight: Theme.deckPaneRowMinHeight
 
                 RowLayout {
                     anchors.fill: parent
@@ -383,10 +389,11 @@ Item {
             roleValue: "waveformOverview"
 
             LayoutItem {
-                // Fills the top row (or the minimized deck); the top row's own
-                // height is fixed.
-                Layout.fillHeight: true
+                // Fixed height above the control rows; the minimized deck has
+                // nothing else to give the height to.
+                Layout.fillHeight: root.minimized
                 Layout.fillWidth: true
+                Layout.preferredHeight: root.minimized ? -1 : Theme.deckTopHeight
 
                 DeckComponent.WaveformOverview {
                     anchors.fill: parent
@@ -434,41 +441,6 @@ Item {
             }
         }
         DelegateChoice {
-            roleValue: "syncRange"
-
-            // SYNC and the tempo range moved here from the tempo strip.
-            LayoutItem {
-                Layout.fillHeight: true
-                Layout.preferredWidth: syncRangeRow.implicitWidth
-
-                RowLayout {
-                    id: syncRangeRow
-
-                    anchors.fill: parent
-                    spacing: Theme.deckLoopKeyGap
-
-                    Skin.SyncButton {
-                        id: syncButton
-
-                        Accessible.name: syncButton.highlight ? qsTr("Disable sync") : qsTr("Enable sync")
-                        Layout.fillHeight: true
-                        Layout.minimumWidth: labelWidth
-                        Layout.preferredWidth: labelWidth
-                        group: root.group
-                        labelPadding: 4
-                    }
-                    Skin.RangeButton {
-                        Accessible.name: qsTr("Tempo range")
-                        Layout.fillHeight: true
-                        Layout.minimumWidth: labelWidth
-                        Layout.preferredWidth: labelWidth
-                        group: root.group
-                        labelPadding: 4
-                    }
-                }
-            }
-        }
-        DelegateChoice {
             roleValue: "play"
 
             LayoutItem {
@@ -506,8 +478,10 @@ Item {
             LayoutItem {
                 id: jogItem
 
-                /// As wide as the top row is tall.
-                readonly property real size: jogItem.height
+                /// As wide as the deck row is tall, capped so the controls keep
+                /// their minimum width.
+                readonly property real size: Math.max(0, Math.min(jogItem.height,
+                        root.width - Theme.deckJogReservedWidth))
 
                 Layout.fillHeight: true
                 Layout.maximumWidth: jogItem.size

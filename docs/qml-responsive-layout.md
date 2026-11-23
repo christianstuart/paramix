@@ -417,3 +417,11 @@ A, In, Out, Loop, Reloop) and SYNC / range; then the pane row filling the rest, 
 the stacked CUE / MOVE / GRID / FX selector on its right (`deckPaneTabColumnWidth` 44).
 `deckMinHeight` is the sum of those rows. At 1440x852 the Cue and Pad FX panes are one row of
 eight and the Grid uses two rows.
+
+### F18b: big jog, full-height tempo
+
+The jog platter and the tempo strip now run the full height under the header on the right
+(`deckJogReservedWidth` 380 keeps the left controls' minimum). The tempo strip is the fader beside a
+column of BPM readout, pitch/keylock, SYNC and range. The rate nudge keys (rate_perm_*/rate_temp_*)
+are controller-only. On the left: overview (`deckTopHeight` 36), the transport row, the loop row (both
+`deckTransportRowHeight` 26) and the pane, which keeps a 40 px floor (`deckPaneRowMinHeight`).
