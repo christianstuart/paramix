@@ -1,4 +1,5 @@
 #include "paramix/analysis/analysis.h"
+#include "paramix/analysis/bpmrange.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,6 +19,93 @@
 namespace paramix::analysis {
 
 namespace {
+
+TempoConfig tempoConfigForRange(int minBpm, int maxBpm) {
+    TempoConfig config;
+    config.centreBpm = f32(f32(minBpm + maxBpm) * f32(0.5f));
+    config.halfWidthBpm = f32(f32(maxBpm - minBpm) * f32(0.5f));
+    return config;
+}
+
+struct TempoChoice {
+    TempoResult tempo;
+    int minBpm = 88;
+    int maxBpm = 175;
+    bool hintMismatch = false;
+};
+
+/// Traktor's BPM window is user-selected. When the track already has a BPM we
+/// prefer the configured window if it reproduces that BPM, otherwise try the
+/// other Traktor presets. This reproduces imported grids analyzed with a
+/// different window without changing normal fresh analysis.
+///
+/// The stored BPM may have been rounded by the importer (integer BPMs are
+/// common), so a candidate counts as reproducing it when the difference is at
+/// most half a BPM. That still rejects a manually halved or doubled BPM.
+TempoChoice chooseTempo(const std::vector<double>& positions,
+        const Engine::Config& config) {
+    TempoChoice choice;
+    choice.minBpm = config.bpmRangeMin;
+    choice.maxBpm = config.bpmRangeMax;
+    if (choice.minBpm <= 0 || choice.maxBpm <= choice.minBpm) {
+        const BpmRange fallback = defaultBpmRange();
+        choice.minBpm = fallback.minBpm;
+        choice.maxBpm = fallback.maxBpm;
+    }
+    choice.tempo = detectBpm(positions,
+            tempoConfigForRange(choice.minBpm, choice.maxBpm));
+
+    const double hint = config.existingBpm;
+    if (!config.matchExistingBpm || !(hint > 0.0)) {
+        return choice;
+    }
+
+    constexpr double kToleranceBpm = 0.5;
+    if (choice.tempo.bpm > 0.0f &&
+            std::fabs(static_cast<double>(choice.tempo.bpm) - hint) <=
+                    kToleranceBpm) {
+        return choice;
+    }
+
+    bool found = false;
+    double bestError = 0.0;
+    TempoResult bestTempo;
+    int bestMin = choice.minBpm;
+    int bestMax = choice.maxBpm;
+    for (int i = 0; i < kBpmRangePresetCount; ++i) {
+        const BpmRange preset = kBpmRangePresets[i];
+        if (preset.automatic) {
+            // "Automatic" stands for a window Traktor picks itself, so a
+            // stored BPM cannot tell us it was used. Including it would let
+            // its wide window win the closeness comparison by luck.
+            continue;
+        }
+        const TempoResult candidate = detectBpm(positions,
+                tempoConfigForRange(preset.minBpm, preset.maxBpm));
+        if (!(candidate.bpm > 0.0f)) {
+            continue;
+        }
+        const double error = std::fabs(
+                static_cast<double>(candidate.bpm) - hint);
+        if (!found || error < bestError) {
+            found = true;
+            bestError = error;
+            bestTempo = candidate;
+            bestMin = preset.minBpm;
+            bestMax = preset.maxBpm;
+        }
+    }
+
+    if (found && bestError <= kToleranceBpm) {
+        choice.tempo = bestTempo;
+        choice.minBpm = bestMin;
+        choice.maxBpm = bestMax;
+        return choice;
+    }
+
+    choice.hintMismatch = true;
+    return choice;
+}
 
 class BurstTracker final : public SampleProcessor {
   public:
@@ -180,12 +268,22 @@ Result Engine::finish() {
         bassWeights.push_back(field.bassWeight);
     }
 
-    const TempoResult tempo = detectBpm(positions);
-    if (!(tempo.bpm > 0.0f)) {
+    const TempoChoice tempo = chooseTempo(positions, m_impl->config);
+    if (tempo.hintMismatch && m_impl->config.preserveGridOnBpmMismatch) {
+        // Keep the existing grid rather than overwriting it with a BPM that
+        // does not match Traktor's stored value.
+        m_impl->result = {};
+        m_impl->result.bpmHintMismatch = true;
+        return m_impl->result;
+    }
+    if (!(tempo.tempo.bpm > 0.0f)) {
+        m_impl->result = {};
+        m_impl->result.bpmHintMismatch = tempo.hintMismatch;
         return m_impl->result;
     }
 
-    const PhaseResult phase = estimatePhase(positions, bassWeights, tempo.bpm);
+    const PhaseResult phase = estimatePhase(
+            positions, bassWeights, tempo.tempo.bpm);
     if (!phase.ok) {
         return m_impl->result;
     }
@@ -199,11 +297,14 @@ Result Engine::finish() {
 
     Result result;
     result.ok = true;
-    result.bpm = tempo.bpm;
+    result.bpm = tempo.tempo.bpm;
     result.anchorSeconds = phase.anchor;
     result.beatsPerBar = 4;
     result.downbeatPhase = 0;
     result.confidence = std::max(0.0f, confidence);
+    result.bpmRangeMin = tempo.minBpm;
+    result.bpmRangeMax = tempo.maxBpm;
+    result.bpmHintMismatch = tempo.hintMismatch;
     if (m_impl->config.keepTransients) {
         result.transients.reserve(fields.size());
         for (const TransientField& field : fields) {

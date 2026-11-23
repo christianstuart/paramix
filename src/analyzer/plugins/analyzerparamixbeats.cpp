@@ -13,6 +13,11 @@ AnalyzerParamixBeats::AnalyzerParamixBeats() = default;
 
 AnalyzerParamixBeats::~AnalyzerParamixBeats() = default;
 
+void AnalyzerParamixBeats::setBeatDetectionHints(
+        const BeatDetectionHints& hints) {
+    m_hints = hints;
+}
+
 bool AnalyzerParamixBeats::initialize(mixxx::audio::SampleRate sampleRate) {
     // The analysis engine needs the total track length, which the
     // sample-rate-only entry point cannot provide.
@@ -38,6 +43,12 @@ bool AnalyzerParamixBeats::initialize(mixxx::audio::SampleRate sampleRate,
     config.channelCount = m_channelCount;
     config.totalFrames = frameLength;
     config.keepTransients = true;
+    config.bpmRangeMin = m_hints.bpmRangeMin;
+    config.bpmRangeMax = m_hints.bpmRangeMax;
+    config.existingBpm = m_hints.existingBpm;
+    config.matchExistingBpm = m_hints.matchExistingBpm;
+    config.preserveGridOnBpmMismatch = m_hints.hasGrid &&
+            m_hints.existingBpm > 0.0 && m_hints.matchExistingBpm;
     m_pEngine = std::make_unique<paramix::analysis::Engine>(config);
     return true;
 }

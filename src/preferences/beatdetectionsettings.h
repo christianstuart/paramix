@@ -18,6 +18,8 @@
 #define BPM_REANALYZE_IMPORTED "ReanalyzeImported"
 #define BPM_FAST_ANALYSIS_ENABLED "FastAnalysisEnabled"
 #define BPM_STEM_STRATEGY "stem_strategy"
+#define BPM_RANGE_PRESET "BpmRangePreset"
+#define BPM_MATCH_EXISTING "MatchExistingBpmRange"
 
 class BeatDetectionSettings {
   public:
@@ -54,6 +56,12 @@ class BeatDetectionSettings {
 
     DEFINE_PREFERENCE_HELPERS(FastAnalysis, bool,
                               BPM_CONFIG_KEY, BPM_FAST_ANALYSIS_ENABLED, false);
+
+    DEFINE_PREFERENCE_HELPERS(BpmRangePreset, int,
+                              BPM_CONFIG_KEY, BPM_RANGE_PRESET, 4);
+
+    DEFINE_PREFERENCE_HELPERS(MatchExistingBpmRange, bool,
+                              BPM_CONFIG_KEY, BPM_MATCH_EXISTING, true);
 
     QString getBeatPluginId() const {
         return m_pConfig->getValue<QString>(ConfigKey(

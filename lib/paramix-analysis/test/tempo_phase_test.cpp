@@ -27,6 +27,24 @@ TEST(Tempo, RejectsAnEmptyTransientList) {
     EXPECT_EQ(result.bpm, 0.0f);
 }
 
+TEST(Tempo, ReturnsTheWindowCentreForASingleTransient) {
+    const std::vector<double> positions{12.345};
+    const TempoConfig config{131.5f, 43.5f};
+    const TempoResult result = detectBpm(positions, config);
+    EXPECT_EQ(result.bpm, 131.5f);
+}
+
+TEST(Tempo, HonoursAnExplicitTraktorWindow) {
+    std::vector<double> positions;
+    for (int i = 0; i < 101; ++i) {
+        positions.push_back(0.25 + i * (60.0 / 100.0));
+    }
+    const TempoResult narrow = detectBpm(positions, TempoConfig{100.0f, 20.0f});
+    const TempoResult wide = detectBpm(positions, TempoConfig{131.5f, 43.5f});
+    EXPECT_NEAR(narrow.bpm, 100.0f, 1e-3f);
+    EXPECT_NEAR(wide.bpm, 100.0f, 1e-3f);
+}
+
 TEST(Tempo, MatchesJavascriptReferenceBitsOnTheClickFixture) {
     std::vector<double> positions(testdata::kTempoPositions,
             testdata::kTempoPositions + testdata::kTempoPositionsSize);

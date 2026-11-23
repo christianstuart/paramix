@@ -69,6 +69,37 @@ This can speed up beat detection on slower computers but may result in lower qua
        </widget>
       </item>
       <item>
+       <layout class="QHBoxLayout" name="horizontalLayoutBpmRange">
+        <item>
+         <widget class="QLabel" name="labelBpmRange">
+          <property name="text">
+           <string>BPM search range</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBoxBpmRange">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxMatchExistingBpm">
+        <property name="toolTip">
+         <string>When a track already has a BPM, try the Traktor BPM ranges until one reproduces it. If none does, the existing grid is kept instead of being overwritten.</string>
+        </property>
+        <property name="text">
+         <string>Use an existing BPM to select the Traktor BPM range when re-analyzing</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QCheckBox" name="checkBoxReanalyze">
         <property name="toolTip">
          <string>e.g. from 3rd-party programs or Mixxx versions before 1.11.

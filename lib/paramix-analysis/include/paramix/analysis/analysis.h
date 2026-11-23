@@ -31,6 +31,12 @@ struct Result {
     int downbeatPhase = 0;
     /// Heuristic confidence in the downbeat choice, in [0, 1].
     float confidence = 0.0f;
+    /// BPM search window that produced this result.
+    int bpmRangeMin = 0;
+    int bpmRangeMax = 0;
+    /// True when an existing BPM was supplied but no Traktor range reproduced
+    /// it. The caller should keep the existing grid instead of overwriting it.
+    bool bpmHintMismatch = false;
     /// Transient list, empty when Config::keepTransients is false.
     std::vector<Transient> transients;
 };
@@ -50,6 +56,18 @@ class Engine {
         /// analysis length and the finalize tail depend on it.
         std::int64_t totalFrames = 0;
         bool keepTransients = true;
+        /// BPM search window selected by the user (Traktor preset).
+        int bpmRangeMin = 88;
+        int bpmRangeMax = 175;
+        /// Existing BPM for this track, if any. When non-zero and
+        /// matchExistingBpm is true, the engine tries the configured range
+        /// first and then the other Traktor presets to reproduce it.
+        double existingBpm = 0.0;
+        bool matchExistingBpm = true;
+        /// When an existing BPM cannot be reproduced and this is true (the
+        /// track already has a grid), the result is left invalid so the caller
+        /// does not overwrite the existing grid.
+        bool preserveGridOnBpmMismatch = false;
     };
 
     explicit Engine(Config config);

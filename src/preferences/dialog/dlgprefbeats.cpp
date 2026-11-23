@@ -1,7 +1,10 @@
 #include "preferences/dialog/dlgprefbeats.h"
 
+#include <algorithm>
+
 #include "analyzer/analyzerbeats.h"
 #include "defs_urls.h"
+#include "paramix/analysis/bpmrange.h"
 #include "moc_dlgprefbeats.cpp"
 
 DlgPrefBeats::DlgPrefBeats(QWidget* parent, UserSettingsPointer pConfig)
@@ -12,12 +15,23 @@ DlgPrefBeats::DlgPrefBeats(QWidget* parent, UserSettingsPointer pConfig)
           m_bFastAnalysisEnabled(m_bpmSettings.getFastAnalysisDefault()),
           m_bReanalyze(m_bpmSettings.getReanalyzeWhenSettingsChangeDefault()),
           m_bReanalyzeImported(m_bpmSettings.getReanalyzeImportedDefault()),
+          m_bpmRangePreset(m_bpmSettings.getBpmRangePresetDefault()),
+          m_bMatchExistingBpm(m_bpmSettings.getMatchExistingBpmRangeDefault()),
           m_stemStrategy(BeatDetectionSettings::StemStrategy::Disabled) {
     setupUi(this);
 
     m_availablePlugins = AnalyzerBeats::availablePlugins();
     for (const auto& info : std::as_const(m_availablePlugins)) {
         comboBoxBeatPlugin->addItem(info.name(), info.id());
+    }
+
+    for (int i = 0; i < paramix::analysis::kBpmRangePresetCount; ++i) {
+        const auto range = paramix::analysis::kBpmRangePresets[i];
+        const QString label = QString::fromUtf8(range.label);
+        comboBoxBpmRange->addItem(range.automatic
+                        ? tr("Automatic (%1 - %2 BPM)").arg(range.minBpm).arg(range.maxBpm)
+                        : tr("%1 BPM").arg(label),
+                i);
     }
 
     slotUpdate();
@@ -75,8 +89,21 @@ DlgPrefBeats::DlgPrefBeats(QWidget* parent, UserSettingsPointer pConfig)
             &QComboBox::currentIndexChanged,
             this,
             &DlgPrefBeats::slotStemStrategyChanged);
+    connect(comboBoxBpmRange,
+            &QComboBox::currentIndexChanged,
+            this,
+            &DlgPrefBeats::slotBpmRangeChanged);
+    connect(checkBoxMatchExistingBpm,
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+            &QCheckBox::checkStateChanged,
+#else
+            &QCheckBox::stateChanged,
+#endif
+            this,
+            &DlgPrefBeats::slotMatchExistingBpmChanged);
 
     setScrollSafeGuard(comboBoxBeatPlugin);
+    setScrollSafeGuard(comboBoxBpmRange);
 }
 
 DlgPrefBeats::~DlgPrefBeats() {
@@ -95,6 +122,8 @@ void DlgPrefBeats::slotResetToDefaults() {
     m_bFastAnalysisEnabled = m_bpmSettings.getFastAnalysisDefault();
     m_bReanalyze = m_bpmSettings.getReanalyzeWhenSettingsChangeDefault();
     m_bReanalyzeImported = m_bpmSettings.getReanalyzeImportedDefault();
+    m_bpmRangePreset = m_bpmSettings.getBpmRangePresetDefault();
+    m_bMatchExistingBpm = m_bpmSettings.getMatchExistingBpmRangeDefault();
     m_stemStrategy = m_bpmSettings.getStemStrategyDefault();
 
     updateGui();
@@ -136,6 +165,8 @@ void DlgPrefBeats::slotUpdate() {
     m_bReanalyze = m_bpmSettings.getReanalyzeWhenSettingsChange();
     m_bReanalyzeImported = m_bpmSettings.getReanalyzeImported();
     m_bFastAnalysisEnabled = m_bpmSettings.getFastAnalysis();
+    m_bpmRangePreset = m_bpmSettings.getBpmRangePreset();
+    m_bMatchExistingBpm = m_bpmSettings.getMatchExistingBpmRange();
     m_stemStrategy = m_bpmSettings.getStemStrategy();
 
     updateGui();
@@ -149,6 +180,8 @@ void DlgPrefBeats::updateGui() {
     checkBoxFastAnalysis->setEnabled(m_bAnalyzerEnabled && m_bFixedTempoEnabled);
     checkBoxReanalyze->setEnabled(m_bAnalyzerEnabled);
     checkBoxReanalyzeImported->setEnabled(m_bAnalyzerEnabled);
+    comboBoxBpmRange->setEnabled(m_bAnalyzerEnabled);
+    checkBoxMatchExistingBpm->setEnabled(m_bAnalyzerEnabled);
 
     if (!m_bAnalyzerEnabled) {
         return;
@@ -179,6 +212,10 @@ void DlgPrefBeats::updateGui() {
 
     checkBoxReanalyze->setChecked(m_bReanalyze);
     checkBoxReanalyzeImported->setChecked(m_bReanalyzeImported);
+    comboBoxBpmRange->setCurrentIndex(std::clamp(m_bpmRangePreset,
+            0,
+            paramix::analysis::kBpmRangePresetCount - 1));
+    checkBoxMatchExistingBpm->setChecked(m_bMatchExistingBpm);
 
     comboBoxStemStrategy->setCurrentIndex(
             m_stemStrategy == BeatDetectionSettings::StemStrategy::Enforced
@@ -235,5 +272,25 @@ void DlgPrefBeats::slotApply() {
     m_bpmSettings.setReanalyzeWhenSettingsChange(m_bReanalyze);
     m_bpmSettings.setReanalyzeImported(m_bReanalyzeImported);
     m_bpmSettings.setFastAnalysis(m_bFastAnalysisEnabled);
+    m_bpmSettings.setBpmRangePreset(m_bpmRangePreset);
+    m_bpmSettings.setMatchExistingBpmRange(m_bMatchExistingBpm);
     m_bpmSettings.setStemStrategy(m_stemStrategy);
+}
+
+void DlgPrefBeats::slotBpmRangeChanged(int index) {
+    const QVariant data = comboBoxBpmRange->itemData(index);
+    if (data.isValid()) {
+        m_bpmRangePreset = data.toInt();
+    }
+    updateGui();
+}
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+void DlgPrefBeats::slotMatchExistingBpmChanged(Qt::CheckState state) {
+    m_bMatchExistingBpm = (state == Qt::Checked);
+#else
+void DlgPrefBeats::slotMatchExistingBpmChanged(int value) {
+    m_bMatchExistingBpm = static_cast<bool>(value);
+#endif
+    updateGui();
 }

@@ -94,6 +94,9 @@ struct Result {
     int beatsPerBar;        // 4
     int downbeatPhase;      // 0 for a freshly analyzed grid
     float confidence;       // heuristic, [0, 1]
+    int bpmRangeMin;        // window that produced this result
+    int bpmRangeMax;
+    bool bpmHintMismatch;   // existing BPM not reproduced by any preset
     std::vector<Transient> transients;
 };
 class Engine {
@@ -103,6 +106,11 @@ class Engine {
         int channelCount;
         std::int64_t totalFrames;
         bool keepTransients;
+        int bpmRangeMin;               // Traktor preset, default 88/175
+        int bpmRangeMax;
+        double existingBpm;            // 0 = none
+        bool matchExistingBpm;         // try other presets to reproduce it
+        bool preserveGridOnBpmMismatch;// leave ok=false instead of overwriting
     };
     explicit Engine(Config config);
     void pushInterleaved(const float* frames, int frameCount);
@@ -204,9 +212,11 @@ tracks reproduce the BPM **and** the anchor bit for bit:
 | Sexyy Red - Looking For The Hoes | 151.008881 | 0.354333133 | 717 |
 
 The transient counts for the three tracks with paired caches match exactly
-(1151, 613, 757). Two additional local tracks without a reference pairing
-(The Black Eyed Peas - Rock That Body, Travis Scott - SICKO MODE) also analyze
-successfully.
+(1151, 613, 757). Two additional local tracks are now paired as well and are
+covered in section 6: The Black Eyed Peas - Rock That Body (1617/1617
+transients, BPM and anchor identical to the native cache with the 78-155
+window) and Travis Scott - SICKO MODE (1661/1662 positions plus the same
+154.963882 BPM; the one differing position is 2.3e-10 s apart).
 
 Because the reference itself reproduces Traktor bit for bit, these numbers
 meet the acceptance row "BPM at most 0.002" and "downbeat at most 5 ms with
@@ -221,7 +231,89 @@ weight and bassWeight bit for bit.
 
 ---
 
-## 6. Persistence
+## 6. BPM search range
+
+Traktor does not scan a fixed window. The analysis dialog offers a list of
+minimum/maximum pairs and the scan is centred on their midpoint with half width
+`(max - min) / 2`. The engine reproduces the table exactly; it was read from the
+native preset array (`0x140f48ed0`, ten 0x28-byte entries) and each entry was
+verified against the native tempo chain:
+
+| Preset | Window | Notes |
+|---|---|---|
+| 0 | 95 - 115 | |
+| 1 | 58 - 115 | |
+| 2 | 68 - 135 | |
+| 3 | 78 - 155 | reproduces Rock That Body 125.000801 |
+| 4 | 88 - 175 | installation default |
+| 5 | 98 - 195 | |
+| 6 | 108 - 215 | |
+| 7 | 118 - 235 | |
+| 8 | 128 - 255 | |
+| 9 | 110 - 220 | labelled "Automatic"; never inferred from a stored BPM |
+
+`bpmRangeForPreset()` maps a preset index to the pair; the engine derives
+`centre = f32((min + max) * 0.5)` and `halfWidth = f32((max - min) * 0.5)` from
+it. An out-of-range value falls back to preset 4. The window only changes which
+tempo the three passes lock onto: the same transient list fed with another
+window reproduces the native result for that window bit for bit.
+
+Selecting the window matters: Rock That Body gives 166.667130 with 88-175 and
+125.000801 with 78-155, and only the latter is native. That is why the same
+engine looked "right" on 13 tracks and "wrong" on two.
+
+### 6.1 Reproducing an existing BPM
+
+A track that already carries a BPM was usually analyzed by Traktor with *some*
+window, and that choice is not stored in the collection. Paramix therefore
+offers **"Use an existing BPM to select the Traktor BPM range when
+re-analyzing"** (`[BPM] MatchExistingBpmRange`, default on). With
+`Config::existingBpm` set, the engine:
+
+1. runs the configured window first, and accepts it when its BPM is within
+   0.5 BPM of the existing value;
+2. otherwise runs every fixed preset and picks the closest result;
+3. accepts that result when it is within 0.5 BPM of the existing BPM;
+4. otherwise reports `bpmHintMismatch`. If
+   `Config::preserveGridOnBpmMismatch` is set (the analyzer sets it when the
+   track already has a grid) the result is left invalid, `finalize()` returns
+   false, and the existing grid is kept.
+
+The 0.5 BPM window covers importers that round BPM to an integer: Run This Town
+is stored as 174.0 but analyzes to 173.555801, and Rockstar Made is stored as
+150.0 but analyzes to 150.051865. Both are accepted and replaced with the
+Traktor-exact value. A deliberately halved or doubled BPM is far outside the
+window and is left alone.
+
+The tenth preset ("Automatic") is never inferred from a stored BPM. It stands
+for a window Traktor chooses itself, so it carries no information about what
+was used; including it would let its wide 110-220 window win the closeness
+comparison by accident (it produced 124.999596 for Rock That Body when the
+correct 78-155 window gives 125.000801).
+
+Rock That Body (stored 125.0) selects 78-155 and reproduces
+125.000801/1.884526134. SICKO MODE stores 139.000000, which no window
+reproduces (the native cache analyzes to 154.963882 with every window from
+68-135 upward), so the stored grid is preserved instead of being overwritten
+with a value Traktor never wrote.
+
+The hints are only available while the grid still exists: Mixxx's **Reanalyze**
+action clears the beats before queuing the track, so that path always runs a
+fresh analysis with the configured window. Both outcomes are logged:
+
+```text
+Paramix BPM hints: track 27 range 88 - 175 existing BPM 125 has grid true match existing true
+Paramix Analysis Engine stored native grid: BPM 125 anchor 83094 beatsPerBar 4 phase 0 confidence 1
+```
+
+```text
+Paramix BPM hints: track 28 range 88 - 175 existing BPM 139 has grid true match existing true
+Paramix Analysis Engine kept the existing beat grid: no Traktor BPM range reproduced the stored BPM
+```
+
+---
+
+## 7. Persistence
 
 The native grid bypasses `BeatFactory::makePreferredBeats()`. That factory
 re-derives a tempo region, snaps the BPM through a rounding ladder and
@@ -258,7 +350,7 @@ last, so `defaultPlugin()` remains Queen Mary.
 
 ---
 
-## 7. Confidence
+## 8. Confidence
 
 The confidence is a heuristic, not a probability. The phase stage scores four
 downbeat candidates. Let `best` and `second` be the winning and runner-up
@@ -276,7 +368,7 @@ sub-version.
 
 ---
 
-## 8. Operational notes
+## 9. Operational notes
 
 - **Fast analysis is ignored.** The engine needs the whole track for the
   global envelope and the finalize pass. When fast analysis is enabled while
@@ -288,12 +380,15 @@ sub-version.
   produced. The BPM editor still works normally.
 - **Stems.** `AnalyzerBeats` already reduces an 8-channel stem source to
   stereo before calling the plugin, so the engine always sees mono or stereo.
+- **BPM range.** The window selected in Preferences (default 88-175) is used for
+  this plugin only; Queen Mary and SoundTouch ignore it. The existing-BPM
+  matching described in section 6 is applied when the track still has a grid.
 - **No cache interop.** The engine does not read or write any Traktor file and
   does not use the Traktor peaks blob.
 
 ---
 
-## 9. Tests
+## 10. Tests
 
 `lib/paramix-analysis/test/` contains GTest coverage for:
 
@@ -301,8 +396,8 @@ sub-version.
 |---|---|
 | `frontend_test.cpp` | window, `log10(1+v)`, 512-point FFT magnitudes, fine/coarse flux, envelope, bass, 7-point gate, refinement, all against reference bits |
 | `resampler_test.cpp` | exact mode-6 reference, copy mode, declared frame count for every rate, DC gain, impulse alignment, determinism |
-| `tempo_phase_test.cpp` | three-pass tempo scan, circular mean, phase guess, downbeat choice, reference bits, perfect-grid behavior |
-| `engine_test.cpp` | end-to-end synthetic click tracks for all 12 rate buckets, mono/stereo agreement, determinism over three runs, idempotent finish, empty input, transient retention |
+| `tempo_phase_test.cpp` | three-pass tempo scan, circular mean, phase guess, downbeat choice, reference bits, perfect-grid behavior, explicit window |
+| `engine_test.cpp` | end-to-end synthetic click tracks for all 12 rate buckets, mono/stereo agreement, determinism over three runs, idempotent finish, empty input, transient retention, Traktor window selection, existing-BPM matching, grid preservation on mismatch, recovered preset table |
 | `mixxx_integration_test.cpp` | Qt plugin adapter end to end: plugin output, `Beats` construction, additive downbeat round-trip and monotonic beat iteration (built only inside Paramix) |
 
 The test binary is `paramix-analysis-test`; its tests are registered with CTest,
