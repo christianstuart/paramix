@@ -25,6 +25,8 @@ Each fix is tracked as an issue on the [project board](https://github.com/users/
 - [F11-fx-banks.md](F11-fx-banks.md) ([#69](https://github.com/christianstuart/paramix/issues/69)) - FX banks 1-2 fixed, 3-4 in a window
 - [F12-downbeats.md](F12-downbeats.md) ([#70](https://github.com/christianstuart/paramix/issues/70)) - downbeat lines
 - [F13-stem-lane-controls.md](F13-stem-lane-controls.md) ([#71](https://github.com/christianstuart/paramix/issues/71)) - stem labels, mute/solo, volume; remove stem pane
+- [F14-padfx-modes.md](F14-padfx-modes.md) - Pad FX stuck / "Off but plays" pads; per-pad momentary or toggle
+- [F15-compact-deck-band.md](F15-compact-deck-band.md) - deck transport band at loop-card height (112 -> 55 px)
 
 Each file lists its branch, worktree, owned files, findings, steps, verification and done condition. Line numbers quoted from research came from the stale tree; agents re-locate them after wave 0.
 
