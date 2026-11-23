@@ -46,9 +46,10 @@ Rectangle {
         Skin.ControlButton {
             id: jumpBackButton
 
+            // Fixed and icon-only so the size strip gets the width.
             Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.minimumWidth: 60
+            Layout.minimumWidth: 48
+            Layout.preferredWidth: 48
             group: root.group
             implicitHeight: 18
             key: "beatjump_backward"
@@ -130,7 +131,7 @@ Rectangle {
             id: sizeField
 
             Layout.fillHeight: true
-            Layout.preferredWidth: 52
+            Layout.preferredWidth: 44
             border.color: sizeInput.activeFocus ? Theme.focusRing : Theme.border
             border.width: 1
             color: Theme.surface2
@@ -173,19 +174,22 @@ Rectangle {
             Layout.fillHeight: true
             Layout.fillWidth: true
             Layout.minimumWidth: implicitWidth
+            centered: true
             decrementKey: "beatjump_size_halve"
             group: root.group
             incrementKey: "beatjump_size_double"
             key: "beatjump_size"
+            keyWidth: 30
             maxKeys: 8
             title: qsTr("Beatjump size")
         }
         Skin.ControlButton {
             id: jumpForwardButton
 
+            // Fixed and icon-only so the size strip gets the width.
             Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.minimumWidth: 60
+            Layout.minimumWidth: 48
+            Layout.preferredWidth: 48
             group: root.group
             implicitHeight: 18
             key: "beatjump_forward"

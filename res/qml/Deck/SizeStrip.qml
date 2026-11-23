@@ -22,6 +22,9 @@ Rectangle {
     property int maxKeys: 5
     /// Width each size key gets before another key is added.
     property int keyWidth: 34
+    /// Keep the current size lit in the middle key: the chevrons and the
+    /// wheel step the size and the strip scrolls with it.
+    property bool centered: false
 
     readonly property color buttonColor: trackLoadedControl.value > 0 ? Theme.textSecondary : Theme.textMuted
 
@@ -36,6 +39,17 @@ Rectangle {
 
         group: root.group
         key: "track_loaded"
+    }
+    // Rebuild the strip when the size changes from anywhere (keys, chevrons,
+    // the size field, a controller). It must live outside the Repeater, whose
+    // default property is its delegate.
+    Connections {
+        function onValueChanged() {
+            sizeRepeater.selectedIndex = Math.max(0, sizeRepeater.values.indexOf(size.value));
+            sizeRepeater.update();
+        }
+
+        target: size
     }
     BeatSizeSpinBoxBehavior {
         id: size
@@ -56,6 +70,10 @@ Rectangle {
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             onWheel: event => {
+                if (root.centered) {
+                    size.step(event.angleDelta.y > 0 ? 1 : -1);
+                    return;
+                }
                 if (event.angleDelta.y < 0) {
                     sizeRepeater.adjustSelectedIndex(-1);
                 } else if (event.angleDelta.y > 0) {
@@ -80,6 +98,20 @@ Rectangle {
                 sizeRepeater.selectedIndex = Math.min(Math.max(0, sizeRepeater.selectedIndex + delta), sizeRepeater.values.length - 1);
             }
             function update() {
+                if (root.centered) {
+                    // An odd window around the current size; slots past either
+                    // end stay empty so the current size never leaves the middle.
+                    const count = valueCount % 2 === 1 ? valueCount : Math.max(1, valueCount - 1);
+                    const half = Math.floor(count / 2);
+                    const current = size.nearestBeatSizeIndex(size.value);
+                    let window = [];
+                    for (let j = 0; j < count; ++j) {
+                        const i = current + j - half;
+                        window.push(i >= 0 && i < this.values.length ? this.values[i] : -1);
+                    }
+                    model = window;
+                    return;
+                }
                 let values = [this.values[selectedIndex]];
                 let appendMode = values[0] <= this.values[0];
                 while (values.length < valueCount) {
@@ -109,14 +141,6 @@ Rectangle {
             onSelectedIndexChanged: update()
             onValueCountChanged: update()
 
-            Connections {
-                function onValueChanged() {
-                    parent.selectedIndex = Math.max(0, parent.values.indexOf(size.value));
-                    parent.update();
-                }
-
-                target: size
-            }
             Skin.Button {
                 property double currentSize: modelData
                 required property int index
@@ -127,11 +151,17 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.minimumWidth: labelWidth
                 activeColor: Theme.textOnAccent
-                highlight: currentSize == size.value && trackLoadedControl.value > 0
+                // Empty end slots of the centered strip keep their place.
+                enabled: currentSize > 0
+                // Centered: the middle key is the current size, always lit.
+                highlight: root.centered
+                        ? index === Math.floor(sizeRepeater.count / 2)
+                        : currentSize == size.value && trackLoadedControl.value > 0
                 implicitHeight: 18
                 implicitWidth: root.keyWidth
                 labelPadding: 2
-                text: size.formatBeatSize(currentSize)
+                opacity: currentSize > 0 ? 1 : 0
+                text: currentSize > 0 ? size.formatBeatSize(currentSize) : ""
 
                 onPressed: size.commitText(currentSize.toString())
             }
