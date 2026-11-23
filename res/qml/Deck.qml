@@ -434,7 +434,6 @@ Item {
 
                 DeckComponent.TempoColumn {
                     anchors.fill: parent
-                    compact: true
                     currentTrack: root.currentTrack
                     group: root.group
                 }
@@ -478,9 +477,9 @@ Item {
             LayoutItem {
                 id: jogItem
 
-                /// As wide as the deck row is tall, capped so the controls keep
+                /// As wide as the deck row is tall up to deckJogMaxSize, capped so the controls keep
                 /// their minimum width.
-                readonly property real size: Math.max(0, Math.min(jogItem.height,
+                readonly property real size: Math.max(0, Math.min(jogItem.height, Theme.deckJogMaxSize,
                         root.width - Theme.deckJogReservedWidth))
 
                 Layout.fillHeight: true

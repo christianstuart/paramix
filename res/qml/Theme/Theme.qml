@@ -438,6 +438,8 @@ QtObject {
     /// Everything in the deck row except the jog column: margins 8, Play/Cue 52,
     /// loop card 168 + 4, pane floor 188, tempo strip 60 and four 5 px gaps.
     readonly property int deckJogReservedWidth: 380
+    /// Largest jog platter; the column centres it vertically.
+    readonly property int deckJogMaxSize: Math.round(112 * uiScale)
     /// Fixed waveform overview height; the card band below takes the rest.
     readonly property int deckOverviewHeight: Math.round(44 * uiScale)
     /// Deck toolbar stacked in two rows under the jog platter.

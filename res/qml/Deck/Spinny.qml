@@ -5,8 +5,8 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import "../Theme"
 
-/// Platter with concentric rings, a rotating position tick and the live BPM /
-/// pitch readout in the centre.
+/// Platter with concentric rings and a rotating position tick. The BPM lives
+/// in the tempo strip beside it.
 ///
 /// The platter is deliberately matte: flat surface tokens, 1 px hairlines and
 /// no glow. The tick and hub only brighten when a track is loaded, so the
@@ -87,70 +87,6 @@ Item {
                         }
                     }
                 }
-            }
-        }
-    }
-    Column {
-        id: tempoInfo
-
-        anchors.centerIn: spinner
-        opacity: trackLoadedControl.value ? 1 : 0
-        // A small platter's hub cannot hold the readout; the tempo strip
-        // beside it shows the same BPM.
-        visible: spinner.width >= 90
-        spacing: 1
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.motionNormal
-            }
-        }
-
-        Label {
-            id: tempo
-
-            readonly property real bpm: bpmControl.value
-            readonly property int precision: 2
-
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: Theme.textPrimary
-            font.family: Theme.fontFamilyMono
-            // The hub shrinks with the platter, so the readout drops a size.
-            font.pixelSize: spinner.width >= 140 ? Theme.fontSizeLg : Theme.fontSizeMd
-            font.weight: Theme.fontWeightDemiBold
-            horizontalAlignment: Text.AlignHCenter
-            text: `${Math.round(bpm)}.${((bpm % 1) * Math.pow(10, precision)).toFixed().padEnd(precision, "0")}`
-
-            Accessible.name: qsTr("%1 BPM").arg(tempo.text)
-            Accessible.role: Accessible.StaticText
-
-            Mixxx.ControlProxy {
-                id: bpmControl
-
-                group: root.group
-                key: "bpm"
-            }
-        }
-        Label {
-            id: pitchRatio
-
-            readonly property real ratio: ((rateRatioControl.value - 1) * 100).toPrecision(2)
-
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: Theme.textMuted
-            font.family: Theme.fontFamilyMono
-            font.pixelSize: Theme.fontSizeXs
-            horizontalAlignment: Text.AlignHCenter
-            text: ((ratio > 0) ? "+" + ratio.toFixed(2) : ratio.toFixed(2)) + "%"
-
-            Accessible.name: qsTr("Pitch %1").arg(pitchRatio.text)
-            Accessible.role: Accessible.StaticText
-
-            Mixxx.ControlProxy {
-                id: rateRatioControl
-
-                group: root.group
-                key: "rate_ratio"
             }
         }
     }

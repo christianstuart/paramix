@@ -14,9 +14,8 @@ import "../Theme"
 GridLayout {
     id: root
 
-    /// Beside the jog: readout, keylock row, SYNC and range in a column, the
-    /// fader full height on the right. The rate nudge keys are controller-only.
-    property bool compact: false
+    // One column: BPM readout, fader, then keylock, SYNC and range. The rate
+    // nudge keys are controller-only.
     required property var currentTrack
     /// True while the BPM readout is replaced by the text field.
     property bool editingBpm: false
@@ -49,7 +48,7 @@ GridLayout {
     }
 
     columnSpacing: Theme.space1
-    columns: root.compact ? 2 : 1
+    columns: 1
     rowSpacing: Theme.space1
 
     Mixxx.ControlProxy {
@@ -83,9 +82,6 @@ GridLayout {
         id: readoutBlock
 
         Layout.column: 0
-        // Beside the full-height fader the readout takes the spare height,
-        // so the keylock row and SYNC keep their key size.
-        Layout.fillHeight: root.compact
         Layout.fillWidth: true
         Layout.row: 0
         implicitHeight: bpmReadout.implicitHeight + pitchRatio.implicitHeight
@@ -246,7 +242,7 @@ GridLayout {
         Layout.fillWidth: true
         Layout.maximumHeight: 24
         Layout.preferredHeight: 20
-        Layout.row: 1
+        Layout.row: 2
         spacing: Theme.space1
 
         Skin.ControlButton {
@@ -459,13 +455,11 @@ GridLayout {
         }
     }
     RowLayout {
-        Layout.column: root.compact ? 1 : 0
+        Layout.column: 0
         Layout.fillHeight: true
-        Layout.fillWidth: !root.compact
-        Layout.preferredWidth: root.compact ? 22 : -1
-        Layout.row: root.compact ? 0 : 2
-        // Full height beside readout, keylock, SYNC and range.
-        Layout.rowSpan: root.compact ? 4 : 1
+        Layout.fillWidth: true
+        // Between the BPM readout above and the keylock, SYNC and range below.
+        Layout.row: 1
         spacing: Theme.space1
 
         Skin.ControlFader {
@@ -537,7 +531,7 @@ GridLayout {
         Layout.fillWidth: true
         Layout.maximumHeight: 24
         Layout.preferredHeight: 20
-        Layout.row: root.compact ? 2 : 3
+        Layout.row: 3
         group: root.group
     }
     Skin.RangeButton {
@@ -547,7 +541,7 @@ GridLayout {
         Layout.column: 0
         Layout.fillWidth: true
         Layout.preferredHeight: 20
-        Layout.row: root.compact ? 3 : 4
+        Layout.row: 4
         group: root.group
     }
 }
