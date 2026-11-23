@@ -13,7 +13,8 @@ import "../Theme"
 /// band stays the same height while the old 34 px vertical column is gone. The
 /// active pane is filled by the accent; the grid lock badge stays on the GRID
 /// tab so the state is visible from every pane.
-RowLayout {
+// Stacked selector to the right of the pane (Traktor style).
+ColumnLayout {
     id: root
 
     /// 0 = Move (beatjump), 1 = Cue (hotcues), 2 = Grid (beatgrid),
@@ -40,7 +41,7 @@ RowLayout {
     }
 
     objectName: "deckPaneTabs"
-    spacing: Theme.space1
+    spacing: 2
 
     Mixxx.ControlProxy {
         id: padFxBankControl
@@ -89,17 +90,14 @@ RowLayout {
                     ? qsTr("Pad FX. Click for FX 1, shift-click for FX 2.")
                     : modelData.hint
 
+            // The four tabs share the pane row's height; each keeps at least
+            // the tab height so the labels never clip.
             Layout.fillHeight: true
             Layout.fillWidth: true
-            // Pin the whole height contract, not just the minimum: the row is
-            // 12 px while a plain Button implies 26, and a parent layout that
-            // is only told about the cap can shrink the row (and the pane
-            // below it) to resolve the deficit. Matching implicit and preferred
-            // to the tab height makes the row's own hint 12 as well.
-            Layout.maximumHeight: Theme.deckPaneTabHeight
             Layout.minimumHeight: Theme.deckPaneTabHeight
             Layout.preferredHeight: Theme.deckPaneTabHeight
             highlight: tab.current
+            implicitWidth: Theme.deckPaneTabColumnWidth
             implicitHeight: Theme.deckPaneTabHeight
             normalColor: Theme.textMuted
 
@@ -118,7 +116,7 @@ RowLayout {
                 font.capitalization: Font.AllUppercase
                 font.family: Theme.fontFamily
                 font.letterSpacing: Theme.letterSpacingCaps
-                font.pixelSize: Math.min(Theme.fontSizeXs, Theme.deckPaneTabHeight - 4)
+                font.pixelSize: Math.min(Theme.fontSizeXs, tab.height - 3)
                 font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
                 text: tab.displayLabel

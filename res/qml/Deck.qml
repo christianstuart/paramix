@@ -30,12 +30,8 @@ Item {
     property bool minimized: false
     /// Persisted per deck so the chosen pane survives a restart.
     readonly property string paneControlKey: "deck" + group.replace(/[^0-9]/g, "") + "_pane"
-    /// Height shared by the MOVE / CUE / GRID / PAD FX pane band and the
-    /// full-height loop card inside the transport block, so both line up top and
-    /// bottom.
-    readonly property int paneHeight: Theme.deckPaneHeight
-    /// The opt-in jog platter sits beside the tempo strip once the deck has
-    /// room for the whole row plus a usable platter.
+    /// The opt-in jog platter sits between the overview and the tempo strip,
+    /// as tall as the top row.
     readonly property bool jogShown: Mixxx.Config.paramixShowJogWheels
             && (root.width <= 0 || root.width >= Theme.deckSpinnyMinWidth)
 
@@ -46,21 +42,11 @@ Item {
         if (type === "spinny") {
             return root.jogShown;
         }
-        if (type === "sideColumn") {
-            return true;
-        }
-        // The toolbar moves under the jog platter while the jog shows.
-        if (type === "toolbar") {
-            return !root.jogShown;
-        }
-        if (type === "toolbarSide") {
-            return root.jogShown;
-        }
         if (root.width <= 0) {
             return true;
         }
         if (type === "fxAssign") {
-            return root.width >= Theme.deckFullRowMinWidth + (root.jogShown ? 140 : 0);
+            return root.width >= Theme.deckFullRowMinWidth + 200;
         }
         return minWidth < root.width;
     }
@@ -96,84 +82,51 @@ Item {
                     "type": "info"
                 },
                 {
-                    "type": "row",
+                    // Traktor layout: overview with the optional jog and the
+                    // compact tempo strip beside it...
+                    "type": "topRow",
                     "items": [
                         {
-                            "type": "column",
-                            "items": [
-                                {
-                                    "type": "waveformOverview"
-                                },
-                                {
-                                    // Transport row: play/cue on the left, then
-                                    // the full-height loop card and the pane
-                                    // column with its horizontal tabs above it.
-                                    "type": "transport",
-                                    "items": [
-                                        {
-                                            "type": "column",
-                                            "items": [
-                                                {
-                                                    "type": "play"
-                                                },
-                                                {
-                                                    "type": "cue"
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "type": "column",
-                                            "items": [
-                                                {
-                                                    "type": "toolbar"
-                                                },
-                                                {
-                                                    "type": "vinyl"
-                                                },
-                                                {
-                                                    // Loop card on the left, the pane
-                                                    // column on the right: the
-                                                    // CUE/MOVE/GRID/PAD FX row
-                                                    // sits above the pane, so
-                                                    // there is no vertical tab
-                                                    // column.
-                                                    "type": "row",
-                                                    "items": [
-                                                        {
-                                                            "type": "loop"
-                                                        },
-                                                        {
-                                                            "type": "deckPane"
-                                                        }
-                                                    ]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
+                            "type": "waveformOverview"
                         },
                         {
-                            // Jog platter (opt-in) and the FX-assign keys,
-                            // each with its own width gate in rowItemShown().
-                            "type": "sideColumn",
-                            "items": [
-                                {
-                                    "type": "spinny"
-                                },
-                                {
-                                    "type": "toolbarSide"
-                                },
-                                {
-                                    "type": "fxAssign"
-                                }
-                            ]
+                            "type": "spinny"
                         },
                         {
-                            "type": "tempo",
-                            "minWidth": Theme.deckTempoMinWidth
+                            "type": "tempo"
+                        },
+                        {
+                            "type": "fxAssign"
                         }
                     ]
+                },
+                {
+                    // ...then two full-width rows: transport and loop...
+                    "type": "transport",
+                    "items": [
+                        {
+                            "type": "play"
+                        },
+                        {
+                            "type": "cue"
+                        },
+                        {
+                            "type": "toolbar"
+                        },
+                        {
+                            "type": "loop"
+                        },
+                        {
+                            "type": "syncRange"
+                        }
+                    ]
+                },
+                {
+                    "type": "vinyl"
+                },
+                {
+                    // ...and the pane with its stacked selector.
+                    "type": "deckPane"
                 }
             ]
         });
@@ -305,17 +258,16 @@ Item {
         DelegateChoice {
             roleValue: "loop"
 
+            // The loop row takes the transport row's spare width: its size
+            // strip adds keys as the deck widens.
             LayoutItem {
-                // The card and the pane beside it fill the band under the
-                // fixed-height overview; deckLoopCardHeight is only the floor.
                 Layout.fillHeight: true
-                Layout.maximumWidth: Theme.deckLoopCardWidth
-                Layout.minimumHeight: Theme.deckLoopCardHeight
-                Layout.minimumWidth: Theme.deckLoopCardWidth
-                Layout.preferredWidth: Theme.deckLoopCardWidth
-                Layout.rightMargin: Theme.space1
+                Layout.fillWidth: true
+                Layout.minimumWidth: loopRow.implicitWidth
 
                 DeckComponent.Loop {
+                    id: loopRow
+
                     anchors.fill: parent
                     group: root.group
                 }
@@ -324,25 +276,23 @@ Item {
         DelegateChoice {
             roleValue: "deckPane"
 
+            // Full-width pane row with the stacked CUE / MOVE / GRID / FX
+            // selector on its right edge (Traktor style).
             LayoutItem {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumHeight: root.paneHeight
-                // 196, not 200: the loop card and the tempo strip still fit a
-                // 564 px deck, which is what a 1280 px window gives.
-                Layout.minimumWidth: Theme.deckPaneMinWidth
+                Layout.minimumHeight: Theme.deckPaneContentHeight
 
-                ColumnLayout {
+                RowLayout {
                     anchors.fill: parent
+                    layoutDirection: Qt.RightToLeft
                     spacing: Theme.deckPaneTabGap
 
-                    // Horizontal CUE / MOVE / GRID / PAD FX tabs above the
-                    // pane; tab row, gap and pane sum to the loop card height.
                     DeckComponent.DeckPaneTabs {
-                        Layout.fillWidth: true
-                        Layout.maximumHeight: Theme.deckPaneTabHeight
-                        Layout.minimumHeight: Theme.deckPaneTabHeight
-                        Layout.preferredHeight: Theme.deckPaneTabHeight
+                        Layout.fillHeight: true
+                        Layout.maximumWidth: Theme.deckPaneTabColumnWidth
+                        Layout.minimumWidth: Theme.deckPaneTabColumnWidth
+                        Layout.preferredWidth: Theme.deckPaneTabColumnWidth
                         activePane: root.activePane
                         gridLocked: bpmlockControl.value > 0
                         group: root.group
@@ -433,11 +383,10 @@ Item {
             roleValue: "waveformOverview"
 
             LayoutItem {
-                // Fixed height in the full deck so the cards get the rest; the
-                // minimized deck has nothing else to give the height to.
-                Layout.fillHeight: root.minimized
+                // Fills the top row (or the minimized deck); the top row's own
+                // height is fixed.
+                Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.minimized ? -1 : Theme.deckOverviewHeight
 
                 DeckComponent.WaveformOverview {
                     anchors.fill: parent
@@ -454,10 +403,7 @@ Item {
 
                 required property int index
 
-                Layout.alignment: Qt.AlignHCenter
-                // Under the jog the keys keep their 30 px slot; alone they fill.
-                Layout.fillHeight: !root.jogShown
-                Layout.preferredHeight: 30
+                Layout.fillHeight: true
                 objectName: "deckFxAssign"
                 // `required property index` hides the model's `type` role, so
                 // name the gate explicitly.
@@ -475,14 +421,50 @@ Item {
 
             LayoutItem {
                 Layout.fillHeight: true
-                Layout.maximumWidth: 60
-                Layout.minimumWidth: 60
-                Layout.preferredWidth: 60
+                Layout.maximumWidth: Theme.deckTempoCompactWidth
+                Layout.minimumWidth: Theme.deckTempoCompactWidth
+                Layout.preferredWidth: Theme.deckTempoCompactWidth
 
                 DeckComponent.TempoColumn {
                     anchors.fill: parent
+                    compact: true
                     currentTrack: root.currentTrack
                     group: root.group
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "syncRange"
+
+            // SYNC and the tempo range moved here from the tempo strip.
+            LayoutItem {
+                Layout.fillHeight: true
+                Layout.preferredWidth: syncRangeRow.implicitWidth
+
+                RowLayout {
+                    id: syncRangeRow
+
+                    anchors.fill: parent
+                    spacing: Theme.deckLoopKeyGap
+
+                    Skin.SyncButton {
+                        id: syncButton
+
+                        Accessible.name: syncButton.highlight ? qsTr("Disable sync") : qsTr("Enable sync")
+                        Layout.fillHeight: true
+                        Layout.minimumWidth: labelWidth
+                        Layout.preferredWidth: labelWidth
+                        group: root.group
+                        labelPadding: 4
+                    }
+                    Skin.RangeButton {
+                        Accessible.name: qsTr("Tempo range")
+                        Layout.fillHeight: true
+                        Layout.minimumWidth: labelWidth
+                        Layout.preferredWidth: labelWidth
+                        group: root.group
+                        labelPadding: 4
+                    }
                 }
             }
         }
@@ -524,9 +506,8 @@ Item {
             LayoutItem {
                 id: jogItem
 
-                /// As wide as the row is tall, capped so the cards keep their floor.
-                readonly property real size: Math.max(0, Math.min(jogItem.height,
-                        root.width - Theme.deckJogReservedWidth))
+                /// As wide as the top row is tall.
+                readonly property real size: jogItem.height
 
                 Layout.fillHeight: true
                 Layout.maximumWidth: jogItem.size
@@ -550,11 +531,27 @@ Item {
         DelegateChoice {
             roleValue: "transport"
 
-            // The transport row takes all height below the fixed overview, so
-            // the cards grow instead of the waveform.
+            // Fixed-height transport row: Play, Cue, deck modes, the loop row,
+            // SYNC and range.
             LayoutContainer {
-                Layout.fillHeight: true
+                Layout.fillHeight: false
                 Layout.fillWidth: true
+                Layout.maximumHeight: Theme.deckTransportRowHeight
+                Layout.minimumHeight: Theme.deckTransportRowHeight
+                Layout.preferredHeight: Theme.deckTransportRowHeight
+                disposition: GridLayout.LeftToRight
+            }
+        }
+        DelegateChoice {
+            roleValue: "topRow"
+
+            // Overview, optional jog and the compact tempo strip.
+            LayoutContainer {
+                Layout.fillHeight: false
+                Layout.fillWidth: true
+                Layout.maximumHeight: Theme.deckTopHeight
+                Layout.minimumHeight: Theme.deckTopHeight
+                Layout.preferredHeight: Theme.deckTopHeight
                 disposition: GridLayout.LeftToRight
             }
         }
@@ -587,42 +584,21 @@ Item {
             }
         }
         DelegateChoice {
-            roleValue: "sideColumn"
-
-            // Sized by its children (jog platter, FX keys), never stretched.
-            LayoutContainer {
-                Layout.fillHeight: true
-                Layout.fillWidth: false
-                disposition: GridLayout.TopToBottom
-            }
-        }
-        DelegateChoice {
             roleValue: "toolbar"
 
+            // Reverse, QNT, SLIP, RPT and eject, sized to their keys in the
+            // transport row.
             LayoutItem {
-                Layout.fillWidth: true
-                Layout.minimumHeight: 22
-                Layout.preferredHeight: 22
+                Layout.fillHeight: true
+                Layout.minimumWidth: deckToolbar.implicitWidth
+                Layout.preferredWidth: deckToolbar.implicitWidth
 
                 DeckComponent.Toolbar {
-                    anchors.fill: parent
-                    group: root.group
-                }
-            }
-        }
-        DelegateChoice {
-            roleValue: "toolbarSide"
+                    id: deckToolbar
 
-            // The same toolbar, stacked in two rows under the jog platter.
-            LayoutItem {
-                Layout.fillWidth: true
-                Layout.minimumHeight: Theme.deckSideToolbarHeight
-                Layout.preferredHeight: Theme.deckSideToolbarHeight
-
-                DeckComponent.Toolbar {
                     anchors.fill: parent
+                    compactRow: true
                     group: root.group
-                    stacked: true
                 }
             }
         }

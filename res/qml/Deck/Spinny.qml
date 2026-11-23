@@ -95,6 +95,9 @@ Item {
 
         anchors.centerIn: spinner
         opacity: trackLoadedControl.value ? 1 : 0
+        // A small platter's hub cannot hold the readout; the tempo strip
+        // beside it shows the same BPM.
+        visible: spinner.width >= 90
         spacing: 1
 
         Behavior on opacity {

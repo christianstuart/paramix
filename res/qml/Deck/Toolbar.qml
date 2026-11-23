@@ -20,9 +20,14 @@ Rectangle {
     /// Two rows (reverse, QNT, SLIP / RPT, eject) for the narrow slot under
     /// the jog platter.
     property bool stacked: false
+    /// Sized to its keys inside the deck's transport row: no stretch spacer,
+    /// and the mode keys always show because the row gives them their width.
+    property bool compactRow: false
     /// The mode keys need roughly 130 px in one row; below that the icon keys
-    /// keep the row usable. Stacked, they always fit.
-    readonly property bool showModeButtons: root.stacked || root.width > 250
+    /// keep the row usable. Stacked or compact, they always fit.
+    readonly property bool showModeButtons: root.stacked || root.compactRow || root.width > 250
+
+    implicitWidth: toolbarGrid.implicitWidth + 2 * Theme.space1
 
     border.color: Theme.borderStrong
     border.width: 1
@@ -39,6 +44,8 @@ Rectangle {
     // One row by default; stacked it is a 3-column grid, and the divider and
     // spacer drop out so the keys flow into two rows.
     GridLayout {
+        id: toolbarGrid
+
         anchors.bottomMargin: root.stacked ? 2 : 0
         anchors.fill: parent
         anchors.leftMargin: Theme.space1
@@ -161,7 +168,7 @@ Rectangle {
         }
         Item {
             Layout.fillWidth: true
-            visible: !root.stacked
+            visible: !root.stacked && !root.compactRow
         }
         Skin.ControlButton {
             id: ejectButton

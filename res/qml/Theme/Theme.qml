@@ -373,7 +373,20 @@ QtObject {
     /// pane and toolbar. The band uses it so the deck can never be clipped by a
     /// shorter mixer, which is what made the panes read wrong.
     /// 4 + 52 (header) + 22 (toolbar) + 64 (pane band) + 4 + 46 (overview) = 192.
-    readonly property int deckMinHeight: Math.round(128 * uiScale) + deckPaneHeight
+    /// F18 rows: margins, header, top row (overview / jog / tempo), transport
+    /// row and the pane row's floor, with the three 5 px layout gaps.
+    readonly property int deckMinHeight: 8 + deckHeaderHeight + deckTopHeight
+            + deckTransportRowHeight + deckPaneContentHeight + 15
+    /// Top row: overview, optional jog platter and the compact tempo strip.
+    readonly property int deckTopHeight: Math.round(56 * uiScale)
+    /// Traktor-style transport row under the overview.
+    readonly property int deckTransportRowHeight: Math.round(28 * uiScale)
+    /// Width of the stacked CUE / MOVE / GRID / FX selector.
+    readonly property int deckPaneTabColumnWidth: Math.round(44 * uiScale)
+    /// Compact tempo strip beside the overview.
+    readonly property int deckTempoCompactWidth: Math.round(100 * uiScale)
+    /// Narrowest loop-row key (the one-letter anchor).
+    readonly property int deckLoopKeyMinWidth: Math.round(22 * uiScale)
     /// Height of the MOVE / CUE / GRID / PAD FX deck band: the horizontal tab
     /// row plus the pane content. Bound to the loop card so the band is exactly
     /// as tall as the card beside it at every uiScale.
@@ -418,7 +431,7 @@ QtObject {
     // The jog wheel is opt-in (Preferences > Interface > Show a jog wheel). It
     // sits beside the tempo strip, as wide as the row is tall, and shows once
     // the deck has deckJogReservedWidth plus a 96 px platter.
-    readonly property int deckSpinnyMinWidth: deckJogReservedWidth + 96
+    readonly property int deckSpinnyMinWidth: 480
     readonly property int deckFullRowMinWidth: 708
     /// Everything in the deck row except the jog column: margins 8, Play/Cue 52,
     /// loop card 168 + 4, pane floor 188, tempo strip 60 and four 5 px gaps.
@@ -428,7 +441,7 @@ QtObject {
     /// Deck toolbar stacked in two rows under the jog platter.
     readonly property int deckSideToolbarHeight: Math.round(48 * uiScale)
     /// Play / Cue key width beside the loop card.
-    readonly property int deckTransportKeyWidth: 52
+    readonly property int deckTransportKeyWidth: 40
     readonly property int deckTempoMinWidth: 563
 
     /// Window width below which the focused deck keeps the centred mixer.

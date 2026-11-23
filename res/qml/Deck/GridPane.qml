@@ -207,41 +207,49 @@ Rectangle {
 
                 onClicked: root.markerClear = !root.markerClear
             }
-            Skin.ControlButton {
-                id: alignButton
+            // Moves as one group so its key order never flips when it
+            // changes rows.
+            RowLayout {
+                id: alignGroup
 
                 parent: root.threeRows ? middleRow : topRow
                 Layout.column: 0
-                Accessible.description: qsTr("Move the beatgrid so a beat lands on the current position")
-                Accessible.name: qsTr("Align beatgrid to current position")
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: labelWidth
-                labelPadding: 2
-                labelPixelSize: root.keyFontSize
-                activeColor: Theme.textOnAccent
-                group: root.group
-                implicitHeight: 24
-                key: "beats_translate_curpos"
-                text: qsTr("Align")
-            }
-            Skin.ControlButton {
-                id: matchButton
+                spacing: 2
 
-                parent: root.threeRows ? middleRow : topRow
-                Layout.column: 1
-                Accessible.description: qsTr("Align the grid to the nearest beat of another playing deck")
-                Accessible.name: qsTr("Match beatgrid to other deck")
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                Layout.minimumWidth: labelWidth
-                labelPadding: 2
-                labelPixelSize: root.keyFontSize
-                activeColor: Theme.textOnAccent
-                group: root.group
-                implicitHeight: 24
-                key: "beats_translate_match_alignment"
-                text: qsTr("Match")
+                Skin.ControlButton {
+                    id: alignButton
+
+                    Accessible.description: qsTr("Move the beatgrid so a beat lands on the current position")
+                    Accessible.name: qsTr("Align beatgrid to current position")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    group: root.group
+                    implicitHeight: 24
+                    key: "beats_translate_curpos"
+                    text: qsTr("Align")
+                }
+                Skin.ControlButton {
+                    id: matchButton
+
+                    Accessible.description: qsTr("Align the grid to the nearest beat of another playing deck")
+                    Accessible.name: qsTr("Match beatgrid to other deck")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    group: root.group
+                    implicitHeight: 24
+                    key: "beats_translate_match_alignment"
+                    text: qsTr("Match")
+                }
             }
         }
         // Only populated in three-row mode: the four text keys reparent here.
@@ -313,43 +321,51 @@ Rectangle {
                 key: "beats_adjust_faster"
                 text: qsTr("B+")
             }
-            Skin.ControlButton {
-                id: lockButton
+            // Moves as one group so its key order never flips when it
+            // changes rows.
+            RowLayout {
+                id: lockGroup
 
                 parent: root.threeRows ? middleRow : bottomRow
-                Layout.column: 2
-                Accessible.description: qsTr("Prevent accidental BPM and grid changes")
-                Accessible.name: qsTr("BPM lock")
+                Layout.column: 1
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: labelWidth
-                labelPadding: 2
-                labelPixelSize: root.keyFontSize
-                activeColor: Theme.textOnAccent
-                group: root.group
-                implicitHeight: 16
-                key: "bpmlock"
-                text: qsTr("Lock")
-                toggleable: true
-            }
-            Skin.ControlButton {
-                id: undoButton
+                spacing: 2
 
-                parent: root.threeRows ? middleRow : bottomRow
-                Layout.column: 3
-                Accessible.description: qsTr("Revert the last BPM or beatgrid adjustment")
-                Accessible.name: qsTr("Undo beatgrid adjustment")
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                Layout.minimumWidth: labelWidth
-                labelPadding: 2
-                labelPixelSize: root.keyFontSize
-                activeColor: Theme.textOnAccent
-                enabled: root.loaded && beatsUndoPossible.value > 0
-                group: root.group
-                implicitHeight: 16
-                key: "beats_undo_adjustment"
-                text: qsTr("Undo")
+                Skin.ControlButton {
+                    id: lockButton
+
+                    Accessible.description: qsTr("Prevent accidental BPM and grid changes")
+                    Accessible.name: qsTr("BPM lock")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    group: root.group
+                    implicitHeight: 16
+                    key: "bpmlock"
+                    text: qsTr("Lock")
+                    toggleable: true
+                }
+                Skin.ControlButton {
+                    id: undoButton
+
+                    Accessible.description: qsTr("Revert the last BPM or beatgrid adjustment")
+                    Accessible.name: qsTr("Undo beatgrid adjustment")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    enabled: root.loaded && beatsUndoPossible.value > 0
+                    group: root.group
+                    implicitHeight: 16
+                    key: "beats_undo_adjustment"
+                    text: qsTr("Undo")
+                }
             }
         }
     }

@@ -406,3 +406,14 @@ The overview is a fixed `deckOverviewHeight` (44) and the card band fills the re
 `deckSideToolbarHeight` 48) and the platter shrinks to ~105. The loop card is 168 wide
 (`deckJogReservedWidth` 500). Grid keys and pad/hotcue faces switch to 12 px text once their rows are tall
 enough.
+
+## Traktor deck rows (F18, 2026-11-22)
+
+Supersedes the F16/F17 card layout. Under the header: a fixed `deckTopHeight` (56) row with the
+overview, the optional jog platter (as wide as the row is tall) and the compact tempo strip
+(`TempoColumn.compact`, `deckTempoCompactWidth` 100); a fixed `deckTransportRowHeight` (28) row with
+Play, Cue, the deck toolbar (`Toolbar.compactRow`), the loop row (shared `Deck/SizeStrip.qml`,
+A, In, Out, Loop, Reloop) and SYNC / range; then the pane row filling the rest, full width, with
+the stacked CUE / MOVE / GRID / FX selector on its right (`deckPaneTabColumnWidth` 44).
+`deckMinHeight` is the sum of those rows. At 1440x852 the Cue and Pad FX panes are one row of
+eight and the Grid uses two rows.

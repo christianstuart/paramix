@@ -11,9 +11,13 @@ import "../Theme"
 /// Every control is 16-24 px high and shares the neutral-surface /
 /// accent-active treatment used by the toolbar. Key colours tint the key
 /// label only, not the whole button, so the strip stays calm at rest.
-ColumnLayout {
+GridLayout {
     id: root
 
+    /// Beside the overview (Traktor layout): readout and keylock row on the
+    /// left, the fader and nudge keys on the right; SYNC and range live in the
+    /// deck's transport row instead.
+    property bool compact: false
     required property var currentTrack
     /// True while the BPM readout is replaced by the text field.
     property bool editingBpm: false
@@ -45,7 +49,9 @@ ColumnLayout {
         root.editingBpm = false;
     }
 
-    spacing: Theme.space1
+    columnSpacing: Theme.space1
+    columns: root.compact ? 2 : 1
+    rowSpacing: Theme.space1
 
     Mixxx.ControlProxy {
         id: keyCO
@@ -77,7 +83,9 @@ ColumnLayout {
     Item {
         id: readoutBlock
 
+        Layout.column: 0
         Layout.fillWidth: true
+        Layout.row: 0
         implicitHeight: bpmReadout.implicitHeight + pitchRatio.implicitHeight
         opacity: trackLoadedControl.value ? 1 : 0
 
@@ -232,8 +240,10 @@ ColumnLayout {
         }
     }
     RowLayout {
+        Layout.column: 0
         Layout.fillWidth: true
         Layout.preferredHeight: 20
+        Layout.row: 1
         spacing: Theme.space1
 
         Skin.ControlButton {
@@ -446,8 +456,12 @@ ColumnLayout {
         }
     }
     RowLayout {
+        Layout.column: root.compact ? 1 : 0
         Layout.fillHeight: true
-        Layout.fillWidth: true
+        Layout.fillWidth: !root.compact
+        Layout.preferredWidth: root.compact ? 36 : -1
+        Layout.row: root.compact ? 0 : 2
+        Layout.rowSpan: root.compact ? 2 : 1
         spacing: Theme.space1
 
         Skin.ControlFader {
@@ -551,17 +565,23 @@ ColumnLayout {
         id: syncButton
 
         Accessible.name: syncButton.highlight ? qsTr("Disable sync") : qsTr("Enable sync")
+        Layout.column: 0
         Layout.fillWidth: true
         Layout.preferredHeight: 20
+        Layout.row: 3
         group: root.group
+        visible: !root.compact
     }
     Skin.RangeButton {
         id: rangeButton
 
         Accessible.name: qsTr("Tempo range")
+        Layout.column: 0
         Layout.fillWidth: true
         Layout.preferredHeight: 20
+        Layout.row: 4
         group: root.group
+        visible: !root.compact
     }
 
     /// One speed key. Left click steps once, right click steps in the fine
