@@ -240,6 +240,20 @@ TEST(Engine, ExistingBpmMatchingNeverSelectsTheAutomaticPreset) {
     }
 }
 
+TEST(Engine, ExistingBpmMatchingCanBeDisabled) {
+    const std::vector<float> samples = makeClickTrack(22050, 75.0, 20.0);
+    Engine::Config config;
+    config.bpmRangeMin = 58;
+    config.bpmRangeMax = 115;
+    config.existingBpm = 75.0;
+    config.matchExistingBpm = false;
+    const Result result = analyze(samples, 22050, 1, true, config);
+    ASSERT_TRUE(result.ok);
+    EXPECT_NEAR(result.bpm, 75.0, 0.01);
+    EXPECT_EQ(result.bpmRangeMin, 58);
+    EXPECT_EQ(result.bpmRangeMax, 115);
+}
+
 TEST(BpmRange, MatchesTheNativePresetTable) {
     EXPECT_EQ(10, kBpmRangePresetCount);
     const int expectedMin[kBpmRangePresetCount] = {
