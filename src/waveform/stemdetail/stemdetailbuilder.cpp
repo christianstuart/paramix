@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -19,6 +20,8 @@
 namespace {
 
 const mixxx::Logger kLogger("StemDetailBuilder");
+
+std::atomic<quint64> s_nextDetailGeneration{1};
 
 constexpr int kMaxStems = mixxx::kMaxSupportedStems;
 // Decode larger blocks than the analysis pipeline's default chunk. The detail
@@ -174,6 +177,8 @@ void StemDetailBuilder::build(const StemDetailKey& key,
     pDetail->sampleRate = sampleRate;
     pDetail->trackId = key.trackId;
     pDetail->magnification = key.magnification;
+    pDetail->generation = s_nextDetailGeneration.fetch_add(
+            1, std::memory_order_relaxed);
 
     std::array<std::unique_ptr<StemDetailReducer>, kMaxStems> reducers;
     std::array<StemStaging, kMaxStems> staging;

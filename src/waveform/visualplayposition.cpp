@@ -5,7 +5,7 @@
 #include "util/math.h"
 #include "waveform/isynctimeprovider.h"
 
-//static
+// static
 QMap<QString, QWeakPointer<VisualPlayPosition>> VisualPlayPosition::m_listVisualPlayPosition;
 PerformanceTimer VisualPlayPosition::m_timeInfoTime;
 double VisualPlayPosition::m_dCallbackEntryToDacSecs = 0;
@@ -160,10 +160,14 @@ bool VisualPlayPosition::getPlaySlipAtNextVSync(
     // Work around #15886: Don't use the most recent buffer right away because
     // it likely not reached the DAC. This has caused a visible jump back, from
     // the correct pause position to a too early position when start playing.
-    for (; i < 3; ++i) {
+    //
+    // The buffer currently in the DAC can be further back than three buffers
+    // when the output latency is close to or above two buffers, and when the
+    // display has not presented a frame for a while. Paused decks repaint at a
+    // low rate, which makes the latter common. Scan the whole ring before
+    // giving up; it holds a few hundred milliseconds of history.
+    for (; i < kRingSize; ++i) {
         // Find buffer that is currently in the DAC.
-        // This is either at 0 or 1, but can also be at 2, if the buffer has
-        // been updated conurrently during the loop
         if (m_data.getAt(i, &data)) {
             offsetBuffers = calcOffsetAtNextVSync(pSyncTimeProvider, data);
             if (offsetBuffers > -1) {
@@ -172,9 +176,21 @@ bool VisualPlayPosition::getPlaySlipAtNextVSync(
             }
         }
     }
-    if (i >= 3) {
-        // No valid data available e.g, track ejected
-        return false;
+    if (i >= kRingSize) {
+        // No buffer is inside the DAC window. This happens after a display
+        // stall or when the output latency exceeds the ring history. Fall back
+        // to the newest engine position instead of reporting failure: callers
+        // such as the waveform would otherwise render at position 0 (the start
+        // of the track) for a frame and then jump back.
+        if (!m_data.getAt(0, &data)) {
+            // No data available at all, e.g. after track ejection.
+            return false;
+        }
+        *pPlayPosition = data.m_playPos;
+        *pSlipPosition = data.m_slipModeState == SlipModeState::Running
+                ? data.m_slipPos
+                : data.m_playPos;
+        return true;
     }
 
     const double offsetSteps = data.m_positionStep * offsetBuffers;
@@ -209,7 +225,7 @@ void VisualPlayPosition::getTrackTime(double* pPlayPosition, double* pTempoTrack
     }
 }
 
-//static
+// static
 QSharedPointer<VisualPlayPosition> VisualPlayPosition::getVisualPlayPosition(const QString& group) {
     QSharedPointer<VisualPlayPosition> vpp = m_listVisualPlayPosition.value(group);
     if (vpp.isNull()) {
@@ -219,7 +235,7 @@ QSharedPointer<VisualPlayPosition> VisualPlayPosition::getVisualPlayPosition(con
     return vpp;
 }
 
-//static
+// static
 void VisualPlayPosition::setCallbackEntryToDacSecs(double secs, const PerformanceTimer& time) {
     // the time is valid only just NOW, so measure the time from NOW for
     // later correction

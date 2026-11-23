@@ -10,6 +10,7 @@
 #include "util/logger.h"
 #ifdef __STEM__
 #include "waveform/stemdetail/stemdetailcache.h"
+#include "waveform/stemdetail/stempagecache.h"
 #include "waveform/waveformwidgetfactory.h"
 #endif
 
@@ -101,10 +102,15 @@ void StemAnalysisCoordinator::applyBackgroundWorkPause(bool paused) {
     }
 #ifdef __STEM__
     if (WaveformWidgetFactory::isCreated()) {
-        StemDetailCache* pCache =
+        StemDetailCache* pDetailCache =
                 WaveformWidgetFactory::instance()->stemDetailCache();
-        if (pCache) {
-            pCache->setBackgroundSuspended(paused);
+        if (pDetailCache) {
+            pDetailCache->setBackgroundSuspended(paused);
+        }
+        StemPageCache* pPageCache =
+                WaveformWidgetFactory::instance()->stemPageCache();
+        if (pPageCache) {
+            pPageCache->setBackgroundSuspended(paused);
         }
     }
 #endif
@@ -133,7 +139,7 @@ void StemAnalysisCoordinator::onAudioLatencyTick() {
                     << kPauseAboveUsage
                     << "for"
                     << kHighUsageTicksToPause
-                    << "checks (stem separation, load analysis, batch analysis, stem-detail builds)";
+                    << "checks (stem separation, load analysis, batch analysis, stem-detail and stem-page builds)";
         }
     } else if (usage < kResumeBelowUsage) {
         m_highUsageTicks = 0;

@@ -25,6 +25,7 @@ class VisualsManager;
 class ControlObject;
 #ifdef __STEM__
 class StemDetailCache;
+class StemPageCache;
 #endif
 
 class WaveformWidgetAbstractHandle {
@@ -203,6 +204,11 @@ class WaveformWidgetFactory : public QObject,
     /// Process-wide stem detail cache, owned by the factory.
     StemDetailCache* stemDetailCache() const {
         return m_pStemDetailCache.get();
+    }
+
+    /// Process-wide cache of rendered stem picture pages, owned by the factory.
+    StemPageCache* stemPageCache() const {
+        return m_pStemPageCache.get();
     }
 #endif
 
@@ -416,6 +422,7 @@ class WaveformWidgetFactory : public QObject,
     bool m_stemSplitTracks;
 #ifdef __STEM__
     std::unique_ptr<StemDetailCache> m_pStemDetailCache;
+    std::unique_ptr<StemPageCache> m_pStemPageCache;
 #endif
     std::unique_ptr<ControlObject> m_pStemSplitTracksControl;
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QApplication>
+#include <QElapsedTimer>
 #include <QQmlApplicationEngine>
 #include <QString>
 #include <QTimer>
@@ -66,6 +67,11 @@ class QmlApplication : public QObject {
     bool m_ownsWaveformWidgetFactory{false};
     bool m_loadSucceeded;
     QmlAutoReload m_autoReload;
+    QElapsedTimer m_presentTimer;
+    QElapsedTimer m_presentStatsTimer;
+    quint64 m_presentedFrames = 0;
+    quint64 m_droppedFrames = 0;
+    qint64 m_presentIntervalMaxUs = 0;
 
 #if defined(Q_OS_ANDROID)
     // The following are necessary to implement the performance manager

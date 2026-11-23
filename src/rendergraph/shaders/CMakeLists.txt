@@ -10,6 +10,8 @@ set(
   rgba.vert
   texture.frag
   texture.vert
+  texturecolor.frag
+  texturecolor.vert
   unicolor.frag
   unicolor.vert
 )

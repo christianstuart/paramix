@@ -325,7 +325,17 @@ std::chrono::microseconds QmlWaveformDisplay::fromTimerToNextSync(const Performa
     if (m_pTrack) {
         return m_syncInterval;
     }
-    return m_syncInterval + std::chrono::microseconds(m_timer.difference(timer).toIntegerMicros());
+    const auto untilNextSync = m_syncInterval +
+            std::chrono::microseconds(m_timer.difference(timer).toIntegerMicros());
+    // The next vsync is always within one refresh interval. A paused deck
+    // repaints at a low rate, so the last presented frame can be much older
+    // than the audio reference and the expression above becomes negative,
+    // pointing at a vsync in the past. Clamping keeps the visual play position
+    // lookup inside its valid buffer window instead of falling back to the
+    // start of the track.
+    return std::clamp(untilNextSync,
+            std::chrono::microseconds(0),
+            m_syncInterval);
 }
 
 void QmlWaveformDisplay::slotFrameSwapped() {

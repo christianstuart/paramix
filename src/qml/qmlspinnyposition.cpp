@@ -2,6 +2,7 @@
 
 #include <QQuickWindow>
 #include <QSGNode>
+#include <algorithm>
 #include <cmath>
 
 #include "control/controlproxy.h"
@@ -115,8 +116,15 @@ std::chrono::microseconds QmlSpinnyPosition::fromTimerToNextSync(
     if (!m_timer.running()) {
         return kDefaultSyncInterval;
     }
-    return m_syncInterval +
-            std::chrono::microseconds(m_timer.difference(timer).toIntegerMicros());
+    // A paused platter does not request frames, so the last frame time can be
+    // far older than the audio reference. Clamp to the next real vsync instead
+    // of returning a negative interval, which would make the play position
+    // lookup reject its buffers.
+    return std::clamp(m_syncInterval +
+                    std::chrono::microseconds(
+                            m_timer.difference(timer).toIntegerMicros()),
+            std::chrono::microseconds(0),
+            m_syncInterval);
 }
 
 std::chrono::microseconds QmlSpinnyPosition::getSyncInterval() const {

@@ -1,6 +1,7 @@
 #include "qmlapplication.h"
 
 #include <QCoreApplication>
+#include <QDebug>
 #include <QEventLoop>
 #include <QLocale>
 #include <QMessageBox>
@@ -8,7 +9,10 @@
 #include <QQmlEngineExtensionPlugin>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QTextDocument>
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <utility>
 
@@ -26,6 +30,7 @@
 #include "qml/qmldlgpreferencesproxy.h"
 #include "qml/qmlrecordingproxy.h"
 #include "soundio/soundmanager.h"
+#include "util/cmdlineargs.h"
 #include "util/versionstore.h"
 #include "waveform/guitick.h"
 #include "waveform/overviewtype.h"
@@ -361,6 +366,11 @@ void QmlApplication::slotWindowChanged(QQuickWindow* window) {
                 &QmlApplication::slotFrameSwapped,
                 Qt::UniqueConnection);
     }
+    m_presentTimer.start();
+    m_presentStatsTimer.start();
+    m_presentedFrames = 0;
+    m_droppedFrames = 0;
+    m_presentIntervalMaxUs = 0;
 #if defined(Q_OS_ANDROID)
     m_frameTimer.restart();
 #endif
@@ -373,6 +383,38 @@ void QmlApplication::slotFrameSwapped() {
         QmlConfigProxy::notifyWaveformAverageFrameRateChanged();
     }
 #endif
+
+    // Developer-only present timing. This catches frame drops that the
+    // waveform's own preprocess timing cannot see (compositor, GPU uploads,
+    // other QML work). It runs on the GUI thread and logs once a second.
+    if (m_presentTimer.isValid()) {
+        const qint64 intervalUs = m_presentTimer.nsecsElapsed() / 1000;
+        m_presentTimer.restart();
+        ++m_presentedFrames;
+        if (intervalUs > m_presentIntervalMaxUs) {
+            m_presentIntervalMaxUs = intervalUs;
+        }
+        const QScreen* pScreen = QGuiApplication::primaryScreen();
+        const double refreshRate = pScreen ? pScreen->refreshRate() : 60.0;
+        const qint64 targetIntervalUs = static_cast<qint64>(
+                std::lround(1000000.0 / std::max(1.0, refreshRate)));
+        if (targetIntervalUs > 0 && intervalUs > targetIntervalUs * 1.5) {
+            m_droppedFrames += static_cast<quint64>(
+                    std::max<qint64>(1, intervalUs / targetIntervalUs - 1));
+        }
+        if (m_presentStatsTimer.elapsed() >= 1000) {
+            if (CmdlineArgs::Instance().getDeveloper()) {
+                qInfo() << "QmlFrame"
+                        << "fps" << m_presentedFrames
+                        << "interval_max_us" << m_presentIntervalMaxUs
+                        << "dropped" << m_droppedFrames;
+            }
+            m_presentedFrames = 0;
+            m_droppedFrames = 0;
+            m_presentIntervalMaxUs = 0;
+            m_presentStatsTimer.restart();
+        }
+    }
 #if defined(Q_OS_ANDROID)
     VERIFY_OR_DEBUG_ASSERT(m_perfSession) {
         return;
