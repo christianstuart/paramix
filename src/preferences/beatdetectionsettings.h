@@ -18,6 +18,8 @@
 #define BPM_REANALYZE_IMPORTED "ReanalyzeImported"
 #define BPM_FAST_ANALYSIS_ENABLED "FastAnalysisEnabled"
 #define BPM_STEM_STRATEGY "stem_strategy"
+#define BPM_RANGE_PRESET "BpmRangePreset"
+#define BPM_MATCH_EXISTING "MatchExistingBpmRange"
 
 class BeatDetectionSettings {
   public:
@@ -29,16 +31,15 @@ class BeatDetectionSettings {
         Enforced = 2
     };
 
-    BeatDetectionSettings(UserSettingsPointer pConfig) : m_pConfig(pConfig) {}
+    BeatDetectionSettings(UserSettingsPointer pConfig)
+            : m_pConfig(pConfig) {
+    }
 
-    DEFINE_PREFERENCE_HELPERS(BpmDetectionEnabled, bool,
-                              BPM_CONFIG_KEY, BPM_DETECTION_ENABLED, true);
+    DEFINE_PREFERENCE_HELPERS(BpmDetectionEnabled, bool, BPM_CONFIG_KEY, BPM_DETECTION_ENABLED, true);
 
-    DEFINE_PREFERENCE_HELPERS(FixedTempoAssumption, bool,
-                              BPM_CONFIG_KEY, BPM_FIXED_TEMPO_ASSUMPTION, true);
+    DEFINE_PREFERENCE_HELPERS(FixedTempoAssumption, bool, BPM_CONFIG_KEY, BPM_FIXED_TEMPO_ASSUMPTION, true);
 
-    DEFINE_PREFERENCE_HELPERS(ReanalyzeWhenSettingsChange, bool,
-                              BPM_CONFIG_KEY, BPM_REANALYZE_WHEN_SETTINGS_CHANGE, false);
+    DEFINE_PREFERENCE_HELPERS(ReanalyzeWhenSettingsChange, bool, BPM_CONFIG_KEY, BPM_REANALYZE_WHEN_SETTINGS_CHANGE, false);
 
     DEFINE_PREFERENCE_HELPERS(StemStrategy,
             StemStrategy,
@@ -52,8 +53,11 @@ class BeatDetectionSettings {
             BPM_REANALYZE_IMPORTED,
             false);
 
-    DEFINE_PREFERENCE_HELPERS(FastAnalysis, bool,
-                              BPM_CONFIG_KEY, BPM_FAST_ANALYSIS_ENABLED, false);
+    DEFINE_PREFERENCE_HELPERS(FastAnalysis, bool, BPM_CONFIG_KEY, BPM_FAST_ANALYSIS_ENABLED, false);
+
+    DEFINE_PREFERENCE_HELPERS(BpmRangePreset, int, BPM_CONFIG_KEY, BPM_RANGE_PRESET, 4);
+
+    DEFINE_PREFERENCE_HELPERS(MatchExistingBpmRange, bool, BPM_CONFIG_KEY, BPM_MATCH_EXISTING, true);
 
     QString getBeatPluginId() const {
         return m_pConfig->getValue<QString>(ConfigKey(

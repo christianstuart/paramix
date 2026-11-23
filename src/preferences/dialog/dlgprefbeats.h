@@ -14,7 +14,7 @@ class QWidget;
 class DlgPrefBeats : public DlgPreferencePage, public Ui::DlgBeatsDlg {
     Q_OBJECT
   public:
-    DlgPrefBeats(QWidget *parent, UserSettingsPointer _config);
+    DlgPrefBeats(QWidget* parent, UserSettingsPointer _config);
     virtual ~DlgPrefBeats();
 
     QUrl helpUrl() const override;
@@ -33,14 +33,17 @@ class DlgPrefBeats : public DlgPreferencePage, public Ui::DlgBeatsDlg {
     void fastAnalysisEnabled(Qt::CheckState state);
     void slotReanalyzeChanged(Qt::CheckState state);
     void slotReanalyzeImportedChanged(Qt::CheckState state);
+    void slotMatchExistingBpmChanged(Qt::CheckState state);
 #else
     void analyzerEnabled(int i);
     void fixedtempoEnabled(int i);
     void fastAnalysisEnabled(int i);
     void slotReanalyzeChanged(int value);
     void slotReanalyzeImportedChanged(int value);
+    void slotMatchExistingBpmChanged(int value);
 #endif
     void slotStemStrategyChanged(int index);
+    void slotBpmRangeChanged(int index);
 
   private:
     void updateGui();
@@ -53,5 +56,7 @@ class DlgPrefBeats : public DlgPreferencePage, public Ui::DlgBeatsDlg {
     bool m_bFastAnalysisEnabled;
     bool m_bReanalyze;
     bool m_bReanalyzeImported;
+    int m_bpmRangePreset;
+    bool m_bMatchExistingBpm;
     BeatDetectionSettings::StemStrategy m_stemStrategy;
 };

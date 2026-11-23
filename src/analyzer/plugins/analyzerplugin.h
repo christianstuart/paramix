@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <cstddef>
 
 #include "audio/frame.h"
 #include "track/beats.h"
@@ -69,9 +70,35 @@ class AnalyzerBeatsPlugin : public AnalyzerPlugin {
   public:
     ~AnalyzerBeatsPlugin() override = default;
 
+    /// Track-specific detection hints. Only plugins that care need to read
+    /// them; the defaults preserve the existing behavior.
+    struct BeatDetectionHints {
+        int bpmRangeMin = 88;
+        int bpmRangeMax = 175;
+        double existingBpm = 0.0;
+        bool hasGrid = false;
+        bool matchExistingBpm = true;
+    };
+
     // Keep the sample-rate-only overload visible; the track-aware overload
     // below would otherwise hide it inside this class.
     using AnalyzerPlugin::initialize;
+
+    /// Called by AnalyzerBeats before initialize() when the track is known.
+    virtual void setBeatDetectionHints(const BeatDetectionHints& hints) {
+        (void)hints;
+    }
+
+    /// True when the last run deliberately kept the track's existing beat grid
+    /// instead of producing a new one, so a failed finalize() is not an error.
+    virtual bool keptExistingBeatGrid() const {
+        return false;
+    }
+
+    /// Number of transients the last run detected, for diagnostics only.
+    virtual std::size_t transientCount() const {
+        return 0;
+    }
 
     /// Track-aware initialization. Plugins that need the total frame count or
     /// the channel count override this; the default keeps the existing

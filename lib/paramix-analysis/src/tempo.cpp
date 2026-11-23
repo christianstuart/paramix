@@ -52,7 +52,9 @@ float bpmSearch(const std::vector<double>& positions,
             : f32(f32(f32(centre + halfWidth) - span) / f32(steps - 1));
 
     float bestScore = 0.0f;
-    float bestBpm = 0.0f;
+    // Native FUN_140ecc9a0 initialises the result to the window centre, so a
+    // degenerate (all-zero/NaN) score field returns the centre, not 0.
+    float bestBpm = centre;
     std::vector<float> phases(static_cast<std::size_t>(n));
     std::vector<float> buffer(static_cast<std::size_t>(n));
 
@@ -126,26 +128,30 @@ float bpmSearch(const std::vector<double>& positions,
     return bestBpm;
 }
 
-TempoResult detectBpm(const std::vector<double>& positions) {
+TempoResult detectBpm(const std::vector<double>& positions, TempoConfig config) {
     TempoResult result;
-    constexpr float kCentre = 131.5f;
-    constexpr float kHalfWidth = 43.5f;
-    result.coarse = bpmSearch(positions, kCentre, kHalfWidth, 501);
+    const float centre = config.centreBpm;
+    const float halfWidth = config.halfWidthBpm;
+    result.coarse = bpmSearch(positions, centre, halfWidth, 501);
     if (!(result.coarse > 0.0f)) {
         return result;
     }
     result.fine = bpmSearch(positions,
             result.coarse,
-            f32(kHalfWidth * f32(0.05f)),
+            f32(halfWidth * f32(0.05f)),
             101);
     if (!(result.fine > 0.0f)) {
         return result;
     }
     result.bpm = bpmSearch(positions,
             result.fine,
-            f32(kHalfWidth * f32(0.002f)),
+            f32(halfWidth * f32(0.002f)),
             101);
     return result;
+}
+
+TempoResult detectBpm(const std::vector<double>& positions) {
+    return detectBpm(positions, TempoConfig{});
 }
 
 } // namespace paramix::analysis

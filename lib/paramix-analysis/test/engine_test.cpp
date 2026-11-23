@@ -7,6 +7,7 @@
 
 #include "float32.h"
 #include "paramix/analysis/analysis.h"
+#include "paramix/analysis/bpmrange.h"
 
 namespace paramix::analysis {
 
@@ -31,12 +32,14 @@ constexpr int kRates[] = {
         192000,
 };
 
-std::vector<float> makeClickTrack(int rate) {
-    const int frames = static_cast<int>(std::floor(kFixtureSeconds * rate));
+std::vector<float> makeClickTrack(int rate,
+        double bpm = kFixtureBpm,
+        double seconds = kFixtureSeconds) {
+    const int frames = static_cast<int>(std::floor(seconds * rate));
     std::vector<float> samples(static_cast<std::size_t>(frames), 0.0f);
-    const double period = 60.0 / kFixtureBpm;
+    const double period = 60.0 / bpm;
     int beat = 0;
-    for (double time = kFixturePhase; time < kFixtureSeconds - 0.1;
+    for (double time = kFixturePhase; time < seconds - 0.1;
             time += period, ++beat) {
         const int start = static_cast<int>(std::floor(time * rate));
         const int clickLength = static_cast<int>(std::floor(rate * 0.006));
@@ -62,8 +65,11 @@ std::vector<float> makeClickTrack(int rate) {
     return samples;
 }
 
-Result analyze(const std::vector<float>& mono, int rate, int channels,
-        bool keepTransients = true) {
+Result analyze(const std::vector<float>& mono,
+        int rate,
+        int channels,
+        bool keepTransients = true,
+        Engine::Config config = Engine::Config{}) {
     std::vector<float> interleaved;
     const float* data = mono.data();
     if (channels == 2) {
@@ -75,7 +81,6 @@ Result analyze(const std::vector<float>& mono, int rate, int channels,
         data = interleaved.data();
     }
 
-    Engine::Config config;
     config.sampleRate = rate;
     config.channelCount = channels;
     config.totalFrames = static_cast<std::int64_t>(mono.size());
@@ -177,6 +182,95 @@ TEST(Engine, FinishIsIdempotent) {
     const Result first = engine.finish();
     const Result second = engine.finish();
     expectSameResult(first, second);
+}
+
+TEST(Engine, UsesTheSelectedTraktorBpmRange) {
+    const std::vector<float> samples = makeClickTrack(22050, 75.0, 20.0);
+    Engine::Config config;
+    config.bpmRangeMin = 58;
+    config.bpmRangeMax = 115;
+    const Result result = analyze(samples, 22050, 1, true, config);
+    ASSERT_TRUE(result.ok);
+    EXPECT_NEAR(result.bpm, 75.0, 0.01);
+    EXPECT_EQ(result.bpmRangeMin, 58);
+    EXPECT_EQ(result.bpmRangeMax, 115);
+}
+
+TEST(Engine, ExistingBpmSelectsAMatchingTraktorRange) {
+    const std::vector<float> samples = makeClickTrack(22050, 75.0, 20.0);
+    Engine::Config config;
+    config.bpmRangeMin = 88;
+    config.bpmRangeMax = 175;
+    config.existingBpm = 75.0;
+    config.matchExistingBpm = true;
+    const Result result = analyze(samples, 22050, 1, true, config);
+    ASSERT_TRUE(result.ok);
+    EXPECT_NEAR(result.bpm, 75.0, 0.01);
+    EXPECT_FALSE(result.bpmRangeMin == 88 && result.bpmRangeMax == 175);
+    EXPECT_FALSE(result.bpmHintMismatch);
+}
+
+TEST(Engine, UnmatchedExistingBpmKeepsTheExistingGrid) {
+    const std::vector<float> samples = makeClickTrack(22050, 140.0, 20.0);
+    Engine::Config config;
+    config.bpmRangeMin = 88;
+    config.bpmRangeMax = 175;
+    config.existingBpm = 60.0;
+    config.matchExistingBpm = true;
+    config.preserveGridOnBpmMismatch = true;
+    const Result result = analyze(samples, 22050, 1, true, config);
+    EXPECT_FALSE(result.ok);
+    EXPECT_TRUE(result.bpmHintMismatch);
+}
+
+TEST(Engine, ExistingBpmMatchingNeverSelectsTheAutomaticPreset) {
+    const std::vector<float> samples = makeClickTrack(22050, 140.0, 30.0);
+    Engine::Config config;
+    config.bpmRangeMin = 88;
+    config.bpmRangeMax = 175;
+    config.existingBpm = 140.0;
+    config.matchExistingBpm = true;
+    const Result result = analyze(samples, 22050, 1, true, config);
+    ASSERT_TRUE(result.ok);
+    for (int i = 0; i < kBpmRangePresetCount; ++i) {
+        if (kBpmRangePresets[i].automatic) {
+            EXPECT_FALSE(result.bpmRangeMin == kBpmRangePresets[i].minBpm &&
+                    result.bpmRangeMax == kBpmRangePresets[i].maxBpm);
+        }
+    }
+}
+
+TEST(Engine, ExistingBpmMatchingCanBeDisabled) {
+    const std::vector<float> samples = makeClickTrack(22050, 75.0, 20.0);
+    Engine::Config config;
+    config.bpmRangeMin = 58;
+    config.bpmRangeMax = 115;
+    config.existingBpm = 75.0;
+    config.matchExistingBpm = false;
+    const Result result = analyze(samples, 22050, 1, true, config);
+    ASSERT_TRUE(result.ok);
+    EXPECT_NEAR(result.bpm, 75.0, 0.01);
+    EXPECT_EQ(result.bpmRangeMin, 58);
+    EXPECT_EQ(result.bpmRangeMax, 115);
+}
+
+TEST(BpmRange, MatchesTheNativePresetTable) {
+    EXPECT_EQ(10, kBpmRangePresetCount);
+    const int expectedMin[kBpmRangePresetCount] = {
+            95, 58, 68, 78, 88, 98, 108, 118, 128, 110};
+    const int expectedMax[kBpmRangePresetCount] = {
+            115, 115, 135, 155, 175, 195, 215, 235, 255, 220};
+    for (int i = 0; i < kBpmRangePresetCount; ++i) {
+        EXPECT_EQ(expectedMin[i], kBpmRangePresets[i].minBpm);
+        EXPECT_EQ(expectedMax[i], kBpmRangePresets[i].maxBpm);
+        EXPECT_EQ(i == kBpmRangePresetCount - 1, kBpmRangePresets[i].automatic);
+    }
+    EXPECT_EQ(88, defaultBpmRange().minBpm);
+    EXPECT_EQ(175, defaultBpmRange().maxBpm);
+    EXPECT_EQ(78, bpmRangeForPreset(3).minBpm);
+    EXPECT_EQ(155, bpmRangeForPreset(3).maxBpm);
+    EXPECT_EQ(88, bpmRangeForPreset(-1).minBpm);
+    EXPECT_EQ(175, bpmRangeForPreset(kBpmRangePresetCount).maxBpm);
 }
 
 } // namespace paramix::analysis

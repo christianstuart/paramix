@@ -28,6 +28,17 @@ class AnalyzerParamixBeats : public AnalyzerBeatsPlugin {
         return pluginInfo();
     }
 
+    void setBeatDetectionHints(
+            const BeatDetectionHints& hints) override;
+
+    bool keptExistingBeatGrid() const override {
+        return !m_result.ok && m_result.bpmHintMismatch;
+    }
+
+    std::size_t transientCount() const override {
+        return m_result.transients.size();
+    }
+
     /// The engine needs the track length, so this plugin is initialized
     /// through the track-aware overload below.
     bool initialize(mixxx::audio::SampleRate sampleRate) override;
@@ -53,6 +64,7 @@ class AnalyzerParamixBeats : public AnalyzerBeatsPlugin {
   private:
     std::unique_ptr<paramix::analysis::Engine> m_pEngine;
     paramix::analysis::Result m_result;
+    AnalyzerBeatsPlugin::BeatDetectionHints m_hints;
     mixxx::audio::SampleRate m_sampleRate;
     int m_channelCount = 2;
     SINT m_totalFrames = 0;

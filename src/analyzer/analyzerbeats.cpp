@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QVector>
 #include <QtDebug>
+#include <algorithm>
 
 #include "analyzer/analyzertrack.h"
 #include "analyzer/constants.h"
@@ -12,6 +13,7 @@
 #include "analyzer/plugins/analyzerqueenmarybeats.h"
 #include "analyzer/plugins/analyzersoundtouchbeats.h"
 #include "library/rekordbox/rekordboxconstants.h"
+#include "paramix/analysis/bpmrange.h"
 #include "track/beatfactory.h"
 #include "track/track.h"
 
@@ -159,6 +161,26 @@ bool AnalyzerBeats::initialize(const AnalyzerTrack& track,
                     m_channelCount > mixxx::audio::ChannelCount::stereo()
                     ? mixxx::audio::ChannelCount::stereo()
                     : m_channelCount;
+            const int preset = std::clamp(m_bpmSettings.getBpmRangePreset(),
+                    0,
+                    paramix::analysis::kBpmRangePresetCount - 1);
+            const paramix::analysis::BpmRange range =
+                    paramix::analysis::bpmRangeForPreset(preset);
+            mixxx::AnalyzerBeatsPlugin::BeatDetectionHints hints;
+            hints.bpmRangeMin = range.minBpm;
+            hints.bpmRangeMax = range.maxBpm;
+            hints.existingBpm = track.getTrack()->getBpm();
+            hints.hasGrid = track.getTrack()->getBeats() != nullptr;
+            hints.matchExistingBpm = m_bpmSettings.getMatchExistingBpmRange();
+            if (nativeGridPlugin) {
+                qDebug() << "Paramix BPM hints: track"
+                         << track.getTrack()->getId()
+                         << "range" << hints.bpmRangeMin << "-"
+                         << hints.bpmRangeMax << "existing BPM"
+                         << hints.existingBpm << "has grid" << hints.hasGrid
+                         << "match existing" << hints.matchExistingBpm;
+            }
+            m_pPlugin->setBeatDetectionHints(hints);
             if (m_pPlugin->initialize(
                         m_sampleRate, analysisChannelCount, frameLength)) {
                 qDebug() << "Beat calculation started with plugin" << m_pluginId;
@@ -303,7 +325,12 @@ void AnalyzerBeats::storeResults(TrackPointer pTrack) {
     }
 
     if (!m_pPlugin->finalize()) {
-        qWarning() << "Beat/BPM analysis failed";
+        if (m_pPlugin->keptExistingBeatGrid()) {
+            qInfo() << "Paramix Analysis Engine kept the existing beat grid:"
+                    << "no Traktor BPM range reproduced the stored BPM";
+        } else {
+            qWarning() << "Beat/BPM analysis failed";
+        }
         return;
     }
 
@@ -331,10 +358,11 @@ void AnalyzerBeats::storeResults(TrackPointer pTrack) {
                 bpm,
                 subVersion);
         qDebug() << "Paramix Analysis Engine stored native grid: BPM"
-                 << bpm.value() << "anchor"
+                 << QString::number(bpm.value(), 'f', 6) << "anchor"
                  << m_pPlugin->getFirstBeat().value() << "beatsPerBar"
                  << downbeatInfo.beatsPerBar << "phase" << downbeatInfo.phase
-                 << "confidence" << downbeatInfo.confidence;
+                 << "confidence" << downbeatInfo.confidence << "transients"
+                 << m_pPlugin->transientCount();
     } else if (m_pPlugin->supportsBeatTracking()) {
         QVector<mixxx::audio::FramePos> beats = m_pPlugin->getBeats();
         QHash<QString, QString> extraVersionInfo = getExtraVersionInfo(
