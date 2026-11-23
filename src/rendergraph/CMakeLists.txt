@@ -22,6 +22,8 @@ set(
   ../common/rendergraph/material/rgbmaterial.h
   ../common/rendergraph/material/texturematerial.cpp
   ../common/rendergraph/material/texturematerial.h
+  ../common/rendergraph/material/texturedcolormaterial.cpp
+  ../common/rendergraph/material/texturedcolormaterial.h
   ../common/rendergraph/material/unicolormaterial.cpp
   ../common/rendergraph/material/unicolormaterial.h
   ../common/rendergraph/materialshader.h

@@ -2965,6 +2965,8 @@ if(STEM)
       src/waveform/stemdetail/stemdetailcolors.cpp
       src/waveform/stemdetail/stemdetailreducer.cpp
       src/waveform/stemdetail/stemdetailtrack.cpp
+      src/waveform/stemdetail/stempagebuilder.cpp
+      src/waveform/stemdetail/stempagecache.cpp
       src/widget/wtrackstemmenu.cpp
       src/widget/wstemlabel.cpp
   )
@@ -2981,7 +2983,9 @@ if(BUILD_TESTING)
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
     src/test/stemdetailrenderertest.cpp
+    src/test/stempagecachetest.cpp
     src/test/waveformstemdetailtest.cpp
+    src/test/visualplaypositiontest.cpp
     src/test/analyzerebur128test.cpp
     src/test/analyzersilence_test.cpp
     src/test/audiotaperpot_test.cpp

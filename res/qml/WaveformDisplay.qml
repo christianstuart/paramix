@@ -21,11 +21,6 @@ Item {
     // the legacy preferences dialog can recreate that stack explicitly.
     property int renderedWaveformType: -1
     readonly property string zoomGroup: Mixxx.Config.waveformZoomSynchronization ? "[Channel1]" : group
-    /// True while a CPU-heavy background job (stem separation or a batch
-    /// analysis) is running.
-    readonly property bool backgroundWorkActive: Mixxx.StemService.busy
-            || Mixxx.StemService.queuedCount > 0
-            || Mixxx.Library.analysisActive
     /// Waveform update rate: the selected monitor rate, or the screen's own
     /// rate for "Auto". Never faster than the panel, so every update lands on a
     /// fresh present and the play head advances by one even step per frame.
@@ -60,14 +55,7 @@ Item {
 
         anchors.fill: parent
         backgroundColor: "transparent"
-        // Background analysis and stem separation fight the render thread for
-        // CPU. While they run, lower the refresh rate so frames arrive
-        // regularly instead of hitching; the play head is extrapolated to the
-        // vsync either way, so this reads as a steadier scroll, not a slower
-        // one.
-        frameRate: root.backgroundWorkActive
-                   ? Math.min(30, root.refreshRateLimit)
-                   : root.refreshRateLimit
+        frameRate: root.refreshRateLimit
         group: root.group
         options: Mixxx.Config.waveformOptions
         visible: Mixxx.Config.waveformEnabled

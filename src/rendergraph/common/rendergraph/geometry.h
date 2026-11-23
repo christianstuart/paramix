@@ -23,6 +23,12 @@ class rendergraph::Geometry : public rendergraph::BaseGeometry {
         QVector2D texcoord2D;
     };
 
+    struct TexturedColoredPoint2D {
+        QVector2D position2D;
+        QVector2D texcoord2D;
+        QVector4D color4D;
+    };
+
     struct RGBColoredPoint2D {
         QVector2D position2D;
         QVector3D color3D;

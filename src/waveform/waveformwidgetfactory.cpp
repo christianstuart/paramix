@@ -31,6 +31,7 @@
 #include "waveform/sharedglcontext.h"
 #ifdef __STEM__
 #include "waveform/stemdetail/stemdetailcache.h"
+#include "waveform/stemdetail/stempagecache.h"
 #endif
 #include "waveform/visualsmanager.h"
 #include "waveform/vsyncthread.h"
@@ -157,6 +158,7 @@ WaveformWidgetFactory::WaveformWidgetFactory()
           m_playMarkerPosition(WaveformWidgetRenderer::s_defaultPlayMarkerPosition) {
 #ifdef __STEM__
     m_pStemDetailCache = std::make_unique<StemDetailCache>();
+    m_pStemPageCache = std::make_unique<StemPageCache>();
 #endif
     m_pStemSplitTracksControl = std::make_unique<ControlObject>(
             ConfigKey(kWaveformGroup, QStringLiteral("stem_split_tracks")));

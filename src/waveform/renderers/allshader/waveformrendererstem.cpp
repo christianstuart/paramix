@@ -1,5 +1,7 @@
 #include "waveform/renderers/allshader/waveformrendererstem.h"
 
+#include <QDebug>
+#include <QSet>
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -10,14 +12,16 @@
 #include "control/controlproxy.h"
 #include "engine/channels/enginedeck.h"
 #include "rendergraph/material/rgbamaterial.h"
-#include "rendergraph/material/texturematerial.h"
+#include "rendergraph/material/texturedcolormaterial.h"
 #include "rendergraph/texture.h"
-#include "rendergraph/vertexupdaters/texturedvertexupdater.h"
 #include "track/track.h"
 #include "util/assert.h"
+#include "util/cmdlineargs.h"
 #include "util/math.h"
 #include "waveform/renderers/waveformwidgetrenderer.h"
 #include "waveform/stemdetail/stemdetailcache.h"
+#include "waveform/stemdetail/stempagebuilder.h"
+#include "waveform/stemdetail/stempagecache.h"
 #include "waveform/waveform.h"
 #include "waveform/waveformwidgetfactory.h"
 
@@ -38,7 +42,7 @@ inline float laneAlphaFromOpacity(float opacity) {
     return std::clamp(opacity / kOpaqueStemOpacity, 0.0f, 1.0f);
 }
 
-struct TextureQuad {
+struct PageQuad {
     float x0;
     float y0;
     float x1;
@@ -47,6 +51,7 @@ struct TextureQuad {
     float v0;
     float u1;
     float v1;
+    float alpha;
 };
 
 } // namespace
@@ -55,38 +60,84 @@ using namespace rendergraph;
 
 namespace allshader {
 
-/// Draws the coloured waveform bands of all lanes as one nearest-filtered
-/// texture. The lane bases stay as opaque geometry on the parent node.
-class StemDetailTextureNode final : public rendergraph::GeometryNode {
+/// Draws one fixed-content page of the stem picture.
+///
+/// The texture is immutable: lane opacity, mute ghosting, lane order and slip
+/// mode only change the per-vertex alpha and the quad coordinates. This keeps
+/// mute fades and the opacity slider off the texture rebuild path.
+class StemPageTextureNode final : public rendergraph::GeometryNode {
   public:
-    StemDetailTextureNode() {
-        initForRectangles<rendergraph::TextureMaterial>(4);
+    StemPageTextureNode() {
+        initForRectangles<TexturedColorMaterial>(mixxx::kMaxSupportedStems);
         geometry().allocate(0);
     }
 
     void updateTexture(rendergraph::Context* pContext, const QImage& image) {
-        auto& textureMaterial = dynamic_cast<rendergraph::TextureMaterial&>(material());
+        auto& textureMaterial = dynamic_cast<TexturedColorMaterial&>(material());
         textureMaterial.setTexture(std::make_unique<rendergraph::Texture>(
                 pContext, image, rendergraph::Texture::Filtering::Nearest));
-        textureMaterial.setUniform(1, 1.0f);
         markDirtyMaterial();
     }
 
-    void updateGeometry(const TextureQuad* pQuads, int quadCount) {
+    void updateGeometry(const PageQuad* pQuads, int quadCount) {
         const int vertexCount = quadCount * kVerticesPerRectangle;
         geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
         geometry().allocate(vertexCount);
         if (vertexCount > 0) {
-            TexturedVertexUpdater vertexUpdater{
-                    geometry().vertexDataAs<Geometry::TexturedPoint2D>()};
+            auto* pVertexData =
+                    geometry().vertexDataAs<Geometry::TexturedColoredPoint2D>();
+            auto* pWrite = pVertexData;
+            const auto addTriangle = [&pWrite](float x0,
+                                             float y0,
+                                             float x1,
+                                             float y1,
+                                             float x2,
+                                             float y2,
+                                             float u0,
+                                             float v0,
+                                             float u1,
+                                             float v1,
+                                             float u2,
+                                             float v2,
+                                             float alpha) {
+                const QVector4D color(1.0f, 1.0f, 1.0f, alpha);
+                *pWrite++ = Geometry::TexturedColoredPoint2D{
+                        {x0, y0}, {u0, v0}, color};
+                *pWrite++ = Geometry::TexturedColoredPoint2D{
+                        {x1, y1}, {u1, v1}, color};
+                *pWrite++ = Geometry::TexturedColoredPoint2D{
+                        {x2, y2}, {u2, v2}, color};
+            };
             for (int i = 0; i < quadCount; ++i) {
-                const TextureQuad& quad = pQuads[i];
-                vertexUpdater.addRectangle({quad.x0, quad.y0},
-                        {quad.x1, quad.y1},
-                        {quad.u0, quad.v0},
-                        {quad.u1, quad.v1});
+                const PageQuad& quad = pQuads[i];
+                addTriangle(quad.x0,
+                        quad.y0,
+                        quad.x1,
+                        quad.y0,
+                        quad.x0,
+                        quad.y1,
+                        quad.u0,
+                        quad.v0,
+                        quad.u1,
+                        quad.v0,
+                        quad.u0,
+                        quad.v1,
+                        quad.alpha);
+                addTriangle(quad.x0,
+                        quad.y1,
+                        quad.x1,
+                        quad.y1,
+                        quad.x1,
+                        quad.y0,
+                        quad.u0,
+                        quad.v1,
+                        quad.u1,
+                        quad.v1,
+                        quad.u1,
+                        quad.v0,
+                        quad.alpha);
             }
-            DEBUG_ASSERT(vertexUpdater.index() == vertexCount);
+            DEBUG_ASSERT(pWrite == pVertexData + vertexCount);
         }
         markDirtyGeometry();
     }
@@ -110,22 +161,10 @@ WaveformRendererStem::WaveformRendererStem(
           m_reorderOnChange(true),
           m_opacity(kOpaqueStemOpacity),
           m_hasGeometry(false),
-          m_pTextureNode(nullptr),
-          m_textureValid(false),
-          m_textureDetail(nullptr),
-          m_texturePixelLength(0),
-          m_textureLaneDeviceHeight(0),
-          m_textureLaneCount(0),
-          m_textureSamplesPerColumn(0),
-          m_textureDetailSamplesPerColumn(0),
-          m_textureLaneAlpha(0.0f),
-          m_textureMutedMask(0),
-          m_textureMuteMixSignature(0),
-          m_textureOrderSignature(0),
-          m_textureSlip(false) {
+          m_pPageCache(nullptr) {
     initForRectangles<RGBAMaterial>(0);
-    m_pTextureNode = appendChildNode(std::make_unique<StemDetailTextureNode>());
     setUsePreprocess(true);
+    m_statsTimer.start();
 }
 
 void WaveformRendererStem::onSetup(const QDomNode&) {
@@ -135,6 +174,9 @@ bool WaveformRendererStem::init() {
     m_pStemMute.clear();
     m_pPregain.reset();
     m_pPlayControl.reset();
+    m_pPageCache = WaveformWidgetFactory::isCreated()
+            ? WaveformWidgetFactory::instance()->stemPageCache()
+            : nullptr;
 
     // Keep a valid drawing order even for displays that provide a static track
     // without a channel group. The stem data itself is independent of the
@@ -200,16 +242,113 @@ bool WaveformRendererStem::init() {
     return true;
 }
 
-void WaveformRendererStem::preprocess() {
-    if (!preprocessInner()) {
-        if (geometry().vertexCount() != 0) {
-            geometry().allocate(0);
-            markDirtyGeometry();
-        }
-        if (m_pTextureNode) {
-            m_pTextureNode->clear();
+void WaveformRendererStem::clearPageGeometry() {
+    for (auto& state : m_pageNodes) {
+        if (state.hasDrawKey) {
+            state.pNode->clear();
+            state.hasDrawKey = false;
         }
     }
+    m_lastDrawnPages.clear();
+    m_hasGeometry = false;
+}
+
+void WaveformRendererStem::preprocess() {
+    ++m_frameCounter;
+    ++m_statFrames;
+    QElapsedTimer preprocessTimer;
+    preprocessTimer.start();
+    if (!preprocessInner()) {
+        clearPageGeometry();
+    }
+    const qint64 elapsedUs = preprocessTimer.nsecsElapsed() / 1000;
+    if (elapsedUs > m_statMaxPreprocessUs) {
+        m_statMaxPreprocessUs = elapsedUs;
+    }
+    m_lastPreprocessUs = elapsedUs;
+
+    if (m_statsTimer.elapsed() >= 1000) {
+        if (CmdlineArgs::Instance().getDeveloper()) {
+            QString cacheStats;
+            if (m_pPageCache) {
+                const StemPageCache::Stats stats = m_pPageCache->stats();
+                cacheStats = QStringLiteral(" hits=%1 misses=%2 builds=%3 cached=%4 pending=%5")
+                                     .arg(stats.hits)
+                                     .arg(stats.misses)
+                                     .arg(stats.builds)
+                                     .arg(stats.cachedPages)
+                                     .arg(stats.pendingPages);
+            }
+            qInfo().noquote()
+                    << "StemRender" << m_waveformRenderer->getGroup()
+                    << "fps" << m_statFrames
+                    << "pre_us_max" << m_statMaxPreprocessUs
+                    << "page_req" << m_statPageRequests
+                    << "tex_upload" << m_statTextureUploads
+                    << "geom_updates" << m_statGeometryUpdates
+                    << "cache" << cacheStats;
+        }
+        m_statsTimer.restart();
+        m_statFrames = 0;
+        m_statPageRequests = 0;
+        m_statTextureUploads = 0;
+        m_statGeometryUpdates = 0;
+        m_statMaxPreprocessUs = 0;
+    }
+}
+
+std::shared_ptr<const QImage> WaveformRendererStem::pageImage(
+        const StemPageKey& key,
+        const std::shared_ptr<const StemDetailTrack>& detail,
+        bool requestIfMissing) {
+    if (requestIfMissing) {
+        ++m_statPageRequests;
+    }
+    if (m_pPageCache) {
+        return requestIfMissing ? m_pPageCache->request(key, detail)
+                                : m_pPageCache->lookup(key);
+    }
+
+    // Standalone renderers (tests or a display without the factory) still
+    // need a picture. Build synchronously, but only once per page.
+    const auto it = m_localPages.constFind(key);
+    if (it != m_localPages.constEnd()) {
+        return it.value();
+    }
+    if (!requestIfMissing) {
+        return {};
+    }
+    QImage image = buildStemPageImage(*detail, key);
+    if (image.isNull()) {
+        return {};
+    }
+    auto pImage = std::make_shared<const QImage>(std::move(image));
+    m_localPages.insert(key, pImage);
+    return pImage;
+}
+
+StemPageTextureNode* WaveformRendererStem::acquirePageNode(
+        const StemPageKey& key,
+        const QImage& image) {
+    auto it = m_pageNodes.find(key);
+    if (it != m_pageNodes.end()) {
+        if (it->pImage != &image) {
+            it->pNode->updateTexture(m_waveformRenderer->getContext(), image);
+            it->pImage = &image;
+            ++m_statTextureUploads;
+        }
+        return it->pNode;
+    }
+
+    auto* pNode = appendChildNode(std::make_unique<StemPageTextureNode>());
+    pNode->updateTexture(m_waveformRenderer->getContext(), image);
+    ++m_statTextureUploads;
+    PageNodeState state;
+    state.pNode = pNode;
+    state.pImage = &image;
+    state.lastUsedFrame = m_frameCounter;
+    m_pageNodes.insert(key, state);
+    return pNode;
 }
 
 bool WaveformRendererStem::preprocessInner() {
@@ -277,37 +416,48 @@ bool WaveformRendererStem::preprocessInner() {
     if (totalSamples <= 0.0) {
         return m_hasGeometry;
     }
-    // VisualPlayPosition returns -1 while a paused deck has no fresh vsync
-    // position. Treat that as "keep the last picture" rather than translating
-    // the waveform to a bogus position near the start of the track.
+    // A negative true position means no visual position has been established
+    // yet (for example a newly loaded track waiting for its first buffer).
+    // Keep the last picture rather than translating the waveform to a bogus
+    // position near the start of the track. WaveformWidgetRenderer holds the
+    // previous position when the visual play position has no usable buffer.
     if (m_waveformRenderer->getTruePosSample(positionType) < 0.0) {
         return m_hasGeometry;
     }
-    // One detail column is one device pixel wide. Deriving it from the zoom
-    // setting keeps the cache key independent of the rounded viewport width.
-    const int samplesPerColumn = stemdetail::samplesPerColumn(
+
+    const int requestedSamplesPerColumn = stemdetail::samplesPerColumn(
             m_waveformRenderer->getAudioSamplePerPixel(), devicePixelRatio);
-    // A stopped play button means the visual play rate is zero. Snapping the
-    // first displayed sample onto the column grid makes every screen pixel
-    // sample exactly one texel, so a stationary picture cannot shimmer while
-    // the engine keeps republishing the same position.
-    const bool playRateZero = !m_pPlayControl || !m_pPlayControl->toBool();
-    const double displayedFirstSample =
-            m_waveformRenderer->getFirstDisplayedPosition(positionType) * totalSamples;
-    const double firstSample = playRateZero
-            ? stemdetail::snapToColumn(displayedFirstSample, samplesPerColumn)
-            : displayedFirstSample;
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());
     if (breadth <= 0.0f) {
         return false;
     }
     const int gapDevicePx = std::max(1, static_cast<int>(std::lround(devicePixelRatio)));
-    const int laneDeviceHeight = std::clamp(
+    const int liveLaneDeviceHeight = std::clamp(
             static_cast<int>(std::lround(breadth * devicePixelRatio / stemCount)) -
                     gapDevicePx,
             kMinLaneDeviceHeight,
             kMaxLaneDeviceHeight);
+
+    // Page keys use a stable lane height. During a layout or library animation
+    // the live height changes every frame; regenerating pages for each step
+    // would be a guaranteed frame drop. Draw the old pages scaled instead and
+    // change the key once the height settles.
+    if (m_pageLaneDeviceHeight <= 0) {
+        m_pageLaneDeviceHeight = liveLaneDeviceHeight;
+        m_pageGapDevicePx = gapDevicePx;
+        m_laneHeightSettleTimer.restart();
+    } else if (liveLaneDeviceHeight != m_pageLaneDeviceHeight ||
+            gapDevicePx != m_pageGapDevicePx) {
+        if (!m_laneHeightSettleTimer.isValid() ||
+                m_laneHeightSettleTimer.elapsed() >= kViewportSettleMs) {
+            m_pageLaneDeviceHeight = liveLaneDeviceHeight;
+            m_pageGapDevicePx = gapDevicePx;
+            m_laneHeightSettleTimer.restart();
+        }
+    } else {
+        m_laneHeightSettleTimer.restart();
+    }
 
     // Deck gain -> generator magnification: 1 / (dB / 24 + 0.5), i.e. 2.0 at
     // 0 dB. The pregain control stores a linear gain.
@@ -331,49 +481,57 @@ bool WaveformRendererStem::preprocessInner() {
     auto* pCache = pFactory ? pFactory->stemDetailCache() : nullptr;
     std::shared_ptr<const StemDetailTrack> pDetail;
     if (pCache) {
-        // preprocess() runs on every frame, but the viewport only changes when
-        // the track, the zoom, the lane height or the deck gain changes.
-        // Consulting the cache (and its mutex) on every pass is pointless and
-        // makes it easy to schedule a build again from the render thread. A
-        // completed rebuild sets m_detailRefreshPending from detailReady().
         StemDetailKey requestKey;
         requestKey.trackId = m_cachedTrackId;
         requestKey.sampleRate = m_cachedSampleRate;
-        requestKey.samplesPerColumn = samplesPerColumn;
-        requestKey.height = laneDeviceHeight;
+        requestKey.samplesPerColumn = requestedSamplesPerColumn;
+        requestKey.height = m_pageLaneDeviceHeight;
         requestKey.magnification = magnification;
-        if (m_detailRequest.needsRequest(requestKey, m_detailRefreshPending)) {
-            pDetail = pCache->request(
-                    pTrack, samplesPerColumn, laneDeviceHeight, magnification);
+
+        // Only ask for a new detail picture after the viewport key has been
+        // stable briefly. This keeps a zoom animation or a live resize from
+        // posting a full-track decode request on every frame.
+        if (!(m_hasDetailSettleKey && m_detailSettleKey == requestKey)) {
+            m_detailSettleKey = requestKey;
+            m_hasDetailSettleKey = true;
+            m_detailSettleTimer.restart();
+        }
+        const bool settled = !m_pDetail ||
+                m_detailSettleTimer.elapsed() >= kViewportSettleMs;
+        if (settled &&
+                (!m_pDetail || m_detailRefreshPending ||
+                        m_detailRequest.needsRequest(requestKey, false))) {
+            pDetail = pCache->request(pTrack,
+                    requestedSamplesPerColumn,
+                    m_pageLaneDeviceHeight,
+                    magnification);
             m_detailRefreshPending = false;
-            // A null answer means the first build is still running; ask again
-            // on the next pass instead of pinning the miss.
             if (pDetail) {
+                // Remember the request even when the cache returned the
+                // previous zoom's picture. detailReady() wakes us when the
+                // matching picture is ready instead of polling every frame.
                 m_detailRequest.remember(requestKey);
             } else {
                 m_detailRequest.forget();
             }
-        } else {
-            pDetail = m_pDetail;
         }
     }
     if (!pDetail) {
-        // Keep the previous geometry and texture while the detail cache is
+        // Keep the previous geometry and pages while the detail cache is
         // rebuilding. Clearing here made the stem picture blink out whenever
         // the zoom, device scale or another renderer rebuilt the detail.
         if (m_pDetail && m_pDetail->trackId != m_cachedTrackId) {
             m_pDetail.reset();
-            m_hasGeometry = false;
-            m_textureValid = false;
-            m_detailRequest.forget();
             return false;
         }
-        return m_hasGeometry;
+        pDetail = m_pDetail;
+    }
+
+    if (!pDetail) {
+        return false;
     }
     if (m_pDetail && m_pDetail->trackId != m_cachedTrackId) {
         m_pDetail.reset();
-        m_hasGeometry = false;
-        m_textureValid = false;
     }
 
     const int laneCount = std::min(stemCount, pDetail->laneCount);
@@ -383,15 +541,32 @@ bool WaveformRendererStem::preprocessInner() {
         return m_hasGeometry;
     }
 
-    const int totalLaneDeviceHeight =
-            laneCount * laneDeviceHeight + (laneCount - 1) * gapDevicePx;
+    const int contentSamplesPerColumn =
+            std::max(1, pDetail->lanes.front().spc);
+    const int detailLaneHeight = std::max(1, pDetail->lanes.front().height);
+    const float deviceScale = devicePixelRatio;
+
+    const double liveFirstSample =
+            m_waveformRenderer->getFirstDisplayedPosition(positionType) * totalSamples;
+    const bool playRateZero = !m_pPlayControl || !m_pPlayControl->toBool();
+    const double firstSample = playRateZero
+            ? stemdetail::snapToColumn(liveFirstSample, contentSamplesPerColumn)
+            : liveFirstSample;
+    const double firstDeviceColumn =
+            firstSample / static_cast<double>(contentSamplesPerColumn);
+    const double lastDeviceColumn =
+            firstDeviceColumn + static_cast<double>(pixelLength);
+
+    const int totalLiveLaneDeviceHeight =
+            laneCount * liveLaneDeviceHeight + (laneCount - 1) * gapDevicePx;
     const int topDevicePx = std::max(0,
             (static_cast<int>(std::lround(breadth * devicePixelRatio)) -
-                    totalLaneDeviceHeight) /
+                    totalLiveLaneDeviceHeight) /
                     2);
 
     // Vertical lane order follows the stack order (a stem brought to the
-    // foreground moves to the bottom lane, like the old renderer).
+    // foreground moves to the bottom lane, like the old renderer). The texture
+    // itself always stays in natural stem order.
     QVarLengthArray<int, mixxx::kMaxSupportedStems> laneStems;
     laneStems.reserve(laneCount);
     for (int stemIdx : std::as_const(m_stackOrder)) {
@@ -409,16 +584,16 @@ bool WaveformRendererStem::preprocessInner() {
     }
 
     const uint selectedStems = m_waveformRenderer->getSelectedStems();
-    unsigned int mutedMask = 0;
     constexpr float kMuteFadeStep = 1.0f / 12.0f;
+    std::array<float, mixxx::kMaxSupportedStems> laneAlphas{};
+    uint32_t alphaSignature = 0;
+    uint64_t orderSignature = 0;
+    const float laneAlpha = laneAlphaFromOpacity(m_opacity);
     for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
         const int stemIdx = laneStems.at(laneIndex);
         const bool stemMuted = selectedStems
                 ? !(selectedStems & 1u << stemIdx)
                 : (!m_pStemMute.empty() && m_pStemMute[stemIdx]->toBool());
-        if (stemMuted) {
-            mutedMask |= 1u << laneIndex;
-        }
         float& mix = m_muteMix[stemIdx];
         const float target = stemMuted ? 1.0f : 0.0f;
         if (mix < target) {
@@ -426,286 +601,258 @@ bool WaveformRendererStem::preprocessInner() {
         } else if (mix > target) {
             mix = std::max(target, mix - kMuteFadeStep);
         }
-    }
-    unsigned int muteMixSignature = 0;
-    for (float mix : m_muteMix) {
-        muteMixSignature = muteMixSignature * 33u +
-                static_cast<unsigned int>(std::lround(mix * 255.0f));
-    }
-
-    uint64_t orderSignature = 0;
-    for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
+        laneAlphas[laneIndex] = laneAlpha *
+                (1.0f + (kGhostedStemOpacity - 1.0f) * mix);
+        const int alphaByte = std::clamp(
+                static_cast<int>(std::lround(laneAlphas[laneIndex] * 255.0f)),
+                0,
+                255);
+        alphaSignature = alphaSignature * 257u + static_cast<uint32_t>(alphaByte);
         orderSignature = orderSignature * 16u +
-                static_cast<uint64_t>(laneStems.at(laneIndex) + 1);
+                static_cast<uint64_t>(stemIdx + 1);
     }
 
-    const float laneAlpha = laneAlphaFromOpacity(m_opacity);
+    const qint64 totalColumns =
+            (pDetail->totalSamples + contentSamplesPerColumn - 1) /
+            contentSamplesPerColumn;
+    if (totalColumns <= 0) {
+        return m_hasGeometry;
+    }
 
-    const int detailSamplesPerColumn =
-            std::max(1, pDetail->lanes.front().spc);
-    const int detailColumns = pDetail->lanes.front().columns.size();
-    const double detailColumnStart = -firstSample / samplesPerColumn;
+    const qint64 firstVisiblePage = std::max<qint64>(0,
+            stemdetail::pageIndexForColumn(firstDeviceColumn, kPageWidth));
+    const qint64 lastVisiblePage = std::min<qint64>(
+            stemdetail::pageIndexForColumn(lastDeviceColumn, kPageWidth),
+            stemdetail::pageIndexForColumn(totalColumns - 1, kPageWidth));
 
-    // One run is a vertical span of rows that share the same pixel colour.
-    auto forEachRun = [](const StemDetailLane& lane,
-                              int columnIndex,
-                              int rowLimit,
-                              auto&& callback) {
-        const StemDetailColumn& column = lane.columns.at(columnIndex);
-        if (!column.wave || column.mask == 0) {
-            return;
-        }
-        const uint64_t rowMask =
-                column.mask & ((uint64_t{1} << rowLimit) - 1u);
-        if (rowMask == 0) {
-            return;
-        }
-        const int offset = columnIndex * lane.height;
-        const bool perRow = !lane.rowColors.isEmpty() &&
-                lane.rowColors.at(offset + std::countr_zero(rowMask)) != 0;
-        if (perRow) {
-            int runStart = -1;
-            QRgb runColor = 0;
-            for (int row = 0; row < rowLimit; ++row) {
-                QRgb color = 0;
-                if ((rowMask >> row) & 1u) {
-                    color = lane.rowColors.at(offset + row);
-                    if (color == 0) {
-                        color = column.rgba;
-                    }
-                }
-                if (color != runColor) {
-                    if (runColor != 0) {
-                        callback(runStart, row, runColor);
-                    }
-                    runColor = color;
-                    runStart = row;
-                }
-            }
-            if (runColor != 0) {
-                callback(runStart, rowLimit, runColor);
-            }
-        } else {
-            uint64_t remaining = rowMask;
-            while (remaining) {
-                const int start = std::countr_zero(remaining);
-                remaining &= remaining - 1u;
-                int end = start + 1;
-                while (end < rowLimit && (remaining & (uint64_t{1} << end))) {
-                    remaining &= ~(uint64_t{1} << end);
-                    ++end;
-                }
-                callback(start, end, column.rgba);
-            }
-        }
+    QSet<StemPageKey> visibleKeys;
+    QVarLengthArray<StemPageKey, 8> currentPageKeys;
+    bool anyReady = false;
+
+    const auto makePageKey = [&](qint64 pageIndex) {
+        StemPageKey key;
+        key.trackId = m_cachedTrackId;
+        key.sampleRate = m_cachedSampleRate;
+        key.detailSamplesPerColumn = contentSamplesPerColumn;
+        key.detailLaneHeight = detailLaneHeight;
+        key.samplesPerColumn = contentSamplesPerColumn;
+        key.laneDeviceHeight = m_pageLaneDeviceHeight;
+        key.laneCount = laneCount;
+        key.gapDevicePx = m_pageGapDevicePx;
+        key.pageWidth = kPageWidth;
+        key.pageIndex = static_cast<int>(pageIndex);
+        key.magnification = pDetail->magnification;
+        key.detailGeneration = pDetail->generation;
+        return key;
     };
 
-    // The texture covers the viewport plus a margin. While the playhead stays
-    // inside that margin only the quads move; the texture is rebuilt when the
-    // visible range leaves it. This keeps texture allocation and uploads off
-    // the per-frame path. Tracks whose whole picture fits in one texture use a
-    // fixed whole-track range, so playback never rebuilds the texture at all.
-    constexpr int64_t kMaxTextureWidth = 16384;
-    const stemdetail::TextureRange wantedRange = stemdetail::textureRangeFor(
-            firstSample,
-            samplesPerColumn,
-            pixelLength,
-            pDetail->totalSamples,
-            kMaxTextureWidth);
-    const bool textureParamsChanged = !m_textureValid ||
-            m_textureDetail != pDetail.get() ||
-            m_texturePixelLength != pixelLength ||
-            m_textureLaneDeviceHeight != laneDeviceHeight ||
-            m_textureLaneCount != drawLaneCount ||
-            m_textureSamplesPerColumn != samplesPerColumn ||
-            m_textureDetailSamplesPerColumn != detailSamplesPerColumn ||
-            m_textureLaneAlpha != laneAlpha ||
-            m_textureMutedMask != mutedMask ||
-            m_textureMuteMixSignature != muteMixSignature ||
-            m_textureOrderSignature != orderSignature ||
-            m_textureSlip != m_isSlipRenderer ||
-            m_textureRange.wholeTrack != wantedRange.wholeTrack;
-    // A paused deck also needs a column-aligned texture origin. Only then does
-    // the nearest-filtered texture sample exactly one texel per screen pixel;
-    // a fractional origin lets the same picture alternate between adjacent
-    // texels from frame to frame.
-    const bool textureAlignmentLost = !m_textureValid ||
-            (playRateZero &&
-                    !stemdetail::isColumnAligned(
-                            m_textureRange.firstSample, samplesPerColumn));
-    const bool textureRangeExceeded = !m_textureValid ||
-            (!m_textureRange.wholeTrack &&
-                    !stemdetail::textureRangeCovers(m_textureRange,
-                            firstSample,
-                            samplesPerColumn,
-                            pixelLength));
-    bool textureRebuilt = false;
-    if (textureParamsChanged || textureAlignmentLost || textureRangeExceeded) {
-        m_textureRange = wantedRange;
-
-        const int imageWidth = m_textureRange.columns;
-        const int imageHeight = totalLaneDeviceHeight;
-        if (m_textureImage.size() != QSize(imageWidth, imageHeight) ||
-                m_textureImage.format() != QImage::Format_RGBA8888_Premultiplied) {
-            m_textureImage = QImage(imageWidth,
-                    imageHeight,
-                    QImage::Format_RGBA8888_Premultiplied);
+    const auto drawPage = [&](const StemPageKey& pageKey,
+                                  bool updateLastDrawn,
+                                  bool requestIfMissing) {
+        if (pageKey.laneCount < drawLaneCount) {
+            return false;
         }
-        m_textureImage.fill(Qt::transparent);
-        const qsizetype bytesPerLine = m_textureImage.bytesPerLine();
-        uchar* pBits = m_textureImage.bits();
-
-        for (int x = 0; x < m_textureRange.columns; ++x) {
-            const double sample = m_textureRange.firstSample +
-                    static_cast<double>(x) * samplesPerColumn;
-            const int columnIndex = static_cast<int>(
-                    std::llround(sample / detailSamplesPerColumn));
-            if (columnIndex < 0 || columnIndex >= detailColumns) {
-                continue;
+        auto nodeIt = m_pageNodes.find(pageKey);
+        if (nodeIt == m_pageNodes.end()) {
+            const auto image = pageImage(pageKey, pDetail, requestIfMissing);
+            if (!image) {
+                return false;
             }
+            acquirePageNode(pageKey, *image);
+            nodeIt = m_pageNodes.find(pageKey);
+            if (nodeIt == m_pageNodes.end()) {
+                return false;
+            }
+        }
+        PageNodeState& state = *nodeIt;
+
+        // Fallback pages can come from a different zoom, so derive the
+        // viewport mapping from the page's own frames-per-column.
+        const double currentFirstDeviceColumn =
+                firstSample / static_cast<double>(pageKey.samplesPerColumn);
+        const double currentLastDeviceColumn =
+                currentFirstDeviceColumn + static_cast<double>(pixelLength);
+        const double pageFirstDeviceColumn =
+                static_cast<double>(pageKey.pageIndex) * pageKey.pageWidth;
+        const double pageLastDeviceColumn =
+                pageFirstDeviceColumn + pageKey.pageWidth;
+        const double pageFirstVisible =
+                std::max(pageFirstDeviceColumn, currentFirstDeviceColumn);
+        const double pageLastVisible =
+                std::min(pageLastDeviceColumn, currentLastDeviceColumn);
+        if (pageLastVisible <= pageFirstVisible) {
+            return false;
+        }
+
+        PageDrawKey drawKey;
+        drawKey.page = pageKey;
+        drawKey.firstDeviceColumn = currentFirstDeviceColumn;
+        drawKey.lastDeviceColumn = currentLastDeviceColumn;
+        drawKey.devicePixelRatio = deviceScale;
+        drawKey.topDevice = topDevicePx;
+        drawKey.laneDeviceHeight = liveLaneDeviceHeight;
+        drawKey.gapDevicePx = gapDevicePx;
+        drawKey.drawLaneCount = drawLaneCount;
+        drawKey.orderSignature = orderSignature;
+        drawKey.alphaSignature = alphaSignature;
+        drawKey.slip = m_isSlipRenderer;
+
+        const double x0 = std::clamp(
+                (pageFirstVisible - currentFirstDeviceColumn) / deviceScale,
+                0.0,
+                static_cast<double>(length));
+        const double x1 = std::clamp(
+                (pageLastVisible - currentFirstDeviceColumn) / deviceScale,
+                0.0,
+                static_cast<double>(length));
+        const float u0 = static_cast<float>(
+                (pageFirstVisible - pageFirstDeviceColumn) /
+                static_cast<double>(pageKey.pageWidth));
+        const float u1 = static_cast<float>(
+                (pageLastVisible - pageFirstDeviceColumn) /
+                static_cast<double>(pageKey.pageWidth));
+
+        if (!state.hasDrawKey || !(state.drawKey == drawKey)) {
+            const int pageTotalLaneHeight =
+                    pageKey.laneCount * pageKey.laneDeviceHeight +
+                    (pageKey.laneCount - 1) * pageKey.gapDevicePx;
+            std::array<PageQuad, mixxx::kMaxSupportedStems> quads{};
+            int quadCount = 0;
             for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
-                const StemDetailLane& lane =
-                        pDetail->lanes[static_cast<std::size_t>(
-                                laneStems.at(laneIndex))];
-                const float ghostMix = m_muteMix[laneStems.at(laneIndex)];
-                const float alpha = laneAlpha *
-                        (1.0f + (kGhostedStemOpacity - 1.0f) * ghostMix);
-                const int alphaByte = std::clamp(
-                        static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
-                if (alphaByte == 0) {
+                const int stemIdx = laneStems.at(laneIndex);
+                if (stemIdx >= pageKey.laneCount || stemIdx < 0) {
                     continue;
                 }
-                const int laneTopRow =
-                        laneIndex * (laneDeviceHeight + gapDevicePx);
+                const int laneTop = topDevicePx +
+                        laneIndex * (liveLaneDeviceHeight + gapDevicePx);
                 const int visibleHeight = m_isSlipRenderer
-                        ? laneDeviceHeight / 2
-                        : laneDeviceHeight;
-                const int rowLimit = m_isSlipRenderer ? lane.height / 2
-                                                      : lane.height;
+                        ? liveLaneDeviceHeight / 2
+                        : liveLaneDeviceHeight;
+                if (visibleHeight <= 0 || laneAlphas[laneIndex] <= 0.0f) {
+                    continue;
+                }
+                const int pageLaneTop = stemIdx *
+                        (pageKey.laneDeviceHeight + pageKey.gapDevicePx);
+                const int pageLaneHeight = pageKey.laneDeviceHeight;
+                const int pageVisibleHeight = m_isSlipRenderer
+                        ? pageLaneHeight / 2
+                        : pageLaneHeight;
+                const float v0 = static_cast<float>(pageLaneTop) /
+                        static_cast<float>(pageTotalLaneHeight);
+                const float v1 = static_cast<float>(
+                                         pageLaneTop + pageVisibleHeight) /
+                        static_cast<float>(pageTotalLaneHeight);
+                quads[quadCount++] = {
+                        static_cast<float>(x0),
+                        static_cast<float>(laneTop) / deviceScale,
+                        static_cast<float>(x1),
+                        static_cast<float>(laneTop + visibleHeight) / deviceScale,
+                        u0,
+                        v0,
+                        u1,
+                        v1,
+                        laneAlphas[laneIndex]};
+            }
+            state.pNode->updateGeometry(quads.data(), quadCount);
+            ++m_statGeometryUpdates;
+            state.drawKey = drawKey;
+            state.hasDrawKey = true;
+        }
+        state.lastUsedFrame = m_frameCounter;
+        visibleKeys.insert(pageKey);
+        if (updateLastDrawn) {
+            currentPageKeys.append(pageKey);
+        }
+        return true;
+    };
 
-                forEachRun(lane,
-                        columnIndex,
-                        rowLimit,
-                        [&](int rowStart, int rowEnd, QRgb color) {
-                            int y0 = laneTopRow +
-                                    (rowStart * laneDeviceHeight) / lane.height;
-                            int y1 = laneTopRow +
-                                    (rowEnd * laneDeviceHeight + lane.height - 1) /
-                                            lane.height;
-                            y0 = std::clamp(
-                                    y0, laneTopRow, laneTopRow + visibleHeight);
-                            y1 = std::clamp(
-                                    y1, y0, laneTopRow + visibleHeight);
-                            const auto red = static_cast<uchar>(
-                                    (qRed(color) * alphaByte) / 255);
-                            const auto green = static_cast<uchar>(
-                                    (qGreen(color) * alphaByte) / 255);
-                            const auto blue = static_cast<uchar>(
-                                    (qBlue(color) * alphaByte) / 255);
-                            for (int y = y0; y < y1; ++y) {
-                                uchar* pPixel = pBits + y * bytesPerLine +
-                                        static_cast<qsizetype>(x) * 4;
-                                pPixel[0] = red;
-                                pPixel[1] = green;
-                                pPixel[2] = blue;
-                                pPixel[3] = static_cast<uchar>(alphaByte);
-                            }
-                        });
+    for (qint64 pageIndex = firstVisiblePage; pageIndex <= lastVisiblePage;
+            ++pageIndex) {
+        if (drawPage(makePageKey(pageIndex), true, true)) {
+            anyReady = true;
+        }
+    }
+
+    // Prefetch the pages just outside the viewport. A page covers several
+    // hundred milliseconds of playback, so requesting the next one when it
+    // first becomes visible would be too late. Building one page on each side
+    // also keeps seeking backwards cheap.
+    const std::array<qint64, 2> prefetchPages = {
+            firstVisiblePage - 1, lastVisiblePage + 1};
+    bool prefetchedUpload = false;
+    for (qint64 pageIndex : prefetchPages) {
+        if (pageIndex < 0 ||
+                pageIndex > stemdetail::pageIndexForColumn(totalColumns - 1,
+                                    kPageWidth)) {
+            continue;
+        }
+        const StemPageKey key = makePageKey(pageIndex);
+        auto nodeIt = m_pageNodes.find(key);
+        if (nodeIt != m_pageNodes.end()) {
+            nodeIt->lastUsedFrame = m_frameCounter;
+            continue;
+        }
+        const auto image = pageImage(key, pDetail, true);
+        // Upload prefetched pages before they scroll into view. Doing the
+        // texture upload at the page boundary would put a multi-megabyte
+        // upload on the frame that switches pages. Skip it after a slow frame
+        // so an upload never extends an already tight frame budget.
+        constexpr qint64 kPrefetchUploadBudgetUs = 4000;
+        if (image && !m_pageNodes.contains(key) && !prefetchedUpload &&
+                m_lastPreprocessUs < kPrefetchUploadBudgetUs) {
+            acquirePageNode(key, *image);
+            prefetchedUpload = true;
+        }
+    }
+
+    if (!anyReady && !m_lastDrawnPages.isEmpty()) {
+        // The new page set is still being built (zoom, resize or seek). Draw
+        // the previous pages at their old scale, mapped to the current sample
+        // position, instead of blinking the picture out.
+        for (const StemPageKey& pageKey : std::as_const(m_lastDrawnPages)) {
+            drawPage(pageKey, false, false);
+        }
+    }
+
+    if (!currentPageKeys.isEmpty()) {
+        m_lastDrawnPages = currentPageKeys;
+    }
+
+    // Clear pages that left the viewport, then evict the least recently used
+    // GPU pages. Textures for recently visited pages are kept so seeking back
+    // does not upload them again.
+    for (auto it = m_pageNodes.begin(); it != m_pageNodes.end(); ++it) {
+        if (!visibleKeys.contains(it.key()) && it->hasDrawKey) {
+            it->pNode->clear();
+            it->hasDrawKey = false;
+        }
+    }
+    while (m_pageNodes.size() > kMaxGpuPages) {
+        auto oldest = m_pageNodes.end();
+        for (auto it = m_pageNodes.begin(); it != m_pageNodes.end(); ++it) {
+            if (visibleKeys.contains(it.key())) {
+                continue;
+            }
+            if (oldest == m_pageNodes.end() ||
+                    it->lastUsedFrame < oldest->lastUsedFrame) {
+                oldest = it;
             }
         }
-
-        m_pTextureNode->updateTexture(
-                m_waveformRenderer->getContext(), m_textureImage);
-        m_textureDetail = pDetail.get();
-        m_texturePixelLength = pixelLength;
-        m_textureLaneDeviceHeight = laneDeviceHeight;
-        m_textureLaneCount = drawLaneCount;
-        m_textureSamplesPerColumn = samplesPerColumn;
-        m_textureDetailSamplesPerColumn = detailSamplesPerColumn;
-        m_textureLaneAlpha = laneAlpha;
-        m_textureMutedMask = mutedMask;
-        m_textureMuteMixSignature = muteMixSignature;
-        m_textureOrderSignature = orderSignature;
-        m_textureSlip = m_isSlipRenderer;
-        m_textureValid = true;
-        textureRebuilt = true;
-    }
-
-    GeometryKey key;
-    key.pDetail = pDetail.get();
-    key.pixelLength = pixelLength;
-    key.length = length;
-    key.breadth = breadth;
-    key.devicePixelRatio = devicePixelRatio;
-    key.laneDeviceHeight = laneDeviceHeight;
-    key.laneCount = drawLaneCount;
-    key.topDevice = topDevicePx;
-    key.firstColumn = static_cast<qint64>(std::floor(detailColumnStart));
-    key.firstSample = firstSample;
-    key.samplesPerColumn = samplesPerColumn;
-    key.detailSamplesPerColumn = detailSamplesPerColumn;
-    key.textureFirstSample = m_textureRange.firstSample;
-    key.textureColumns = m_textureRange.columns;
-    key.laneAlpha = laneAlpha;
-    key.mutedMask = mutedMask;
-    key.orderSignature = orderSignature;
-    key.slip = m_isSlipRenderer;
-
-    if (m_hasGeometry && key == m_geometryKey && !textureRebuilt) {
-        return true;
-    }
-
-    // The lane background is transparent: only the wave pixels are drawn, so
-    // the widget/deck background shows through outside the coloured bands.
-    geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
-    geometry().allocate(0);
-    markDirtyGeometry();
-
-    const double offsetColumns =
-            (firstSample - m_textureRange.firstSample) / samplesPerColumn;
-    const float quadX0 = 0.0f;
-    const float quadX1 = static_cast<float>(pixelLength) / devicePixelRatio;
-    const float quadU0 = static_cast<float>(
-                                 std::clamp(offsetColumns, 0.0, std::max(0.0, static_cast<double>(m_textureRange.columns - pixelLength)))) /
-            static_cast<float>(m_textureRange.columns);
-    const float quadU1 = static_cast<float>(
-                                 std::clamp(offsetColumns + pixelLength, 0.0, static_cast<double>(m_textureRange.columns))) /
-            static_cast<float>(m_textureRange.columns);
-
-    std::array<TextureQuad, mixxx::kMaxSupportedStems> quads{};
-    int quadCount = 0;
-
-    for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
-        const bool muted = (mutedMask >> laneIndex) & 1u;
-        const float alpha = muted ? laneAlpha * kGhostedStemOpacity : laneAlpha;
-        const int laneTopRow = laneIndex * (laneDeviceHeight + gapDevicePx);
-        const int laneTopDevice = topDevicePx + laneTopRow;
-        const int visibleHeight = m_isSlipRenderer ? laneDeviceHeight / 2
-                                                   : laneDeviceHeight;
-        const int alphaByte = std::clamp(
-                static_cast<int>(std::lround(alpha * 255.0f)), 0, 255);
-
-        if (alphaByte > 0 && visibleHeight > 0) {
-            const float y0 = static_cast<float>(laneTopDevice) /
-                    devicePixelRatio;
-            const float y1 = static_cast<float>(laneTopDevice + visibleHeight) /
-                    devicePixelRatio;
-            const float v0 = static_cast<float>(laneTopRow) /
-                    static_cast<float>(totalLaneDeviceHeight);
-            const float v1 = static_cast<float>(laneTopRow + visibleHeight) /
-                    static_cast<float>(totalLaneDeviceHeight);
-            quads[quadCount++] = {quadX0, y0, quadX1, y1, quadU0, v0, quadU1, v1};
+        if (oldest == m_pageNodes.end()) {
+            break;
         }
+        const StemPageKey key = oldest.key();
+        auto pNode = detachChildNode(oldest->pNode);
+        m_pageNodes.erase(oldest);
+        pNode.reset();
+        m_lastDrawnPages.removeAll(key);
     }
 
-    m_pTextureNode->updateGeometry(quads.data(), quadCount);
-
-    m_pDetail = pDetail;
-    m_geometryKey = key;
-    m_hasGeometry = true;
-
-    markDirtyMaterial();
-    return true;
+    if (m_pDetail.get() != pDetail.get()) {
+        m_pDetail = pDetail;
+    }
+    m_hasGeometry = anyReady || !m_lastDrawnPages.isEmpty() || m_hasGeometry;
+    return m_hasGeometry;
 }
 
 } // namespace allshader

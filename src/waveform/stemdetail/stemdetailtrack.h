@@ -42,6 +42,10 @@ struct StemDetailTrack {
     uint32_t sampleRate = 0;
     TrackId trackId;
     float magnification = 1.0f;
+    /// Changes whenever a new detail picture is published. Page keys include
+    /// this so a rebuilt picture (for example after stem separation finishes)
+    /// cannot reuse textures from the previous one.
+    quint64 generation = 0;
 };
 
 /// Cache key: track, source rate, frames per device pixel, picture height and

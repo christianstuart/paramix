@@ -1,6 +1,9 @@
 #pragma once
 
+#include <QElapsedTimer>
+#include <QHash>
 #include <QImage>
+#include <QVarLengthArray>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -14,14 +17,16 @@
 #include "util/math.h"
 #include "waveform/renderers/allshader/waveformrenderersignalbase.h"
 #include "waveform/stemdetail/stemdetailtrack.h"
+#include "waveform/stemdetail/stempagekey.h"
 
 class QOpenGLTexture;
 class ControlProxy;
+class StemPageCache;
 class Track;
 
 namespace allshader {
 class WaveformRendererStem;
-class StemDetailTextureNode;
+class StemPageTextureNode;
 
 /// Deterministic placement of the stem detail picture.
 ///
@@ -90,6 +95,18 @@ struct DetailRequestMemo {
         valid = false;
     }
 };
+
+/// Index of the fixed-width page containing an output column. Negative before
+/// the start of the track.
+inline qint64 pageIndexForColumn(double column, int pageWidth) {
+    const int width = std::max(1, pageWidth);
+    return static_cast<qint64>(std::floor(column / static_cast<double>(width)));
+}
+
+/// First output column of a page.
+inline qint64 pageFirstColumn(qint64 pageIndex, int pageWidth) {
+    return pageIndex * std::max(1, pageWidth);
+}
 
 /// Sample range covered by one detail texture, in samples.
 struct TextureRange {
@@ -214,32 +231,49 @@ class allshader::WaveformRendererStem final
     }
 
   private:
-    /// Everything the emitted geometry depends on. A rebuild is skipped while
-    /// this key is unchanged.
-    struct GeometryKey {
-        const StemDetailTrack* pDetail = nullptr;
-        int pixelLength = 0;
-        int length = 0;
-        float breadth = 0.0f;
+    /// Everything one page node's geometry depends on. Updating a page with an
+    /// unchanged key is skipped, which is the common case while paused.
+    struct PageDrawKey {
+        StemPageKey page;
+        double firstDeviceColumn = 0.0;
+        double lastDeviceColumn = 0.0;
         float devicePixelRatio = 1.0f;
-        int laneDeviceHeight = 0;
-        int laneCount = 0;
         int topDevice = 0;
-        qint64 firstColumn = 0;
-        double firstSample = 0.0;
-        int samplesPerColumn = 0;
-        int detailSamplesPerColumn = 0;
-        double textureFirstSample = 0.0;
-        int textureColumns = 0;
-        float laneAlpha = 1.0f;
-        unsigned int mutedMask = 0;
+        int laneDeviceHeight = 0;
+        int gapDevicePx = 1;
+        int drawLaneCount = 0;
         uint64_t orderSignature = 0;
+        uint32_t alphaSignature = 0;
         bool slip = false;
 
-        bool operator==(const GeometryKey& other) const = default;
+        bool operator==(const PageDrawKey&) const = default;
     };
 
+    struct PageNodeState {
+        StemPageTextureNode* pNode = nullptr;
+        const QImage* pImage = nullptr;
+        PageDrawKey drawKey;
+        bool hasDrawKey = false;
+        quint64 lastUsedFrame = 0;
+    };
+
+    static constexpr int kPageWidth = 4096;
+    static constexpr int kMaxGpuPages = 6;
+    static constexpr int kViewportSettleMs = 120;
+
     bool preprocessInner();
+
+    /// Returns a ready page image, scheduling a build on a miss. Thread-safe;
+    /// called from the scene-graph thread.
+    std::shared_ptr<const QImage> pageImage(
+            const StemPageKey& key,
+            const std::shared_ptr<const StemDetailTrack>& detail,
+            bool requestIfMissing);
+
+    StemPageTextureNode* acquirePageNode(const StemPageKey& key,
+            const QImage& image);
+
+    void clearPageGeometry();
 
     bool m_isSlipRenderer;
     bool m_splitStemTracks;
@@ -258,28 +292,39 @@ class allshader::WaveformRendererStem final
     QVarLengthArray<int, mixxx::kMaxSupportedStems> m_stackOrder;
 
     bool m_hasGeometry;
-    StemDetailTextureNode* m_pTextureNode;
-    QImage m_textureImage;
-    bool m_textureValid;
-    const StemDetailTrack* m_textureDetail;
-    int m_texturePixelLength;
-    int m_textureLaneDeviceHeight;
-    int m_textureLaneCount;
-    int m_textureSamplesPerColumn;
-    int m_textureDetailSamplesPerColumn;
-    float m_textureLaneAlpha;
-    unsigned int m_textureMutedMask;
+    StemPageCache* m_pPageCache = nullptr;
+    QHash<StemPageKey, PageNodeState> m_pageNodes;
+    /// Pages drawn on the previous frame. Used as a scaled fallback while a
+    /// new zoom/height/page is being built.
+    QVarLengthArray<StemPageKey, 8> m_lastDrawnPages;
+    /// Used only when no process-wide page cache exists (tests, static
+    /// previews), so the renderer still works without a factory.
+    QHash<StemPageKey, std::shared_ptr<const QImage>> m_localPages;
+    quint64 m_frameCounter = 0;
+    /// Stable output lane height used as part of page keys. During a layout or
+    /// resize animation the live height changes every frame; pages keep using
+    /// the last settled value and quads scale until the animation ends.
+    int m_pageLaneDeviceHeight = 0;
+    int m_pageGapDevicePx = 1;
+    QElapsedTimer m_laneHeightSettleTimer;
+    QElapsedTimer m_detailSettleTimer;
+    StemDetailKey m_detailSettleKey;
+    bool m_hasDetailSettleKey = false;
+
+    QElapsedTimer m_statsTimer;
+    quint64 m_statFrames = 0;
+    quint64 m_statPageRequests = 0;
+    quint64 m_statTextureUploads = 0;
+    quint64 m_statGeometryUpdates = 0;
+    qint64 m_statMaxPreprocessUs = 0;
+    qint64 m_lastPreprocessUs = 0;
+
     std::array<float, mixxx::kMaxSupportedStems> m_muteMix{};
-    unsigned int m_textureMuteMixSignature;
-    uint64_t m_textureOrderSignature;
-    bool m_textureSlip;
-    stemdetail::TextureRange m_textureRange;
     std::shared_ptr<const StemDetailTrack> m_pDetail;
-    GeometryKey m_geometryKey;
 
     // Cache key of the last detail request. preprocess() runs on every frame,
     // but the cache is only consulted when the key (track, zoom, lane height,
-    // magnification) changes or a rebuild completed.
+    // magnification) has been stable for a moment.
     stemdetail::DetailRequestMemo m_detailRequest;
     bool m_detailRefreshPending = false;
 
