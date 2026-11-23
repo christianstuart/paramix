@@ -18,9 +18,9 @@ class PadFxPreset;
 
 /// PadFxUnit owns the per-deck [ChannelN_PadFX] controls.
 ///
-/// Every pad is momentary: the shared preset's effect is enabled while the pad
-/// is held and released when it is let go. It is a control-thread translator,
-/// not a DSP object.
+/// A momentary pad enables the shared preset's effect while it is held; a
+/// toggle pad flips it on each press. It is a control-thread translator, not a
+/// DSP object.
 class PadFxUnit : public QObject {
     Q_OBJECT
   public:
@@ -42,6 +42,7 @@ class PadFxUnit : public QObject {
     void slotPadChanged(int pad);
     void slotStemCountChanged(double value);
     void slotPresetPadChanged(int bankIndex, int pad);
+    void slotPresetPadParamsChanged(int bankIndex, int pad);
     void slotPresetAllChanged();
 
   private:
@@ -64,6 +65,7 @@ class PadFxUnit : public QObject {
     void applyPadParameters(int pad);
     void setEffectActive(int pad, bool active);
     void setPadActiveControl(int pad, bool active);
+    void resetPad(int pad);
     void stopAllPads();
     int stemCount() const;
     void loadBankConfig();

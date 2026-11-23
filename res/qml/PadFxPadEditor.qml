@@ -8,7 +8,8 @@ import QtQuick.Layouts
 import "Theme"
 
 /// The editable part of one shared Pad FX assignment: effect, targets and the
-/// parameter rows for the selected effect. Every pad is momentary.
+/// parameter rows for the selected effect, and whether the pad is held
+/// (momentary) or latched (toggle).
 ColumnLayout {
     id: root
 
@@ -119,6 +120,12 @@ ColumnLayout {
         key: "fx" + root.bank + "_target" + root.pad
     }
     Mixxx.ControlProxy {
+        id: modeControl
+
+        group: root.presetGroup
+        key: "fx" + root.bank + "_mode" + root.pad
+    }
+    Mixxx.ControlProxy {
         id: beatStepParamControl
 
         group: root.presetGroup
@@ -218,6 +225,45 @@ ColumnLayout {
 
                     onClicked: beatStepParamControl.value = root.beatStepValues[stepKey.index]
                 }
+            }
+        }
+    }
+
+    // Momentary / Toggle. Picking a new effect resets this to its default.
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.space1
+
+        Repeater {
+            model: [
+                {
+                    "label": qsTr("Momentary"),
+                    "mode": 0,
+                    "hint": qsTr("Hold pad %1 to engage, release to stop")
+                },
+                {
+                    "label": qsTr("Toggle"),
+                    "mode": 1,
+                    "hint": qsTr("Tap pad %1 to engage, tap again to stop")
+                }
+            ]
+
+            delegate: Skin.Button {
+                required property var modelData
+
+                Accessible.checkable: true
+                Accessible.checked: highlight
+                Accessible.name: qsTr("Pad %1 %2").arg(root.pad).arg(modelData.label)
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.padfxHitHeight
+                highlight: Math.round(modeControl.value) === modelData.mode
+                text: modelData.label
+
+                ToolTip.delay: 500
+                ToolTip.text: modelData.hint.arg(root.pad)
+                ToolTip.visible: hovered
+
+                onClicked: modeControl.value = modelData.mode
             }
         }
     }

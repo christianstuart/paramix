@@ -29,13 +29,18 @@ Make Pad FX a shared preset layer over the existing effects system.
    the deck itself. Deck-targeted pads run after pregain, so they work on
    ordinary tracks. Stem-targeted pads still run before the stem fader.
 4. Targets are `0` for the whole deck and `1..15` for a stem mask.
-5. Every pad is momentary. The effect is enabled while the pad is held and
-   released when it is let go. There are no pad timers, toggles or pad-owned
-   mutes. Vinyl Brake and Echo Out are release effects and stop on release.
+5. Each pad is **momentary** (held) or **toggle** (tap on, tap off), stored per
+   pad as `[PadFX],fxB_modeN`. Release effects (Vinyl Brake, Echo Out) default
+   to toggle; every other effect defaults to momentary, and choosing a new
+   effect resets the mode to that effect's default. There are no pad timers or
+   pad-owned mutes. *Amended 2026-11-22 (F14): the first version made every pad
+   momentary; toggle came back for release effects, which are hard to hold
+   through a brake or an echo tail on a controller.*
 6. The deck pane and the Pad FX window show the same 4 x 2 grid. The Pad FX tab
    selects FX 1 on click and FX 2 on shift-click.
 7. The old per-deck A-D banks migrate from Deck 1: A+B become FX 1 pads 1-8,
-   C+D become FX 2 pads 1-8. Old mode values are ignored.
+   C+D become FX 2 pads 1-8. Old mode values are ignored; migrated pads take
+   their effect's default mode.
 
 ## Consequences
 

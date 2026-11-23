@@ -10,6 +10,7 @@
 #include "preferences/usersettings.h"
 
 class ControlPotmeter;
+class ControlPushButton;
 class EffectsManager;
 class QJsonObject;
 
@@ -32,12 +33,15 @@ class PadFxPreset : public QObject {
 
   signals:
     void padChanged(int bankIndex, int pad);
+    /// Only parameter values changed; a held or latched pad keeps playing.
+    void padParamsChanged(int bankIndex, int pad);
     void allPadsChanged();
 
   private slots:
     void slotVisibleEffectsChanged();
     void slotEffectChanged(int bankIndex, int pad);
     void slotTargetChanged(int bankIndex, int pad);
+    void slotModeChanged(int bankIndex, int pad);
     void slotParamChanged(int bankIndex, int pad, int param);
 
   private:
@@ -48,6 +52,9 @@ class PadFxPreset : public QObject {
         std::array<std::unique_ptr<ControlPotmeter>,
                 mixxx::padfx::kNumPadsPerBank>
                 targets;
+        std::array<std::unique_ptr<ControlPushButton>,
+                mixxx::padfx::kNumPadsPerBank>
+                modes;
         std::array<std::array<std::unique_ptr<ControlPotmeter>,
                            mixxx::padfx::kMaxPadParams>,
                 mixxx::padfx::kNumPadsPerBank>
@@ -56,6 +63,7 @@ class PadFxPreset : public QObject {
 
     static QString effectKey(int bankIndex, int pad);
     static QString targetKey(int bankIndex, int pad);
+    static QString modeKey(int bankIndex, int pad);
     static QString paramKey(int bankIndex, int pad, int param);
 
     void createControls();

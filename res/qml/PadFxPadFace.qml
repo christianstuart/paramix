@@ -56,7 +56,8 @@ Skin.Button {
     }
 
     Accessible.description: {
-        let parts = [root.descriptionText, qsTr("Hold to engage")];
+        let parts = [root.descriptionText,
+                     modeControl.value > 0 ? qsTr("Tap to toggle") : qsTr("Hold to engage")];
         if (root.isActive)
             parts.push(qsTr("Active"));
         if (root.stemTargetUnavailable)
@@ -72,7 +73,9 @@ Skin.Button {
 
     ToolTip.delay: 500
     ToolTip.text: {
-        let text = qsTr("Pad %1 - %2 (%3). Hold to engage, release to stop.")
+        let text = (modeControl.value > 0
+                    ? qsTr("Pad %1 - %2 (%3). Tap to engage, tap again to stop.")
+                    : qsTr("Pad %1 - %2 (%3). Hold to engage, release to stop."))
                 .arg(root.pad)
                 .arg(root.effectText)
                 .arg(root.targetText);
@@ -168,6 +171,12 @@ Skin.Button {
 
         group: root.padFxGroup
         key: "pad" + root.pad
+    }
+    Mixxx.ControlProxy {
+        id: modeControl
+
+        group: root.presetGroup
+        key: "fx" + root.bank + "_mode" + root.pad
     }
     Mixxx.ControlProxy {
         id: padActive

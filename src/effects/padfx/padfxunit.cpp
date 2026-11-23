@@ -11,7 +11,6 @@
 #include "control/controlpushbutton.h"
 #include "effects/backends/effectmanifest.h"
 #include "effects/backends/effectmanifestparameter.h"
-#include "effects/backends/effectsbackendmanager.h"
 #include "effects/effectchain.h"
 #include "effects/effectparameter.h"
 #include "effects/effectslot.h"
@@ -182,6 +181,10 @@ PadFxUnit::PadFxUnit(const QString& deckGroup,
         });
     }
     connect(m_pPreset, &PadFxPreset::padChanged, this, &PadFxUnit::slotPresetPadChanged);
+    connect(m_pPreset,
+            &PadFxPreset::padParamsChanged,
+            this,
+            &PadFxUnit::slotPresetPadParamsChanged);
     connect(m_pPreset, &PadFxPreset::allPadsChanged, this, &PadFxUnit::slotPresetAllChanged);
     m_pStemCount->connectValueChanged(this, &PadFxUnit::slotStemCountChanged);
     slotStemCountChanged(m_pStemCount->get());
@@ -225,15 +228,15 @@ EffectManifestPointer PadFxUnit::manifestForId(const QString& effectId) const {
     if (effectId.isEmpty()) {
         return {};
     }
-    // Resolve against the same catalogue the preset uses. This avoids parsing
-    // a unique ID when the effect comes from a non-built-in backend.
+    // Only the preset's catalogue: an id it cannot show must not play either,
+    // or the pad reads "Off" while an effect runs.
     for (const auto& pManifest : m_pPreset->effectManifests()) {
         if (pManifest->uniqueId() == effectId ||
                 pManifest->id() == effectId) {
             return pManifest;
         }
     }
-    return m_pEffectsManager->getBackendManager()->getManifestFromUniqueId(effectId);
+    return {};
 }
 
 bool PadFxUnit::targetAvailable(int targetMask) const {
@@ -422,28 +425,36 @@ void PadFxUnit::slotPadChanged(int pad) {
     m_runtime[pad].down = down;
 
     const auto& cfg = m_pPreset->padConfig(bankIndex(), pad);
-    if (cfg.effectId.isEmpty() || !targetAvailable(cfg.targetMask)) {
+    const bool wasActive = m_runtime[pad].active;
+    // Toggle flips on each press and ignores releases; momentary follows the pad.
+    const bool active = cfg.mode == mixxx::padfx::kModeToggle
+            ? (down ? !wasActive : wasActive)
+            : down;
+    if (active == wasActive) {
         return;
     }
-
-    if (down) {
-        setEffectActive(pad, true);
-        m_runtime[pad].active = true;
-        setPadActiveControl(pad, true);
-    } else if (m_runtime[pad].active) {
-        setEffectActive(pad, false);
-        m_runtime[pad].active = false;
-        setPadActiveControl(pad, false);
+    // Only engaging needs a playable pad; stopping must always get through.
+    if (active && (!manifestForId(cfg.effectId) || !targetAvailable(cfg.targetMask))) {
+        return;
     }
+    setEffectActive(pad, active);
+    m_runtime[pad].active = active;
+    setPadActiveControl(pad, active);
+}
+
+void PadFxUnit::resetPad(int pad) {
+    if (m_runtime[pad].active) {
+        setEffectActive(pad, false);
+    }
+    // Keep `down` in step with the control so a still-held pad needs a real
+    // release and a new press instead of latching on its release.
+    m_runtime[pad] = PadRuntime{m_pPads[pad]->toBool(), false};
+    setPadActiveControl(pad, false);
 }
 
 void PadFxUnit::stopAllPads() {
     for (int pad = 0; pad < mixxx::padfx::kNumPadsPerBank; ++pad) {
-        if (m_runtime[pad].active) {
-            setEffectActive(pad, false);
-        }
-        m_runtime[pad] = PadRuntime{};
-        setPadActiveControl(pad, false);
+        resetPad(pad);
     }
 }
 
@@ -460,13 +471,15 @@ void PadFxUnit::slotPresetPadChanged(int bankIndex, int pad) {
     if (bankIndex != this->bankIndex()) {
         return;
     }
-    if (m_runtime[pad].active) {
-        setEffectActive(pad, false);
-    }
-    m_runtime[pad] = PadRuntime{};
-    setPadActiveControl(pad, false);
+    resetPad(pad);
     unloadPad(pad);
     loadPad(pad);
+}
+
+void PadFxUnit::slotPresetPadParamsChanged(int bankIndex, int pad) {
+    if (bankIndex == this->bankIndex()) {
+        applyPadParameters(pad);
+    }
 }
 
 void PadFxUnit::slotPresetAllChanged() {

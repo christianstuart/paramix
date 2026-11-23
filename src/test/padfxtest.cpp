@@ -104,6 +104,25 @@ class PadFxTest : public MixxxTest {
                 m_pPreset.get());
     }
 
+    void tap(const char* pad) {
+        ControlObject::set(ConfigKey("[Channel1_PadFX]", pad), 1.0);
+        processEventsFor(50);
+        ControlObject::set(ConfigKey("[Channel1_PadFX]", pad), 0.0);
+        processEventsFor(50);
+    }
+
+    /// Pad 1 becomes a momentary Filter on the whole deck; returns its slot.
+    EffectSlotPointer assignDeckFilterToPad1() {
+        const int filterIndex = effectIndex(*m_pEffectsManager,
+                QStringLiteral("org.mixxx.effects.filter"));
+        EXPECT_GT(filterIndex, 0);
+        ControlObject::set(ConfigKey("[PadFX]", "fx1_effect1"), filterIndex);
+        ControlObject::set(ConfigKey("[PadFX]", "fx1_target1"), 0.0);
+        processEventsFor(50);
+        return m_pEffectsManager->getPadEffectChain(QStringLiteral("[Channel1]"))
+                ->getEffectSlot(0);
+    }
+
     std::shared_ptr<ChannelHandleFactory> m_pChannelHandleFactory;
     std::shared_ptr<EffectsManager> m_pEffectsManager;
     std::unique_ptr<ControlObject> m_pStemCount;
@@ -128,21 +147,20 @@ TEST_F(PadFxTest, CreatesControlGroupAndDefaultBank) {
             pChain->getEffectSlot(2)->getManifest()->id());
 }
 
-TEST_F(PadFxTest, BrakeIsMomentaryAndOnlyTargetsVocals) {
+TEST_F(PadFxTest, BrakeTogglesByDefaultAndOnlyTargetsVocals) {
     // Pad 2 is the second pad slot and defaults to the vocals target.
     auto pVocals = m_pEffectsManager->getPadEffectChain(stemGroup(3))->getEffectSlot(1);
     ASSERT_NE(nullptr, pVocals.data());
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[PadFX]", "fx1_mode2")));
 
-    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad2"), 1.0);
-    processEventsFor(50);
+    tap("pad2");
     EXPECT_NEAR(1.0, findParameterValue(pVocals, "active"), 1e-6);
     EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad2_active")));
     EXPECT_FALSE(m_pEffectsManager->getPadEffectChain(stemGroup(0))
                     ->getEffectSlot(1)
                     ->isLoaded());
 
-    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad2"), 0.0);
-    processEventsFor(50);
+    tap("pad2");
     EXPECT_NEAR(0.0, findParameterValue(pVocals, "active"), 1e-6);
     EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad2_active")));
 }
@@ -159,22 +177,18 @@ TEST_F(PadFxTest, PadOnlyEffectSelectedThroughControlUsesActiveGate) {
     ASSERT_TRUE(pBrake->isLoaded());
     EXPECT_EQ(QStringLiteral("org.paramix.effects.vinylbrake"), pBrake->id());
 
-    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
-    processEventsFor(50);
+    tap("pad1");
     EXPECT_NEAR(1.0, findParameterValue(pBrake, "active"), 1e-6);
 
-    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 0.0);
-    processEventsFor(50);
+    tap("pad1");
     EXPECT_NEAR(0.0, findParameterValue(pBrake, "active"), 1e-6);
 }
 
-TEST_F(PadFxTest, EchoOutIsMomentary) {
-    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad3"), 1.0);
-    processEventsFor(50);
+TEST_F(PadFxTest, EchoOutTogglesByDefault) {
+    tap("pad3");
     EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad3_active")));
 
-    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad3"), 0.0);
-    processEventsFor(50);
+    tap("pad3");
     EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad3_active")));
     auto pEcho = m_pEffectsManager->getPadEffectChain(stemGroup(0))->getEffectSlot(2);
     ASSERT_NE(nullptr, pEcho.data());
@@ -230,8 +244,10 @@ TEST_F(PadFxTest, BrakeSilencesTheStemBufferAndReleasingRestoresIt) {
     }
     EXPECT_LT(SampleUtil::rms(buffer.data(), kSamples), baseline * 0.1);
 
-    // Release the momentary pad; the brake winds the stem back up.
+    // A toggle pad ignores the release; the second press winds the stem back up.
     ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 0.0);
+    EXPECT_NEAR(1.0, findParameterValue(pBrakeSlot, "active"), 1e-6);
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
     EXPECT_NEAR(0.0, findParameterValue(pBrakeSlot, "active"), 1e-6);
     for (int i = 0; i < 800; ++i) {
         processBlock();
@@ -378,6 +394,114 @@ TEST_F(PadFxTest, PadAssignmentsAreSharedAndBanksStayPerDeck) {
     EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "bank")));
 }
 
+TEST_F(PadFxTest, EffectMissingFromCatalogShowsOffAndStaysSilent) {
+    // A unique id with an unknown backend: the catalogue cannot show it, but
+    // the backend manager would still resolve it to the built-in Filter.
+    m_pUnit.reset();
+    m_pPreset.reset();
+    QJsonArray pads;
+    pads.append(QJsonObject{{"effectId", "org.mixxx.effects.filter Bogus"},
+            {"target", 0},
+            {"mode", 0}});
+    const QJsonObject root{{"version", 4},
+            {"banks", QJsonArray{QJsonObject{{"pads", pads}}, QJsonObject{}}}};
+    config()->setValue(ConfigKey("[PadFX]", "Preset"),
+            QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact)));
+    m_pPreset = std::make_unique<PadFxPreset>(config(), m_pEffectsManager.get());
+    m_pUnit = std::make_unique<PadFxUnit>(QStringLiteral("[Channel1]"),
+            config(),
+            m_pEffectsManager.get(),
+            m_pPreset.get());
+    processEventsFor(50);
+
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[PadFX]", "fx1_effect1")));
+    auto pSlot = m_pEffectsManager->getPadEffectChain(QStringLiteral("[Channel1]"))
+                         ->getEffectSlot(0);
+    EXPECT_FALSE(pSlot->isLoaded());
+
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
+    processEventsFor(50);
+    EXPECT_FALSE(pSlot->isLoaded());
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+}
+
+TEST_F(PadFxTest, ParamEditWhileHeldKeepsPadPlaying) {
+    auto pSlot = assignDeckFilterToPad1();
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
+    processEventsFor(50);
+    ASSERT_EQ(1.0, ControlObject::get(ConfigKey(pSlot->getGroup(), "enabled")));
+
+    ControlObject::set(ConfigKey("[PadFX]", "fx1_pad1_param1"), 0.9);
+    processEventsFor(50);
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey(pSlot->getGroup(), "enabled")));
+
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 0.0);
+    processEventsFor(50);
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey(pSlot->getGroup(), "enabled")));
+}
+
+TEST_F(PadFxTest, ReleaseAfterEffectTurnedOffStopsPad) {
+    auto pSlot = assignDeckFilterToPad1();
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
+    processEventsFor(50);
+    ControlObject::set(ConfigKey("[PadFX]", "fx1_effect1"), 0.0);
+    processEventsFor(50);
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 0.0);
+    processEventsFor(50);
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+    EXPECT_FALSE(pSlot->isLoaded() &&
+            ControlObject::get(ConfigKey(pSlot->getGroup(), "enabled")) > 0.0);
+}
+
+TEST_F(PadFxTest, HeldTogglePadThroughBankSwitchDoesNotLatch) {
+    // Pad 1 is a Vinyl Brake (toggle). Hold it across a bank round trip.
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 1.0);
+    processEventsFor(50);
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "bank"), 2.0);
+    processEventsFor(50);
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "bank"), 1.0);
+    processEventsFor(50);
+    ControlObject::set(ConfigKey("[Channel1_PadFX]", "pad1"), 0.0);
+    processEventsFor(50);
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+
+    tap("pad1");
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+}
+
+TEST_F(PadFxTest, ModeFollowsEffectAndCanBeChanged) {
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[PadFX]", "fx1_mode1")));
+    auto pSlot = assignDeckFilterToPad1();
+    // A new effect takes its own default: Filter is momentary.
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[PadFX]", "fx1_mode1")));
+
+    ControlObject::set(ConfigKey("[PadFX]", "fx1_mode1"), 1.0);
+    processEventsFor(50);
+    tap("pad1");
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+    EXPECT_EQ(1.0, ControlObject::get(ConfigKey(pSlot->getGroup(), "enabled")));
+    tap("pad1");
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey("[Channel1_PadFX]", "pad1_active")));
+    EXPECT_EQ(0.0, ControlObject::get(ConfigKey(pSlot->getGroup(), "enabled")));
+
+    const QJsonObject saved = QJsonDocument::fromJson(
+            config()->getValue(ConfigKey("[PadFX]", "Preset"), QString()).toUtf8())
+                                      .object();
+    EXPECT_EQ(1,
+            saved.value("banks")
+                    .toArray()
+                    .at(0)
+                    .toObject()
+                    .value("pads")
+                    .toArray()
+                    .at(0)
+                    .toObject()
+                    .value("mode")
+                    .toInt());
+}
+
 class PadFxPresetMigrationTest : public MixxxTest {
   protected:
     void SetUp() override {
@@ -464,7 +588,8 @@ TEST_F(PadFxPresetMigrationTest, MigratesDeckOneBanksAndIgnoresModes) {
     EXPECT_EQ(QStringLiteral("org.paramix.effects.vinylbrake"),
             fx1.at(0).toObject().value("effectId").toString());
     EXPECT_EQ(7, fx1.at(0).toObject().value("target").toInt());
-    EXPECT_FALSE(fx1.at(0).toObject().contains("mode"));
+    // Legacy mode 0 is ignored; a release effect defaults to toggle.
+    EXPECT_EQ(1, fx1.at(0).toObject().value("mode").toInt());
     EXPECT_EQ(QStringLiteral("org.paramix.effects.echoout"),
             fx1.at(4).toObject().value("effectId").toString());
     EXPECT_EQ(8, fx1.at(4).toObject().value("target").toInt());
@@ -477,5 +602,5 @@ TEST_F(PadFxPresetMigrationTest, MigratesDeckOneBanksAndIgnoresModes) {
     EXPECT_EQ(QStringLiteral("org.paramix.effects.echoout"),
             fx2.at(4).toObject().value("effectId").toString());
     EXPECT_EQ(4, fx2.at(4).toObject().value("target").toInt());
-    EXPECT_FALSE(fx2.at(4).toObject().contains("mode"));
+    EXPECT_EQ(1, fx2.at(4).toObject().value("mode").toInt());
 }
