@@ -4,6 +4,7 @@
 #include <QMap>
 #include <QTime>
 #include <atomic>
+#include <cstddef>
 
 #include "control/controlvalue.h"
 #include "engine/slipmodestate.h"
@@ -45,7 +46,6 @@ class VisualPlayPositionData {
     double m_tempoTrackSeconds; // total track time, taking the current tempo into account
     double m_audioBufferMicroS;
 };
-
 
 class VisualPlayPosition : public QObject {
     Q_OBJECT
@@ -94,7 +94,10 @@ class VisualPlayPosition : public QObject {
   private:
     double calcOffsetAtNextVSync(VSyncTimeProvider* pSyncTimeProvider,
             const VisualPlayPositionData& data);
-    DelayRing<VisualPlayPositionData, 16> m_data;
+    /// Number of audio buffers whose visual positions are kept for the sync
+    /// lookup. Also the upper bound for how far the lookup scans back.
+    static constexpr std::size_t kRingSize = 16;
+    DelayRing<VisualPlayPositionData, kRingSize> m_data;
     QString m_key;
     bool m_noTransport;
 
