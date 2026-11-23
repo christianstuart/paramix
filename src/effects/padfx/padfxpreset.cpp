@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "control/controlpotmeter.h"
+#include "control/controlpushbutton.h"
 #include "effects/backends/effectmanifest.h"
 #include "effects/backends/effectmanifestparameter.h"
 #include "effects/effectsmanager.h"
@@ -71,6 +72,10 @@ QString PadFxPreset::targetKey(int bankIndex, int pad) {
     return QStringLiteral("fx%1_target%2").arg(bankIndex + 1).arg(pad + 1);
 }
 
+QString PadFxPreset::modeKey(int bankIndex, int pad) {
+    return QStringLiteral("fx%1_mode%2").arg(bankIndex + 1).arg(pad + 1);
+}
+
 QString PadFxPreset::paramKey(int bankIndex, int pad, int param) {
     return QStringLiteral("fx%1_pad%2_param%3")
             .arg(bankIndex + 1)
@@ -103,6 +108,9 @@ void PadFxPreset::createControls() {
                     false,
                     kDeckTarget);
             controls.targets[pad]->setStepCount(15);
+            controls.modes[pad] = std::make_unique<ControlPushButton>(
+                    ConfigKey(kConfigGroup, modeKey(bank, pad)));
+            controls.modes[pad]->setButtonMode(mixxx::control::ButtonMode::Toggle);
             for (int param = 0; param < kMaxPadParams; ++param) {
                 controls.params[pad][param] = std::make_unique<ControlPotmeter>(
                         ConfigKey(kConfigGroup, paramKey(bank, pad, param)),
@@ -126,6 +134,12 @@ void PadFxPreset::createControls() {
                     this,
                     [this, bank, pad](double) {
                         slotTargetChanged(bank, pad);
+                    });
+            connect(controls.modes[pad].get(),
+                    &ControlObject::valueChanged,
+                    this,
+                    [this, bank, pad](double) {
+                        slotModeChanged(bank, pad);
                     });
             for (int param = 0; param < kMaxPadParams; ++param) {
                 connect(controls.params[pad][param].get(),
@@ -162,6 +176,11 @@ void PadFxPreset::setDefaults() {
     fx1[3].effectId = mixxx::padfx::kEchoOutId;
     fx1[3].targetMask = 8;
     fx1[3].params = mixxx::padfx::defaultPadParams(fx1[3].effectId);
+    for (auto& bank : m_config.banks) {
+        for (auto& pad : bank.pads) {
+            pad.mode = mixxx::padfx::defaultPadMode(pad.effectId);
+        }
+    }
 }
 
 void PadFxPreset::migrateLegacy(const QJsonObject& legacy, bool useLegacyBank) {
@@ -188,6 +207,8 @@ void PadFxPreset::migrateLegacy(const QJsonObject& legacy, bool useLegacyBank) {
                 cfg.effectId = mixxx::padfx::legacyEffectId(
                         clampInt(obj.value("effect").toInt(0), 0, 2));
                 cfg.targetMask = clampInt(obj.value("target").toInt(1), 0, 15);
+                // Legacy modes are ignored; each pad takes its effect's default.
+                cfg.mode = mixxx::padfx::defaultPadMode(cfg.effectId);
                 cfg.params = mixxx::padfx::defaultPadParams(cfg.effectId);
                 const QJsonArray params = obj.value("params").toArray();
                 for (int param = 0;
@@ -213,7 +234,8 @@ void PadFxPreset::loadConfig() {
         if (doc.isObject()) {
             const QJsonObject root = doc.object();
             const QJsonArray banks = root.value("banks").toArray();
-            const bool newLayout = root.value("version").toInt(0) >= 3 ||
+            const int version = root.value("version").toInt(0);
+            const bool newLayout = version >= 3 ||
                     (banks.size() == kNumBanks &&
                             banks.at(0).toObject().value("pads").toArray().size() ==
                                     kNumPadsPerBank);
@@ -238,6 +260,13 @@ void PadFxPreset::loadConfig() {
                         }
                         cfg.targetMask = clampInt(
                                 obj.value("target").toInt(kDeckTarget), 0, 15);
+                        // Version 3 had no mode; older "mode" values meant
+                        // something else, so only trust version 4+.
+                        cfg.mode = version >= 4 && obj.contains("mode")
+                                ? clampInt(obj.value("mode").toInt(),
+                                          mixxx::padfx::kModeMomentary,
+                                          mixxx::padfx::kModeToggle)
+                                : mixxx::padfx::defaultPadMode(cfg.effectId);
                         cfg.params = mixxx::padfx::defaultPadParams(cfg.effectId);
                         const QJsonArray params = obj.value("params").toArray();
                         for (int param = 0;
@@ -274,7 +303,7 @@ void PadFxPreset::loadConfig() {
 
 void PadFxPreset::saveConfig() {
     QJsonObject root;
-    root.insert("version", 3);
+    root.insert("version", 4);
     QJsonArray banks;
     for (const auto& bank : m_config.banks) {
         QJsonObject bankObject;
@@ -283,6 +312,7 @@ void PadFxPreset::saveConfig() {
             QJsonObject padObject;
             padObject.insert("effectId", pad.effectId);
             padObject.insert("target", pad.targetMask);
+            padObject.insert("mode", pad.mode);
             QJsonArray params;
             for (double param : pad.params) {
                 params.append(param);
@@ -334,6 +364,7 @@ void PadFxPreset::syncPadControls(int bankIndex, int pad) {
     m_syncingControls = true;
     controls.effects[pad]->set(effectIndexForId(cfg.effectId));
     controls.targets[pad]->set(cfg.targetMask);
+    controls.modes[pad]->set(cfg.mode);
     for (int param = 0; param < kMaxPadParams; ++param) {
         controls.params[pad][param]->set(cfg.params[param]);
     }
@@ -351,6 +382,7 @@ void PadFxPreset::syncControls() {
 void PadFxPreset::setEffectDefaults(int bankIndex, int pad) {
     auto& cfg = m_config.banks[bankIndex].pads[pad];
     cfg.params = mixxx::padfx::defaultPadParams(cfg.effectId);
+    cfg.mode = mixxx::padfx::defaultPadMode(cfg.effectId);
     if (mixxx::padfx::isPadFxOnly(cfg.effectId)) {
         return;
     }
@@ -436,6 +468,23 @@ void PadFxPreset::slotParamChanged(int bankIndex, int pad, int param) {
     }
     cfg.params[param] = value;
     saveConfig();
+    emit padParamsChanged(bankIndex, pad);
+}
+
+void PadFxPreset::slotModeChanged(int bankIndex, int pad) {
+    if (m_syncingControls) {
+        return;
+    }
+    auto& cfg = m_config.banks[bankIndex].pads[pad];
+    const int mode = m_controls[bankIndex].modes[pad]->toBool()
+            ? mixxx::padfx::kModeToggle
+            : mixxx::padfx::kModeMomentary;
+    if (cfg.mode == mode) {
+        return;
+    }
+    cfg.mode = mode;
+    saveConfig();
+    // Reloading stops the pad, so a latch never outlives its mode.
     emit padChanged(bankIndex, pad);
 }
 

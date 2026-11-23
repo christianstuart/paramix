@@ -28,15 +28,36 @@ visible label.
 
 ## Behavior
 
-Every pad is **momentary**. Hold the pad to engage the effect; release it to
-stop. There is no toggle, no one-shot mode and no pad-owned mute.
+Each pad is either **momentary** or **toggle**. The pad editor (right click)
+has a Momentary / Toggle switch, and `[PadFX],fxB_modeN` sets it from a
+controller.
 
-Vinyl Brake and Echo Out are release effects:
+| Mode | Press | Release |
+|---|---|---|
+| Momentary | engage | stop |
+| Toggle | engage, or stop if already engaged | ignored |
 
-- **Vinyl Brake** ramps the target to a stop while held. Releasing it winds the
-  target back up.
-- **Echo Out** feeds the target into the delay while held. Releasing it stops
-  the feed and lets the effect release.
+The default depends on the effect, and choosing a new effect resets the mode:
+
+| Effect | Default |
+|---|---|
+| Vinyl Brake, Echo Out (release effects) | Toggle |
+| Every other effect | Momentary |
+
+The pad lights (and `padN_active` is 1) while the effect is engaged, so a
+latched toggle pad stays lit. There is no one-shot mode and no pad-owned mute.
+
+- **Vinyl Brake** ramps the target to a stop while engaged. Stopping it winds
+  the target back up.
+- **Echo Out** stops feeding the target into the delay while engaged, so the
+  captured window repeats and decays. Stopping it returns to the dry signal.
+
+Changing a parameter (from the editor or a controller) updates a playing pad
+without stopping it. Changing its effect, target or mode stops it.
+
+An effect the Pad FX list cannot show (for example a plugin that is no longer
+installed) is treated as Off: the pad shows Off and plays nothing. The pad
+keeps the assignment and plays it again once the effect is available.
 
 ## Targets
 
@@ -62,9 +83,11 @@ Shared assignments live in one global group:
 [PadFX]
   fx1_effect1..fx1_effect8       effect index, 0 = Off
   fx1_target1..fx1_target8       0 = deck, 1..15 = stem mask
+  fx1_mode1..fx1_mode8           0 = momentary, 1 = toggle (a press flips it)
   fx1_pad1_param1..fx1_pad8_param8
   fx2_effect1..fx2_effect8
   fx2_target1..fx2_target8
+  fx2_mode1..fx2_mode8
   fx2_pad1_param1..fx2_pad8_param8
 ```
 
@@ -78,7 +101,12 @@ Each deck owns its performance state:
 ```
 
 A controller mapping only needs `bank` and `pad1..pad8` for performance. Pad
-presses send `1`; releases send `0`. Every press is momentary.
+presses send `1`; releases send `0`. Send both even for toggle pads: the
+toggle happens in Paramix, so the mapping never needs to know the mode.
+
+If your controller releases with a note-off (`0x80`) rather than a note-on with
+velocity 0, map the release too. Without it the pad never sees `0` and a
+momentary pad stays engaged.
 
 Example MIDI input:
 
@@ -87,6 +115,14 @@ Example MIDI input:
   <group>[Channel1_PadFX]</group>
   <key>pad1</key>
   <status>0x90</status>
+  <midino>0x30</midino>
+  <options><normal/></options>
+</control>
+<!-- Release as note-off: same pad, status 0x80 -->
+<control>
+  <group>[Channel1_PadFX]</group>
+  <key>pad1</key>
+  <status>0x80</status>
   <midino>0x30</midino>
   <options><normal/></options>
 </control>
@@ -119,7 +155,8 @@ On upgrade from the old per-deck banks:
 - Deck 1's old configuration becomes the shared preset.
 - Old banks A + B become FX 1 pads 1-8.
 - Old banks C + D become FX 2 pads 1-8.
-- Old mode values are ignored; every pad is momentary.
+- Old mode values are ignored; each pad takes its effect's default mode.
+  Presets saved before modes existed (version 3) do the same.
 - Deck 2-4 pad configurations are discarded because assignments are shared.
 
 ## Limitations

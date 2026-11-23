@@ -11,6 +11,8 @@ constexpr int kNumPadsPerBank = 8;
 constexpr int kNumStems = 4;
 constexpr int kMaxPadParams = 8;
 constexpr int kDeckTarget = 0;
+constexpr int kModeMomentary = 0;
+constexpr int kModeToggle = 1;
 
 /// Pad FX are controls over the existing effect chains, not a separate effect
 /// catalogue. These two effects stay pad-only because they shape the stem
@@ -23,6 +25,8 @@ struct PadConfig {
     QString effectId;
     /// 0 is the whole deck; 1..15 is a stem mask.
     int targetMask = kDeckTarget;
+    /// kModeMomentary (hold) or kModeToggle (tap on, tap off).
+    int mode = kModeMomentary;
     /// Normalized 0..1 values, ordered by the effect's parameter list. The
     /// pad-only effects keep their original UI order:
     ///   Vinyl Brake: time, curve, wind-up
@@ -61,6 +65,12 @@ inline QString baseEffectId(const QString& effectId) {
 inline bool isPadFxOnly(const QString& effectId) {
     const QString base = baseEffectId(effectId);
     return base == kVinylBrakeId || base == kEchoOutId;
+}
+
+/// Release effects (Vinyl Brake, Echo Out) latch by default; everything else
+/// is held.
+inline int defaultPadMode(const QString& effectId) {
+    return isPadFxOnly(effectId) ? kModeToggle : kModeMomentary;
 }
 
 inline std::array<double, kMaxPadParams> defaultPadParams(const QString& effectId) {

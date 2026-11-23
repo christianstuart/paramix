@@ -1091,6 +1091,13 @@ ControlPickerMenu::ControlPickerMenu(QWidget* pParent)
                         pPadFxPresetMenu,
                         false,
                         tr("Pad FX"));
+                addControl(padFxPresetGroup,
+                        prefix + QStringLiteral("mode%1").arg(pad),
+                        tr("Pad FX FX %1 Toggle Mode %2").arg(QString::number(bank), QString::number(pad)),
+                        tr("Off = hold the pad (momentary); on = tap on, tap off (toggle)"),
+                        pPadFxPresetMenu,
+                        false,
+                        tr("Pad FX"));
             }
         }
     }
