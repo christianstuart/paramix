@@ -11,9 +11,11 @@ import "../Theme"
 /// Every control is 16-24 px high and shares the neutral-surface /
 /// accent-active treatment used by the toolbar. Key colours tint the key
 /// label only, not the whole button, so the strip stays calm at rest.
-ColumnLayout {
+GridLayout {
     id: root
 
+    // One column: BPM readout, fader, then keylock, SYNC and range. The rate
+    // nudge keys are controller-only.
     required property var currentTrack
     /// True while the BPM readout is replaced by the text field.
     property bool editingBpm: false
@@ -45,7 +47,9 @@ ColumnLayout {
         root.editingBpm = false;
     }
 
-    spacing: Theme.space1
+    columnSpacing: Theme.space1
+    columns: 1
+    rowSpacing: Theme.space1
 
     Mixxx.ControlProxy {
         id: keyCO
@@ -77,7 +81,9 @@ ColumnLayout {
     Item {
         id: readoutBlock
 
+        Layout.column: 0
         Layout.fillWidth: true
+        Layout.row: 0
         implicitHeight: bpmReadout.implicitHeight + pitchRatio.implicitHeight
         opacity: trackLoadedControl.value ? 1 : 0
 
@@ -232,8 +238,11 @@ ColumnLayout {
         }
     }
     RowLayout {
+        Layout.column: 0
         Layout.fillWidth: true
-        Layout.preferredHeight: 20
+        Layout.maximumHeight: 18
+        Layout.preferredHeight: 18
+        Layout.row: 2
         spacing: Theme.space1
 
         Skin.ControlButton {
@@ -244,7 +253,7 @@ ColumnLayout {
             Layout.preferredWidth: 18
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 20
+            implicitHeight: 18
             implicitWidth: 18
             key: "pitch_down"
 
@@ -337,13 +346,12 @@ ColumnLayout {
             readonly property color keyColor: pitchKey.active ? colorsMap[keyCO.value - 1] : "transparent"
             /// Keylock is engaged (note icon palette depends on this).
             readonly property bool lockOn: keyBehavior.isActive
-            readonly property variant textMap: ["1d", "8d", "3d", "10d", "5d", "12d", "7d", "2d", "9d", "4d", "11d", "6d", "10m", "5m", "12m", "7m", "2m", "9m", "4m", "11m", "6m", "1m", "8m", "3m"]
 
             Accessible.name: qsTr("Keylock")
             Layout.fillHeight: true
             Layout.fillWidth: true
             highlight: false
-            implicitHeight: 20
+            implicitHeight: 18
 
             background: Rectangle {
                 border.color: pitchKey.active ? Qt.lighter(pitchKey.keyColor, 1.15) : Theme.border
@@ -366,7 +374,8 @@ ColumnLayout {
                 font.pixelSize: pitchKey.active ? Theme.fontSizeXs : Theme.fontSizeMd
                 font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
-                text: pitchKey.active ? pitchKey.textMap[keyCO.value - 1] : "♪"
+                // Same notation as the deck header (follows the key notation preference).
+                text: pitchKey.active ? Mixxx.KeyUtils.keyToString(keyCO.value) : "♪"
                 verticalAlignment: Text.AlignVCenter
             }
 
@@ -391,7 +400,7 @@ ColumnLayout {
             Layout.preferredWidth: 18
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 20
+            implicitHeight: 18
             implicitWidth: 18
             key: "pitch_up"
 
@@ -446,8 +455,11 @@ ColumnLayout {
         }
     }
     RowLayout {
+        Layout.column: 0
         Layout.fillHeight: true
         Layout.fillWidth: true
+        // Between the BPM readout above and the keylock, SYNC and range below.
+        Layout.row: 1
         spacing: Theme.space1
 
         Skin.ControlFader {
@@ -510,125 +522,27 @@ ColumnLayout {
                 y: Math.round(rateSlider.visualPosition * (rateSlider.height - height))
             }
         }
-        // Speed keys sit beside the fader rather than in two rows above it, so
-        // the fader keeps its travel without hiding any of them.
-        ColumnLayout {
-            Layout.fillHeight: true
-            Layout.preferredWidth: 14
-            spacing: 2
-
-            RateKey {
-                description: qsTr("Lowers the track playback speed (tempo). Right click: lowers playback speed in small steps.")
-                fineKey: "rate_perm_down_small"
-                key: "rate_perm_down"
-                label: "−"
-                title: qsTr("Slow Down")
-            }
-            RateKey {
-                description: qsTr("Raises the track playback speed (tempo). Right click: raises playback speed in small steps.")
-                fineKey: "rate_perm_up_small"
-                key: "rate_perm_up"
-                label: "+"
-                title: qsTr("Speed Up")
-            }
-            RateKey {
-                description: qsTr("Holds playback speed lower while active (tempo). Right click: holds playback speed lower (small amount) while active.")
-                fineKey: "rate_temp_down_small"
-                key: "rate_temp_down"
-                label: "◀"
-                title: qsTr("Slow Down Temporarily (Nudge)")
-            }
-            RateKey {
-                description: qsTr("Holds playback speed higher while active (tempo). Right click: holds playback speed higher (small amount) while active.")
-                fineKey: "rate_temp_up_small"
-                key: "rate_temp_up"
-                label: "▶"
-                title: qsTr("Speed Up Temporarily (Nudge)")
-            }
-        }
     }
     Skin.SyncButton {
         id: syncButton
 
         Accessible.name: syncButton.highlight ? qsTr("Disable sync") : qsTr("Enable sync")
+        Layout.column: 0
         Layout.fillWidth: true
-        Layout.preferredHeight: 20
+        Layout.maximumHeight: 16
+        Layout.preferredHeight: 16
+        Layout.row: 3
         group: root.group
     }
     Skin.RangeButton {
         id: rangeButton
 
         Accessible.name: qsTr("Tempo range")
+        Layout.column: 0
         Layout.fillWidth: true
-        Layout.preferredHeight: 20
+        Layout.maximumHeight: 16
+        Layout.preferredHeight: 16
+        Layout.row: 4
         group: root.group
-    }
-
-    /// One speed key. Left click steps once, right click steps in the fine
-    /// increment and is held for the momentary nudge keys.
-    component RateKey: Skin.Button {
-        id: rateKey
-
-        property string description: ""
-        required property string fineKey
-        required property string key
-        required property string label
-        required property string title
-
-        Accessible.description: rateKey.description
-        Accessible.name: rateKey.title
-        Layout.fillHeight: true
-        Layout.fillWidth: true
-        Layout.minimumWidth: 0
-        ToolTip.delay: 500
-        ToolTip.text: rateKey.title
-        ToolTip.visible: rateKey.hovered
-        activeFocusOnTab: true
-        enabled: root.loaded
-        implicitHeight: 16
-        text: rateKey.label
-
-        contentItem: Text {
-            anchors.fill: parent
-            anchors.leftMargin: 1
-            anchors.rightMargin: 1
-            color: rateKey.labelColor
-            elide: Text.ElideRight
-            font.capitalization: Font.AllUppercase
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeXs
-            font.weight: Theme.fontWeightDemiBold
-            horizontalAlignment: Text.AlignHCenter
-            text: rateKey.label
-            verticalAlignment: Text.AlignVCenter
-        }
-
-        onCanceled: controlBehavior.releasePrimary()
-        onPressed: controlBehavior.pressPrimary()
-        onReleased: controlBehavior.releasePrimary()
-
-        Skin.ControlProxyButtonBehavior {
-            id: controlBehavior
-
-            group: root.group
-            handlePointerInput: false
-            key: rateKey.key
-        }
-        MouseArea {
-            acceptedButtons: Qt.RightButton
-            anchors.fill: parent
-            enabled: root.loaded
-
-            onCanceled: fineControl.value = 0
-            onPressed: fineControl.value = 1
-            onReleased: fineControl.value = 0
-
-            Mixxx.ControlProxy {
-                id: fineControl
-
-                group: root.group
-                key: rateKey.fineKey
-            }
-        }
     }
 }

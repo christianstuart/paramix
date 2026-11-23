@@ -13,6 +13,10 @@ Skin.Button {
     required property int bank
     required property int pad
     property string presetGroup: "[PadFX]"
+    /// One-line face ("N name", elided) for the compact 4 x 2 deck grid.
+    property bool oneLine: false
+    /// Face text size: larger once the pad is tall enough to read it.
+    readonly property int faceFontSize: root.height >= 34 ? Theme.fontSizeMd : Theme.fontSizeXs
     signal editRequested(int pad, Item anchor)
 
     readonly property var padEffects: Mixxx.EffectsManager.padEffectsModel
@@ -105,11 +109,13 @@ Skin.Button {
         Text {
             id: effectNameText
 
-            anchors.bottomMargin: Theme.space1
+            anchors.bottomMargin: root.oneLine ? 0 : Theme.space1
             anchors.fill: parent
-            anchors.leftMargin: Theme.space1
+            anchors.leftMargin: root.oneLine
+                                ? padNumberText.width + 2 * Theme.space1
+                                : Theme.space1
             anchors.rightMargin: Theme.space1
-            anchors.topMargin: Theme.space1
+            anchors.topMargin: root.oneLine ? 0 : Theme.space1
             color: root.highlight
                    ? Theme.textOnAccent
                    : root.effectIndex === 0
@@ -117,22 +123,28 @@ Skin.Button {
                      : Theme.textPrimary
             elide: Text.ElideRight
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeXs
+            font.pixelSize: root.faceFontSize
             font.weight: Theme.fontWeightDemiBold
-            horizontalAlignment: Text.AlignHCenter
+            horizontalAlignment: root.oneLine ? Text.AlignLeft : Text.AlignHCenter
+            // Narrow 4 x 2 faces wrap names onto two tight lines rather than
+            // eliding them; ElideRight is only the last resort.
+            lineHeight: root.oneLine ? 0.85 : 1
             maximumLineCount: 2
             text: root.effectText
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.Wrap
         }
         Text {
+            id: padNumberText
+
             anchors.left: parent.left
             anchors.leftMargin: Theme.space1
-            anchors.top: parent.top
+            anchors.top: root.oneLine ? undefined : parent.top
             anchors.topMargin: Theme.space1
+            anchors.verticalCenter: root.oneLine ? parent.verticalCenter : undefined
             color: root.highlight ? Theme.textOnAccent : Theme.textMuted
             font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeXs
+            font.pixelSize: root.faceFontSize
             font.weight: Theme.fontWeightDemiBold
             text: root.pad
         }

@@ -302,6 +302,31 @@ row at least `Theme.deckPaneTabHeight` (16), and keeps the FX-assign column at 3
 numbers are pinned in the test, so a Theme edit that lowers the band fails instead of quietly
 weakening the assertion. The old `Deck/Loop.qml` width gate is gone.
 
+## Deck band at loop-card height (F15, 2026-11-22)
+
+The band beside the loop card is now exactly as tall as the card: `Theme.deckPaneHeight` is
+bound to `deckLoopCardHeight` (55 px at uiScale 1), so the two never drift under `uiScale`. This
+supersedes the "pane cannot go much below 72" note above: the panes went to single rows
+instead.
+
+| Part | Before | After | Token |
+|---|---|---|---|
+| Tab row | 16 | 12 | `deckPaneTabHeight` |
+| Tab gap | 4 | 2 | `deckPaneTabGap` (= `deckLoopKeyGap`) |
+| Pane | 92 | 41 | `deckPaneContentHeight` |
+| Band | 112 | 55 | `deckPaneHeight` = `deckLoopCardHeight` |
+| `deckMinHeight` | 240 | 183 | 128 + band |
+
+| Pane | Layout |
+|---|---|
+| Tabs | Same four keys; the Grid lock badge is a 2 px underline. |
+| Cue, Pad FX | 4 x 2 one-line faces (`N label`, elided, tooltip) below `deckPadRowMinWidth` (540); one row of eight two-line faces above it. |
+| Move | One row: Back, editable size, size strip (still hidden below a 420 px pane), Fwd. The "Beatjump" caption is gone. Back/Fwd minimum 60 so the row fits the 196 px pane. |
+| Grid | Two rows: BPM, ½, ×2, Tap, F, C, Align, Match / four intro-outro markers, ◀ ▶, B− B+, Lock, Undo. The cue-shift keys (`shift_cues_*`) are controller-only. |
+
+The deck is `max(mixer, deckMinHeight)` tall, so the band now follows the mixer and the main
+waveforms and library get the difference. `QmlResponsiveBoundsTest` pins 55 / 41 / 12.
+
 ## Still open
 
 - **Narrow-width mixer rules still deferred.** The sleek-mixer work landed, and
@@ -353,3 +378,50 @@ A temporary `console.log` from `MainWindow.qml` root handlers did not appear in
 the file is the live one. Logging from `main.qml` works. Worth understanding
 before relying on QML-side instrumentation again; the numbers above were taken
 from `main.qml` and from reading the components.
+
+## Taller cards and the jog column (F16, 2026-11-22)
+
+| Part | Before | After |
+|---|---|---|
+| Loop card / pane band | 55 | 64 (header 20 + key row 37) |
+| Loop card width | 224 | 184 |
+| Pane floor | 196 | 188 |
+| Play / Cue | 60 x 60 each | 52 wide, together toolbar + band high |
+
+- Columns fill the row height, so the overview stretches and the cards sit on the deck's bottom edge.
+- The opt-in jog platter is its own side column between the main column and the tempo strip, as
+  wide as the row is tall, capped at `width - deckJogReservedWidth` (516). It shows from a
+  626 px deck (`deckSpinnyMinWidth`) and no longer replaces the tempo strip.
+- `Button.labelPadding` / `labelWidth`: Grid keys use 2 px padding and their label width as the
+  layout minimum, so no key elides. Below a 240 px pane the Grid adds a middle row for
+  Align / Match / Lock / Undo.
+- 4 x 2 pad and hotcue faces wrap names to two tight lines before eliding.
+- The Play key shows only its glyph; the word stays on the minimized deck.
+
+### F17: cards fill, toolbar under the jog
+
+The overview is a fixed `deckOverviewHeight` (44) and the card band fills the rest (64 minimum,
+~109 at 1440x852), so the deck footprint is unchanged. While the jog shows, the deck toolbar
+(reverse, QNT, SLIP, RPT, eject) sits under the platter in two rows (`Toolbar.stacked`,
+`deckSideToolbarHeight` 48) and the platter shrinks to ~105. The loop card is 168 wide
+(`deckJogReservedWidth` 500). Grid keys and pad/hotcue faces switch to 12 px text once their rows are tall
+enough.
+
+## Traktor deck rows (F18, 2026-11-22)
+
+Supersedes the F16/F17 card layout. Under the header: a fixed `deckTopHeight` (56) row with the
+overview, the optional jog platter (as wide as the row is tall) and the compact tempo strip
+(`TempoColumn.compact`, `deckTempoCompactWidth` 100); a fixed `deckTransportRowHeight` (28) row with
+Play, Cue, the deck toolbar (`Toolbar.compactRow`), the loop row (shared `Deck/SizeStrip.qml`,
+A, In, Out, Loop, Reloop) and SYNC / range; then the pane row filling the rest, full width, with
+the stacked CUE / MOVE / GRID / FX selector on its right (`deckPaneTabColumnWidth` 44).
+`deckMinHeight` is the sum of those rows. At 1440x852 the Cue and Pad FX panes are one row of
+eight and the Grid uses two rows.
+
+### F18b: big jog, full-height tempo
+
+The jog platter and the tempo strip now run the full height under the header on the right
+(`deckJogReservedWidth` 380 keeps the left controls' minimum). The tempo strip is the fader beside a
+column of BPM readout, pitch/keylock, SYNC and range. The rate nudge keys (rate_perm_*/rate_temp_*)
+are controller-only. On the left: overview (`deckTopHeight` 36), the transport row, the loop row (both
+`deckTransportRowHeight` 26) and the pane, which keeps a 40 px floor (`deckPaneRowMinHeight`).

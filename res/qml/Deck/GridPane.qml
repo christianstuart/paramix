@@ -5,8 +5,9 @@ import QtQuick.Controls 2.12
 import QtQuick.Layouts
 import "../Theme"
 
-/// Beatgrid pane: BPM readout with tap, grid alignment and nudge, the
-/// intro/outro cue markers and the cue-timing shift keys.
+/// Beatgrid pane: BPM readout with tap, grid alignment and nudge, and the
+/// intro/outro cue markers. The cue-timing shift (shift_cues_*) is
+/// controller-only.
 ///
 /// This is the GRID tab of the deck pane stack. It replaces the toolbar's
 /// Beatgrid key (which is gone) with explicit Align / Match / Lock / Undo
@@ -17,12 +18,16 @@ Rectangle {
     id: root
 
     readonly property color buttonColor: root.loaded ? Theme.textSecondary : Theme.textMuted
-    /// True when the pane is squeezed by the compact deck layout. The BPM
-    /// readout drops a size so the readout row + three key rows still fit the
-    /// 112 px deck pane.
-    readonly property bool dense: root.height < 104
-    /// FINE latch: while active the six grid nudge keys send their fine
-    /// control (half-beat translate, 1 ms cue shift) instead of the coarse one.
+    /// Below this width the keys' label minimums no longer fit two rows, so
+    /// Align / Match / Lock / Undo move to a middle row.
+    readonly property bool threeRows: root.width < 240
+    /// Key label size: larger once the rows are tall enough to read it.
+    readonly property int keyFontSize: root.rowHeight >= 26 ? Theme.fontSizeMd : Theme.fontSizeXs
+    readonly property int rowCount: root.threeRows ? 3 : 2
+    /// Height of each key row inside the 2 px margins and gaps.
+    readonly property real rowHeight: Math.max(0, (root.height - 4 - 2 * (root.rowCount - 1)) / root.rowCount)
+    /// FINE latch: while active the beats earlier / later keys send the
+    /// half-beat translate instead of the coarse nudge.
     property bool fineAdjust: false
     required property string group
     readonly property bool loaded: trackLoadedControl.value > 0
@@ -55,22 +60,30 @@ Rectangle {
         group: root.group
         key: "beats_undo_possible"
     }
+    // Two equal rows: BPM tools and grid alignment on top, the intro/outro
+    // markers, grid nudges, lock and undo below. Narrow panes add a middle
+    // row for Align / Match / Lock / Undo (see threeRows). The cue-shift keys
+    // (shift_cues_*) are controller-only.
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 2
         spacing: 2
 
         RowLayout {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.minimumHeight: 26
-            spacing: Theme.space1
+            id: topRow
 
-            ColumnLayout {
+            Layout.fillWidth: true
+            Layout.maximumHeight: root.rowHeight
+            Layout.minimumHeight: root.rowHeight
+            Layout.preferredHeight: root.rowHeight
+            spacing: 2
+
+            Row {
                 Layout.alignment: Qt.AlignVCenter
-                spacing: 0
+                spacing: Theme.space1
 
                 Text {
+                    anchors.baseline: bpmReadout.baseline
                     color: Theme.textMuted
                     font.capitalization: Font.AllUppercase
                     font.family: Theme.fontFamily
@@ -79,9 +92,11 @@ Rectangle {
                     text: qsTr("BPM")
                 }
                 Text {
+                    id: bpmReadout
+
                     color: root.loaded ? Theme.textPrimary : Theme.textMuted
                     font.family: Theme.fontFamilyMono
-                    font.pixelSize: root.dense ? Theme.fontSizeLg : Theme.fontSizeXl
+                    font.pixelSize: Theme.fontSizeMd
                     font.weight: Theme.fontWeightMedium
                     text: root.visualBpm > 0 ? root.visualBpm.toFixed(2) : "--"
                 }
@@ -96,8 +111,10 @@ Rectangle {
                 Accessible.description: qsTr("Halve the track BPM, e.g. 174 to 87")
                 Accessible.name: qsTr("Halve BPM")
                 Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: 0
-                Layout.preferredHeight: 18
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
+                labelPixelSize: root.keyFontSize
+                Layout.fillHeight: true
                 Layout.preferredWidth: 26
                 activeColor: Theme.textOnAccent
                 group: root.group
@@ -112,8 +129,10 @@ Rectangle {
                 Accessible.description: qsTr("Double the track BPM, e.g. 87 to 174")
                 Accessible.name: qsTr("Double BPM")
                 Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: 0
-                Layout.preferredHeight: 18
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
+                labelPixelSize: root.keyFontSize
+                Layout.fillHeight: true
                 Layout.preferredWidth: 26
                 activeColor: Theme.textOnAccent
                 group: root.group
@@ -128,8 +147,10 @@ Rectangle {
                 Accessible.description: qsTr("Tap along with the beat to set the BPM")
                 Accessible.name: qsTr("Tap tempo")
                 Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: 0
-                Layout.preferredHeight: 18
+                Layout.minimumWidth: labelWidth
+                labelPadding: 2
+                labelPixelSize: root.keyFontSize
+                Layout.fillHeight: true
                 Layout.preferredWidth: 40
                 activeColor: Theme.textOnAccent
                 group: root.group
@@ -143,19 +164,21 @@ Rectangle {
 
                 Accessible.checkable: true
                 Accessible.checked: root.fineAdjust
-                Accessible.description: qsTr("While active, the grid nudge keys shift by half a beat and the cue keys by 1 millisecond")
+                Accessible.description: qsTr("While active, the beats earlier and later keys shift the grid by half a beat")
                 Accessible.name: qsTr("Fine grid adjust")
                 Accessible.role: Accessible.CheckBox
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredHeight: 18
-                Layout.preferredWidth: 14
+                Layout.fillHeight: true
+                Layout.preferredWidth: labelWidth
+                labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 ToolTip.delay: 500
-                ToolTip.text: qsTr("Fine adjust: half-beat grid, 1 ms cue shifts")
+                ToolTip.text: qsTr("Fine adjust: half-beat grid nudge")
                 ToolTip.visible: fineLatch.hovered
                 enabled: root.loaded
                 highlight: root.fineAdjust
                 implicitHeight: 18
-                implicitWidth: 14
+                implicitWidth: labelWidth
                 text: qsTr("F", "fine adjust key")
 
                 onClicked: root.fineAdjust = !root.fineAdjust
@@ -169,88 +192,88 @@ Rectangle {
                 Accessible.name: qsTr("Clear markers")
                 Accessible.role: Accessible.CheckBox
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredHeight: 18
-                Layout.preferredWidth: 14
+                Layout.fillHeight: true
+                Layout.preferredWidth: labelWidth
+                labelPadding: 2
+                labelPixelSize: root.keyFontSize
                 ToolTip.delay: 500
                 ToolTip.text: qsTr("Clear markers: marker keys clear instead of set")
                 ToolTip.visible: markerClearLatch.hovered
                 enabled: root.loaded
                 highlight: root.markerClear
                 implicitHeight: 18
-                implicitWidth: 14
+                implicitWidth: labelWidth
                 text: qsTr("C", "clear marker key")
 
                 onClicked: root.markerClear = !root.markerClear
             }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 18
-            spacing: Theme.space1
+            // Moves as one group so its key order never flips when it
+            // changes rows.
+            RowLayout {
+                id: alignGroup
 
-            Skin.ControlButton {
-                id: alignButton
-
-                Accessible.description: qsTr("Move the beatgrid so a beat lands on the current position")
-                Accessible.name: qsTr("Align beatgrid to current position")
+                parent: root.threeRows ? middleRow : topRow
+                Layout.column: 0
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                activeColor: Theme.textOnAccent
-                group: root.group
-                implicitHeight: 24
-                key: "beats_translate_curpos"
-                text: qsTr("Align")
-            }
-            Skin.ControlButton {
-                id: matchButton
+                spacing: 2
 
-                Accessible.description: qsTr("Align the grid to the nearest beat of another playing deck")
-                Accessible.name: qsTr("Match beatgrid to other deck")
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                activeColor: Theme.textOnAccent
-                group: root.group
-                implicitHeight: 24
-                key: "beats_translate_match_alignment"
-                text: qsTr("Match")
-            }
-            Skin.ControlButton {
-                id: lockButton
+                Skin.ControlButton {
+                    id: alignButton
 
-                Accessible.description: qsTr("Prevent accidental BPM and grid changes")
-                Accessible.name: qsTr("BPM lock")
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                activeColor: Theme.textOnAccent
-                group: root.group
-                implicitHeight: 24
-                key: "bpmlock"
-                text: qsTr("Lock")
-                toggleable: true
-            }
-            Skin.ControlButton {
-                id: undoButton
+                    Accessible.description: qsTr("Move the beatgrid so a beat lands on the current position")
+                    Accessible.name: qsTr("Align beatgrid to current position")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    group: root.group
+                    implicitHeight: 24
+                    key: "beats_translate_curpos"
+                    text: qsTr("Align")
+                }
+                Skin.ControlButton {
+                    id: matchButton
 
-                Accessible.description: qsTr("Revert the last BPM or beatgrid adjustment")
-                Accessible.name: qsTr("Undo beatgrid adjustment")
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                activeColor: Theme.textOnAccent
-                enabled: root.loaded && beatsUndoPossible.value > 0
-                group: root.group
-                implicitHeight: 24
-                key: "beats_undo_adjustment"
-                text: qsTr("Undo")
+                    Accessible.description: qsTr("Align the grid to the nearest beat of another playing deck")
+                    Accessible.name: qsTr("Match beatgrid to other deck")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    group: root.group
+                    implicitHeight: 24
+                    key: "beats_translate_match_alignment"
+                    text: qsTr("Match")
+                }
             }
         }
-        RowLayout {
+        // Only populated in three-row mode: the four text keys reparent here.
+        // A one-row grid so each key's Layout.column fixes the order, whatever
+        // order the parent bindings evaluate in.
+        GridLayout {
+            id: middleRow
+
             Layout.fillWidth: true
-            Layout.preferredHeight: 16
-            spacing: Theme.space1
+            Layout.maximumHeight: root.rowHeight
+            Layout.minimumHeight: root.rowHeight
+            Layout.preferredHeight: root.rowHeight
+            columnSpacing: 2
+            rows: 1
+            visible: root.threeRows
+        }
+        RowLayout {
+            id: bottomRow
+
+            Layout.fillWidth: true
+            Layout.maximumHeight: root.rowHeight
+            Layout.minimumHeight: root.rowHeight
+            Layout.preferredHeight: root.rowHeight
+            spacing: 2
 
             MarkerKey {
                 cue: "intro_start"
@@ -268,12 +291,6 @@ Rectangle {
                 cue: "outro_end"
                 text: qsTr("◣|")
             }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 16
-            spacing: Theme.space1
-
             GridKey {
                 Accessible.description: qsTr("Moves the beatgrid left by a small amount. With FINE lit, shifts by exactly one half beat.")
                 Accessible.name: qsTr("Adjust beats earlier")
@@ -304,27 +321,57 @@ Rectangle {
                 key: "beats_adjust_faster"
                 text: qsTr("B+")
             }
-            GridKey {
-                Accessible.description: qsTr("Shift cues imported from Serato or Rekordbox if they are slightly off time. Click: 10 milliseconds earlier. With FINE lit: 1 millisecond earlier.")
-                Accessible.name: qsTr("Shift cues earlier")
-                ToolTip.text: qsTr("Shift cues earlier (FINE: 1 ms)")
-                fineKey: "shift_cues_earlier_small"
-                key: "shift_cues_earlier"
-                text: qsTr("C◀")
-            }
-            GridKey {
-                Accessible.description: qsTr("Shift cues imported from Serato or Rekordbox if they are slightly off time. Click: 10 milliseconds later. With FINE lit: 1 millisecond later.")
-                Accessible.name: qsTr("Shift cues later")
-                ToolTip.text: qsTr("Shift cues later (FINE: 1 ms)")
-                fineKey: "shift_cues_later_small"
-                key: "shift_cues_later"
-                text: qsTr("C▶")
+            // Moves as one group so its key order never flips when it
+            // changes rows.
+            RowLayout {
+                id: lockGroup
+
+                parent: root.threeRows ? middleRow : bottomRow
+                Layout.column: 1
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                spacing: 2
+
+                Skin.ControlButton {
+                    id: lockButton
+
+                    Accessible.description: qsTr("Prevent accidental BPM and grid changes")
+                    Accessible.name: qsTr("BPM lock")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    group: root.group
+                    implicitHeight: 16
+                    key: "bpmlock"
+                    text: qsTr("Lock")
+                    toggleable: true
+                }
+                Skin.ControlButton {
+                    id: undoButton
+
+                    Accessible.description: qsTr("Revert the last BPM or beatgrid adjustment")
+                    Accessible.name: qsTr("Undo beatgrid adjustment")
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: labelWidth
+                    labelPadding: 2
+                    labelPixelSize: root.keyFontSize
+                    activeColor: Theme.textOnAccent
+                    enabled: root.loaded && beatsUndoPossible.value > 0
+                    group: root.group
+                    implicitHeight: 16
+                    key: "beats_undo_adjustment"
+                    text: qsTr("Undo")
+                }
             }
         }
     }
 
     /// One beatgrid nudge key. `fineKey` is its fine control (half-beat
-    /// translate, 1 ms cue shift) while the FINE latch is active.
+    /// translate) while the FINE latch is active.
     component GridKey: Skin.Button {
         id: gridKey
 
@@ -333,7 +380,9 @@ Rectangle {
 
         Layout.fillHeight: true
         Layout.fillWidth: true
-        Layout.minimumWidth: 0
+        Layout.minimumWidth: labelWidth
+        labelPadding: 2
+        labelPixelSize: root.keyFontSize
         ToolTip.delay: 500
         ToolTip.visible: gridKey.hovered
         activeFocusOnTab: true
@@ -392,7 +441,9 @@ Rectangle {
         Accessible.name: marker.title
         Layout.fillHeight: true
         Layout.fillWidth: true
-        Layout.minimumWidth: 0
+        Layout.minimumWidth: labelWidth
+        labelPadding: 2
+        labelPixelSize: root.keyFontSize
         ToolTip.delay: 500
         ToolTip.text: root.markerClear ? qsTr("Clear %1").arg(marker.title) : marker.title
         ToolTip.visible: marker.hovered

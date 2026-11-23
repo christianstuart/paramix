@@ -55,9 +55,7 @@ Skin.ControlButton {
         Item {
             id: glyph
 
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: 10
+            anchors.centerIn: parent
             height: 22
             visible: !root.minimized
             width: 20
@@ -127,6 +125,9 @@ Skin.ControlButton {
             horizontalAlignment: Text.AlignHCenter
             text: root.highlight ? qsTr("Pause") : qsTr("Play")
             verticalAlignment: Text.AlignVCenter
+            // The glyph says play/pause; the word only shows on the minimized
+            // deck, which has no glyph.
+            visible: root.minimized
 
             states: [
                 State {

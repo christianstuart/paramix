@@ -11,6 +11,12 @@ AbstractButton {
     property color activeColor: Theme.textOnAccent
     property bool flat: false
     property bool highlight: false
+    /// Side margin of the text label; dense key rows lower it.
+    property real labelPadding: 6
+    /// Label text size; dense rows raise it when their keys are tall enough.
+    property int labelPixelSize: Theme.fontSizeXs
+    /// Width the label needs without eliding; dense rows use it as a minimum.
+    readonly property real labelWidth: label.implicitWidth + 2 * root.labelPadding
     property color normalColor: Theme.textSecondary
     property color pressedColor: Theme.textPrimary
 
@@ -86,14 +92,14 @@ AbstractButton {
             id: label
 
             anchors.fill: parent
-            anchors.leftMargin: 6
-            anchors.rightMargin: 6
+            anchors.leftMargin: root.labelPadding
+            anchors.rightMargin: root.labelPadding
             color: root.labelColor
             elide: Text.ElideRight
             font.capitalization: Font.AllUppercase
             font.family: Theme.fontFamily
             font.letterSpacing: Theme.letterSpacingCaps
-            font.pixelSize: Theme.fontSizeXs
+            font.pixelSize: root.labelPixelSize
             font.weight: Theme.fontWeightDemiBold
             horizontalAlignment: Text.AlignHCenter
             text: root.text
