@@ -378,9 +378,9 @@ QtObject {
     readonly property int deckMinHeight: 8 + deckHeaderHeight + deckTopHeight + deckTransportRowHeight
             + deckTransportRowHeight + deckPaneRowMinHeight + 20
     /// Top row: overview, optional jog platter and the compact tempo strip.
-    readonly property int deckTopHeight: Math.round(36 * uiScale)
+    readonly property int deckTopHeight: Math.round(42 * uiScale)
     /// Traktor-style transport row under the overview.
-    readonly property int deckTransportRowHeight: Math.round(26 * uiScale)
+    readonly property int deckTransportRowHeight: Math.round(24 * uiScale)
     /// Floor of the pane row beside the jog.
     readonly property int deckPaneRowMinHeight: Math.round(40 * uiScale)
     /// Width of the stacked CUE / MOVE / GRID / FX selector.
@@ -439,7 +439,7 @@ QtObject {
     /// loop card 168 + 4, pane floor 188, tempo strip 60 and four 5 px gaps.
     readonly property int deckJogReservedWidth: 380
     /// Largest jog platter; the column centres it vertically.
-    readonly property int deckJogMaxSize: Math.round(112 * uiScale)
+    readonly property int deckJogMaxSize: Math.round(124 * uiScale)
     /// Fixed waveform overview height; the card band below takes the rest.
     readonly property int deckOverviewHeight: Math.round(44 * uiScale)
     /// Deck toolbar stacked in two rows under the jog platter.

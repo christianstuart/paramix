@@ -240,8 +240,8 @@ GridLayout {
     RowLayout {
         Layout.column: 0
         Layout.fillWidth: true
-        Layout.maximumHeight: 24
-        Layout.preferredHeight: 20
+        Layout.maximumHeight: 18
+        Layout.preferredHeight: 18
         Layout.row: 2
         spacing: Theme.space1
 
@@ -253,7 +253,7 @@ GridLayout {
             Layout.preferredWidth: 18
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 20
+            implicitHeight: 18
             implicitWidth: 18
             key: "pitch_down"
 
@@ -346,13 +346,12 @@ GridLayout {
             readonly property color keyColor: pitchKey.active ? colorsMap[keyCO.value - 1] : "transparent"
             /// Keylock is engaged (note icon palette depends on this).
             readonly property bool lockOn: keyBehavior.isActive
-            readonly property variant textMap: ["1d", "8d", "3d", "10d", "5d", "12d", "7d", "2d", "9d", "4d", "11d", "6d", "10m", "5m", "12m", "7m", "2m", "9m", "4m", "11m", "6m", "1m", "8m", "3m"]
 
             Accessible.name: qsTr("Keylock")
             Layout.fillHeight: true
             Layout.fillWidth: true
             highlight: false
-            implicitHeight: 20
+            implicitHeight: 18
 
             background: Rectangle {
                 border.color: pitchKey.active ? Qt.lighter(pitchKey.keyColor, 1.15) : Theme.border
@@ -375,7 +374,8 @@ GridLayout {
                 font.pixelSize: pitchKey.active ? Theme.fontSizeXs : Theme.fontSizeMd
                 font.weight: Theme.fontWeightDemiBold
                 horizontalAlignment: Text.AlignHCenter
-                text: pitchKey.active ? pitchKey.textMap[keyCO.value - 1] : "♪"
+                // Same notation as the deck header (follows the key notation preference).
+                text: pitchKey.active ? Mixxx.KeyUtils.keyToString(keyCO.value) : "♪"
                 verticalAlignment: Text.AlignVCenter
             }
 
@@ -400,7 +400,7 @@ GridLayout {
             Layout.preferredWidth: 18
             activeColor: Theme.textOnAccent
             group: root.group
-            implicitHeight: 20
+            implicitHeight: 18
             implicitWidth: 18
             key: "pitch_up"
 
@@ -529,8 +529,8 @@ GridLayout {
         Accessible.name: syncButton.highlight ? qsTr("Disable sync") : qsTr("Enable sync")
         Layout.column: 0
         Layout.fillWidth: true
-        Layout.maximumHeight: 24
-        Layout.preferredHeight: 20
+        Layout.maximumHeight: 16
+        Layout.preferredHeight: 16
         Layout.row: 3
         group: root.group
     }
@@ -540,7 +540,8 @@ GridLayout {
         Accessible.name: qsTr("Tempo range")
         Layout.column: 0
         Layout.fillWidth: true
-        Layout.preferredHeight: 20
+        Layout.maximumHeight: 16
+        Layout.preferredHeight: 16
         Layout.row: 4
         group: root.group
     }

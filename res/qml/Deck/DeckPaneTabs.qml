@@ -41,7 +41,7 @@ ColumnLayout {
     }
 
     objectName: "deckPaneTabs"
-    spacing: 2
+    spacing: 1
 
     Mixxx.ControlProxy {
         id: padFxBankControl
