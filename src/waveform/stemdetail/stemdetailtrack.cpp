@@ -5,7 +5,8 @@ bool operator==(const StemDetailKey& lhs, const StemDetailKey& rhs) {
             lhs.sampleRate == rhs.sampleRate &&
             lhs.samplesPerColumn == rhs.samplesPerColumn &&
             lhs.height == rhs.height &&
-            lhs.magnification == rhs.magnification;
+            lhs.magnification == rhs.magnification &&
+            lhs.mixdown == rhs.mixdown;
 }
 
 bool operator!=(const StemDetailKey& lhs, const StemDetailKey& rhs) {

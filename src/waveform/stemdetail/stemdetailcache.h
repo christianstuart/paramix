@@ -31,7 +31,8 @@ class StemDetailCache final : public QObject {
     std::shared_ptr<const StemDetailTrack> request(const TrackPointer& pTrack,
             int samplesPerColumn,
             int height,
-            float magnification);
+            float magnification,
+            bool mixdown = false);
 
     /// Suspends or resumes background builds on behalf of the audio-overload
     /// coordinator. Suspension only prevents new builds from starting: a build
@@ -39,6 +40,10 @@ class StemDetailCache final : public QObject {
     /// requested one stays pending and starts exactly once after resume().
     /// Must be called from the cache's thread (the GUI thread).
     void setBackgroundSuspended(bool suspended);
+
+    /// False only when every build for this track failed and no picture of it
+    /// exists; signal renderers then draw the track instead.
+    bool mayDrawTrack(TrackId trackId) const;
 
     /// True while a build is pending or running. Lock-free, for diagnostics.
     bool isBuilding() const {
@@ -52,6 +57,7 @@ class StemDetailCache final : public QObject {
   private slots:
     void startPendingBuild();
     void onBuilt(const StemDetailKey& key, std::shared_ptr<const StemDetailTrack> detail);
+    void onPartialBuilt(const StemDetailKey& key, std::shared_ptr<const StemDetailTrack> detail);
 
   private:
     /// Locks the LRU and the failed-key set. request() may run on a render
@@ -91,4 +97,7 @@ class StemDetailCache final : public QObject {
     QList<StemDetailKey> m_order;
     QList<std::shared_ptr<const StemDetailTrack>> m_details;
     QSet<StemDetailKey> m_failed;
+    /// Opening of the build in flight, until the complete picture replaces it.
+    StemDetailKey m_partialKey;
+    std::shared_ptr<const StemDetailTrack> m_pPartial;
 };

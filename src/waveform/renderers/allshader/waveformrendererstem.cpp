@@ -36,6 +36,12 @@ constexpr float kGhostedStemOpacity = 0.32f;
 constexpr float kOpaqueStemOpacity = 0.75f;
 constexpr int kMinLaneDeviceHeight = 9;
 constexpr int kMaxLaneDeviceHeight = 63;
+/// A single mixdown lane fills the whole display. The detail picture stays at
+/// most kMaxDetailRows rows (a 64-bit column mask); pages scale rows up.
+constexpr int kMaxMixdownLaneDeviceHeight = 1024;
+constexpr int kMaxDetailRows = 63;
+/// Mixdown lanes reduce a full mix at half the stem magnification.
+constexpr float kMixdownMagnificationScale = 0.5f;
 constexpr int kVerticesPerRectangle = 6;
 
 inline float laneAlphaFromOpacity(float opacity) {
@@ -373,16 +379,21 @@ bool WaveformRendererStem::preprocessInner() {
         m_cacheFramesUntilRefresh = 30;
     }
     if (trackChanged) {
+        m_trackHasStems = m_cachedStemCount > 0;
         // Let preprocess() clear the previous track's picture once, then build
         // the new track from scratch.
         return false;
     }
-    // If this track isn't a stem track, let the regular waveform renderer draw
-    // instead of the four-lane stem picture.
-    if (m_cachedStemCount <= 0) {
-        // A non-stem track is cleared via trackChanged; a transient zero while
-        // the same track is loaded must not blink the stem picture away.
-        return m_hasGeometry;
+    if (m_cachedStemCount > 0) {
+        m_trackHasStems = true;
+    }
+    // A track without stems is drawn as one full-height lane when the detail
+    // waveform is enabled; otherwise the regular signal renderer draws it.
+    const bool mixdown = !m_trackHasStems;
+    if (mixdown &&
+            !(WaveformWidgetFactory::isCreated() &&
+                    WaveformWidgetFactory::instance()->isDetailNonStemTracks())) {
+        return false;
     }
     const auto positionType = m_isSlipRenderer ? ::WaveformRendererAbstract::Slip
                                                : ::WaveformRendererAbstract::Play;
@@ -394,12 +405,14 @@ bool WaveformRendererStem::preprocessInner() {
     // A track analysed without stem audio has no four-lane picture. Retain the
     // last complete picture during a transient waveform refresh instead of
     // briefly revealing the underlying cue/grid markers.
-    if (!waveform->hasStem()) {
+    if (!mixdown && !waveform->hasStem()) {
         return m_hasGeometry;
     }
 
-    const int stemCount = static_cast<int>(std::min<qsizetype>(
-            m_cachedStemCount, m_stackOrder.size()));
+    const int stemCount = mixdown
+            ? 1
+            : static_cast<int>(std::min<qsizetype>(
+                      m_cachedStemCount, m_stackOrder.size()));
     if (stemCount <= 0) {
         return m_hasGeometry;
     }
@@ -437,7 +450,7 @@ bool WaveformRendererStem::preprocessInner() {
             static_cast<int>(std::lround(breadth * devicePixelRatio / stemCount)) -
                     gapDevicePx,
             kMinLaneDeviceHeight,
-            kMaxLaneDeviceHeight);
+            mixdown ? kMaxMixdownLaneDeviceHeight : kMaxLaneDeviceHeight);
 
     // Page keys use a stable lane height. During a layout or library animation
     // the live height changes every frame; regenerating pages for each step
@@ -473,7 +486,11 @@ bool WaveformRendererStem::preprocessInner() {
     if (magnificationDenominator < 1e-4f) {
         magnificationDenominator = 1e-4f;
     }
-    const float magnification = 1.0f / magnificationDenominator;
+    // A full mix is far louder than a single stem; at the stem gain it clips
+    // on nearly every column and fills the whole lane, hiding the dynamics
+    // and the beat grid.
+    const float magnification = (mixdown ? kMixdownMagnificationScale : 1.0f) /
+            magnificationDenominator;
 
     auto* pFactory = WaveformWidgetFactory::isCreated()
             ? WaveformWidgetFactory::instance()
@@ -485,8 +502,9 @@ bool WaveformRendererStem::preprocessInner() {
         requestKey.trackId = m_cachedTrackId;
         requestKey.sampleRate = m_cachedSampleRate;
         requestKey.samplesPerColumn = requestedSamplesPerColumn;
-        requestKey.height = m_pageLaneDeviceHeight;
+        requestKey.height = std::min(m_pageLaneDeviceHeight, kMaxDetailRows);
         requestKey.magnification = magnification;
+        requestKey.mixdown = mixdown;
 
         // Only ask for a new detail picture after the viewport key has been
         // stable briefly. This keeps a zoom animation or a live resize from
@@ -503,8 +521,9 @@ bool WaveformRendererStem::preprocessInner() {
                         m_detailRequest.needsRequest(requestKey, false))) {
             pDetail = pCache->request(pTrack,
                     requestedSamplesPerColumn,
-                    m_pageLaneDeviceHeight,
-                    magnification);
+                    requestKey.height,
+                    magnification,
+                    mixdown);
             m_detailRefreshPending = false;
             if (pDetail) {
                 // Remember the request even when the cache returned the
@@ -552,10 +571,16 @@ bool WaveformRendererStem::preprocessInner() {
     const double firstSample = playRateZero
             ? stemdetail::snapToColumn(liveFirstSample, contentSamplesPerColumn)
             : liveFirstSample;
+    // Place pages with the exact zoom the beat grid uses, not the rounded
+    // column width: the rounding (and a fallback page from another zoom)
+    // otherwise lets the grid run ahead of the picture across the display.
+    const double framesPerDevicePx = std::max(1e-6,
+            m_waveformRenderer->getAudioSamplePerPixel() / deviceScale);
+    const double viewFrames = static_cast<double>(pixelLength) * framesPerDevicePx;
     const double firstDeviceColumn =
             firstSample / static_cast<double>(contentSamplesPerColumn);
-    const double lastDeviceColumn =
-            firstDeviceColumn + static_cast<double>(pixelLength);
+    const double lastDeviceColumn = firstDeviceColumn +
+            viewFrames / static_cast<double>(contentSamplesPerColumn);
 
     const int totalLiveLaneDeviceHeight =
             laneCount * liveLaneDeviceHeight + (laneCount - 1) * gapDevicePx;
@@ -591,9 +616,12 @@ bool WaveformRendererStem::preprocessInner() {
     const float laneAlpha = laneAlphaFromOpacity(m_opacity);
     for (int laneIndex = 0; laneIndex < drawLaneCount; ++laneIndex) {
         const int stemIdx = laneStems.at(laneIndex);
-        const bool stemMuted = selectedStems
-                ? !(selectedStems & 1u << stemIdx)
-                : (!m_pStemMute.empty() && m_pStemMute[stemIdx]->toBool());
+        // The mixdown lane is the whole track, never a muted stem.
+        const bool stemMuted = !mixdown &&
+                (selectedStems
+                                ? !(selectedStems & 1u << stemIdx)
+                                : (!m_pStemMute.empty() &&
+                                          m_pStemMute[stemIdx]->toBool()));
         float& mix = m_muteMix[stemIdx];
         const float target = stemMuted ? 1.0f : 0.0f;
         if (mix < target) {
@@ -666,12 +694,14 @@ bool WaveformRendererStem::preprocessInner() {
         }
         PageNodeState& state = *nodeIt;
 
-        // Fallback pages can come from a different zoom, so derive the
-        // viewport mapping from the page's own frames-per-column.
-        const double currentFirstDeviceColumn =
-                firstSample / static_cast<double>(pageKey.samplesPerColumn);
+        // Fallback pages can come from a different zoom, so express the
+        // viewport in the page's own columns and scale them to the live zoom.
+        const double pageSpc = static_cast<double>(pageKey.samplesPerColumn);
+        const double currentFirstDeviceColumn = firstSample / pageSpc;
         const double currentLastDeviceColumn =
-                currentFirstDeviceColumn + static_cast<double>(pixelLength);
+                currentFirstDeviceColumn + viewFrames / pageSpc;
+        const double logicalPxPerPageColumn =
+                pageSpc / framesPerDevicePx / deviceScale;
         const double pageFirstDeviceColumn =
                 static_cast<double>(pageKey.pageIndex) * pageKey.pageWidth;
         const double pageLastDeviceColumn =
@@ -698,11 +728,11 @@ bool WaveformRendererStem::preprocessInner() {
         drawKey.slip = m_isSlipRenderer;
 
         const double x0 = std::clamp(
-                (pageFirstVisible - currentFirstDeviceColumn) / deviceScale,
+                (pageFirstVisible - currentFirstDeviceColumn) * logicalPxPerPageColumn,
                 0.0,
                 static_cast<double>(length));
         const double x1 = std::clamp(
-                (pageLastVisible - currentFirstDeviceColumn) / deviceScale,
+                (pageLastVisible - currentFirstDeviceColumn) * logicalPxPerPageColumn,
                 0.0,
                 static_cast<double>(length));
         const float u0 = static_cast<float>(

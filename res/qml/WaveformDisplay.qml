@@ -350,9 +350,10 @@ Item {
         }
     }
 
-    // High-contrast playhead for the four-lane stem picture. The regular mark
-    // renderer is drawn underneath the stem texture on some render paths, so
-    // keep an explicit line above the waveform whenever stems are displayed.
+    // High-contrast playhead above the waveform. The regular mark renderer is
+    // drawn underneath the stem detail texture on some render paths, and that
+    // texture now also draws tracks without stems (one mixdown lane), so the
+    // line is shown for every track. It sits exactly on the regular marker.
     Rectangle {
         id: stemPlayhead
 
@@ -360,7 +361,7 @@ Item {
         color: Theme.textPrimary
         height: waveformDisplay.height
         opacity: 0.92
-        visible: stemCountControl.value > 0 && Mixxx.Config.waveformEnabled
+        visible: Mixxx.Config.waveformEnabled
         width: Math.max(1, Math.round(1 * Theme.uiScale))
         x: Math.round(waveformDisplay.width * Mixxx.Config.waveformPlayMarkerPosition) - width / 2
         z: 2

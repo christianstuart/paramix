@@ -10,6 +10,9 @@ enum class OverviewType {
     Filtered,
     HSV,
     RGB,
+    /// Stem-lane colour model: band balance sets the hue, loudness the
+    /// brightness. Renderers without it draw RGB.
+    Detail,
 };
 Q_ENUM_NS(OverviewType);
 

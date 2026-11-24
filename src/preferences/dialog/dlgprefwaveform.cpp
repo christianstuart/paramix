@@ -93,6 +93,7 @@ DlgPrefWaveform::DlgPrefWaveform(
             tr("Filtered"), QVariant::fromValue(OverviewType::Filtered));
     waveformOverviewComboBox->addItem(tr("HSV"), QVariant::fromValue(OverviewType::HSV));
     waveformOverviewComboBox->addItem(tr("RGB"), QVariant::fromValue(OverviewType::RGB));
+    waveformOverviewComboBox->addItem(tr("Detail"), QVariant::fromValue(OverviewType::Detail));
     if (!ControlObject::exists(kOverviewTypeCfgKey)) {
         m_pTypeControl = std::make_unique<ControlPushButton>(kOverviewTypeCfgKey);
         m_pTypeControl->setStates(QMetaEnum::fromType<OverviewType>().keyCount());
@@ -100,12 +101,12 @@ DlgPrefWaveform::DlgPrefWaveform(
     }
     // Update the control with the config value
     OverviewType overviewType =
-            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::RGB);
+            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::Detail);
     int cfgTypeIndex = waveformOverviewComboBox->findData(QVariant::fromValue(overviewType));
     if (cfgTypeIndex == -1) {
-        // Invalid config value, set default type RGB and write it to config
+        // Invalid config value, set default type Detail and write it to config
         cfgTypeIndex = waveformOverviewComboBox->findData(
-                QVariant::fromValue(OverviewType::RGB));
+                QVariant::fromValue(OverviewType::Detail));
         waveformOverviewComboBox->setCurrentIndex(cfgTypeIndex);
         m_pConfig->setValue(kOverviewTypeCfgKey, cfgTypeIndex);
     } else {
@@ -316,6 +317,11 @@ DlgPrefWaveform::DlgPrefWaveform(
             &QCheckBox::clicked,
             this,
             &DlgPrefWaveform::slotStemReorderOnChange);
+    // toggled, not clicked, so "Reset to defaults" applies it too.
+    connect(detailNonStemTracksCheckBox,
+            &QCheckBox::toggled,
+            this,
+            &DlgPrefWaveform::slotDetailNonStemTracks);
     connect(stemOpacitySpinBox,
             &QDoubleSpinBox::valueChanged,
             this,
@@ -436,12 +442,13 @@ void DlgPrefWaveform::slotUpdate() {
                     pFactory->getUntilMarkTextHeightLimit()));
 
     stemReorderLayerOnChangedCheckBox->setChecked(pFactory->isStemReorderOnChange());
+    detailNonStemTracksCheckBox->setChecked(pFactory->isDetailNonStemTracks());
     stemOpacitySpinBox->setValue(pFactory->getStemOpacity());
     stemOutlineOpacitySpinBox->setValue(pFactory->getStemOutlineOpacity());
     stemDisplayModeComboBox->setCurrentIndex(pFactory->isStemSplitTracks() ? 1 : 0);
 
     OverviewType cfgOverviewType =
-            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::RGB);
+            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::Detail);
     // Assumes the combobox index is in sync with the ControlPushButton
     if (cfgOverviewType != waveformOverviewComboBox->currentData().value<OverviewType>()) {
         int cfgOverviewTypeIndex =
@@ -522,9 +529,9 @@ void DlgPrefWaveform::slotResetToDefaults() {
 
     synchronizeZoomCheckBox->setChecked(true);
 
-    // RGB overview.
+    // Detail overview.
     waveformOverviewComboBox->setCurrentIndex(
-            waveformOverviewComboBox->findData(QVariant::fromValue(OverviewType::RGB)));
+            waveformOverviewComboBox->findData(QVariant::fromValue(OverviewType::Detail)));
 
     // Default to overview stereo mode
     overviewStereoCheckBox->setChecked(true);
@@ -558,6 +565,7 @@ void DlgPrefWaveform::slotResetToDefaults() {
     playMarkerPositionSlider->setValue(50);
 
     stemDisplayModeComboBox->setCurrentIndex(0);
+    detailNonStemTracksCheckBox->setChecked(true);
 }
 
 void DlgPrefWaveform::notifyQmlWaveformSettingsChanged() {
@@ -774,6 +782,7 @@ void DlgPrefWaveform::updateStemOptionsEnabled() {
     stemOpacitySpinBox->setEnabled(stemsSupported && enabled);
     stemOutlineOpacitySpinBox->setEnabled(stemsSupported && enabled);
     stemDisplayModeComboBox->setEnabled(stemsSupported && enabled);
+    detailNonStemTracksCheckBox->setEnabled(stemsSupported && enabled);
     requiresGLSLLabel2->setVisible(!stemsSupported && enabled);
 }
 
@@ -928,6 +937,11 @@ void DlgPrefWaveform::slotStemOpacity(double value) {
 
 void DlgPrefWaveform::slotStemReorderOnChange(bool value) {
     WaveformWidgetFactory::instance()->setStemReorderOnChange(value);
+    notifyQmlWaveformSettingsChanged();
+}
+
+void DlgPrefWaveform::slotDetailNonStemTracks(bool value) {
+    WaveformWidgetFactory::instance()->setDetailNonStemTracks(value);
     notifyQmlWaveformSettingsChanged();
 }
 

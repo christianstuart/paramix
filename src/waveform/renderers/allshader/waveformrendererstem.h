@@ -336,6 +336,9 @@ class allshader::WaveformRendererStem final
     TrackId m_cachedTrackId;
     uint32_t m_cachedSampleRate = 0;
     int m_cachedStemCount = 0;
+    /// Latched once the loaded track reports stems, so a transient zero stem
+    /// count never switches a stem track to the one-lane mixdown picture.
+    bool m_trackHasStems = false;
     double m_cachedTotalSamples = 0.0;
     int m_cacheFramesUntilRefresh = 0;
 

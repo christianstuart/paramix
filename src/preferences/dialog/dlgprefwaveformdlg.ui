@@ -696,6 +696,16 @@ Select from different types of displays for the waveform, which differ primarily
          </property>
         </widget>
        </item>
+       <item row="3" column="0" colspan="3">
+        <widget class="QCheckBox" name="detailNonStemTracksCheckBox">
+         <property name="toolTip">
+          <string>Draw tracks without stems with the same detailed picture as a stem lane, using the full waveform height. Turn off to use the waveform type selected above.</string>
+         </property>
+         <property name="text">
+          <string>Detailed waveform for tracks without stems</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
 

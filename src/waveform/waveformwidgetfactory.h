@@ -222,6 +222,7 @@ class WaveformWidgetFactory : public QObject,
     void setStemOutlineOpacity(float value);
     void setStemOpacity(float value);
     void setStemSplitTracks(bool value);
+    void setDetailNonStemTracks(bool value);
 
     bool getUntilMarkShowBeats() const {
         return m_untilMarkShowBeats;
@@ -249,6 +250,11 @@ class WaveformWidgetFactory : public QObject,
     }
     bool isStemSplitTracks() const {
         return m_stemSplitTracks;
+    }
+    /// True when tracks without stems are drawn as one full-height detail lane
+    /// by WaveformRendererStem instead of by the selected signal renderer.
+    bool isDetailNonStemTracks() const {
+        return m_detailNonStemTracks;
     }
     static Qt::Alignment toUntilMarkAlign(int index);
     static int toUntilMarkAlignIndex(Qt::Alignment align);
@@ -420,6 +426,7 @@ class WaveformWidgetFactory : public QObject,
     float m_stemOutlineOpacity;
     float m_stemOpacity;
     bool m_stemSplitTracks;
+    bool m_detailNonStemTracks;
 #ifdef __STEM__
     std::unique_ptr<StemDetailCache> m_pStemDetailCache;
     std::unique_ptr<StemPageCache> m_pStemPageCache;

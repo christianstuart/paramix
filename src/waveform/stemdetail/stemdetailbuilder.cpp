@@ -29,11 +29,15 @@ constexpr int kMaxStems = mixxx::kMaxSupportedStems;
 // effect on the result, but fewer reads cut per-chunk overhead on long tracks.
 constexpr SINT kReadFramesPerChunk = mixxx::kAnalysisFramesPerChunk * 4;
 
-/// Upper bound for a full-track reduction. A column holds up to `height`
-/// per-row colours, so this caps one lane at roughly 64 MB (four lanes at
-/// 256 MB); deeper zoom levels keep the previous picture until the windowed
-/// rebuild (M5).
+/// Upper bound for a full-track reduction, per lane of a four-lane picture. A
+/// column holds up to `height` per-row colours, so this caps one lane at
+/// roughly 64 MB (all lanes at 256 MB); deeper zoom levels keep the previous
+/// picture until the windowed rebuild (M5).
 constexpr int64_t kMaxCachedPixels = 16000000;
+/// Fewest rows a lane is reduced to before a deep zoom is refused.
+constexpr int kMinDetailRows = 9;
+/// Audio reduced before the first (partial) picture is published.
+constexpr int kPartialSeconds = 20;
 
 bool isZero(const StemDetailEntry& entry) {
     return entry.coverage == 0.0f && entry.low == 0.0f && entry.mid == 0.0f &&
@@ -152,7 +156,9 @@ void StemDetailBuilder::build(const StemDetailKey& key,
     }
 
     const int channelCount = pSource->getSignalInfo().getChannelCount();
-    const int stemCount = std::min(channelCount / 2, kMaxStems);
+    // A mono file is one lane fed the same signal on both sides.
+    const int stemCount = channelCount == 1 ? 1 : std::min(channelCount / 2, kMaxStems);
+    const int rightOffset = channelCount == 1 ? 0 : 1;
     const SINT totalFrames = pSource->frameLength();
     if (stemCount <= 0 || totalFrames <= 0) {
         emit built(key, nullptr);
@@ -160,12 +166,17 @@ void StemDetailBuilder::build(const StemDetailKey& key,
     }
 
     const int spc = std::max(1, key.samplesPerColumn);
-    const int height = std::clamp(key.height, 1, 63);
     const int64_t columnCount =
             (static_cast<int64_t>(totalFrames) + spc - 1) / spc;
-    if (columnCount * height > kMaxCachedPixels) {
-        kLogger.warning() << "Stem detail too large" << columnCount << "x" << height
-                          << "pixels; keeping the previous picture";
+    // The budget covers all lanes, so a single mixdown lane may use what four
+    // stem lanes would. A deep zoom drops rows (pages scale them back up)
+    // before it gives up and keeps the previous picture.
+    const int64_t laneBudget = kMaxCachedPixels * kMaxStems / stemCount;
+    const int height = static_cast<int>(std::min<int64_t>(
+            std::clamp(key.height, 1, 63), laneBudget / std::max<int64_t>(1, columnCount)));
+    if (height < std::min(key.height, kMinDetailRows)) {
+        kLogger.warning() << "Stem detail too large" << columnCount << "columns x"
+                          << stemCount << "lanes; keeping the previous picture";
         emit built(key, nullptr);
         return;
     }
@@ -220,6 +231,9 @@ void StemDetailBuilder::build(const StemDetailKey& key,
             kReadFramesPerChunk * static_cast<SINT>(channelCount));
     SINT frameIndex = 0;
     int fill = 0;
+    bool partialSent = false;
+    const qsizetype partialColumns = static_cast<qsizetype>(
+            static_cast<int64_t>(kPartialSeconds) * sampleRate / spc + 1);
     while (frameIndex < totalFrames) {
         if (generation != m_generation.load(std::memory_order_relaxed)) {
             return;
@@ -248,7 +262,7 @@ void StemDetailBuilder::build(const StemDetailKey& key,
                 stemStaging.left[static_cast<std::size_t>(fill)] =
                         pFrame[2 * stem];
                 stemStaging.right[static_cast<std::size_t>(fill)] =
-                        pFrame[2 * stem + 1];
+                        pFrame[2 * stem + rightOffset];
             }
             if (++fill == spc) {
                 emitColumn();
@@ -256,7 +270,14 @@ void StemDetailBuilder::build(const StemDetailKey& key,
             }
         }
         frameIndex += readableFrames;
+        if (!partialSent && pDetail->lanes.front().columns.size() >= partialColumns &&
+                frameIndex < totalFrames) {
+            partialSent = true;
+            emit partialBuilt(key, std::make_shared<const StemDetailTrack>(*pDetail));
+        }
     }
+    // The complete picture must not reuse the partial picture's page textures.
+    pDetail->generation = s_nextDetailGeneration.fetch_add(1, std::memory_order_relaxed);
 
     if (fill > 0) {
         // Zero-pad the final column exactly like the reference lane cache.

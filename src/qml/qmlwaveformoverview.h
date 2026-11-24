@@ -51,6 +51,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
         RGB = 1,
         Filtered = 2,
         HSV = 3,
+        Detail = 4,
     };
     Q_ENUM(Renderer)
 
@@ -118,6 +119,11 @@ class QmlWaveformOverview : public QQuickPaintedItem {
             Channels channels,
             ConstWaveformPointer pWaveform,
             int completion) const;
+    void drawDetail(QPainter* pPainter,
+            Channels channels,
+            ConstWaveformPointer pWaveform,
+            int completion,
+            double peak) const;
     void drawMinuteMarkers(QPainter* pPainter, double duration) const;
     QColor getRgbPenColor(ConstWaveformPointer pWaveform, int completion) const;
     QColor getRgbPenColor(qreal low, qreal mid, qreal high) const;
