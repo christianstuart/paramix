@@ -146,6 +146,7 @@ WaveformWidgetFactory::WaveformWidgetFactory()
           m_untilMarkTextPointSize(24),
           m_untilMarkTextHeightLimit(toUntilMarkTextHeightLimit(0)),
           m_stemSplitTracks(false),
+          m_detailNonStemTracks(true),
           m_openGlAvailable(false),
           m_openGlesAvailable(false),
           m_openGLShaderAvailable(false),
@@ -500,6 +501,9 @@ bool WaveformWidgetFactory::setConfig(UserSettingsPointer config) {
     setStemSplitTracks(m_config->getValue(
             ConfigKey(kWaveformGroup, QStringLiteral("stem_split_tracks")),
             false));
+    m_detailNonStemTracks = m_config->getValue(
+            ConfigKey(kWaveformGroup, QStringLiteral("detail_non_stem_tracks")),
+            true);
 
     return true;
 }
@@ -1707,6 +1711,15 @@ void WaveformWidgetFactory::setStemSplitTracks(bool value) {
     }
     m_pStemSplitTracksControl->set(value ? 1.0 : 0.0);
     emit stemSplitTracksChanged(value);
+}
+
+void WaveformWidgetFactory::setDetailNonStemTracks(bool value) {
+    m_detailNonStemTracks = value;
+    if (m_config) {
+        m_config->setValue(
+                ConfigKey(kWaveformGroup, QStringLiteral("detail_non_stem_tracks")),
+                value);
+    }
 }
 
 // static

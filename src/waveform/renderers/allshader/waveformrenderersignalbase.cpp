@@ -1,5 +1,12 @@
 #include "waveform/renderers/allshader/waveformrenderersignalbase.h"
 
+#include "track/track.h"
+#ifdef __STEM__
+#include "waveform/stemdetail/stemdetailcache.h"
+#endif
+#include "waveform/waveform.h"
+#include "waveform/waveformwidgetfactory.h"
+
 namespace allshader {
 
 WaveformRendererSignalBase::WaveformRendererSignalBase(
@@ -10,6 +17,30 @@ WaveformRendererSignalBase::WaveformRendererSignalBase(
 
 void WaveformRendererSignalBase::draw(QPainter*, QPaintEvent*) {
     DEBUG_ASSERT(false);
+}
+
+bool WaveformRendererSignalBase::yieldsToStemRenderer(
+        const Track& track, const Waveform& waveform) const {
+#ifdef __STEM__
+    if (m_ignoreStem) {
+        return false;
+    }
+    if (track.getStemInfo().isEmpty()) {
+        // Hand over only once the one-lane picture exists, so a newly loaded
+        // track shows this renderer instead of nothing while it is built.
+        auto* pFactory = WaveformWidgetFactory::isCreated()
+                ? WaveformWidgetFactory::instance()
+                : nullptr;
+        return pFactory && pFactory->isDetailNonStemTracks() &&
+                pFactory->stemDetailCache() &&
+                pFactory->stemDetailCache()->hasDetailFor(track.getId());
+    }
+    return waveform.hasStem();
+#else
+    Q_UNUSED(track);
+    Q_UNUSED(waveform);
+    return false;
+#endif
 }
 
 void WaveformRendererSignalBase::setAxesColor(const QColor& axesColor) {

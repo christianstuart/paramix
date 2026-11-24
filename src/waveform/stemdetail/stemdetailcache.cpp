@@ -2,6 +2,7 @@
 
 #include <QMetaObject>
 #include <QThread>
+#include <algorithm>
 
 #include "moc_stemdetailcache.cpp"
 #include "track/track.h"
@@ -41,11 +42,19 @@ StemDetailCache::~StemDetailCache() {
     delete m_pThread;
 }
 
+bool StemDetailCache::hasDetailFor(TrackId trackId) const {
+    QMutexLocker locker(&m_mutex);
+    return std::any_of(m_details.cbegin(), m_details.cend(), [&](const auto& pDetail) {
+        return pDetail->trackId == trackId && pDetail->laneCount > 0;
+    });
+}
+
 std::shared_ptr<const StemDetailTrack> StemDetailCache::request(
         const TrackPointer& pTrack,
         int samplesPerColumn,
         int height,
-        float magnification) {
+        float magnification,
+        bool mixdown) {
     if (!pTrack || !pTrack->getId().isValid() || samplesPerColumn <= 0 || height <= 0) {
         return nullptr;
     }
@@ -56,6 +65,7 @@ std::shared_ptr<const StemDetailTrack> StemDetailCache::request(
     key.samplesPerColumn = samplesPerColumn;
     key.height = height;
     key.magnification = magnification;
+    key.mixdown = mixdown;
 
     std::shared_ptr<const StemDetailTrack> pDetail;
     {

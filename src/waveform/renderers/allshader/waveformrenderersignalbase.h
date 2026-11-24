@@ -8,6 +8,8 @@
 #include "util/class.h"
 #include "waveform/renderers/waveformrenderersignalbase.h"
 
+class Track;
+class Waveform;
 class WaveformWidgetRenderer;
 
 namespace allshader {
@@ -68,6 +70,11 @@ class allshader::WaveformRendererSignalBase : public ::WaveformRendererSignalBas
     }
 
   protected:
+    /// True when WaveformRendererStem draws this track (a stem track, or any
+    /// track without stems while the detail waveform is enabled), so a signal
+    /// renderer must skip it.
+    bool yieldsToStemRenderer(const Track& track, const Waveform& waveform) const;
+
     bool m_ignoreStem;
 
     DISALLOW_COPY_AND_ASSIGN(WaveformRendererSignalBase);

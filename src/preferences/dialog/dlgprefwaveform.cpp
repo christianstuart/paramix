@@ -316,6 +316,11 @@ DlgPrefWaveform::DlgPrefWaveform(
             &QCheckBox::clicked,
             this,
             &DlgPrefWaveform::slotStemReorderOnChange);
+    // toggled, not clicked, so "Reset to defaults" applies it too.
+    connect(detailNonStemTracksCheckBox,
+            &QCheckBox::toggled,
+            this,
+            &DlgPrefWaveform::slotDetailNonStemTracks);
     connect(stemOpacitySpinBox,
             &QDoubleSpinBox::valueChanged,
             this,
@@ -436,6 +441,7 @@ void DlgPrefWaveform::slotUpdate() {
                     pFactory->getUntilMarkTextHeightLimit()));
 
     stemReorderLayerOnChangedCheckBox->setChecked(pFactory->isStemReorderOnChange());
+    detailNonStemTracksCheckBox->setChecked(pFactory->isDetailNonStemTracks());
     stemOpacitySpinBox->setValue(pFactory->getStemOpacity());
     stemOutlineOpacitySpinBox->setValue(pFactory->getStemOutlineOpacity());
     stemDisplayModeComboBox->setCurrentIndex(pFactory->isStemSplitTracks() ? 1 : 0);
@@ -558,6 +564,7 @@ void DlgPrefWaveform::slotResetToDefaults() {
     playMarkerPositionSlider->setValue(50);
 
     stemDisplayModeComboBox->setCurrentIndex(0);
+    detailNonStemTracksCheckBox->setChecked(true);
 }
 
 void DlgPrefWaveform::notifyQmlWaveformSettingsChanged() {
@@ -774,6 +781,7 @@ void DlgPrefWaveform::updateStemOptionsEnabled() {
     stemOpacitySpinBox->setEnabled(stemsSupported && enabled);
     stemOutlineOpacitySpinBox->setEnabled(stemsSupported && enabled);
     stemDisplayModeComboBox->setEnabled(stemsSupported && enabled);
+    detailNonStemTracksCheckBox->setEnabled(stemsSupported && enabled);
     requiresGLSLLabel2->setVisible(!stemsSupported && enabled);
 }
 
@@ -928,6 +936,11 @@ void DlgPrefWaveform::slotStemOpacity(double value) {
 
 void DlgPrefWaveform::slotStemReorderOnChange(bool value) {
     WaveformWidgetFactory::instance()->setStemReorderOnChange(value);
+    notifyQmlWaveformSettingsChanged();
+}
+
+void DlgPrefWaveform::slotDetailNonStemTracks(bool value) {
+    WaveformWidgetFactory::instance()->setDetailNonStemTracks(value);
     notifyQmlWaveformSettingsChanged();
 }
 

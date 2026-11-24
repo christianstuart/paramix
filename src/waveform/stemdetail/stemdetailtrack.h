@@ -49,13 +49,15 @@ struct StemDetailTrack {
 };
 
 /// Cache key: track, source rate, frames per device pixel, picture height and
-/// reducer magnification.
+/// reducer magnification. `mixdown` marks a track drawn without stems, so a
+/// one-lane picture is rebuilt once stems finish separating.
 struct StemDetailKey {
     TrackId trackId;
     uint32_t sampleRate = 0;
     int samplesPerColumn = 1;
     int height = 21;
     float magnification = 1.0f;
+    bool mixdown = false;
 };
 
 bool operator==(const StemDetailKey& lhs, const StemDetailKey& rhs);
@@ -67,6 +69,7 @@ inline size_t qHash(const StemDetailKey& key, size_t seed = 0) {
     hash = qHash(key.samplesPerColumn, hash);
     hash = qHash(key.height, hash);
     hash = qHash(key.magnification, hash);
+    hash = qHash(key.mixdown, hash);
     return hash;
 }
 

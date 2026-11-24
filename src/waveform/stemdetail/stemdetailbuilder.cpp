@@ -152,7 +152,9 @@ void StemDetailBuilder::build(const StemDetailKey& key,
     }
 
     const int channelCount = pSource->getSignalInfo().getChannelCount();
-    const int stemCount = std::min(channelCount / 2, kMaxStems);
+    // A mono file is one lane fed the same signal on both sides.
+    const int stemCount = channelCount == 1 ? 1 : std::min(channelCount / 2, kMaxStems);
+    const int rightOffset = channelCount == 1 ? 0 : 1;
     const SINT totalFrames = pSource->frameLength();
     if (stemCount <= 0 || totalFrames <= 0) {
         emit built(key, nullptr);
@@ -248,7 +250,7 @@ void StemDetailBuilder::build(const StemDetailKey& key,
                 stemStaging.left[static_cast<std::size_t>(fill)] =
                         pFrame[2 * stem];
                 stemStaging.right[static_cast<std::size_t>(fill)] =
-                        pFrame[2 * stem + 1];
+                        pFrame[2 * stem + rightOffset];
             }
             if (++fill == spc) {
                 emitColumn();

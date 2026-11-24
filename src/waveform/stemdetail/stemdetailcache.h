@@ -31,7 +31,8 @@ class StemDetailCache final : public QObject {
     std::shared_ptr<const StemDetailTrack> request(const TrackPointer& pTrack,
             int samplesPerColumn,
             int height,
-            float magnification);
+            float magnification,
+            bool mixdown = false);
 
     /// Suspends or resumes background builds on behalf of the audio-overload
     /// coordinator. Suspension only prevents new builds from starting: a build
@@ -39,6 +40,10 @@ class StemDetailCache final : public QObject {
     /// requested one stays pending and starts exactly once after resume().
     /// Must be called from the cache's thread (the GUI thread).
     void setBackgroundSuspended(bool suspended);
+
+    /// True once any picture of this track is cached. Signal renderers keep
+    /// drawing a track without stems until then, so a load never goes blank.
+    bool hasDetailFor(TrackId trackId) const;
 
     /// True while a build is pending or running. Lock-free, for diagnostics.
     bool isBuilding() const {

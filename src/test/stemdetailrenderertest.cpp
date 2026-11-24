@@ -15,6 +15,7 @@
 #include "sources/soundsourceproxy.h"
 #include "stems/stemcache.h"
 #include "test/mixxxtest.h"
+#include "test/soundsourceproviderregistration.h"
 #include "track/track.h"
 #include "util/samplebuffer.h"
 #include "waveform/renderers/allshader/waveformrendererstem.h"
@@ -236,6 +237,45 @@ TEST(StemDetailBuilderCancelTest, CancelBeforeQueuedBuildStartsSkipsWork) {
     ASSERT_EQ(1, spy.count());
     EXPECT_EQ(nullptr,
             spy.at(0).at(1).value<std::shared_ptr<const StemDetailTrack>>());
+}
+
+class StemDetailMixdownBuilderTest : public MixxxTest,
+                                     public SoundSourceProviderRegistration {};
+
+TEST_F(StemDetailMixdownBuilderTest, TrackWithoutStemsBuildsOneMixdownLane) {
+    QTemporaryDir tempDir;
+    ASSERT_TRUE(tempDir.isValid());
+    config()->setValue(ConfigKey("[Stems]", "CacheDirectory"), tempDir.path());
+    mixxx::stems::StemCache::initialize(config());
+
+    // A plain mono file: no stem cache, no stem container.
+    const TrackId trackId(QVariant(4343));
+    const TrackPointer pTrack = Track::newDummy(
+            getTestDir().filePath(QStringLiteral("sine-30.wav")), trackId);
+
+    StemDetailKey key;
+    key.trackId = trackId;
+    key.sampleRate = 44100;
+    key.samplesPerColumn = 4096;
+    key.height = 63;
+    key.magnification = 2.0f;
+    key.mixdown = true;
+
+    StemDetailBuilder builder;
+    QSignalSpy spy(&builder, &StemDetailBuilder::built);
+    builder.build(key, pTrack, builder.generation());
+    ASSERT_EQ(1, spy.count());
+    const auto pDetail =
+            spy.at(0).at(1).value<std::shared_ptr<const StemDetailTrack>>();
+    ASSERT_NE(nullptr, pDetail);
+    EXPECT_EQ(1, pDetail->laneCount);
+    const StemDetailLane& lane = pDetail->lanes[0];
+    EXPECT_EQ(63, lane.height);
+    ASSERT_FALSE(lane.columns.isEmpty());
+    // A sine is never silent, so a mid-track column spans more than the
+    // centre row a silent column fills.
+    const StemDetailColumn& column = lane.columns.at(lane.columns.size() / 2);
+    EXPECT_GT(std::popcount(column.mask), 1);
 }
 
 namespace {
@@ -618,6 +658,10 @@ TEST(StemDetailRequestMemo, UnchangedKeyDoesNotAskTheCacheAgain) {
     StemDetailKey taller = key;
     taller.height += 1;
     EXPECT_TRUE(memo.needsRequest(taller, false));
+    // A one-lane mixdown picture is never reused once stems appear.
+    StemDetailKey mixdown = key;
+    mixdown.mixdown = true;
+    EXPECT_TRUE(memo.needsRequest(mixdown, false));
 
     // A first miss is retried until it is answered.
     memo.forget();
