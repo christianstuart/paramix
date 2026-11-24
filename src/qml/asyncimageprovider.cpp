@@ -115,7 +115,10 @@ void AsyncImageResponse::run() {
     case CoverInfo::LoadedImage::Result::Ok:
         DEBUG_ASSERT(!loadedImage.image.isNull());
         if (m_requestedSize.isValid()) {
-            m_image = loadedImage.image.scaled(m_requestedSize);
+            // Keep the source aspect so the QML fillMode crops instead of
+            // painting a pre-squashed thumbnail.
+            m_image = loadedImage.image.scaled(
+                    m_requestedSize, Qt::KeepAspectRatioByExpanding);
         } else {
             m_image = loadedImage.image;
         }
