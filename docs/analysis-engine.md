@@ -59,7 +59,7 @@ lib/paramix-analysis/            Qt-free, C++20, no Mixxx dependencies
   src/refine.*                   43-frame threshold, 7-point gate, refinement
   src/fields.*                   weight and bassWeight finalize pass
   src/tempo.*                    three-pass variance tempo scan
-  src/phase.*                    gap-search phase guess and downbeat choice
+  src/phase.*                    weighted comb phase and downbeat choice
   src/kernel.*                   Kaiser-windowed sinc, exact mode-6 taps
   src/resampler.*                streaming resampler to 22050 Hz
   src/engine.*                   streaming facade and finalize orchestration
@@ -182,7 +182,7 @@ at 44100 Hz and analyzed end to end:
 | Transient count | 72 (reference: 72) |
 | Transient positions | 72/72 bit-identical |
 | BPM | `0x42f0002c` = 120.000336 (reference identical) |
-| Anchor | `0x3e7eb95a` = 0.248754 s (reference identical) |
+| Anchor | 0.2499 s (generator phase 0.25 s; comb resolution 0.3 ms) |
 | Onsets / envelope / bass | all values bit-identical |
 
 The deterministic finalize pass and the three tempo passes reproduce the
@@ -191,38 +191,55 @@ reference bits on this fixture. The committed GTest literals in
 
 ### 5.2 Against Traktor on the local reference tracks
 
-The engine was run from the decoded FLACs and compared with the Traktor 4.1.1
-values recorded in the reference ledger (L-170, L-173, L-174). All 13 paired
-tracks reproduce the BPM **and** the anchor bit for bit:
+The BPM is reproduced bit for bit from the decoded FLACs. The anchor is
+compared against the AutoGrid marker Traktor itself stored in `collection.nml`
+(`CUE_V2 NAME="AutoGrid" TYPE="4"`, milliseconds), which is the grid Traktor
+shows to the user:
 
-| Track | BPM (engine = reference) | Anchor (s) | Transients |
-|---|---|---|---|
-| Lady Gaga - Poker Face | 119.001587 | 0.407065481 | 1151 (cache 1151) |
-| Playboi Carti - Rockstar Made | 150.051865 | 1.592082739 | 1055 |
-| Rihanna - S&M | 128.000870 | 1.385426402 | 1217 |
-| JAY-Z - Run This Town | 173.555801 | 0.037959907 | 1669 |
-| Tay-K - I <3 My Choppa | 159.995972 | 0.006986653 | 613 (cache 613) |
-| Zeddy Will - Bow Bow Bow | 130.000122 | 0.018958662 | 757 (cache 757) |
-| Young Thug - Millions | 99.000282 | 0.023769572 | 891 |
-| Lil Skies - Welcome to the Rodeo | 170.000977 | 0.002598705 | 982 |
-| TWOFACED - I Need You | 142.000900 | 0.024070634 | 988 |
-| Justin Bieber - Sorry | 100.000778 | 0.011644487 | 1059 |
-| JAY-Z - Ni**as In Paris | 139.999893 | 0.476622730 | 1271 |
-| Ne-Yo - Time of Our Lives | 124.000595 | 0.961584270 | 1221 |
-| Sexyy Red - Looking For The Hoes | 151.008881 | 0.354333133 | 717 |
+| Track | BPM (engine = reference) | Anchor (s) | Traktor AutoGrid (s) | Error | Transients |
+|---|---|---|---|---|---|
+| Lady Gaga - Poker Face | 119.001587 | 0.629459 | 0.627293 | +2.2 ms | 1151 (cache 1151) |
+| Playboi Carti - Rockstar Made | 150.051865 | 0.029837 | 0.034810 | -5.0 ms | 1055 |
+| Rihanna - S&M | 128.000870 | 1.569390 | 1.568879 | +0.5 ms | 1217 |
+| JAY-Z - Run This Town | 173.555801 | 0.042166 | 0.042501 | -0.3 ms | 1669 |
+| Tay-K - I <3 My Choppa | 159.995972 | 0.078240 | 0.080335 | -2.1 ms | 613 (cache 613) |
+| Zeddy Will - Bow Bow Bow | 130.000122 | 0.032626 | 0.032167 | +0.5 ms | 757 (cache 757) |
+| Young Thug - Millions | 99.000282 | 0.173548 | 0.173256 | +0.3 ms | 891 |
+| Lil Skies - Welcome to the Rodeo | 170.000977 | 0.002614 | 0.002489 | +0.1 ms | 982 |
+| TWOFACED - I Need You | 142.000900 | 0.027702 | 0.026931 | +0.8 ms | 988 |
+| Justin Bieber - Sorry | 100.000778 | 0.161366 | 0.161799 | -0.4 ms | 1059 |
+| JAY-Z - Ni**as In Paris | 139.999893 | 0.693054 | 0.699348 | -6.3 ms | 1271 |
+| Ne-Yo - Time of Our Lives | 124.000595 | 1.090104 | 1.089592 | +0.5 ms | 1221 |
+| Sexyy Red - Looking For The Hoes | 151.008881 | 0.343421 | 0.338915 | +4.5 ms | 717 |
+| The Black Eyed Peas - Rock That Body | 125.000801 | 0.075312 | 0.075253 | +0.1 ms | 1617 (cache 1617) |
 
 The transient counts for the three tracks with paired caches match exactly
-(1151, 613, 757). Two additional local tracks are now paired as well and are
-covered in section 6: The Black Eyed Peas - Rock That Body (1617/1617
-transients, BPM and anchor identical to the native cache with the 78-155
-window) and Travis Scott - SICKO MODE (1661/1662 positions plus the same
-154.963882 BPM; the one differing position is 2.3e-10 s apart).
+(1151, 613, 757); Rock That Body matches 1617/1617 as well. Travis Scott -
+SICKO MODE is discussed in section 6: the native cache analyzes to 154.963882
+with every window, its stored 139 is not an analysis result, and its grid is
+preserved.
 
-Because the reference itself reproduces Traktor bit for bit, these numbers
-meet the acceptance row "BPM at most 0.002" and "downbeat at most 5 ms with
-the correct beat index" with zero measured error on the corpus.
+The median anchor error is 0.5 ms. Nine tracks are within 1 ms, four are
+between 2.1 and 5.0 ms (Poker Face +2.2, I <3 My Choppa -2.1, Looking For The
+Hoes +4.5, Rockstar Made -5.0) and the worst case is 6.3 ms (Ni**as In Paris),
+about 1.5% of a beat at 100 BPM. The BPM meets "at most 0.002" exactly.
 
-### 5.3 Determinism
+### 5.3 Phase stage
+
+The anchor is not a plain average of the detected transients: hi-hats and
+vocals are dense enough to pull such an average up to half a beat off. The
+phase stage instead scans the transient list for the offset that maximizes
+transient support, with each transient weighted by its detected weight and a
+linear taper over a 30 ms window, then refines the winner with the
+triangular-window circular mean. The four downbeat candidates are still chosen
+by bass salience, so the bar phase follows the kick.
+
+Over the 14 tracks in section 5.2 this reproduces the AutoGrid marker to within
+1 ms on 9 of them and 6.3 ms at worst. The transient average it replaced missed
+by up to 370 ms (Rock That Body +0.37 s, Poker Face -0.22 s, Ni**as In Paris
+-0.22 s, Sorry -0.15 s), which is what made grids look wrong in the deck.
+
+### 5.4 Determinism
 
 The engine is single-threaded and uses only `float`/`double` arithmetic with
 no hash-order or address-dependent behavior. The determinism test analyzes the
@@ -256,7 +273,7 @@ verified against the native tempo chain:
 `centre = f32((min + max) * 0.5)` and `halfWidth = f32((max - min) * 0.5)` from
 it. An out-of-range value falls back to preset 4. The window only changes which
 tempo the three passes lock onto: the same transient list fed with another
-window reproduces the native result for that window bit for bit.
+window reproduces the native BPM for that window bit for bit.
 
 Selecting the window matters: Rock That Body gives 166.667130 with 88-175 and
 125.000801 with 78-155, and only the latter is native. That is why the same
@@ -332,7 +349,7 @@ mixxx::Beats::fromConstTempo(sampleRate, plugin.getFirstBeat(),
 - `beats_sub_version` carries the normal analyzer fragments plus:
 
 ```text
-db=1|dbbar=4|dbphase=<0..3>|dbconf=<3 decimals>|dbsrc=paramix-analysis-engine:1
+db=1|dbbar=4|dbphase=<0..3>|dbconf=<3 decimals>|dbsrc=paramix-analysis-engine:1|dbv=2
 ```
 
 `Beats::getDownbeatInfo()` parses these fragments on construction, so the
@@ -342,7 +359,9 @@ version is replaced with a frame-0 placeholder by the loader.
 
 `AnalyzerBeats::shouldAnalyze()` ignores the `db*` fragments when checking
 whether the settings changed, so a stored native grid is not re-analyzed on
-every launch.
+every launch. The one exception is `dbv`: a grid written by the old anchor
+stage (no `dbv=2`) is re-analyzed even when re-analysis is disabled, because
+its phase could sit up to half a beat off the music.
 
 The plugin appears in the existing Preferences detector list automatically
 because the UI enumerates `AnalyzerBeats::availablePlugins()`. It is appended
@@ -396,7 +415,7 @@ sub-version.
 |---|---|
 | `frontend_test.cpp` | window, `log10(1+v)`, 512-point FFT magnitudes, fine/coarse flux, envelope, bass, 7-point gate, refinement, all against reference bits |
 | `resampler_test.cpp` | exact mode-6 reference, copy mode, declared frame count for every rate, DC gain, impulse alignment, determinism |
-| `tempo_phase_test.cpp` | three-pass tempo scan, circular mean, phase guess, downbeat choice, reference bits, perfect-grid behavior, explicit window |
+| `tempo_phase_test.cpp` | three-pass tempo scan, circular mean, weighted comb phase, downbeat choice, perfect-grid behavior, explicit window, dense off-beat transients |
 | `engine_test.cpp` | end-to-end synthetic click tracks for all 12 rate buckets, mono/stereo agreement, determinism over three runs, idempotent finish, empty input, transient retention, Traktor window selection, existing-BPM matching, grid preservation on mismatch, recovered preset table |
 | `mixxx_integration_test.cpp` | Qt plugin adapter end to end: plugin output, `Beats` construction, additive downbeat round-trip and monotonic beat iteration (built only inside Paramix) |
 

@@ -242,6 +242,15 @@ bool AnalyzerBeats::shouldAnalyze(TrackPointer pTrack) const {
     QString version = pBeats->getVersion();
     const bool nativeGridPlugin =
             pluginID == mixxx::AnalyzerParamixBeats::pluginInfo().id();
+    if (nativeGridPlugin && subVersion.contains(QLatin1String("dbsrc=")) &&
+            !subVersion.contains(QLatin1String("dbv=") +
+                    mixxx::AnalyzerParamixBeats::gridVersion())) {
+        // The anchor used to be derived from a plain transient average, which
+        // can sit up to half a beat off the music. Re-analyze those grids even
+        // when the user has disabled re-analysis: the stored grid is wrong.
+        qDebug() << "Paramix grid predates the comb phase stage; re-analyzing.";
+        return true;
+    }
     QHash<QString, QString> extraVersionInfo = getExtraVersionInfo(
             pluginID,
             nativeGridPlugin ? false : m_bPreferencesFastAnalysis);
@@ -353,6 +362,8 @@ void AnalyzerBeats::storeResults(TrackPointer pTrack) {
                                       'f',
                                       3))
                               .arg(downbeatInfo.source);
+        subVersion += QStringLiteral("|dbv=") +
+                mixxx::AnalyzerParamixBeats::gridVersion();
         pBeats = mixxx::Beats::fromConstTempo(m_sampleRate,
                 m_pPlugin->getFirstBeat(),
                 bpm,

@@ -1,8 +1,6 @@
 #include "phase.h"
 
-#include <algorithm>
 #include <cmath>
-#include <limits>
 
 #include "float32.h"
 
@@ -47,53 +45,48 @@ float circularMean(const std::vector<float>& positions, float bpm, float phase) 
     return f32(period * base);
 }
 
-float phaseGuess(const std::vector<double>& positions, float bpm) {
-    const int n = static_cast<int>(positions.size());
-    if (n <= 0 || !(bpm > 0.0f)) {
+float combPhase(const std::vector<float>& positions,
+        const std::vector<float>& weights,
+        float bpm) {
+    const std::size_t n = positions.size();
+    if (n == 0 || !(bpm > 0.0f) || weights.size() < n) {
         return 0.0f;
     }
-    const float period = f32(kPeriodConstant / bpm);
-    const float inverse = f32(f32(1.0f) / period);
+    const double period = static_cast<double>(f32(kPeriodConstant / bpm));
+    // A 30 ms taper covers the attack of a kick or snare without reaching the
+    // neighbouring 16th note at typical dance tempos.
+    constexpr double kWindow = 0.030;
+    constexpr int kSteps = 2048;
 
-    std::vector<float> sorted(static_cast<std::size_t>(n));
-    for (int i = 0; i < n; ++i) {
-        const float wrapped = f32(std::fmod(
-                positions[static_cast<std::size_t>(i)],
-                static_cast<double>(period)));
-        sorted[static_cast<std::size_t>(i)] = f32(wrapped * inverse);
-    }
-    std::sort(sorted.begin(), sorted.end());
-
-    const int lag = n >> 3;
-    std::vector<float> extended(static_cast<std::size_t>(n + lag));
-    for (int i = 0; i < n; ++i) {
-        extended[static_cast<std::size_t>(i)] = sorted[static_cast<std::size_t>(i)];
-    }
-    for (int i = 0; i < lag; ++i) {
-        extended[static_cast<std::size_t>(n + i)] = sorted[static_cast<std::size_t>(i)];
-    }
-
-    double best = std::numeric_limits<double>::infinity();
-    float guessUnit = 0.0f;
-    const int half = n >> 4;
-    for (int k = 0; k < n; ++k) {
-        const double difference =
-                static_cast<double>(extended[static_cast<std::size_t>(k + lag)]) -
-                static_cast<double>(extended[static_cast<std::size_t>(k)]);
-        if (difference < best) {
-            best = difference;
-            guessUnit = extended[static_cast<std::size_t>(half + k)];
+    double bestPhase = 0.0;
+    double bestScore = -1.0;
+    for (int step = 0; step < kSteps; ++step) {
+        const double phase = static_cast<double>(step) * period / kSteps;
+        double score = 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            const double position = static_cast<double>(positions[i]);
+            const double index = std::round((position - phase) / period);
+            const double distance = std::fabs(position - (phase + index * period));
+            if (distance <= kWindow) {
+                score += static_cast<double>(weights[i]) *
+                        (1.0 - distance / kWindow);
+            }
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestPhase = phase;
         }
     }
-    return f32(guessUnit * period);
+    return f32(bestPhase);
 }
 
 PhaseResult estimatePhase(const std::vector<double>& positions,
+        const std::vector<float>& weights,
         const std::vector<float>& bassWeights,
         float bpm) {
     PhaseResult result;
     const int n = static_cast<int>(positions.size());
-    if (n <= 0 || !(bpm > 0.0f) ||
+    if (n <= 0 || !(bpm > 0.0f) || weights.size() < positions.size() ||
             bassWeights.size() < positions.size()) {
         return result;
     }
@@ -105,8 +98,8 @@ PhaseResult estimatePhase(const std::vector<double>& positions,
     }
 
     const float period = f32(kPeriodConstant / bpm);
-    const float phaseG = phaseGuess(positions, bpm);
-    const float phase0 = circularMean(positionsF, bpm, phaseG);
+    const float phase0 =
+            circularMean(positionsF, bpm, combPhase(positionsF, weights, bpm));
 
     std::vector<float> salience(static_cast<std::size_t>(n));
     float previousSalience = 0.0f;
