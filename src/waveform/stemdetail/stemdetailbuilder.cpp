@@ -29,11 +29,13 @@ constexpr int kMaxStems = mixxx::kMaxSupportedStems;
 // effect on the result, but fewer reads cut per-chunk overhead on long tracks.
 constexpr SINT kReadFramesPerChunk = mixxx::kAnalysisFramesPerChunk * 4;
 
-/// Upper bound for a full-track reduction. A column holds up to `height`
-/// per-row colours, so this caps one lane at roughly 64 MB (four lanes at
-/// 256 MB); deeper zoom levels keep the previous picture until the windowed
-/// rebuild (M5).
+/// Upper bound for a full-track reduction, per lane of a four-lane picture. A
+/// column holds up to `height` per-row colours, so this caps one lane at
+/// roughly 64 MB (all lanes at 256 MB); deeper zoom levels keep the previous
+/// picture until the windowed rebuild (M5).
 constexpr int64_t kMaxCachedPixels = 16000000;
+/// Fewest rows a lane is reduced to before a deep zoom is refused.
+constexpr int kMinDetailRows = 9;
 
 bool isZero(const StemDetailEntry& entry) {
     return entry.coverage == 0.0f && entry.low == 0.0f && entry.mid == 0.0f &&
@@ -162,12 +164,17 @@ void StemDetailBuilder::build(const StemDetailKey& key,
     }
 
     const int spc = std::max(1, key.samplesPerColumn);
-    const int height = std::clamp(key.height, 1, 63);
     const int64_t columnCount =
             (static_cast<int64_t>(totalFrames) + spc - 1) / spc;
-    if (columnCount * height > kMaxCachedPixels) {
-        kLogger.warning() << "Stem detail too large" << columnCount << "x" << height
-                          << "pixels; keeping the previous picture";
+    // The budget covers all lanes, so a single mixdown lane may use what four
+    // stem lanes would. A deep zoom drops rows (pages scale them back up)
+    // before it gives up and keeps the previous picture.
+    const int64_t laneBudget = kMaxCachedPixels * kMaxStems / stemCount;
+    const int height = static_cast<int>(std::min<int64_t>(
+            std::clamp(key.height, 1, 63), laneBudget / std::max<int64_t>(1, columnCount)));
+    if (height < std::min(key.height, kMinDetailRows)) {
+        kLogger.warning() << "Stem detail too large" << columnCount << "columns x"
+                          << stemCount << "lanes; keeping the previous picture";
         emit built(key, nullptr);
         return;
     }

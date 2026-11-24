@@ -93,6 +93,7 @@ DlgPrefWaveform::DlgPrefWaveform(
             tr("Filtered"), QVariant::fromValue(OverviewType::Filtered));
     waveformOverviewComboBox->addItem(tr("HSV"), QVariant::fromValue(OverviewType::HSV));
     waveformOverviewComboBox->addItem(tr("RGB"), QVariant::fromValue(OverviewType::RGB));
+    waveformOverviewComboBox->addItem(tr("Detail"), QVariant::fromValue(OverviewType::Detail));
     if (!ControlObject::exists(kOverviewTypeCfgKey)) {
         m_pTypeControl = std::make_unique<ControlPushButton>(kOverviewTypeCfgKey);
         m_pTypeControl->setStates(QMetaEnum::fromType<OverviewType>().keyCount());
@@ -100,12 +101,12 @@ DlgPrefWaveform::DlgPrefWaveform(
     }
     // Update the control with the config value
     OverviewType overviewType =
-            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::RGB);
+            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::Detail);
     int cfgTypeIndex = waveformOverviewComboBox->findData(QVariant::fromValue(overviewType));
     if (cfgTypeIndex == -1) {
-        // Invalid config value, set default type RGB and write it to config
+        // Invalid config value, set default type Detail and write it to config
         cfgTypeIndex = waveformOverviewComboBox->findData(
-                QVariant::fromValue(OverviewType::RGB));
+                QVariant::fromValue(OverviewType::Detail));
         waveformOverviewComboBox->setCurrentIndex(cfgTypeIndex);
         m_pConfig->setValue(kOverviewTypeCfgKey, cfgTypeIndex);
     } else {
@@ -447,7 +448,7 @@ void DlgPrefWaveform::slotUpdate() {
     stemDisplayModeComboBox->setCurrentIndex(pFactory->isStemSplitTracks() ? 1 : 0);
 
     OverviewType cfgOverviewType =
-            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::RGB);
+            m_pConfig->getValue<OverviewType>(kOverviewTypeCfgKey, OverviewType::Detail);
     // Assumes the combobox index is in sync with the ControlPushButton
     if (cfgOverviewType != waveformOverviewComboBox->currentData().value<OverviewType>()) {
         int cfgOverviewTypeIndex =
@@ -528,9 +529,9 @@ void DlgPrefWaveform::slotResetToDefaults() {
 
     synchronizeZoomCheckBox->setChecked(true);
 
-    // RGB overview.
+    // Detail overview.
     waveformOverviewComboBox->setCurrentIndex(
-            waveformOverviewComboBox->findData(QVariant::fromValue(OverviewType::RGB)));
+            waveformOverviewComboBox->findData(QVariant::fromValue(OverviewType::Detail)));
 
     // Default to overview stereo mode
     overviewStereoCheckBox->setChecked(true);

@@ -9,9 +9,17 @@
 #include "track/track.h"
 #include "util/math.h"
 #include "waveform/waveformwidgetfactory.h"
+#ifdef __STEM__
+#include "waveform/stemdetail/stemdetailcolors.h"
+#include "waveform/stemdetail/stemdetailentry.h"
+#endif
 
 namespace {
 constexpr double kDesiredChannelHeight = 255;
+/// Detail overview: the inner core is drawn at this fraction of the peak, in
+/// full brightness, over a dimmer outer envelope, like a stem lane's centre.
+constexpr double kDetailCoreFraction = 0.55;
+constexpr float kDetailOuterCoverage = 0.15f;
 } // namespace
 
 namespace mixxx {
@@ -243,10 +251,24 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
         }
     }
 
+    // Detail brightness is relative to the loudest column of this track, so
+    // a breakdown reads darker than the drop whatever the master level.
+    double detailPeak = 1.0;
+    if (m_renderer == Renderer::Detail) {
+        for (int i = 0; i < waveformCompletion; ++i) {
+            detailPeak = std::max(detailPeak, static_cast<double>(pWaveform->getAll(i)));
+        }
+    }
+
     for (int currentCompletion = 0;
             currentCompletion < waveformCompletion;
             currentCompletion += 2) {
         switch (m_renderer) {
+#ifdef __STEM__
+        case Renderer::Detail:
+            drawDetail(pPainter, m_channels, pWaveform, currentCompletion, detailPeak);
+            break;
+#endif
         case Renderer::Filtered:
             drawFiltered(pPainter, m_channels, pWaveform, currentCompletion);
             break;
@@ -307,6 +329,68 @@ void QmlWaveformOverview::drawRgb(QPainter* pPainter,
             pPainter->drawLine(QPointF(offsetX, 0.0), QPointF(offsetX, rightValue));
         }
     }
+}
+
+void QmlWaveformOverview::drawDetail(QPainter* pPainter,
+        Channels channels,
+        ConstWaveformPointer pWaveform,
+        int completion,
+        double peak) const {
+#ifdef __STEM__
+    const double offsetX = completion / 2.0;
+    // One segment from the axis to `extent` (negative draws upwards in stereo
+    // mode), coloured like a stem detail cell of the given bands.
+    const auto drawSegment = [&](double extent, float low, float mid, float high, float coverage) {
+        StemDetailEntry entry;
+        entry.coverage = coverage;
+        entry.low = low;
+        entry.mid = mid;
+        entry.high = high;
+        pPainter->setPen(QColor::fromRgb(stemDetailEntryColor(entry, StemDetailColorParams{})));
+        pPainter->drawLine(QPointF(offsetX, 0.0), QPointF(offsetX, extent));
+    };
+    const auto drawColumn = [&](double all, float low, float mid, float high, double sign) {
+        if (all <= 0.0) {
+            return;
+        }
+        // The colour function saturates at coverage * gain = 1, so map
+        // loudness into [0, 1 / gain]; squaring widens quiet/loud contrast.
+        const float loudness = static_cast<float>(std::min(1.0, all / peak));
+        const float coreCoverage =
+                loudness * loudness / StemDetailColorParams{}.gain;
+        drawSegment(sign * all, low, mid, high, kDetailOuterCoverage * coreCoverage);
+        drawSegment(sign * all * kDetailCoreFraction, low, mid, high, coreCoverage);
+    };
+
+    if (!m_stereo) {
+        // Mono overview sums both channels, as drawRgb does.
+        const int left = completion;
+        const int right = completion + 1;
+        drawColumn(static_cast<double>(pWaveform->getAll(left)) + pWaveform->getAll(right),
+                static_cast<float>(pWaveform->getLow(left) + pWaveform->getLow(right)),
+                static_cast<float>(pWaveform->getMid(left) + pWaveform->getMid(right)),
+                static_cast<float>(pWaveform->getHigh(left) + pWaveform->getHigh(right)),
+                1.0);
+        return;
+    }
+    if (channels.testFlag(ChannelFlag::LeftChannel)) {
+        drawColumn(pWaveform->getAll(completion),
+                pWaveform->getLow(completion),
+                pWaveform->getMid(completion),
+                pWaveform->getHigh(completion),
+                -1.0);
+    }
+    if (channels.testFlag(ChannelFlag::RightChannel)) {
+        drawColumn(pWaveform->getAll(completion + 1),
+                pWaveform->getLow(completion + 1),
+                pWaveform->getMid(completion + 1),
+                pWaveform->getHigh(completion + 1),
+                1.0);
+    }
+#else
+    Q_UNUSED(peak);
+    drawRgb(pPainter, channels, pWaveform, completion);
+#endif
 }
 
 void QmlWaveformOverview::drawFiltered(QPainter* pPainter,

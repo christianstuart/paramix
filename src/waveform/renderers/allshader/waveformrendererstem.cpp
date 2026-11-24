@@ -565,10 +565,16 @@ bool WaveformRendererStem::preprocessInner() {
     const double firstSample = playRateZero
             ? stemdetail::snapToColumn(liveFirstSample, contentSamplesPerColumn)
             : liveFirstSample;
+    // Place pages with the exact zoom the beat grid uses, not the rounded
+    // column width: the rounding (and a fallback page from another zoom)
+    // otherwise lets the grid run ahead of the picture across the display.
+    const double framesPerDevicePx = std::max(1e-6,
+            m_waveformRenderer->getAudioSamplePerPixel() / deviceScale);
+    const double viewFrames = static_cast<double>(pixelLength) * framesPerDevicePx;
     const double firstDeviceColumn =
             firstSample / static_cast<double>(contentSamplesPerColumn);
-    const double lastDeviceColumn =
-            firstDeviceColumn + static_cast<double>(pixelLength);
+    const double lastDeviceColumn = firstDeviceColumn +
+            viewFrames / static_cast<double>(contentSamplesPerColumn);
 
     const int totalLiveLaneDeviceHeight =
             laneCount * liveLaneDeviceHeight + (laneCount - 1) * gapDevicePx;
@@ -682,12 +688,14 @@ bool WaveformRendererStem::preprocessInner() {
         }
         PageNodeState& state = *nodeIt;
 
-        // Fallback pages can come from a different zoom, so derive the
-        // viewport mapping from the page's own frames-per-column.
-        const double currentFirstDeviceColumn =
-                firstSample / static_cast<double>(pageKey.samplesPerColumn);
+        // Fallback pages can come from a different zoom, so express the
+        // viewport in the page's own columns and scale them to the live zoom.
+        const double pageSpc = static_cast<double>(pageKey.samplesPerColumn);
+        const double currentFirstDeviceColumn = firstSample / pageSpc;
         const double currentLastDeviceColumn =
-                currentFirstDeviceColumn + static_cast<double>(pixelLength);
+                currentFirstDeviceColumn + viewFrames / pageSpc;
+        const double logicalPxPerPageColumn =
+                pageSpc / framesPerDevicePx / deviceScale;
         const double pageFirstDeviceColumn =
                 static_cast<double>(pageKey.pageIndex) * pageKey.pageWidth;
         const double pageLastDeviceColumn =
@@ -714,11 +722,11 @@ bool WaveformRendererStem::preprocessInner() {
         drawKey.slip = m_isSlipRenderer;
 
         const double x0 = std::clamp(
-                (pageFirstVisible - currentFirstDeviceColumn) / deviceScale,
+                (pageFirstVisible - currentFirstDeviceColumn) * logicalPxPerPageColumn,
                 0.0,
                 static_cast<double>(length));
         const double x1 = std::clamp(
-                (pageLastVisible - currentFirstDeviceColumn) / deviceScale,
+                (pageLastVisible - currentFirstDeviceColumn) * logicalPxPerPageColumn,
                 0.0,
                 static_cast<double>(length));
         const float u0 = static_cast<float>(

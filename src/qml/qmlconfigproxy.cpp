@@ -389,14 +389,14 @@ void QmlConfigProxy::set_waveformOverviewNormalized(bool value) {
     }
 }
 
-PROPERTY_IMPL_GETTER(kWaveformGroup, kOverviewTypeKey, int, waveformOverviewType, 2);
+PROPERTY_IMPL_GETTER(kWaveformGroup, kOverviewTypeKey, int, waveformOverviewType, 3);
 
 void QmlConfigProxy::set_waveformOverviewType(int value) {
-    const int sanitizedValue = std::clamp(value, 0, 2);
+    const int sanitizedValue = std::clamp(value, 0, 3);
     setConfigValueAndNotify<int>(kWaveformGroup,
             kOverviewTypeKey,
             sanitizedValue,
-            2,
+            3,
             &QmlConfigProxy::waveformOverviewTypeChanged);
     if (auto* pControl = ControlObject::getControl(
                 ConfigKey(kWaveformGroup, kOverviewTypeKey))) {

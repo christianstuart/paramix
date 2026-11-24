@@ -122,7 +122,7 @@ Item {
             channels: Mixxx.WaveformOverview.Channels.BothChannels
             minuteMarkers: Mixxx.Config.waveformOverviewMinuteMarkers
             normalized: Mixxx.Config.waveformOverviewNormalized
-            renderer: Mixxx.Config.waveformOverviewType === 0 ? Mixxx.WaveformOverview.Renderer.Filtered : Mixxx.Config.waveformOverviewType === 1 ? Mixxx.WaveformOverview.Renderer.HSV : Mixxx.WaveformOverview.Renderer.RGB
+            renderer: Mixxx.Config.waveformOverviewType === 0 ? Mixxx.WaveformOverview.Renderer.Filtered : Mixxx.Config.waveformOverviewType === 1 ? Mixxx.WaveformOverview.Renderer.HSV : Mixxx.Config.waveformOverviewType === 3 ? Mixxx.WaveformOverview.Renderer.Detail : Mixxx.WaveformOverview.Renderer.RGB
             stereo: Mixxx.Config.waveformOverviewStereo
             // Frequency-coded, matching the deck's RGB renderer: lows red,
             // mids green, highs blue. These are shared by every overview
