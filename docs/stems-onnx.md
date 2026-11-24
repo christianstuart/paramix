@@ -75,15 +75,24 @@ on the CPU, so the end-to-end gain is smaller than the network's own speedup.
 ## Local build
 
 ```powershell
-# ONNX Runtime 1.32.0, Windows x64 CPU package
-gh release download v1.32.0 -R microsoft/onnxruntime `
-  -p "onnxruntime-win-x64-1.32.0.zip" -D buildenv
-Expand-Archive buildenv/onnxruntime-win-x64-1.32.0.zip `
-  -DestinationPath buildenv/onnxruntime-win-x64-1.32.0
+# ONNX Runtime 1.32.0, Windows x64 CPU package. The official NuGet package
+# ships the headers, import library and DLL in one archive.
+$version = "1.32.0"
+$package = "buildenv/onnxruntime-$version.zip"
+$root = "buildenv/onnxruntime-$version"
+Remove-Item -Recurse -Force $root, buildenv/onnxruntime-nupkg -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force buildenv | Out-Null
+Invoke-WebRequest `
+  -Uri "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/$version/microsoft.ml.onnxruntime.$version.nupkg" `
+  -OutFile $package
+Expand-Archive $package -DestinationPath buildenv/onnxruntime-nupkg -Force
+New-Item -ItemType Directory -Force "$root/lib" | Out-Null
+Move-Item buildenv/onnxruntime-nupkg/build/native/include "$root/include"
+Move-Item buildenv/onnxruntime-nupkg/runtimes/win-x64/native/* "$root/lib/"
 
 cmake -S . -B build `
   -DSTEM_SEPARATION=ON `
-  -DSTEM_SEPARATION_ORT_ROOT=buildenv/onnxruntime-win-x64-1.32.0/onnxruntime-win-x64-1.32.0
+  -DSTEM_SEPARATION_ORT_ROOT=$root
 cmake --build build --target mixxx-test
 ```
 
