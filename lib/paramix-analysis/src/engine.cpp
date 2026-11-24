@@ -260,11 +260,14 @@ Result Engine::finish() {
     }
 
     std::vector<double> positions;
+    std::vector<float> weights;
     std::vector<float> bassWeights;
     positions.reserve(fields.size());
+    weights.reserve(fields.size());
     bassWeights.reserve(fields.size());
     for (const TransientField& field : fields) {
         positions.push_back(field.position);
+        weights.push_back(field.weight);
         bassWeights.push_back(field.bassWeight);
     }
 
@@ -283,7 +286,7 @@ Result Engine::finish() {
     }
 
     const PhaseResult phase = estimatePhase(
-            positions, bassWeights, tempo.tempo.bpm);
+            positions, weights, bassWeights, tempo.tempo.bpm);
     if (!phase.ok) {
         return m_impl->result;
     }

@@ -62,29 +62,50 @@ TEST(Phase, CircularMeanFindsTheCommonPhase) {
     EXPECT_NEAR(mean, 0.25f, 1e-4f);
 }
 
-TEST(Phase, AnchorMatchesJavascriptReferenceBitsOnTheClickFixture) {
+TEST(Phase, AnchorMatchesTheClickFixturePhase) {
     std::vector<double> positions(testdata::kTempoPositions,
             testdata::kTempoPositions + testdata::kTempoPositionsSize);
+    std::vector<float> weights(positions.size(), 1.0f);
     std::vector<float> bass(testdata::kTempoBassWeights,
             testdata::kTempoBassWeights + testdata::kTempoBassWeightsSize);
     ASSERT_EQ(positions.size(), bass.size());
 
     const TempoResult tempo = detectBpm(positions);
-    const PhaseResult phase = estimatePhase(positions, bass, tempo.bpm);
+    const PhaseResult phase = estimatePhase(positions, weights, bass, tempo.bpm);
     ASSERT_TRUE(phase.ok);
-    EXPECT_EQ(floatBits(phase.anchor), testdata::kTempoExpectedAnchorBits[0]);
-    EXPECT_NEAR(phase.anchor, 0.25f, 0.005f);
+    EXPECT_NEAR(phase.anchor, 0.25f, 0.004f);
     EXPECT_GE(phase.bestScore, phase.secondScore);
+}
+
+TEST(Phase, IgnoresDenseOffBeatTransients) {
+    // Hi-hats every 16th, kick and snare only on the beat. Averaging the
+    // transient positions lands on the 16th grid; the weighted comb must stay
+    // on the beat.
+    std::vector<double> positions;
+    std::vector<float> weights;
+    std::vector<float> bass;
+    for (int i = 0; i < 64; ++i) {
+        const double position = 0.25 + i * 0.125;
+        positions.push_back(position);
+        weights.push_back(i % 4 == 0 ? 0.9f : 0.05f);
+        bass.push_back(i % 4 == 0 ? 8.0f : 0.2f);
+    }
+    const PhaseResult phase = estimatePhase(positions, weights, bass, 120.0f);
+    ASSERT_TRUE(phase.ok);
+    EXPECT_NEAR(phase.anchor, 0.25f, 0.004f);
+    EXPECT_NEAR(phase.phase0, 0.25f, 0.004f);
 }
 
 TEST(Phase, ChoosesTheAccentedEveryFourthBeat) {
     std::vector<double> positions;
+    std::vector<float> weights;
     std::vector<float> bass;
     for (int i = 0; i < 32; ++i) {
         positions.push_back(0.25 + i * 0.5);
+        weights.push_back(i % 4 == 0 ? 0.9f : 0.3f);
         bass.push_back(i % 4 == 0 ? 10.0f : 0.1f);
     }
-    const PhaseResult phase = estimatePhase(positions, bass, 120.0f);
+    const PhaseResult phase = estimatePhase(positions, weights, bass, 120.0f);
     ASSERT_TRUE(phase.ok);
     EXPECT_NEAR(phase.anchor, 0.25f, 1e-3f);
     EXPECT_NEAR(phase.phase0, 0.25f, 1e-3f);

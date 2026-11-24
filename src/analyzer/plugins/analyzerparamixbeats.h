@@ -28,6 +28,12 @@ class AnalyzerParamixBeats : public AnalyzerBeatsPlugin {
         return pluginInfo();
     }
 
+    /// Version of the anchor stage. Grids stored by an older stage are
+    /// re-analyzed because their phase could be up to half a beat off.
+    static QString gridVersion() {
+        return QStringLiteral("2");
+    }
+
     void setBeatDetectionHints(
             const BeatDetectionHints& hints) override;
 
