@@ -40,6 +40,8 @@ constexpr int kMaxLaneDeviceHeight = 63;
 /// most kMaxDetailRows rows (a 64-bit column mask); pages scale rows up.
 constexpr int kMaxMixdownLaneDeviceHeight = 1024;
 constexpr int kMaxDetailRows = 63;
+/// Mixdown lanes reduce a full mix at half the stem magnification.
+constexpr float kMixdownMagnificationScale = 0.5f;
 constexpr int kVerticesPerRectangle = 6;
 
 inline float laneAlphaFromOpacity(float opacity) {
@@ -484,7 +486,11 @@ bool WaveformRendererStem::preprocessInner() {
     if (magnificationDenominator < 1e-4f) {
         magnificationDenominator = 1e-4f;
     }
-    const float magnification = 1.0f / magnificationDenominator;
+    // A full mix is far louder than a single stem; at the stem gain it clips
+    // on nearly every column and fills the whole lane, hiding the dynamics
+    // and the beat grid.
+    const float magnification = (mixdown ? kMixdownMagnificationScale : 1.0f) /
+            magnificationDenominator;
 
     auto* pFactory = WaveformWidgetFactory::isCreated()
             ? WaveformWidgetFactory::instance()

@@ -27,6 +27,11 @@ StemDetailCache::StemDetailCache(QObject* parent)
             this,
             &StemDetailCache::onBuilt,
             Qt::QueuedConnection);
+    connect(m_pBuilder,
+            &StemDetailBuilder::partialBuilt,
+            this,
+            &StemDetailCache::onPartialBuilt,
+            Qt::QueuedConnection);
     // Background work: keep it below the audio callback, the engine and the
     // GUI. The renderer keeps drawing the previous picture until a build is
     // ready, so a lower priority only delays the first stem waveform.
@@ -42,11 +47,29 @@ StemDetailCache::~StemDetailCache() {
     delete m_pThread;
 }
 
-bool StemDetailCache::hasDetailFor(TrackId trackId) const {
+bool StemDetailCache::mayDrawTrack(TrackId trackId) const {
     QMutexLocker locker(&m_mutex);
-    return std::any_of(m_details.cbegin(), m_details.cend(), [&](const auto& pDetail) {
-        return pDetail->trackId == trackId && pDetail->laneCount > 0;
-    });
+    const bool hasPicture = (m_pPartial && m_pPartial->trackId == trackId) ||
+            std::any_of(m_details.cbegin(), m_details.cend(), [&](const auto& pDetail) {
+                return pDetail->trackId == trackId && pDetail->laneCount > 0;
+            });
+    return hasPicture ||
+            std::none_of(m_failed.cbegin(), m_failed.cend(), [&](const StemDetailKey& key) {
+                return key.trackId == trackId;
+            });
+}
+
+void StemDetailCache::onPartialBuilt(const StemDetailKey& key,
+        std::shared_ptr<const StemDetailTrack> pDetail) {
+    if (!m_buildInFlight || key != m_inFlightKey || !pDetail) {
+        return;
+    }
+    {
+        QMutexLocker locker(&m_mutex);
+        m_partialKey = key;
+        m_pPartial = std::move(pDetail);
+    }
+    emit detailReady();
 }
 
 std::shared_ptr<const StemDetailTrack> StemDetailCache::request(
@@ -80,6 +103,11 @@ std::shared_ptr<const StemDetailTrack> StemDetailCache::request(
                 pDetail = m_details.at(i);
                 break;
             }
+        }
+        // A newly loaded track has no previous picture: show the opening of
+        // the one being built instead of nothing.
+        if (!pDetail && m_pPartial && m_partialKey == key) {
+            pDetail = m_pPartial;
         }
         if (m_failed.contains(key)) {
             return pDetail;
@@ -236,6 +264,11 @@ void StemDetailCache::startPendingBuild() {
     m_inFlightKey = m_pendingKey;
     m_buildInFlight = true;
     m_hasPending = false;
+    {
+        // The partial picture belongs to the superseded build.
+        QMutexLocker locker(&m_mutex);
+        m_pPartial.reset();
+    }
 
     // Capture the post-cancel generation. A build that was queued before this
     // cancel carries an older token and exits before decoding anything.
@@ -256,6 +289,10 @@ void StemDetailCache::onBuilt(const StemDetailKey& key,
         return;
     }
     m_buildInFlight = false;
+    {
+        QMutexLocker locker(&m_mutex);
+        m_pPartial.reset();
+    }
     if (!pDetail) {
         QMutexLocker locker(&m_mutex);
         if (m_hasLastScheduledKey && m_lastScheduledKey == key) {

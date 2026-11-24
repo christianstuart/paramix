@@ -36,6 +36,8 @@ constexpr SINT kReadFramesPerChunk = mixxx::kAnalysisFramesPerChunk * 4;
 constexpr int64_t kMaxCachedPixels = 16000000;
 /// Fewest rows a lane is reduced to before a deep zoom is refused.
 constexpr int kMinDetailRows = 9;
+/// Audio reduced before the first (partial) picture is published.
+constexpr int kPartialSeconds = 20;
 
 bool isZero(const StemDetailEntry& entry) {
     return entry.coverage == 0.0f && entry.low == 0.0f && entry.mid == 0.0f &&
@@ -229,6 +231,9 @@ void StemDetailBuilder::build(const StemDetailKey& key,
             kReadFramesPerChunk * static_cast<SINT>(channelCount));
     SINT frameIndex = 0;
     int fill = 0;
+    bool partialSent = false;
+    const qsizetype partialColumns = static_cast<qsizetype>(
+            static_cast<int64_t>(kPartialSeconds) * sampleRate / spc + 1);
     while (frameIndex < totalFrames) {
         if (generation != m_generation.load(std::memory_order_relaxed)) {
             return;
@@ -265,7 +270,14 @@ void StemDetailBuilder::build(const StemDetailKey& key,
             }
         }
         frameIndex += readableFrames;
+        if (!partialSent && pDetail->lanes.front().columns.size() >= partialColumns &&
+                frameIndex < totalFrames) {
+            partialSent = true;
+            emit partialBuilt(key, std::make_shared<const StemDetailTrack>(*pDetail));
+        }
     }
+    // The complete picture must not reuse the partial picture's page textures.
+    pDetail->generation = s_nextDetailGeneration.fetch_add(1, std::memory_order_relaxed);
 
     if (fill > 0) {
         // Zero-pad the final column exactly like the reference lane cache.

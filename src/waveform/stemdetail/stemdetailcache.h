@@ -41,9 +41,9 @@ class StemDetailCache final : public QObject {
     /// Must be called from the cache's thread (the GUI thread).
     void setBackgroundSuspended(bool suspended);
 
-    /// True once any picture of this track is cached. Signal renderers keep
-    /// drawing a track without stems until then, so a load never goes blank.
-    bool hasDetailFor(TrackId trackId) const;
+    /// False only when every build for this track failed and no picture of it
+    /// exists; signal renderers then draw the track instead.
+    bool mayDrawTrack(TrackId trackId) const;
 
     /// True while a build is pending or running. Lock-free, for diagnostics.
     bool isBuilding() const {
@@ -57,6 +57,7 @@ class StemDetailCache final : public QObject {
   private slots:
     void startPendingBuild();
     void onBuilt(const StemDetailKey& key, std::shared_ptr<const StemDetailTrack> detail);
+    void onPartialBuilt(const StemDetailKey& key, std::shared_ptr<const StemDetailTrack> detail);
 
   private:
     /// Locks the LRU and the failed-key set. request() may run on a render
@@ -96,4 +97,7 @@ class StemDetailCache final : public QObject {
     QList<StemDetailKey> m_order;
     QList<std::shared_ptr<const StemDetailTrack>> m_details;
     QSet<StemDetailKey> m_failed;
+    /// Opening of the build in flight, until the complete picture replaces it.
+    StemDetailKey m_partialKey;
+    std::shared_ptr<const StemDetailTrack> m_pPartial;
 };

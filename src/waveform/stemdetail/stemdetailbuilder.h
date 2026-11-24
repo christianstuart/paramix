@@ -31,6 +31,10 @@ class StemDetailBuilder final : public QObject {
 
   signals:
     void built(const StemDetailKey& key, std::shared_ptr<const StemDetailTrack> detail);
+    /// Emitted once per build with the track's opening reduced, so a newly
+    /// loaded track shows a picture long before the whole file is decoded.
+    /// Columns past the end of the lanes are not built yet.
+    void partialBuilt(const StemDetailKey& key, std::shared_ptr<const StemDetailTrack> detail);
 
   private:
     std::atomic<quint64> m_generation{0};

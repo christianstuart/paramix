@@ -263,12 +263,23 @@ TEST_F(StemDetailMixdownBuilderTest, TrackWithoutStemsBuildsOneMixdownLane) {
 
     StemDetailBuilder builder;
     QSignalSpy spy(&builder, &StemDetailBuilder::built);
+    QSignalSpy partialSpy(&builder, &StemDetailBuilder::partialBuilt);
     builder.build(key, pTrack, builder.generation());
     ASSERT_EQ(1, spy.count());
     const auto pDetail =
             spy.at(0).at(1).value<std::shared_ptr<const StemDetailTrack>>();
     ASSERT_NE(nullptr, pDetail);
     EXPECT_EQ(1, pDetail->laneCount);
+
+    // The 30 s file publishes its opening once before the complete picture,
+    // under a different generation so its page textures are not reused.
+    ASSERT_EQ(1, partialSpy.count());
+    const auto pPartial =
+            partialSpy.at(0).at(1).value<std::shared_ptr<const StemDetailTrack>>();
+    ASSERT_NE(nullptr, pPartial);
+    EXPECT_GT(pPartial->lanes[0].columns.size(), 0);
+    EXPECT_LT(pPartial->lanes[0].columns.size(), pDetail->lanes[0].columns.size());
+    EXPECT_NE(pPartial->generation, pDetail->generation);
     const StemDetailLane& lane = pDetail->lanes[0];
     EXPECT_EQ(63, lane.height);
     ASSERT_FALSE(lane.columns.isEmpty());

@@ -173,7 +173,20 @@ void WaveformWidgetRenderer::onPreRender(VSyncTimeProvider* vsyncThread) {
     if (pTrack) {
         ConstWaveformPointer pWaveform = pTrack->getWaveform();
         if (pWaveform) {
-            m_audioSamplePerPixel = m_visualSamplePerPixel * pWaveform->getAudioVisualRatio();
+            const double audioVisualRatio = pWaveform->getAudioVisualRatio();
+            // Snap the zoom so one device pixel holds a whole number of audio
+            // frames. The stem detail picture draws one column per device
+            // pixel; a fractional ratio either lets the beat grid drift from
+            // it or makes its columns shimmer. Every renderer reads these
+            // values, so they all stay on the same (at most ~1% moved) zoom.
+            const double dpr = m_devicePixelRatio > 0.0f ? m_devicePixelRatio : 1.0;
+            const double framesPerDevicePx =
+                    m_visualSamplePerPixel * audioVisualRatio / dpr;
+            if (audioVisualRatio > 0.0 && framesPerDevicePx >= 1.0) {
+                m_visualSamplePerPixel =
+                        std::round(framesPerDevicePx) * dpr / audioVisualRatio;
+            }
+            m_audioSamplePerPixel = m_visualSamplePerPixel * audioVisualRatio;
         }
     }
 

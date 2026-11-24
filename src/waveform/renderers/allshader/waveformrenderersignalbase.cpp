@@ -26,14 +26,15 @@ bool WaveformRendererSignalBase::yieldsToStemRenderer(
         return false;
     }
     if (track.getStemInfo().isEmpty()) {
-        // Hand over only once the one-lane picture exists, so a newly loaded
-        // track shows this renderer instead of nothing while it is built.
+        // Hand over straight away so a load never flashes this waveform
+        // before the detail picture; take it back only if the detail build
+        // failed for this track.
         auto* pFactory = WaveformWidgetFactory::isCreated()
                 ? WaveformWidgetFactory::instance()
                 : nullptr;
         return pFactory && pFactory->isDetailNonStemTracks() &&
                 pFactory->stemDetailCache() &&
-                pFactory->stemDetailCache()->hasDetailFor(track.getId());
+                pFactory->stemDetailCache()->mayDrawTrack(track.getId());
     }
     return waveform.hasStem();
 #else
