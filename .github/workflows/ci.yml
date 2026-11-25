@@ -8,6 +8,23 @@
 # This workflow is fork-owned (not a copy of upstream's release pipeline) so it
 # works without maintainer secrets, self-hosted runners or deployment steps.
 #
+# Speed policy (rationale and measurements in docs/ci-performance-plan.md):
+# - One compiler cache per platform. It is restored from the newest entry saved
+#   by a `main` build and never uploaded from a PR or feature branch. Keys carry
+#   the run id and attempt so a re-run cannot collide with an existing entry.
+# - The pinned buildenv archive is cached as a zip, never as the extracted
+#   tree, so the 3.7 GB download only happens when the pin changes.
+# - The heavy matrix is skipped for changes that cannot affect the build (see
+#   the `changes` job). Job-level `if:` is used deliberately: all five checks
+#   are required on `main`, and a workflow-level `paths` filter would leave them
+#   pending instead of reporting a skipped (successful) check.
+# - macOS and Windows build with BUILD_TESTING=OFF because they never run the
+#   tests; Linux keeps them. BUILD_BENCH must be off with them: CMakeLists.txt
+#   rejects benchmarks without unittests (CMakeLists.txt:2863).
+# - Debug info is dropped on macOS/Linux (-g0) because nothing in CI consumes
+#   it. On Windows /Z7 replaces /Zi because ccache can only cache embedded debug
+#   info.
+#
 # Environment propagation note: tools/macos_buildenv.sh and
 # tools/windows_buildenv.bat append their exported variables
 # (MIXXX_VCPKG_ROOT, VCPKG_TARGET_TRIPLET, BUILDENV_URL, CMAKE_GENERATOR, ...)
@@ -18,23 +35,101 @@
 name: CI
 
 on:
+  # Only `main` gets a push run. Contributor branches are validated by the
+  # pull_request run: running both events for the same tip produces a second
+  # run that concurrency then cancels, and the cancelled check runs make the
+  # PR rollup report FAILURE even though the surviving run is green (observed
+  # on PR #110). A branch without a PR can still be checked with
+  # `gh workflow run ci.yml --ref <branch>`.
   push:
     branches:
       - main
-      - "chore/**"
-      - "feature/**"
-      - "fix/**"
   pull_request:
+  # Allows .github/workflows/nightly-ci.yml to re-run the matrix on a schedule
+  # to keep the caches warm without duplicating any job definitions.
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # One run per branch: a new push to a PR branch cancels that PR's previous
+  # run. github.head_ref is set only on pull_request and equals the branch
+  # name; for a push to main, github.ref_name is the same form (github.ref
+  # would add the refs/heads/ prefix and never match). github.workflow keeps a
+  # nightly run from canceling an in-flight run of the same commit.
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      # 'false' only when the change was classified successfully and cannot
+      # affect the build. Anything else (including a failed classification)
+      # runs the full matrix, so a bug here can never silently skip a required
+      # check.
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          code=true
+          base=""
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            base="${PR_BASE_SHA:-}"
+          elif [ "${EVENT_NAME}" = "push" ]; then
+            base="${PUSH_BEFORE:-}"
+          fi
+
+          # A root commit, a force push or a schedule/dispatch run gives no
+          # usable base: build everything.
+          if [ -n "${base}" ] &&
+            [ "${base}" != "0000000000000000000000000000000000000000" ]; then
+            # One extra shallow fetch instead of a full clone; the base is a
+            # branch tip (PR base or previous push tip) and is reachable.
+            git fetch --no-tags --quiet --depth=1 origin "${base}" || true
+            if git cat-file -e "${base}^{commit}" 2>/dev/null; then
+              # Only a successful diff may downgrade to code=false: a git
+              # error must fall through to running the full matrix.
+              if changed="$(git diff --name-only "${base}" HEAD)"; then
+                code=false
+                while IFS= read -r f; do
+                  [ -n "$f" ] || continue
+                  case "$f" in
+                    src/* | lib/* | cmake/* | packaging/* | res/*.qrc | \
+                      CMakeLists.txt | tools/*buildenv* | \
+                      .github/workflows/ci.yml | .github/workflows/nightly-ci.yml)
+                      code=true
+                      break
+                      ;;
+                  esac
+                done <<< "${changed}"
+              else
+                echo "git diff against ${base} failed; running the full matrix"
+              fi
+            else
+              echo "Base commit ${base} unavailable; running the full matrix"
+            fi
+          fi
+
+          echo "Build-affecting change: ${code}"
+          echo "code=${code}" >> "${GITHUB_OUTPUT}"
+
   checks:
     name: Repository checks
     runs-on: ubuntu-24.04
@@ -162,8 +257,13 @@ jobs:
 
   linux:
     name: Linux x64
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
+    env:
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -173,7 +273,7 @@ jobs:
       - name: Install build dependencies
         # Installs the build dependencies via apt (passwordless sudo on the
         # hosted runner). Qt 6 is the only supported Qt major in this tree;
-        # the script also installs the QML module packages.
+        # the script also installs the QML module packages, Ninja and mold.
         run: tools/debian_buildenv.sh setup
 
       - name: Restore ccache cache
@@ -181,23 +281,27 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /home/runner/.cache/ccache
-          key: linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: ccache-linux-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            linux-
+            ccache-linux-
 
       - name: Set up ccache
-        run: |
-          ccache --zero-stats
-          ccache --max-size=2G
+        run: ccache --zero-stats
 
       - name: Configure
         # There is no QT6 CMake option in this tree; Qt 6 is mandatory and
         # always used. QML is the dependent option at CMakeLists.txt:2356
         # (defaults ON when Qt >= 6.4). CMake enables ccache automatically
         # when it is on PATH (CCACHE_SUPPORT, CMakeLists.txt).
+        # -g0 drops debug info: nothing in CI consumes it, and it measurably
+        # shrinks objects and cache entries. -DNDEBUG is kept (it is part of
+        # the default RelWithDebInfo flags and disables asserts).
         run: |
           cmake -S . -B build \
+            -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
+            -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
             -DQML=ON
 
       - name: Build
@@ -205,29 +309,44 @@ jobs:
 
       - name: Print compiler cache stats
         run: |
-          ccache --show-stats
+          ccache --show-stats --verbose
+          ccache -p --print-stats
+          ccache --show-stats --verbose >> "${GITHUB_STEP_SUMMARY}"
           ccache --cleanup
 
       - name: Save ccache cache
-        # Save only on pushes to limit private-repo cache churn; skip when an
-        # entry for this exact key already exists, else the save step fails.
+        # main only: PRs restore the newest main entry, and feature-branch
+        # pushes must not churn the 10 GB repository cache. To measure a change
+        # on a branch, set the repository variable CI_CCACHE_BRANCH to that
+        # branch name (see docs/ci-performance-plan.md) and delete it after.
         if: >-
-          github.event_name == 'push' &&
-          steps.ccache_restore.outputs.cache-hit != 'true'
+          github.ref == 'refs/heads/main' ||
+          github.head_ref == vars.CI_CCACHE_BRANCH ||
+          github.ref_name == vars.CI_CCACHE_BRANCH
         uses: actions/cache/save@v4
         with:
           path: /home/runner/.cache/ccache
-          key: linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: ccache-linux-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        # --timeout bounds a single hung test. The analysis-engine test
+        # Engine.DetectsBpmAndDownbeatForEveryRateBucket normally takes ~9 s but
+        # stalled for 17+ minutes in one run (a pre-existing flake, reproduced
+        # on unmodified code); without a timeout that consumes the whole job
+        # budget and reports nothing. 300 s is ~30x the slowest observed test.
+        run: ctest --test-dir build --output-on-failure --timeout 300
         env:
           CTEST_PARALLEL_LEVEL: 3
 
   macos-arm64:
     name: macOS arm64
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: macos-15
     timeout-minutes: 90
+    env:
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -245,7 +364,21 @@ jobs:
         # the Configure step fetches the environment via BUILDENV_URL.
         run: source tools/macos_buildenv.sh setup
         env:
+          # runner.workspace is the parent of the checkout
+          # (/Users/runner/work/paramix), keeping the 3.7 GB archive outside
+          # the source tree. The actionlint schema omits this property, but
+          # real runs report it (verified in the 2026-11-24 arm64 job log).
           BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
+
+      - name: Restore build environment archive
+        # The archive is pinned by SHA-256 in tools/macos_buildenv.sh, so it is
+        # safe to cache until that pin changes. Only the zip is cached: caching
+        # the extracted tree would be 8-10 GB and evict every compiler cache.
+        id: buildenv_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.workspace }}/buildenv/*.zip
+          key: buildenv-macos-arm64-${{ hashFiles('tools/macos_buildenv.sh') }}
 
       - name: Pre-fetch build environment
         # downloads.mixxx.org is an external single point of failure and
@@ -255,6 +388,7 @@ jobs:
         # a .part file, verify, then move into place: CMake skips its own
         # download when the zip exists (CMakeLists.txt:147) and still runs its
         # checksum gate, so this adds resilience without weakening it.
+        if: steps.buildenv_restore.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           mkdir -p "${BUILDENV_BASEPATH}"
@@ -276,27 +410,39 @@ jobs:
             echo "- sha256: \`${actual}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
+      - name: Save build environment archive
+        if: steps.buildenv_restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.workspace }}/buildenv/*.zip
+          key: buildenv-macos-arm64-${{ hashFiles('tools/macos_buildenv.sh') }}
+
       - name: Restore ccache cache
         id: ccache_restore
         uses: actions/cache/restore@v4
         with:
           path: /Users/runner/Library/Caches/ccache
-          key: macos-arm64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: ccache-macos-arm64-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            macos-arm64-
+            ccache-macos-arm64-
 
       - name: Set up ccache
-        run: |
-          ccache --zero-stats
-          ccache --max-size=2G
+        run: ccache --zero-stats
 
       - name: Configure
         # No QT6 option exists; QML is ON for arm64 (the dependent option at
         # CMakeLists.txt:2356). MIXXX_VCPKG_ROOT, VCPKG_TARGET_TRIPLET and
         # CMAKE_GENERATOR=Ninja come from the buildenv script via $GITHUB_ENV.
+        # BUILD_TESTING=OFF: this job never runs the tests, so building the
+        # 164-translation-unit test binary is pure cost. BUILD_BENCH must match,
+        # or CMakeLists.txt:2863 aborts the configure.
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
+            -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_BENCH=OFF \
             -DQML=ON
 
       - name: Build
@@ -305,25 +451,34 @@ jobs:
 
       - name: Print compiler cache stats
         run: |
-          ccache --show-stats
+          ccache --show-stats --verbose
+          ccache -p --print-stats
+          ccache --show-stats --verbose >> "${GITHUB_STEP_SUMMARY}"
           ccache --cleanup
 
       - name: Save ccache cache
         if: >-
-          github.event_name == 'push' &&
-          steps.ccache_restore.outputs.cache-hit != 'true'
+          github.ref == 'refs/heads/main' ||
+          github.head_ref == vars.CI_CCACHE_BRANCH ||
+          github.ref_name == vars.CI_CCACHE_BRANCH
         uses: actions/cache/save@v4
         with:
           path: /Users/runner/Library/Caches/ccache
-          key: macos-arm64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: ccache-macos-arm64-${{ github.run_id }}-${{ github.run_attempt }}
 
   macos-x64:
     name: macOS x86_64
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: macos-15-intel
     # Intel runners are ~2.3x slower than arm64 on this tree (measured: 60m44s
     # vs 26m16s build, 1h15m46s vs 39m49s job) and additionally pull a 3.7 GB
-    # build environment. That left only 14 minutes of headroom at 90 minutes.
+    # build environment. The compiler cache and cached buildenv are what keep
+    # this job off the critical path.
     timeout-minutes: 120
+    env:
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -340,14 +495,17 @@ jobs:
         env:
           BUILDENV_BASEPATH: ${{ runner.workspace }}/buildenv
 
+      - name: Restore build environment archive
+        id: buildenv_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.workspace }}/buildenv/*.zip
+          key: buildenv-macos-x64-${{ hashFiles('tools/macos_buildenv.sh') }}
+
       - name: Pre-fetch build environment
-        # downloads.mixxx.org is an external single point of failure and
-        # CMake's file(DOWNLOAD) has no STATUS check, so a truncated transfer
-        # surfaces only as a confusing "SHA256 checksum mismatch". Run
-        # 43133838143 stopped at 4% exactly this way. Fetch with retries into
-        # a .part file, verify, then move into place: CMake skips its own
-        # download when the zip exists (CMakeLists.txt:147) and still runs its
-        # checksum gate, so this adds resilience without weakening it.
+        # Same external-dependency exposure and resilience pattern as the arm64
+        # job; see the comment there.
+        if: steps.buildenv_restore.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           mkdir -p "${BUILDENV_BASEPATH}"
@@ -369,25 +527,35 @@ jobs:
             echo "- sha256: \`${actual}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
+      - name: Save build environment archive
+        if: steps.buildenv_restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.workspace }}/buildenv/*.zip
+          key: buildenv-macos-x64-${{ hashFiles('tools/macos_buildenv.sh') }}
+
       - name: Restore ccache cache
         id: ccache_restore
         uses: actions/cache/restore@v4
         with:
           path: /Users/runner/Library/Caches/ccache
-          key: macos-x64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: ccache-macos-x64-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            macos-x64-
+            ccache-macos-x64-
 
       - name: Set up ccache
-        run: |
-          ccache --zero-stats
-          ccache --max-size=2G
+        run: ccache --zero-stats
 
       - name: Configure
         # No QT6 option exists; QML stays OFF for the x86_64 target.
+        # BUILD_TESTING=OFF: see the arm64 job.
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
+            -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_BENCH=OFF \
             -DQML=OFF
 
       - name: Build
@@ -395,22 +563,31 @@ jobs:
 
       - name: Print compiler cache stats
         run: |
-          ccache --show-stats
+          ccache --show-stats --verbose
+          ccache -p --print-stats
+          ccache --show-stats --verbose >> "${GITHUB_STEP_SUMMARY}"
           ccache --cleanup
 
       - name: Save ccache cache
         if: >-
-          github.event_name == 'push' &&
-          steps.ccache_restore.outputs.cache-hit != 'true'
+          github.ref == 'refs/heads/main' ||
+          github.head_ref == vars.CI_CCACHE_BRANCH ||
+          github.ref_name == vars.CI_CCACHE_BRANCH
         uses: actions/cache/save@v4
         with:
           path: /Users/runner/Library/Caches/ccache
-          key: macos-x64-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: ccache-macos-x64-${{ github.run_id }}-${{ github.run_attempt }}
 
   windows-x64:
     name: Windows x64
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: windows-2022
     timeout-minutes: 90
+    env:
+      CCACHE_COMPILERCHECK: content
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -421,6 +598,32 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+
+      - name: Install ccache
+        # Pinned release with a checksum gate, like the buildenv archive.
+        # On MSVC ccache only caches objects built with /Z7 (embedded debug
+        # info); /Zi writes a PDB and every object becomes a miss.
+        shell: pwsh
+        env:
+          CCACHE_VERSION: "4.14.3"
+          CCACHE_SHA256: "c845c3d65be81954c75659145a522a793a27586bf940c5dcfe18af33fa1a67dd"
+        run: |
+          $name = "ccache-$env:CCACHE_VERSION-windows-x86_64"
+          $url = "https://github.com/ccache/ccache/releases/download/v$env:CCACHE_VERSION/$name.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "$name.zip"
+          curl.exe -fL --retry 5 --retry-delay 10 --retry-all-errors `
+            --connect-timeout 30 -o $zip $url
+          if ($LASTEXITCODE -ne 0) {
+            throw "ccache download failed (curl exit $LASTEXITCODE)"
+          }
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLower()
+          if ($actual -ne $env:CCACHE_SHA256) {
+            throw "ccache checksum mismatch: expected $env:CCACHE_SHA256, got $actual"
+          }
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP -Force
+          $bin = Join-Path $env:RUNNER_TEMP $name
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Append
+          & (Join-Path $bin "ccache.exe") --version
 
       - name: Set up build environment
         # shell: cmd so the batch file's ERRORLEVEL is checked. With
@@ -435,12 +638,20 @@ jobs:
           BUILDENV_BASEPATH: C:\buildenv
           BUILDENV_RELEASE: "TRUE"
 
+      - name: Restore build environment archive
+        id: buildenv_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: C:/buildenv/*.zip
+          key: buildenv-windows-x64-${{ hashFiles('tools/windows_buildenv.bat') }}
+
       - name: Pre-fetch build environment
         # Same external-dependency exposure as the macOS jobs: CMake downloads
         # the prebuilt vcpkg environment itself and only notices a truncated
         # transfer via the SHA256 gate. curl.exe ships with the image and
         # supports real retries, unlike Invoke-WebRequest which buffers the
         # whole archive in memory.
+        if: steps.buildenv_restore.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $dir = $env:BUILDENV_BASEPATH
@@ -463,16 +674,76 @@ jobs:
             "### Build environment", "", "- archive: ``$name``", "- sha256: ``$actual``"
           )
 
+      - name: Save build environment archive
+        if: steps.buildenv_restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: C:/buildenv/*.zip
+          key: buildenv-windows-x64-${{ hashFiles('tools/windows_buildenv.bat') }}
+
+      - name: Restore ccache cache
+        id: ccache_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-windows-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ccache-windows-x64-
+
+      - name: Set up ccache
+        # The runner context is not available in a job-level env block, so
+        # CCACHE_DIR is set on the steps that invoke ccache. The cache path in
+        # the restore/save steps uses the same expression.
+        shell: pwsh
+        env:
+          CCACHE_DIR: ${{ runner.temp }}/ccache
+        run: ccache --zero-stats
+
       - name: Configure
         # No QT6 option exists; QML is ON (dependent option at
         # CMakeLists.txt:2356). MIXXX_VCPKG_ROOT drives the vcpkg toolchain;
         # no explicit CMAKE_PREFIX_PATH is needed.
+        # CMakeLists.txt wires sccache for MSVC, but ccache is installed here,
+        # so the launcher is passed explicitly. The tree already rewrites /Zi to
+        # /Z7 for RelWithDebInfo (CMakeLists.txt:718-733) so ccache can cache
+        # the objects; PCH still has to be off because MSVC precompiled headers
+        # cannot be cached. BUILD_TESTING=OFF/BUILD_BENCH=OFF: this job does
+        # not run the tests, and the benchmark option requires them.
+        env:
+          CCACHE_DIR: ${{ runner.temp }}/ccache
         run: |
           cmake -S . -B build `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON `
+            -DBUILD_TESTING=OFF `
+            -DBUILD_BENCH=OFF `
             -DQML=ON
 
       - name: Build
         # Ninja (from the buildenv script) parallelizes by default;
         # --config is a no-op for the single-config Ninja generator.
+        env:
+          CCACHE_DIR: ${{ runner.temp }}/ccache
         run: cmake --build build --config RelWithDebInfo
+
+      - name: Print compiler cache stats
+        shell: pwsh
+        env:
+          CCACHE_DIR: ${{ runner.temp }}/ccache
+        run: |
+          ccache --show-stats --verbose
+          ccache -p --print-stats
+          ccache --show-stats --verbose >> $env:GITHUB_STEP_SUMMARY
+          ccache --cleanup
+
+      - name: Save ccache cache
+        if: >-
+          github.ref == 'refs/heads/main' ||
+          github.head_ref == vars.CI_CCACHE_BRANCH ||
+          github.ref_name == vars.CI_CCACHE_BRANCH
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-windows-x64-${{ github.run_id }}-${{ github.run_attempt }}

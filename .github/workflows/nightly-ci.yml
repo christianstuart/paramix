@@ -1,0 +1,27 @@
+# Nightly warm build
+#
+# Re-runs the standard matrix on `main` once a day by calling ci.yml, so no job
+# definitions are duplicated. The purpose is to keep the compiler-cache and
+# buildenv entries warm: GitHub evicts cache entries that have not been used
+# for seven days, and a quiet week would otherwise hand the next pull request a
+# cold 20-45 minute build. It also keeps the macOS x86_64 target exercised when
+# no PR has touched C++.
+#
+# A failed nightly marks `main` red but does not block merges; investigate it
+# like a PR failure.
+
+name: Nightly CI
+
+on:
+  schedule:
+    # 04:00 UTC daily.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Nightly matrix
+    uses: ./.github/workflows/ci.yml

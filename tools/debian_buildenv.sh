@@ -22,6 +22,15 @@ case "$1" in
         export DEBIAN_FRONTEND=noninteractive
         export APT_LISTCHANGES_FRONTEND=none
 
+        # Retry and time out rather than stall. A stalled mirror has taken CI
+        # runs from 20 minutes to over an hour (measured: 56 minutes), so a
+        # failed fetch must surface quickly and be retried.
+        APT_OPTS=(
+            -o Acquire::Retries=5
+            -o Acquire::http::Timeout=30
+            -o Acquire::https::Timeout=30
+        )
+
         source /etc/os-release 2>/dev/null
         case "${VERSION_CODENAME}" in
             jammy|bullseye|victoria|vera|vanessa|virginia) # <= Ubuntu 22.04.5 LTS
@@ -47,7 +56,7 @@ case "$1" in
                 )
         esac
 
-        sudo apt-get update
+        sudo apt-get update "${APT_OPTS[@]}"
 
         # If jackd2 is installed as per dpkg database, install libjack-jackd2-dev.
         # This avoids a package deadlock, resulting in jackd2 being removed, and jackd1 being installed,
@@ -55,23 +64,23 @@ case "$1" in
         # jackd dev library, so let's give it one..
         if [ "$(dpkg-query -W -f='${Status}' jackd2 2>/dev/null | grep -c "ok installed")" -eq 1 ];
         then
-            sudo apt-get install libjack-jackd2-dev;
+            sudo apt-get install "${APT_OPTS[@]}" libjack-jackd2-dev;
         fi
 
         # Install a faster linker. Prefer mold, fall back to lld
         if apt-cache show mold 2>/dev/null >/dev/null;
         then
-            sudo apt-get install -y --no-install-recommends mold
+            sudo apt-get install -y --no-install-recommends "${APT_OPTS[@]}" mold
         else
             if apt-cache show lld 2>/dev/null >/dev/null;
             then
-                sudo apt-get install -y --no-install-recommends lld
+                sudo apt-get install -y --no-install-recommends "${APT_OPTS[@]}" lld
             fi
         fi
 
         # Check if fonts-ubuntu is available (from non-free repository)
         if apt-cache show fonts-ubuntu 2>/dev/null >/dev/null; then
-            sudo apt-get install -y --no-install-recommends fonts-ubuntu
+            sudo apt-get install -y --no-install-recommends "${APT_OPTS[@]}" fonts-ubuntu
         else
             echo ""
             echo "WARNING: The package 'fonts-ubuntu' is not available."
@@ -91,7 +100,7 @@ case "$1" in
             fi
         fi
 
-        sudo apt-get install -y --no-install-recommends -- \
+        sudo apt-get install -y --no-install-recommends "${APT_OPTS[@]}" -- \
             ccache \
             cmake \
             clazy \
@@ -143,6 +152,7 @@ case "$1" in
             libwavpack-dev \
             lv2-dev \
             markdown \
+            ninja-build \
             portaudio19-dev \
             protobuf-compiler \
             python3-paramiko \
