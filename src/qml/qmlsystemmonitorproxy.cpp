@@ -12,6 +12,8 @@
 #endif
 
 #ifdef Q_OS_MACOS
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
 #include <mach/mach.h>
 #endif
 
@@ -27,6 +29,51 @@ double clampPercent(double value) {
 double roundPercent(double value) {
     return std::round(clampPercent(value) * 10.0) / 10.0;
 }
+
+#if defined(Q_OS_MACOS)
+/// Returns the utilization percentage reported by an IOAccelerator service, or
+/// a negative value when the service publishes no usable statistics.
+double readAcceleratorUtilization(io_object_t accelerator) {
+    CFMutableDictionaryRef pProperties = nullptr;
+    if (IORegistryEntryCreateCFProperties(
+                accelerator, &pProperties, kCFAllocatorDefault, 0) !=
+                    KERN_SUCCESS ||
+            pProperties == nullptr) {
+        return -1.0;
+    }
+    double utilization = -1.0;
+    const void* pStatistics =
+            CFDictionaryGetValue(pProperties, CFSTR("PerformanceStatistics"));
+    if (pStatistics != nullptr &&
+            CFGetTypeID(pStatistics) == CFDictionaryGetTypeID()) {
+        // AMD, Intel and Apple Silicon expose "Device Utilization %". Some
+        // drivers only publish the older "GPU Activity(%)" counter or the
+        // per-p-state variant.
+        static const CFStringRef kKeys[] = {
+                CFSTR("Device Utilization %"),
+                CFSTR("GPU Activity(%)"),
+                CFSTR("Device Utilization % at cur p-state"),
+        };
+        for (const CFStringRef key : kKeys) {
+            const void* pValue = CFDictionaryGetValue(
+                    static_cast<CFDictionaryRef>(pStatistics), key);
+            if (pValue == nullptr ||
+                    CFGetTypeID(pValue) != CFNumberGetTypeID()) {
+                continue;
+            }
+            double value = 0.0;
+            if (CFNumberGetValue(static_cast<CFNumberRef>(pValue),
+                        kCFNumberDoubleType,
+                        &value)) {
+                utilization = value;
+                break;
+            }
+        }
+    }
+    CFRelease(pProperties);
+    return utilization;
+}
+#endif
 
 } // namespace
 
@@ -295,6 +342,35 @@ bool QmlSystemMonitorProxy::readGpuUsage() {
     m_gpuAvailable = true;
     m_gpuUsage = usage;
     return true;
+#elif defined(Q_OS_MACOS)
+    io_iterator_t iterator = IO_OBJECT_NULL;
+    if (IOServiceGetMatchingServices(MACH_PORT_NULL,
+                IOServiceMatching("IOAccelerator"),
+                &iterator) != KERN_SUCCESS ||
+            iterator == IO_OBJECT_NULL) {
+        m_gpuAvailable = false;
+        return false;
+    }
+    // Several accelerators can be present (for example an integrated Intel GPU
+    // next to a discrete AMD one), so report the busiest, like Task Manager.
+    double busiest = 0.0;
+    bool valid = false;
+    io_object_t accelerator = IO_OBJECT_NULL;
+    while ((accelerator = IOIteratorNext(iterator)) != IO_OBJECT_NULL) {
+        const double utilization = readAcceleratorUtilization(accelerator);
+        IOObjectRelease(accelerator);
+        if (utilization < 0.0) {
+            continue;
+        }
+        busiest = (std::max)(busiest, utilization);
+        valid = true;
+    }
+    IOObjectRelease(iterator);
+    m_gpuAvailable = valid;
+    if (valid) {
+        m_gpuUsage = busiest;
+    }
+    return valid;
 #else
     m_gpuAvailable = false;
     return false;
