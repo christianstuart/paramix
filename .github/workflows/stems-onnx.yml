@@ -26,6 +26,9 @@ jobs:
     name: Linux x64 + ONNX Runtime
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      CCACHE_MAXSIZE: 1G
+      CCACHE_COMPRESS: "true"
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -72,7 +75,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /home/runner/.cache/ccache
-          key: stems-ort-linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: stems-ort-linux-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             stems-ort-linux-
 
@@ -84,7 +87,10 @@ jobs:
       - name: Configure
         run: |
           cmake -S . -B build \
+            -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
+            -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG -g0" \
             -DQML=ON \
             -DSTEM_SEPARATION=ON
 
@@ -98,14 +104,18 @@ jobs:
 
       - name: Print compiler cache stats
         run: |
-          ccache --show-stats
+          ccache --show-stats --verbose
+          ccache -p --print-stats
+          ccache --show-stats --verbose >> "${GITHUB_STEP_SUMMARY}"
           ccache --cleanup
 
       - name: Save ccache cache
-        if: >-
-          github.event_name == 'push' &&
-          steps.ccache_restore.outputs.cache-hit != 'true'
+        # This workflow has no push trigger, so the previous
+        # `event_name == 'push'` condition could never be true and the cache
+        # was never written: every run compiled the backend tests cold
+        # (measured 36m48s). Save on every run instead; the run id keeps the
+        # key unique so the save cannot collide.
         uses: actions/cache/save@v4
         with:
           path: /home/runner/.cache/ccache
-          key: stems-ort-linux-${{ hashFiles('src/**', 'CMakeLists.txt', 'cmake/**') }}
+          key: stems-ort-linux-${{ github.run_id }}-${{ github.run_attempt }}
