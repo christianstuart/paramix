@@ -101,6 +101,9 @@ Last local run on a clean tree: **PASS**, one SKIP (no changed C++ files vs `ori
 
 ## 4. CI results
 
+> Historical: these timings predate the CI cache rework (#110, 2026-11-26). The current matrix
+> takes about 7–8 minutes warm; see `docs/ci-performance-plan.md` §2.3 for the measured numbers.
+
 Run [`43100769404`](https://github.com/christianstuart/paramix/actions/runs/43100769404) on
 `18c817b`, all jobs green.
 

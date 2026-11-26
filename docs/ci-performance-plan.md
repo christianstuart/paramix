@@ -610,21 +610,16 @@ when a job runs must preserve five reporting contexts:
 
 ## 10. Documentation touchpoints
 
-When each phase lands, update the docs that currently describe CI behavior so
-contributors are not working from stale advice:
+Done with this change:
 
-- `docs/parallel-work.md:162-171` — job list, "a full clean build takes ~20–40
-  minutes", and the "keep documentation-only changes in their own PR" note
-  (documentation-only PRs now skip the matrix automatically).
-- `docs/baseline-report.md` §4 — the 2026-11-11 timings are now historical;
-  add a pointer to this document.
-- `docs/agent-context.md` §5 — the buildenv-download trap gains "the archive is
-  now cached; a checksum mismatch still means a truncated transfer".
-- `AGENTS.md` needs no change; it contains no CI timing claims.
-
-To be filled in after the first measured run: the "after" table (per-step
-medians and maxima, cache hit rates from the job summaries) belongs in the PR
-description for this change and then in this document under §2.
+- `docs/parallel-work.md` — job list, warm/cold expectations, docs-only
+  behavior, the per-test timeout, the branch-dispatch command and the
+  measurement tool.
+- `docs/baseline-report.md` §4 — marked historical, with a pointer to §2.3.
+- `docs/agent-context.md` needed no change: it carries no CI timing claims, and
+  the buildenv-download trap lives in `docs/parallel-work.md` §6, where it was
+  updated.
+- `AGENTS.md` needs no change.
 
 
 ---
