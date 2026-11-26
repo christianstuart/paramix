@@ -578,6 +578,55 @@ jobs:
           path: /Users/runner/Library/Caches/ccache
           key: ccache-macos-x64-${{ github.run_id }}-${{ github.run_attempt }}
 
+  prune-caches:
+    name: Prune old compiler caches
+    # Runs only on main, after the matrix. Each main build saves one new
+    # ccache generation per platform; keeping only the newest keeps the
+    # repository cache (10 GB) below quota so the 8.2 GB of buildenv archives
+    # are never the eviction victim. PRs restore the newest entry by prefix, so
+    # deleting older generations costs them nothing.
+    needs:
+      - linux
+      - windows-x64
+      - macos-arm64
+      - macos-x64
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Delete superseded ccache generations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          before="$(gh cache list -R "${GITHUB_REPOSITORY}" --limit 100 --json id | jq length)"
+          gh cache list -R "${GITHUB_REPOSITORY}" --limit 100 \
+            --json id,key,createdAt,ref \
+            --jq '
+              [ .[]
+                | select(.ref == "refs/heads/main")
+                | select(.key | startswith("ccache-")) ]
+              | group_by(.key | sub("-[0-9]+-[0-9]+$"; ""))
+              | .[]
+              | sort_by(.createdAt) | reverse | .[1:]
+              | .[].id
+            ' | while IFS= read -r id; do
+            [ -n "$id" ] || continue
+            echo "deleting cache ${id}"
+            gh cache delete "${id}" -R "${GITHUB_REPOSITORY}"
+          done
+          after="$(gh cache list -R "${GITHUB_REPOSITORY}" --limit 100 --json id | jq length)"
+          echo "cache entries: ${before} -> ${after}"
+          {
+            echo "### Compiler cache pruning"
+            echo ""
+            echo "- entries before: ${before}"
+            echo "- entries after: ${after}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   windows-x64:
     name: Windows x64
     needs: changes
