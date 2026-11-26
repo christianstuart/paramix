@@ -414,12 +414,12 @@ between "build finished" and "check green".
 Set `CCACHE_MAXSIZE=1G` and `CCACHE_COMPRESS=true` in each job's `env:`. 0.5 GB
 observed working sets fit comfortably.
 
-Growth policy: every `main` build writes one entry, and old entries are dropped
-by LRU/quota, which is harmless because restore always takes the newest. If
-`gh cache list` ever shows the buildenv zip being evicted, add a prune step
-(`gh cache list --key <prefix>` + `gh cache delete`, needs `actions: write`) to
-keep the two newest per platform. It was left out of this change to avoid
-platform-specific shell in four jobs before the growth rate is known.
+Growth policy: every `main` build writes one generation per platform. A
+main-only `prune-caches` job, running after the matrix, deletes every generation
+except the newest, so the repository settles at ~8.9 GB — the 8.2 GB of buildenv
+archives plus one ccache generation — instead of drifting into quota eviction.
+PRs restore the newest entry by prefix, so removing older generations costs them
+nothing. The job needs `actions: write` and skips on pull requests.
 
 Measurement override: setting the repository variable `CI_CCACHE_BRANCH` to a
 branch name lets that branch's runs save the cache. It exists so a cache change
@@ -510,9 +510,10 @@ costs 14–46 minutes, a buildenv download costs 1.5–4 minutes at the median.
 The policy follows that ordering:
 
 1. Never cache an extracted buildenv (8–10 GB; it would evict everything).
-2. Cap each ccache at 1 GB (`CCACHE_MAXSIZE=1G`, compressed). Four platforms
-   ≈ 2 GB per generation; old generations age out by LRU. Add the prune step
-   from §2b if `gh cache list` shows pressure.
+2. Cap each ccache at 1 GB (`CCACHE_MAXSIZE=1G`, compressed). One generation
+   across the four platforms is ~0.63 GB (measured: Linux 58 MB, macOS 60–67 MB,
+   Windows 448 MB). The main-only prune job in §2b keeps only the newest
+   generation, holding the total at ~8.9 GB.
 3. Cache the macOS arm64 zip and the (smaller) Windows zip: ≈ 5–6 GB with
    ccache, comfortably inside quota.
 4. Cache the macOS x64 zip only while the total stays below ~9 GB. It is the
