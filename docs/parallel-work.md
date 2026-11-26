@@ -159,16 +159,30 @@ clang-format -i path/to/changed.cpp
 pre-commit run --files <changed files>
 ```
 
-CI runs five jobs: `checks`, `Linux x64`, `Windows x64`, `macOS arm64`, `macOS x86_64`.
+CI runs six jobs: `Classify changes`, `checks`, `Linux x64`, `Windows x64`, `macOS arm64`,
+`macOS x86_64`.
 
+- **`Classify changes` decides whether the matrix runs.** A change that touches only `docs/**`,
+  `res/qml/**`, `res/skins/**` or other non-build files skips the four build jobs; skipped jobs
+  still satisfy the five required checks. If the classification cannot run (root commit, force
+  push, missing base), everything builds.
 - **The clang-format gate checks changed C++ files only.** The imported tree is not wholly
   formatted, so a whole-tree check cannot pass; touching a legacy file means formatting that file.
-- **Linux runs 1 302 tests; 38 are upstream `DISABLED_` cases** — that is expected, not a failure.
-- **macOS jobs build but do not run tests**, matching upstream. Green there means "compiles".
+- **Linux runs the full suite (1 520 tests executed; 38 are upstream `DISABLED_` cases)** — that
+  is expected, not a failure. A single test is capped at 300 s (`ctest --timeout`), so a hang
+  fails the job instead of consuming it.
+- **macOS and Windows build but do not run tests**, matching upstream. Green there means
+  "compiles". They configure with `BUILD_TESTING=OFF` and `BUILD_BENCH=OFF`, so the test binary is
+  not built there at all.
 - **No `xvfb` is needed:** `src/test/main.cpp` sets `QT_QPA_PLATFORM=offscreen` itself.
-- A full clean build takes ~20–40 minutes; a push that touches no file under `src/**`,
-  `CMakeLists.txt` or `cmake/**` hits the ccache and finishes in minutes. Keep documentation-only
-  changes in their own PR.
+- **Warm runs take about 7–8 minutes; cold runs 30–45.** Each platform restores a compiler cache
+  saved by the latest `main` build, and the 3.7 GB dependency bundle is cached as an archive, so a
+  pull request does not re-download it. The first run after a compiler-flag change, and the first
+  run after merging, is cold.
+- **Running CI on a branch that has no pull request:** `gh workflow run ci.yml --ref <branch>`.
+  Pushes to contributor branches do not trigger the matrix by themselves; the PR does.
+- **Measuring a change:** `python3 tools/ci_timings.py --runs 20` prints per-step medians and
+  maxima. Rationale and current numbers: `docs/ci-performance-plan.md`.
 
 ---
 
@@ -176,8 +190,9 @@ CI runs five jobs: `checks`, `Linux x64`, `Windows x64`, `macOS arm64`, `macOS x
 
 1. **The 3.7 GB build environment can truncate.** `file(DOWNLOAD)` in `CMakeLists.txt` has no
    `STATUS` check, so a cut-off transfer appears as `SHA256 checksum mismatch`. The workflow now
-   pre-fetches with `curl --retry` and verifies; if you see that error locally, delete
-   `<BUILDENV_BASEPATH>/<name>.zip` and retry.
+   pre-fetches with `curl --retry` and verifies. CI additionally caches the archive as a zip
+   (`buildenv-<os>-<arch>-…`), so it only downloads when the pin in the buildenv script changes.
+   A mismatch still means the transfer was truncated; delete the zip or `.part` file and retry.
 2. **Do not create a local commit without setting an identity.** This repository has no global git
    identity on the owner's machine.
 3. **`docs/old-context.md` is a verbatim historical transcript.** It keeps British spelling and the
