@@ -1,8 +1,8 @@
 # CI performance plan — faster GitHub Actions runs
 
 **Date:** 2026-11-25
-**Status:** Phase 0, 1, 2 and 3c implemented in the working tree; awaiting the
-first CI run to validate and measure. Phase 3a/3b/3d are deferred.
+**Status:** merged in #110 (2026-11-26) and green on `main`. Phases 0, 1, 2 and
+3c are implemented and measured; 3a/3b/3d are deferred.
 **Scope:** `.github/workflows/ci.yml`, `.github/workflows/stems-onnx.yml`,
 `.github/workflows/nightly-ci.yml` (new), `tools/debian_buildenv.sh`,
 `tools/ci_timings.py` (new), `.github/workflows/qml-qt-api-guard.yml`
@@ -89,6 +89,31 @@ job durations from the jobs endpoint, not run spans.
 
 The `Stems ONNX` job measured separately: **36.8 min build**, every time
 (see §3.4).
+
+### 2.3 After: measured result
+
+Measured by running the same commit twice (a cold run, then a re-run that
+restores the caches), then confirmed on `main` after the merge:
+
+| Job | Baseline | Cold | **Warm** | ccache hits |
+|---|---|---|---|---|
+| Windows x64 | 17.8 min | 30.5 | **4.8** | 98.9% (980/991) |
+| macOS arm64 | 12.1 | 23.3 | **5.3** | 99.0% (983/993) |
+| macOS x86_64 | 15.3 | 44.7 | **7.1** | 99.5% (862/866) |
+| Linux x64 | 10.0 | 27.2 | **7.2** | 98.3% (1 134/1 154) |
+| Stems ONNX | 36.8 (build) | — | **2.0 (build)** | 98.3% (1 129/1 148) |
+
+Whole run: ~56 → ~25 runner-minutes, and wall clock ~20–23 → **7–14 minutes**
+(the spread is runner variance; macOS x86_64 is usually the critical path).
+
+The first run after the merge ([45890228471](https://github.com/christianstuart/paramix/actions/runs/45890228471),
+push to `main`) was cold and green: macOS arm64 28.3 min, Windows 33.1,
+Linux 33.7, macOS x86_64 45.8. That run seeded the `main` cache chain, so every
+subsequent pull request starts warm.
+
+Cold runs are slower than baseline on Windows because PCH is off; that is the
+trade that produces the 98.9% warm hit rate. Judge the change from the second
+run onward.
 
 ### 2.2 What is *not* slow
 
